@@ -1,0 +1,711 @@
+// Schéma de données de la plateforme Gestion Traiteurs.
+//
+// Conventions :
+// - Chaque table métier porte un `traiteurId` (isolation multi-tenant).
+// - Les relations obligatoires entre tables métier utilisent une clé étrangère
+//   composite (id, traiteurId) : la base refuse physiquement qu'une commande
+//   du traiteur A référence un client du traiteur B.
+// - Montants en centimes (Int). Taux de TVA en points de base (2000 = 20,00 %).
+// - Textes traduisibles en JSONB au format LocalizedText { fr, ar?, en? }
+//   (schéma Zod dans packages/shared).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────── Enums ───────────────────────────
+
+enum Role {
+  CLIENT
+  ADMIN_TRAITEUR
+  EMPLOYE
+  LIVREUR
+  SUPER_ADMIN // jamais porté par un Membership (contrainte CHECK), voir User.isSuperAdmin
+}
+
+enum SubscriptionPlan {
+  BASIQUE
+  PRO
+  PREMIUM
+}
+
+enum TraiteurStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum Locale {
+  fr
+  ar
+  en
+}
+
+enum DishUnit {
+  PER_PERSON
+  PER_PIECE
+  PER_PLATTER
+  PER_KG
+}
+
+enum PricingUnit {
+  FLAT
+  PER_PERSON
+  PER_HOUR
+  PER_UNIT
+}
+
+enum EventType {
+  WEDDING
+  ENGAGEMENT
+  BIRTHDAY
+  AQIQA
+  CORPORATE
+  OTHER
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING
+  QUOTED
+  CONFIRMED
+  IN_PREPARATION
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum LineItemType {
+  DISH
+  PACKAGE
+  EXTRA_SERVICE
+  CUSTOM
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  CHEQUE
+}
+
+enum PaymentType {
+  DEPOSIT
+  BALANCE
+  FULL
+  REFUND
+}
+
+enum StaffRole {
+  CHEF
+  COOK
+  WAITER
+  SUPERVISOR
+  DRIVER
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  CONFIRMED
+  DECLINED
+  DONE
+}
+
+enum ConversationChannel {
+  APP
+  WEB
+  WHATSAPP
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+}
+
+enum MessageSenderType {
+  CLIENT
+  STAFF
+  BOT
+  SYSTEM
+}
+
+// ─────────────────────── Tenant & identité ───────────────────────
+
+model Traiteur {
+  id            String           @id @default(uuid()) @db.Uuid
+  slug          String           @unique
+  name          String
+  email         String
+  phone         String
+  city          String?
+  logoUrl       String?
+  plan          SubscriptionPlan @default(BASIQUE)
+  status        TraiteurStatus   @default(TRIAL)
+  defaultLocale Locale           @default(fr)
+  currency      String           @default("MAD") @db.Char(3)
+  timezone      String           @default("Africa/Casablanca")
+
+  // Informations légales et fiscales (factures / devis)
+  isVatRegistered   Boolean @default(true)
+  defaultTaxRateBps Int     @default(2000) // 20 %
+  legalName         String?
+  ice               String? // Identifiant Commun de l'Entreprise
+  rcNumber          String? // Registre de commerce
+  taxId             String? // Identifiant fiscal (IF)
+  patenteNumber     String?
+  cnssNumber        String?
+  legalAddress      String?
+  bankName          String?
+  rib               String?
+  invoiceFooter     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships      Membership[]
+  clientAddresses  ClientAddress[]
+  rolePermissions  RolePermission[]
+  featureFlags     FeatureFlag[]
+  categories       Category[]
+  dishes           Dish[]
+  packages         Package[]
+  packageDishes    PackageDish[]
+  extraServices    ExtraService[]
+  orders           Order[]
+  orderItems       OrderItem[]
+  quotes           Quote[]
+  quoteLines       QuoteLine[]
+  payments         Payment[]
+  staffAssignments StaffAssignment[]
+  conversations    Conversation[]
+  messages         Message[]
+  reviews          Review[]
+}
+
+// Identité globale : un compte unique, utilisable chez plusieurs traiteurs.
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  phone        String     @unique // format E.164, ex. +212612345678
+  email        String?    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  locale       Locale     @default(fr)
+  status       UserStatus @default(ACTIVE)
+  isSuperAdmin Boolean    @default(false)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  memberships   Membership[]
+  refreshTokens RefreshToken[]
+}
+
+// Appartenance d'un utilisateur à un traiteur, avec son rôle.
+// Les données client propres au traiteur sont rattachées ici, jamais au User.
+model Membership {
+  id            String           @id @default(uuid()) @db.Uuid
+  traiteurId    String           @db.Uuid
+  userId        String           @db.Uuid
+  role          Role
+  status        MembershipStatus @default(ACTIVE)
+  internalNotes String? // notes du traiteur sur ce client / employé
+  tags          String[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  addresses        ClientAddress[]
+  clientOrders     Order[]           @relation("OrderClient")
+  assignments      StaffAssignment[]
+  paymentsRecorded Payment[]         @relation("PaymentRecordedBy")
+  conversations    Conversation[]    @relation("ConversationClient")
+  messagesSent     Message[]
+  reviews          Review[]
+  refreshTokens    RefreshToken[]
+
+  @@unique([userId, traiteurId]) // un seul rôle par utilisateur et par traiteur
+  @@unique([id, traiteurId])
+  @@index([traiteurId, role])
+}
+
+model ClientAddress {
+  id           String   @id @default(uuid()) @db.Uuid
+  traiteurId   String   @db.Uuid
+  membershipId String   @db.Uuid
+  label        String // ex. "Domicile", "Salle des fêtes"
+  address      String
+  city         String
+  latitude     Decimal? @db.Decimal(9, 6)
+  longitude    Decimal? @db.Decimal(9, 6)
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  traiteur   Traiteur   @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+
+  @@index([traiteurId, membershipId])
+}
+
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  membershipId String?   @db.Uuid // contexte traiteur actif (null pour SUPER_ADMIN)
+  familyId     String    @db.Uuid // chaîne de rotation, révoquée entièrement en cas de réutilisation
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @db.Uuid
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership Membership? @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+// ───────────────────── Permissions & offres ─────────────────────
+
+model Permission {
+  id               String   @id @default(uuid()) @db.Uuid
+  key              String   @unique // ex. "orders.read"
+  module           String // ex. "orders"
+  description      String
+  isTenantEditable Boolean  @default(true) // false = critique (facturation, abonnement)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+}
+
+// traiteurId = null  → matrice par défaut (gérée par le SUPER_ADMIN)
+// traiteurId renseigné → surcharge du traiteur, prioritaire sur le défaut
+model RolePermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  traiteurId   String?  @db.Uuid
+  role         Role
+  permissionId String   @db.Uuid
+  granted      Boolean  @default(true) // une surcharge peut accorder ou retirer
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  traiteur   Traiteur?  @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  // Unicité aussi garantie quand traiteurId est null : index NULLS NOT DISTINCT (migration SQL)
+  @@unique([traiteurId, role, permissionId])
+  @@index([role])
+}
+
+model FeatureFlag {
+  id         String   @id @default(uuid()) @db.Uuid
+  traiteurId String   @db.Uuid
+  key        String // ex. "quotes", "online_payment", "chatbot", "whatsapp"
+  enabled    Boolean  @default(false)
+  config     Json? // limites éventuelles, ex. { "maxStaff": 10 }
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+
+  @@unique([traiteurId, key])
+}
+
+// ─────────────────────────── Catalogue ───────────────────────────
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  traiteurId  String   @db.Uuid
+  slug        String
+  name        Json // LocalizedText
+  description Json? // LocalizedText
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  dishes   Dish[]
+
+  @@unique([traiteurId, slug])
+  @@index([traiteurId, sortOrder])
+}
+
+model Dish {
+  id          String   @id @default(uuid()) @db.Uuid
+  traiteurId  String   @db.Uuid
+  categoryId  String?  @db.Uuid
+  slug        String
+  name        Json // LocalizedText
+  description Json? // LocalizedText
+  priceHt     Int // centimes
+  taxRateBps  Int? // null = taux par défaut du traiteur
+  unit        DishUnit @default(PER_PERSON)
+  minQuantity Int      @default(1)
+  imageUrl    String?
+  allergens   String[]
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  traiteur      Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  category      Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  packageDishes PackageDish[]
+  orderItems    OrderItem[]
+  quoteLines    QuoteLine[]
+
+  @@unique([traiteurId, slug])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, categoryId])
+  @@index([traiteurId, isAvailable])
+}
+
+model Package {
+  id               String   @id @default(uuid()) @db.Uuid
+  traiteurId       String   @db.Uuid
+  slug             String
+  name             Json // LocalizedText
+  description      Json? // LocalizedText
+  pricePerPersonHt Int // centimes
+  taxRateBps       Int? // null = taux par défaut du traiteur
+  minGuests        Int      @default(1)
+  maxGuests        Int?
+  imageUrl         String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  traiteur   Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  dishes     PackageDish[]
+  orderItems OrderItem[]
+  quoteLines QuoteLine[]
+
+  @@unique([traiteurId, slug])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, isActive])
+}
+
+model PackageDish {
+  id         String   @id @default(uuid()) @db.Uuid
+  traiteurId String   @db.Uuid
+  packageId  String   @db.Uuid
+  dishId     String   @db.Uuid
+  quantity   Int      @default(1) // portions par personne ou nombre de pièces
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  package  Package  @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  dish     Dish     @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+
+  @@unique([packageId, dishId])
+  @@index([traiteurId])
+}
+
+model ExtraService {
+  id          String      @id @default(uuid()) @db.Uuid
+  traiteurId  String      @db.Uuid
+  name        Json // LocalizedText — ex. décoration, DJ, serveurs supplémentaires
+  description Json? // LocalizedText
+  priceHt     Int // centimes
+  taxRateBps  Int? // null = taux par défaut du traiteur
+  pricingUnit PricingUnit @default(FLAT)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  traiteur   Traiteur    @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  quoteLines QuoteLine[]
+
+  @@index([traiteurId, isActive])
+}
+
+// ─────────────────────────── Commandes ───────────────────────────
+
+model Order {
+  id                 String      @id @default(uuid()) @db.Uuid
+  traiteurId         String      @db.Uuid
+  reference          String // ex. CMD-2026-0001, unique par traiteur
+  clientId           String      @db.Uuid // Membership du client
+  eventType          EventType
+  eventDate          DateTime
+  eventEndDate       DateTime?
+  guestCount         Int
+  venueName          String?
+  venueAddress       String
+  city               String
+  latitude           Decimal?    @db.Decimal(9, 6)
+  longitude          Decimal?    @db.Decimal(9, 6)
+  status             OrderStatus @default(PENDING)
+  notes              String?
+  internalNotes      String?
+  // Totaux en centimes = somme des lignes
+  totalHt            Int         @default(0)
+  totalTax           Int         @default(0)
+  totalTtc           Int         @default(0)
+  depositAmount      Int         @default(0) // acompte demandé (TTC)
+  currency           String      @default("MAD") @db.Char(3)
+  confirmedAt        DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  traiteur         Traiteur          @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  client           Membership        @relation("OrderClient", fields: [clientId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+  items            OrderItem[]
+  quotes           Quote[]
+  payments         Payment[]
+  staffAssignments StaffAssignment[]
+  conversations    Conversation[]
+  review           Review?
+
+  @@unique([traiteurId, reference])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, status])
+  @@index([traiteurId, eventDate])
+  @@index([traiteurId, clientId])
+}
+
+model OrderItem {
+  id             String       @id @default(uuid()) @db.Uuid
+  traiteurId     String       @db.Uuid
+  orderId        String       @db.Uuid
+  itemType       LineItemType
+  dishId         String?      @db.Uuid
+  packageId      String?      @db.Uuid
+  extraServiceId String?      @db.Uuid
+  label          String // snapshot du libellé (langue du client) au moment de la commande
+  quantity       Int
+  unitPriceHt    Int // centimes
+  discountHt     Int          @default(0)
+  taxRateBps     Int // 0 si le traiteur n'est pas assujetti
+  totalHt        Int // unitPriceHt × quantity − discountHt
+  taxAmount      Int
+  totalTtc       Int
+  sortOrder      Int          @default(0)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  traiteur     Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  order        Order         @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  dish         Dish?         @relation(fields: [dishId], references: [id], onDelete: SetNull)
+  package      Package?      @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  extraService ExtraService? @relation(fields: [extraServiceId], references: [id], onDelete: SetNull)
+
+  @@index([traiteurId, orderId])
+}
+
+model Quote {
+  id         String      @id @default(uuid()) @db.Uuid
+  traiteurId String      @db.Uuid
+  orderId    String      @db.Uuid
+  reference  String // ex. DEV-2026-0001
+  version    Int         @default(1)
+  status     QuoteStatus @default(DRAFT)
+  totalHt    Int         @default(0)
+  totalTax   Int         @default(0)
+  totalTtc   Int         @default(0)
+  currency   String      @default("MAD") @db.Char(3)
+  validUntil DateTime?
+  sentAt     DateTime?
+  acceptedAt DateTime?
+  rejectedAt DateTime?
+  pdfUrl     String?
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  traiteur Traiteur    @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  order    Order       @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  lines    QuoteLine[]
+
+  @@unique([traiteurId, reference])
+  @@unique([orderId, version])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, status])
+}
+
+model QuoteLine {
+  id             String       @id @default(uuid()) @db.Uuid
+  traiteurId     String       @db.Uuid
+  quoteId        String       @db.Uuid
+  itemType       LineItemType
+  dishId         String?      @db.Uuid
+  packageId      String?      @db.Uuid
+  extraServiceId String?      @db.Uuid
+  label          String
+  quantity       Int
+  unitPriceHt    Int
+  discountHt     Int          @default(0)
+  taxRateBps     Int
+  totalHt        Int
+  taxAmount      Int
+  totalTtc       Int
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  traiteur     Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  quote        Quote         @relation(fields: [quoteId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  dish         Dish?         @relation(fields: [dishId], references: [id], onDelete: SetNull)
+  package      Package?      @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  extraService ExtraService? @relation(fields: [extraServiceId], references: [id], onDelete: SetNull)
+
+  @@index([traiteurId, quoteId])
+}
+
+model Payment {
+  id           String        @id @default(uuid()) @db.Uuid
+  traiteurId   String        @db.Uuid
+  orderId      String        @db.Uuid
+  amount       Int // centimes TTC
+  currency     String        @default("MAD") @db.Char(3)
+  type         PaymentType
+  method       PaymentMethod
+  status       PaymentStatus @default(PENDING)
+  provider     String? // ex. "cmi" (paiement en ligne, plus tard)
+  providerRef  String?
+  paidAt       DateTime?
+  recordedById String?       @db.Uuid // Membership de l'employé qui a saisi le paiement
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  traiteur   Traiteur    @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  order      Order       @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+  recordedBy Membership? @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([traiteurId, orderId])
+  @@index([traiteurId, status])
+}
+
+model StaffAssignment {
+  id           String           @id @default(uuid()) @db.Uuid
+  traiteurId   String           @db.Uuid
+  orderId      String           @db.Uuid
+  membershipId String           @db.Uuid
+  staffRole    StaffRole
+  status       AssignmentStatus @default(ASSIGNED)
+  startAt      DateTime
+  endAt        DateTime?
+  notes        String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  traiteur   Traiteur   @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  order      Order      @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+
+  @@unique([orderId, membershipId, staffRole])
+  @@index([traiteurId, membershipId, startAt])
+}
+
+// ─────────────────────── Messagerie & avis ───────────────────────
+
+model Conversation {
+  id            String              @id @default(uuid()) @db.Uuid
+  traiteurId    String              @db.Uuid
+  clientId      String?             @db.Uuid // Membership ; null si contact WhatsApp inconnu
+  orderId       String?             @db.Uuid
+  channel       ConversationChannel
+  externalId    String? // ex. numéro WhatsApp
+  status        ConversationStatus  @default(OPEN)
+  isBotActive   Boolean             @default(true)
+  lastMessageAt DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  traiteur Traiteur    @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  client   Membership? @relation("ConversationClient", fields: [clientId], references: [id], onDelete: SetNull)
+  order    Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  messages Message[]
+
+  @@unique([traiteurId, channel, externalId])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, status, lastMessageAt])
+}
+
+model Message {
+  id                 String            @id @default(uuid()) @db.Uuid
+  traiteurId         String            @db.Uuid
+  conversationId     String            @db.Uuid
+  senderType         MessageSenderType
+  senderMembershipId String?           @db.Uuid
+  content            String
+  metadata           Json?
+  externalId         String? // id du message WhatsApp
+  readAt             DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  traiteur         Traiteur     @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  conversation     Conversation @relation(fields: [conversationId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  senderMembership Membership?  @relation(fields: [senderMembershipId], references: [id], onDelete: SetNull)
+
+  @@index([traiteurId, conversationId, createdAt])
+}
+
+model Review {
+  id          String    @id @default(uuid()) @db.Uuid
+  traiteurId  String    @db.Uuid
+  orderId     String    @db.Uuid
+  clientId    String    @db.Uuid // Membership du client
+  rating      Int // 1 à 5 (contrainte CHECK en SQL + validation Zod)
+  comment     String?
+  isPublished Boolean   @default(false)
+  reply       String?
+  repliedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  traiteur Traiteur   @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  order    Order      @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  client   Membership @relation(fields: [clientId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+
+  @@unique([orderId, traiteurId]) // un avis par commande
+  @@index([traiteurId, isPublished])
+}

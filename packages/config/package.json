@@ -1,0 +1,28 @@
+{
+  "name": "@traiteur/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Configurations partagées : TypeScript, ESLint, Prettier",
+  "exports": {
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/nest": "./eslint/nest.js",
+    "./eslint/next": "./eslint/next.js",
+    "./eslint/expo": "./eslint/expo.js",
+    "./prettier": "./prettier/index.js",
+    "./tsconfig/*": "./tsconfig/*"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint-config-expo": "~57.0.2",
+    "eslint-config-next": "16.4.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "typescript-eslint": "^8.71.1"
+  },
+  "peerDependencies": {
+    "eslint": "^9.39.0",
+    "prettier": "^3.9.0",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Traiteur Équipe",
+    "slug": "traiteur-staff",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "traiteur-staff",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "ma.gestiontraiteurs.staff",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "ma.gestiontraiteurs.staff"
+    },
+    "web": {
+      "output": "single"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

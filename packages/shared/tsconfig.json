@@ -1,0 +1,8 @@
+{
+  "extends": "@traiteur/config/tsconfig/library.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src", "vitest.config.ts"]
+}

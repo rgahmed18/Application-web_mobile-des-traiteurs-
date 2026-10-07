@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Traiteur Client",
+    "slug": "traiteur-client",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "traiteur-client",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "ma.gestiontraiteurs.client",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "ma.gestiontraiteurs.client"
+    },
+    "web": {
+      "output": "single"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -1,0 +1,18 @@
+packages:
+  - apps/*
+  - packages/*
+
+# pnpm 10 bloque les scripts d'installation par défaut : on autorise uniquement
+# les paquets qui en ont réellement besoin (binaires natifs, moteurs Prisma).
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/engines'
+  - esbuild
+  - prisma
+  - unrs-resolver
+
+# Scripts inutiles : binaires précompilés déjà fournis ou télémétrie.
+ignoredBuiltDependencies:
+  - '@parcel/watcher'
+  - '@scarf/scarf'
+  - msgpackr-extract
