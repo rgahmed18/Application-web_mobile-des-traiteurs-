@@ -1,17 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  computeCatalogPrices,
   computeDocumentTotals,
   computeLineAmounts,
   computeTax,
   divideAndRound,
+  extractHt,
   formatTaxRate,
   htToTtc,
+  type LineAmounts,
   negateLineAmounts,
   resolveTaxRate,
-  toStoredPriceHt,
   ttcToHt,
 } from './money';
+
+const MOROCCAN_RATES = [700, 1000, 1400, 2000] as const;
+
+/** Invariant commun à toute ligne : HT + TVA = TTC exactement. */
+function expectBalanced(line: LineAmounts): void {
+  expect(line.totalHt + line.taxAmount).toBe(line.totalTtc);
+}
 
 describe('divideAndRound', () => {
   it('arrondit au plus proche', () => {
@@ -31,153 +40,295 @@ describe('divideAndRound', () => {
   });
 });
 
-describe('computeTax / htToTtc', () => {
-  it('calcule la TVA à 20 %', () => {
+describe('conversions HT / TTC', () => {
+  it('calcule la TVA à 20 % et l’arrondit au centime', () => {
     expect(computeTax(10_000, 2000)).toBe(2_000);
+    expect(computeTax(33, 2000)).toBe(7); // 6,6 → 7
+    expect(computeTax(32, 2000)).toBe(6); // 6,4 → 6
     expect(htToTtc(10_000, 2000)).toBe(12_000);
   });
 
-  it('arrondit la TVA au centime', () => {
-    // 0,25 € × 20 % = 0,05 ; 0,33 × 20 % = 0,066 → 0,07 ; 0,32 × 20 % = 0,064 → 0,06
-    expect(computeTax(25, 2000)).toBe(5);
-    expect(computeTax(33, 2000)).toBe(7);
-    expect(computeTax(32, 2000)).toBe(6);
+  it('extrait la part HT d’un TTC', () => {
+    expect(extractHt(12_000, 2000)).toBe(10_000);
+    expect(extractHt(3_000_000, 2000)).toBe(2_500_000);
+    expect(extractHt(1_200, 700)).toBe(1_121); // 11,2149… → 11,21
   });
 
-  it('gère les taux réduits marocains (7, 10, 14 %)', () => {
-    expect(computeTax(10_000, 700)).toBe(700);
-    expect(computeTax(10_000, 1000)).toBe(1_000);
-    expect(computeTax(10_000, 1400)).toBe(1_400);
-  });
-
-  it('retourne 0 pour un taux nul', () => {
-    expect(htToTtc(12_345, 0)).toBe(12_345);
+  it('ttcToHt choisit le HT qui redonne le TTC quand il existe', () => {
+    expect(ttcToHt(35_000, 2000)).toBe(29_167);
+    expect(htToTtc(ttcToHt(35_000, 2000), 2000)).toBe(35_000);
   });
 
   it('refuse un taux hors bornes', () => {
     expect(() => computeTax(100, -1)).toThrow(RangeError);
-    expect(() => computeTax(100, 10_001)).toThrow(RangeError);
+    expect(() => extractHt(100, 10_001)).toThrow(RangeError);
   });
 });
 
-describe('ttcToHt', () => {
-  it('convertit un TTC rond en HT', () => {
-    expect(ttcToHt(12_000, 2000)).toBe(10_000);
-    expect(ttcToHt(35_000, 2000)).toBe(29_167);
+describe('computeCatalogPrices', () => {
+  it('en mode TTC, conserve le TTC saisi et dérive le HT', () => {
+    expect(computeCatalogPrices(25_000, 'TTC', 2000)).toEqual({
+      priceHt: 20_833,
+      priceTtc: 25_000,
+    });
   });
 
-  it('à 20 % (et 0 %), redonne exactement tout TTC multiple de 0,10 MAD (0 à 10 000 MAD)', () => {
-    // À 20 %, seuls les TTC impairs multiples de 3 centimes (0,03 ; 0,09…) sont inatteignables.
-    for (const rate of [0, 2000]) {
-      for (let ttc = 0; ttc <= 1_000_000; ttc += 10) {
-        if (htToTtc(ttcToHt(ttc, rate), rate) !== ttc) {
-          throw new Error(`TTC ${ttc} non restitué au taux ${rate}`);
-        }
-      }
-    }
+  it('en mode TTC, conserve le TTC saisi même s’il n’est pas atteignable depuis un HT', () => {
+    // 12,00 MAD à 7 % : aucun HT entier ne redonne 12,00 ; le TTC saisi fait foi.
+    expect(computeCatalogPrices(1_200, 'TTC', 700).priceTtc).toBe(1_200);
   });
 
-  it('aux taux réduits, l’écart de restitution ne dépasse jamais un centime', () => {
-    // Limite connue du stockage HT en centimes : à 10 %, 12,00 TTC → 10,91 HT → 12,00 ;
-    // mais à 7 %, 12,00 TTC n'est atteint par aucun HT entier (11,21 → 11,99 ; 11,22 → 12,01).
-    for (const rate of [700, 1000, 1400]) {
-      for (let ttc = 0; ttc <= 1_000_000; ttc += 1) {
-        if (Math.abs(htToTtc(ttcToHt(ttc, rate), rate) - ttc) > 1) {
-          throw new Error(`Écart > 1 centime pour TTC ${ttc} au taux ${rate}`);
-        }
-      }
-    }
-    expect(htToTtc(ttcToHt(1_200, 700), 700)).toBe(1_199);
+  it('en mode HT, conserve le HT saisi et dérive le TTC', () => {
+    expect(computeCatalogPrices(10_000, 'HT', 2000)).toEqual({ priceHt: 10_000, priceTtc: 12_000 });
   });
 
-  it('reste à un centime près pour un TTC inatteignable', () => {
-    // 0,03 MAD à 20 % : HT 0,02 → 0,02 ; HT 0,03 → 0,04. Aucun HT ne donne 0,03.
-    const ht = ttcToHt(3, 2000);
-    expect(Math.abs(htToTtc(ht, 2000) - 3)).toBeLessThanOrEqual(1);
+  it('refuse un prix négatif', () => {
+    expect(() => computeCatalogPrices(-1, 'TTC', 2000)).toThrow(RangeError);
   });
 });
 
-describe('toStoredPriceHt / resolveTaxRate', () => {
-  it('stocke tel quel un prix saisi HT', () => {
-    expect(toStoredPriceHt(10_000, 'HT', 2000)).toBe(10_000);
-  });
-
-  it('convertit un prix saisi TTC', () => {
-    expect(toStoredPriceHt(12_000, 'TTC', 2000)).toBe(10_000);
-  });
+describe('resolveTaxRate', () => {
+  const settings = { isVatRegistered: true, defaultTaxRateBps: 2000 };
 
   it('applique un taux nul si le traiteur n’est pas assujetti', () => {
-    expect(resolveTaxRate({ isVatRegistered: false, defaultTaxRateBps: 2000 }, 1000)).toBe(0);
+    expect(resolveTaxRate({ ...settings, isVatRegistered: false }, 1000)).toBe(0);
   });
 
   it('privilégie le taux de l’article, sinon le taux par défaut', () => {
-    const settings = { isVatRegistered: true, defaultTaxRateBps: 2000 };
     expect(resolveTaxRate(settings, 1000)).toBe(1000);
     expect(resolveTaxRate(settings, null)).toBe(2000);
   });
 });
 
-describe('computeLineAmounts', () => {
-  it('calcule HT, TVA et TTC d’une ligne', () => {
-    expect(computeLineAmounts({ unitPriceHt: 15_000, quantity: 3, taxRateBps: 2000 })).toEqual({
-      unitPriceHt: 15_000,
-      quantity: 3,
-      discountHt: 0,
+describe('computeLineAmounts — mode TTC', () => {
+  it('250 MAD TTC × 120 invités = exactement 30 000,00 MAD', () => {
+    const line = computeLineAmounts({
+      priceMode: 'TTC',
+      unitPriceTtc: 25_000,
+      quantity: 120,
       taxRateBps: 2000,
+    });
+    expect(line.totalTtc).toBe(3_000_000);
+    expect(line.totalHt).toBe(2_500_000);
+    expect(line.taxAmount).toBe(500_000);
+    expectBalanced(line);
+  });
+
+  it.each(MOROCCAN_RATES)(
+    'à %i pb, aucun écart d’un centime : TTC = PU TTC × quantité pour tous les prix ronds',
+    (rate) => {
+      for (let dirhams = 1; dirhams <= 2_000; dirhams += 1) {
+        for (const quantity of [1, 7, 120]) {
+          const line = computeLineAmounts({
+            priceMode: 'TTC',
+            unitPriceTtc: dirhams * 100,
+            quantity,
+            taxRateBps: rate,
+          });
+          if (line.totalTtc !== dirhams * 100 * quantity) {
+            throw new Error(`Écart pour ${dirhams} MAD × ${quantity} au taux ${rate}`);
+          }
+          if (line.totalHt + line.taxAmount !== line.totalTtc) {
+            throw new Error(`Ligne déséquilibrée pour ${dirhams} MAD × ${quantity}`);
+          }
+        }
+      }
+    },
+  );
+
+  it('12,00 MAD TTC à 7 % reste 12,00 (ce que le stockage HT seul ne permettait pas)', () => {
+    const line = computeLineAmounts({
+      priceMode: 'TTC',
+      unitPriceTtc: 1_200,
+      quantity: 1,
+      taxRateBps: 700,
+    });
+    expect(line).toMatchObject({ totalTtc: 1_200, totalHt: 1_121, taxAmount: 79 });
+  });
+
+  it('applique la remise TTC avant d’extraire le HT', () => {
+    const line = computeLineAmounts({
+      priceMode: 'TTC',
+      unitPriceTtc: 800_000,
+      quantity: 1,
+      discountTtc: 100_000,
+      taxRateBps: 2000,
+    });
+    expect(line.totalTtc).toBe(700_000);
+    expect(line.totalHt).toBe(583_333);
+    expect(line.taxAmount).toBe(116_667);
+    expectBalanced(line);
+  });
+
+  it('fournit le HT unitaire et la remise HT à titre indicatif', () => {
+    const line = computeLineAmounts({
+      priceMode: 'TTC',
+      unitPriceTtc: 25_000,
+      quantity: 2,
+      discountTtc: 1_200,
+      taxRateBps: 2000,
+    });
+    expect(line.unitPriceHt).toBe(20_833);
+    expect(line.discountHt).toBe(1_000);
+  });
+
+  it('refuse une remise supérieure à la ligne ou de signe opposé', () => {
+    const base = { priceMode: 'TTC', unitPriceTtc: 1_000, quantity: 1, taxRateBps: 2000 } as const;
+    expect(() => computeLineAmounts({ ...base, discountTtc: 1_001 })).toThrow(RangeError);
+    expect(() => computeLineAmounts({ ...base, discountTtc: -1 })).toThrow(RangeError);
+  });
+});
+
+describe('computeLineAmounts — mode HT', () => {
+  it('calcule HT, TVA et TTC d’une ligne', () => {
+    expect(
+      computeLineAmounts({ priceMode: 'HT', unitPriceHt: 15_000, quantity: 3, taxRateBps: 2000 }),
+    ).toEqual({
+      priceMode: 'HT',
+      quantity: 3,
+      taxRateBps: 2000,
+      unitPriceHt: 15_000,
+      unitPriceTtc: 18_000,
+      discountHt: 0,
+      discountTtc: 0,
       totalHt: 45_000,
       taxAmount: 9_000,
       totalTtc: 54_000,
     });
   });
 
-  it('applique la remise avant la TVA', () => {
+  it.each(MOROCCAN_RATES)('à %i pb, HT = PU HT × quantité pour tous les prix ronds', (rate) => {
+    for (let dirhams = 1; dirhams <= 2_000; dirhams += 1) {
+      const line = computeLineAmounts({
+        priceMode: 'HT',
+        unitPriceHt: dirhams * 100,
+        quantity: 120,
+        taxRateBps: rate,
+      });
+      if (line.totalHt !== dirhams * 100 * 120 || line.totalHt + line.taxAmount !== line.totalTtc) {
+        throw new Error(`Écart pour ${dirhams} MAD HT au taux ${rate}`);
+      }
+    }
+  });
+
+  it('applique la remise HT avant la TVA', () => {
     const line = computeLineAmounts({
+      priceMode: 'HT',
       unitPriceHt: 10_000,
       quantity: 2,
       discountHt: 1_000,
       taxRateBps: 2000,
     });
-    expect(line.totalHt).toBe(19_000);
-    expect(line.taxAmount).toBe(3_800);
-    expect(line.totalTtc).toBe(22_800);
+    expect(line).toMatchObject({ totalHt: 19_000, taxAmount: 3_800, totalTtc: 22_800 });
   });
 
   it('arrondit la TVA sur le total de la ligne, pas sur le prix unitaire', () => {
     // 3 × 0,33 = 0,99 HT → TVA 0,198 → 0,20 (et non 3 × 0,07 = 0,21)
-    const line = computeLineAmounts({ unitPriceHt: 33, quantity: 3, taxRateBps: 2000 });
-    expect(line.taxAmount).toBe(20);
-    expect(line.totalTtc).toBe(119);
+    const line = computeLineAmounts({
+      priceMode: 'HT',
+      unitPriceHt: 33,
+      quantity: 3,
+      taxRateBps: 2000,
+    });
+    expect(line).toMatchObject({ taxAmount: 20, totalTtc: 119 });
   });
 
-  it('refuse une quantité nulle et une remise supérieure à la ligne', () => {
-    expect(() => computeLineAmounts({ unitPriceHt: 100, quantity: 0, taxRateBps: 0 })).toThrow();
+  it('refuse une quantité nulle', () => {
     expect(() =>
-      computeLineAmounts({ unitPriceHt: 100, quantity: 1, discountHt: 101, taxRateBps: 0 }),
-    ).toThrow();
+      computeLineAmounts({ priceMode: 'HT', unitPriceHt: 100, quantity: 0, taxRateBps: 0 }),
+    ).toThrow(RangeError);
+  });
+});
+
+describe('avoirs (montants négatifs)', () => {
+  it('une ligne négative en mode TTC reste équilibrée et symétrique', () => {
+    const line = computeLineAmounts({
+      priceMode: 'TTC',
+      unitPriceTtc: -25_000,
+      quantity: 120,
+      taxRateBps: 2000,
+    });
+    expect(line).toMatchObject({ totalTtc: -3_000_000, totalHt: -2_500_000, taxAmount: -500_000 });
   });
 
-  it('gère les lignes négatives d’un avoir', () => {
-    const line = computeLineAmounts({ unitPriceHt: -33, quantity: 3, taxRateBps: 2000 });
-    expect(line).toMatchObject({ totalHt: -99, taxAmount: -20, totalTtc: -119 });
+  it('negateLineAmounts conserve le mode et inverse tous les montants', () => {
+    const line = computeLineAmounts({
+      priceMode: 'TTC',
+      unitPriceTtc: 1_200,
+      quantity: 3,
+      discountTtc: 100,
+      taxRateBps: 700,
+    });
+    const negated = negateLineAmounts(line);
+    expect(negated.priceMode).toBe('TTC');
+    expect(negated.totalTtc).toBe(-line.totalTtc);
+    expect(negated.discountTtc).toBe(-line.discountTtc);
+    expectBalanced(negated);
+  });
+
+  it('un avoir total annule exactement la facture, dans les deux modes', () => {
+    const invoiceLines = [
+      computeLineAmounts({
+        priceMode: 'TTC',
+        unitPriceTtc: 25_000,
+        quantity: 120,
+        taxRateBps: 2000,
+      }),
+      computeLineAmounts({ priceMode: 'TTC', unitPriceTtc: 1_200, quantity: 7, taxRateBps: 700 }),
+      computeLineAmounts({
+        priceMode: 'TTC',
+        unitPriceTtc: 800_000,
+        quantity: 1,
+        discountTtc: 100_000,
+        taxRateBps: 1000,
+      }),
+    ];
+    const invoice = computeDocumentTotals(invoiceLines);
+    const creditNote = computeDocumentTotals(invoiceLines.map(negateLineAmounts));
+    expect(invoice.totalTtc + creditNote.totalTtc).toBe(0);
+    expect(invoice.totalHt + creditNote.totalHt).toBe(0);
+    expect(invoice.totalTax + creditNote.totalTax).toBe(0);
   });
 });
 
 describe('computeDocumentTotals', () => {
-  it('additionne les lignes arrondies et ventile la TVA par taux', () => {
+  it('additionne les lignes et produit le récapitulatif de TVA par taux', () => {
     const lines = [
-      computeLineAmounts({ unitPriceHt: 33, quantity: 3, taxRateBps: 2000 }),
-      computeLineAmounts({ unitPriceHt: 33, quantity: 3, taxRateBps: 2000 }),
-      computeLineAmounts({ unitPriceHt: 10_000, quantity: 1, taxRateBps: 1000 }),
+      computeLineAmounts({
+        priceMode: 'TTC',
+        unitPriceTtc: 25_000,
+        quantity: 120,
+        taxRateBps: 2000,
+      }),
+      computeLineAmounts({ priceMode: 'TTC', unitPriceTtc: 1_100, quantity: 10, taxRateBps: 1000 }),
+      computeLineAmounts({ priceMode: 'TTC', unitPriceTtc: 48_000, quantity: 1, taxRateBps: 2000 }),
     ];
-    expect(computeDocumentTotals(lines)).toEqual({
-      totalHt: 10_198,
-      totalTax: 1_040,
-      totalTtc: 11_238,
+    const totals = computeDocumentTotals(lines);
+    expect(totals).toEqual({
+      totalHt: 2_550_000,
+      totalTax: 509_000,
+      totalTtc: 3_059_000,
       taxBreakdown: [
         { taxRateBps: 1000, baseHt: 10_000, taxAmount: 1_000 },
-        { taxRateBps: 2000, baseHt: 198, taxAmount: 40 },
+        { taxRateBps: 2000, baseHt: 2_540_000, taxAmount: 508_000 },
       ],
     });
+  });
+
+  it('le total TTC est la somme des TTC des lignes, pas un recalcul depuis le total HT', () => {
+    // Trois lignes à 0,10 MAD TTC (20 %) : chaque ligne vaut 0,08 HT + 0,02 TVA.
+    const line = computeLineAmounts({
+      priceMode: 'TTC',
+      unitPriceTtc: 10,
+      quantity: 1,
+      taxRateBps: 2000,
+    });
+    const totals = computeDocumentTotals([line, line, line]);
+    expect(totals.totalTtc).toBe(30);
+    expect(totals.totalHt).toBe(24);
+    expect(totals.totalTax).toBe(6);
+    // Recalculer depuis le total HT donnerait 24 × 1,2 = 28,8 → 29 : un centime perdu.
+    expect(htToTtc(totals.totalHt, 2000)).toBe(29);
   });
 
   it('retourne des totaux nuls pour un document vide', () => {
@@ -187,22 +338,6 @@ describe('computeDocumentTotals', () => {
       totalTtc: 0,
       taxBreakdown: [],
     });
-  });
-
-  it('un avoir total annule exactement la facture', () => {
-    const invoiceLines = [
-      computeLineAmounts({ unitPriceHt: 29_167, quantity: 150, taxRateBps: 2000 }),
-      computeLineAmounts({
-        unitPriceHt: 125_000,
-        quantity: 1,
-        discountHt: 5_000,
-        taxRateBps: 2000,
-      }),
-    ];
-    const invoice = computeDocumentTotals(invoiceLines);
-    const creditNote = computeDocumentTotals(invoiceLines.map(negateLineAmounts));
-    expect(invoice.totalTtc + creditNote.totalTtc).toBe(0);
-    expect(invoice.totalTax + creditNote.totalTax).toBe(0);
   });
 });
 

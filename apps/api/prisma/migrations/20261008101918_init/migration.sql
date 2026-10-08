@@ -8,7 +8,7 @@ CREATE TYPE "SubscriptionPlan" AS ENUM ('BASIQUE', 'PRO', 'PREMIUM');
 CREATE TYPE "TraiteurStatus" AS ENUM ('TRIAL', 'ACTIVE', 'SUSPENDED', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "PriceEntryMode" AS ENUM ('HT', 'TTC');
+CREATE TYPE "PriceMode" AS ENUM ('HT', 'TTC');
 
 -- CreateEnum
 CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'DISABLED');
@@ -87,7 +87,7 @@ CREATE TABLE "Traiteur" (
     "maxEventsPerDay" INTEGER,
     "isVatRegistered" BOOLEAN NOT NULL DEFAULT true,
     "defaultTaxRateBps" INTEGER NOT NULL DEFAULT 2000,
-    "priceEntryMode" "PriceEntryMode" NOT NULL DEFAULT 'TTC',
+    "priceEntryMode" "PriceMode" NOT NULL DEFAULT 'TTC',
     "legalName" TEXT,
     "ice" TEXT,
     "rcNumber" TEXT,
@@ -276,6 +276,7 @@ CREATE TABLE "Dish" (
     "name" JSONB NOT NULL,
     "description" JSONB,
     "priceHt" INTEGER NOT NULL,
+    "priceTtc" INTEGER NOT NULL,
     "taxRateBps" INTEGER,
     "unit" "DishUnit" NOT NULL DEFAULT 'PER_PERSON',
     "minQuantity" INTEGER NOT NULL DEFAULT 1,
@@ -296,6 +297,7 @@ CREATE TABLE "Package" (
     "name" JSONB NOT NULL,
     "description" JSONB,
     "pricePerPersonHt" INTEGER NOT NULL,
+    "pricePerPersonTtc" INTEGER NOT NULL,
     "taxRateBps" INTEGER,
     "minGuests" INTEGER NOT NULL DEFAULT 1,
     "maxGuests" INTEGER,
@@ -328,6 +330,7 @@ CREATE TABLE "ExtraService" (
     "name" JSONB NOT NULL,
     "description" JSONB,
     "priceHt" INTEGER NOT NULL,
+    "priceTtc" INTEGER NOT NULL,
     "taxRateBps" INTEGER,
     "pricingUnit" "PricingUnit" NOT NULL DEFAULT 'FLAT',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -353,6 +356,7 @@ CREATE TABLE "Order" (
     "latitude" DECIMAL(9,6),
     "longitude" DECIMAL(9,6),
     "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
+    "priceMode" "PriceMode" NOT NULL,
     "notes" TEXT,
     "internalNotes" TEXT,
     "totalHt" INTEGER NOT NULL DEFAULT 0,
@@ -379,9 +383,12 @@ CREATE TABLE "OrderItem" (
     "packageId" UUID,
     "extraServiceId" UUID,
     "label" TEXT NOT NULL,
+    "priceMode" "PriceMode" NOT NULL,
     "quantity" INTEGER NOT NULL,
     "unitPriceHt" INTEGER NOT NULL,
+    "unitPriceTtc" INTEGER NOT NULL,
     "discountHt" INTEGER NOT NULL DEFAULT 0,
+    "discountTtc" INTEGER NOT NULL DEFAULT 0,
     "taxRateBps" INTEGER NOT NULL,
     "totalHt" INTEGER NOT NULL,
     "taxAmount" INTEGER NOT NULL,
@@ -402,6 +409,7 @@ CREATE TABLE "Quote" (
     "reference" TEXT NOT NULL,
     "version" INTEGER NOT NULL DEFAULT 1,
     "status" "QuoteStatus" NOT NULL DEFAULT 'DRAFT',
+    "priceMode" "PriceMode" NOT NULL,
     "totalHt" INTEGER NOT NULL DEFAULT 0,
     "totalTax" INTEGER NOT NULL DEFAULT 0,
     "totalTtc" INTEGER NOT NULL DEFAULT 0,
@@ -428,9 +436,12 @@ CREATE TABLE "QuoteLine" (
     "packageId" UUID,
     "extraServiceId" UUID,
     "label" TEXT NOT NULL,
+    "priceMode" "PriceMode" NOT NULL,
     "quantity" INTEGER NOT NULL,
     "unitPriceHt" INTEGER NOT NULL,
+    "unitPriceTtc" INTEGER NOT NULL,
     "discountHt" INTEGER NOT NULL DEFAULT 0,
+    "discountTtc" INTEGER NOT NULL DEFAULT 0,
     "taxRateBps" INTEGER NOT NULL,
     "totalHt" INTEGER NOT NULL,
     "taxAmount" INTEGER NOT NULL,
@@ -456,9 +467,11 @@ CREATE TABLE "Invoice" (
     "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "dueDate" TIMESTAMP(3),
     "currency" CHAR(3) NOT NULL DEFAULT 'MAD',
+    "priceMode" "PriceMode" NOT NULL,
     "totalHt" INTEGER NOT NULL,
     "totalTax" INTEGER NOT NULL,
     "totalTtc" INTEGER NOT NULL,
+    "taxBreakdown" JSONB NOT NULL,
     "sellerSnapshot" JSONB NOT NULL,
     "buyerSnapshot" JSONB NOT NULL,
     "notes" TEXT,
@@ -476,9 +489,12 @@ CREATE TABLE "InvoiceLine" (
     "invoiceId" UUID NOT NULL,
     "itemType" "LineItemType" NOT NULL,
     "label" TEXT NOT NULL,
+    "priceMode" "PriceMode" NOT NULL,
     "quantity" INTEGER NOT NULL,
     "unitPriceHt" INTEGER NOT NULL,
+    "unitPriceTtc" INTEGER NOT NULL,
     "discountHt" INTEGER NOT NULL DEFAULT 0,
+    "discountTtc" INTEGER NOT NULL DEFAULT 0,
     "taxRateBps" INTEGER NOT NULL,
     "totalHt" INTEGER NOT NULL,
     "taxAmount" INTEGER NOT NULL,
@@ -637,7 +653,7 @@ CREATE UNIQUE INDEX "Permission_key_key" ON "Permission"("key");
 CREATE INDEX "RolePermission_role_idx" ON "RolePermission"("role");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "RolePermission_traiteurId_role_permissionId_key" ON "RolePermission"("traiteurId", "role", "permissionId") NULLS NOT DISTINCT;
+CREATE UNIQUE INDEX "RolePermission_traiteurId_role_permissionId_key" ON "RolePermission"("traiteurId", "role", "permissionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "FeatureFlag_traiteurId_key_key" ON "FeatureFlag"("traiteurId", "key");
@@ -706,6 +722,9 @@ CREATE UNIQUE INDEX "Order_traiteurId_reference_key" ON "Order"("traiteurId", "r
 CREATE UNIQUE INDEX "Order_id_traiteurId_key" ON "Order"("id", "traiteurId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Order_id_traiteurId_priceMode_key" ON "Order"("id", "traiteurId", "priceMode");
+
+-- CreateIndex
 CREATE INDEX "OrderItem_traiteurId_orderId_idx" ON "OrderItem"("traiteurId", "orderId");
 
 -- CreateIndex
@@ -719,6 +738,9 @@ CREATE UNIQUE INDEX "Quote_orderId_version_key" ON "Quote"("orderId", "version")
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Quote_id_traiteurId_key" ON "Quote"("id", "traiteurId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Quote_id_traiteurId_priceMode_key" ON "Quote"("id", "traiteurId", "priceMode");
 
 -- CreateIndex
 CREATE INDEX "QuoteLine_traiteurId_quoteId_idx" ON "QuoteLine"("traiteurId", "quoteId");
@@ -737,6 +759,9 @@ CREATE UNIQUE INDEX "Invoice_traiteurId_type_year_sequenceNumber_key" ON "Invoic
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Invoice_id_traiteurId_key" ON "Invoice"("id", "traiteurId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Invoice_id_traiteurId_priceMode_key" ON "Invoice"("id", "traiteurId", "priceMode");
 
 -- CreateIndex
 CREATE INDEX "InvoiceLine_traiteurId_invoiceId_idx" ON "InvoiceLine"("traiteurId", "invoiceId");
@@ -847,7 +872,7 @@ ALTER TABLE "Order" ADD CONSTRAINT "Order_clientId_traiteurId_fkey" FOREIGN KEY 
 ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_traiteurId_fkey" FOREIGN KEY ("traiteurId") REFERENCES "Traiteur"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_traiteurId_fkey" FOREIGN KEY ("orderId", "traiteurId") REFERENCES "Order"("id", "traiteurId") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_traiteurId_priceMode_fkey" FOREIGN KEY ("orderId", "traiteurId", "priceMode") REFERENCES "Order"("id", "traiteurId", "priceMode") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_dishId_traiteurId_fkey" FOREIGN KEY ("dishId", "traiteurId") REFERENCES "Dish"("id", "traiteurId") ON DELETE SET NULL ("dishId") ON UPDATE CASCADE;
@@ -868,7 +893,7 @@ ALTER TABLE "Quote" ADD CONSTRAINT "Quote_orderId_traiteurId_fkey" FOREIGN KEY (
 ALTER TABLE "QuoteLine" ADD CONSTRAINT "QuoteLine_traiteurId_fkey" FOREIGN KEY ("traiteurId") REFERENCES "Traiteur"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "QuoteLine" ADD CONSTRAINT "QuoteLine_quoteId_traiteurId_fkey" FOREIGN KEY ("quoteId", "traiteurId") REFERENCES "Quote"("id", "traiteurId") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "QuoteLine" ADD CONSTRAINT "QuoteLine_quoteId_traiteurId_priceMode_fkey" FOREIGN KEY ("quoteId", "traiteurId", "priceMode") REFERENCES "Quote"("id", "traiteurId", "priceMode") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "QuoteLine" ADD CONSTRAINT "QuoteLine_dishId_traiteurId_fkey" FOREIGN KEY ("dishId", "traiteurId") REFERENCES "Dish"("id", "traiteurId") ON DELETE SET NULL ("dishId") ON UPDATE CASCADE;
@@ -892,7 +917,7 @@ ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_originalInvoiceId_traiteurId_fkey"
 ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_traiteurId_fkey" FOREIGN KEY ("traiteurId") REFERENCES "Traiteur"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_invoiceId_traiteurId_fkey" FOREIGN KEY ("invoiceId", "traiteurId") REFERENCES "Invoice"("id", "traiteurId") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_invoiceId_traiteurId_priceMode_fkey" FOREIGN KEY ("invoiceId", "traiteurId", "priceMode") REFERENCES "Invoice"("id", "traiteurId", "priceMode") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_traiteurId_fkey" FOREIGN KEY ("traiteurId") REFERENCES "Traiteur"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -947,10 +972,16 @@ ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_actorUserId_fkey" FOREIGN KEY ("
 
 -- ═══════════════════════════════════════════════════════════════════════
 -- SQL ajouté manuellement (non exprimable dans le schéma Prisma).
--- Prisma ne gère ni les CHECK ni les triggers : il ne cherchera pas à les supprimer.
--- Les clés « ON DELETE SET NULL ("colonne") » et l'index NULLS NOT DISTINCT
--- ont été réécrits plus haut dans ce fichier.
+-- Prisma ne gère ni les CHECK ni les triggers et ne cherchera pas à les supprimer
+-- (vérifié par `pnpm --filter @traiteur/api db:check-drift`).
+-- Les clés « ON DELETE SET NULL ("colonne") » plus haut ont été réécrites par
+-- prisma/scripts/patch-set-null.mjs.
 -- ═══════════════════════════════════════════════════════════════════════
+
+-- ─── Matrice de permissions par défaut : unicité même quand traiteurId est NULL ───
+DROP INDEX "RolePermission_traiteurId_role_permissionId_key";
+CREATE UNIQUE INDEX "RolePermission_traiteurId_role_permissionId_key"
+  ON "RolePermission"("traiteurId", "role", "permissionId") NULLS NOT DISTINCT;
 
 -- ─── Identité & accès ───
 ALTER TABLE "Membership" ADD CONSTRAINT "Membership_role_not_super_admin_check"
@@ -968,61 +999,151 @@ ALTER TABLE "Traiteur" ADD CONSTRAINT "Traiteur_maxEventsPerDay_check"
 ALTER TABLE "DocumentSequence" ADD CONSTRAINT "DocumentSequence_values_check"
   CHECK ("lastValue" >= 0 AND "year" BETWEEN 2000 AND 9999);
 
--- ─── Catalogue : prix positifs, taux valides ───
+-- ─── Catalogue : prix HT et TTC positifs, TTC jamais inférieur au HT, taux valides ───
 ALTER TABLE "Dish" ADD CONSTRAINT "Dish_prices_check"
-  CHECK ("priceHt" >= 0 AND ("taxRateBps" IS NULL OR "taxRateBps" BETWEEN 0 AND 10000) AND "minQuantity" > 0);
+  CHECK ("priceHt" >= 0 AND "priceTtc" >= "priceHt"
+         AND ("taxRateBps" IS NULL OR "taxRateBps" BETWEEN 0 AND 10000) AND "minQuantity" > 0);
 ALTER TABLE "Package" ADD CONSTRAINT "Package_prices_check"
-  CHECK ("pricePerPersonHt" >= 0 AND ("taxRateBps" IS NULL OR "taxRateBps" BETWEEN 0 AND 10000)
+  CHECK ("pricePerPersonHt" >= 0 AND "pricePerPersonTtc" >= "pricePerPersonHt"
+         AND ("taxRateBps" IS NULL OR "taxRateBps" BETWEEN 0 AND 10000)
          AND "minGuests" > 0 AND ("maxGuests" IS NULL OR "maxGuests" >= "minGuests"));
 ALTER TABLE "ExtraService" ADD CONSTRAINT "ExtraService_prices_check"
-  CHECK ("priceHt" >= 0 AND ("taxRateBps" IS NULL OR "taxRateBps" BETWEEN 0 AND 10000));
+  CHECK ("priceHt" >= 0 AND "priceTtc" >= "priceHt"
+         AND ("taxRateBps" IS NULL OR "taxRateBps" BETWEEN 0 AND 10000));
 ALTER TABLE "PackageDish" ADD CONSTRAINT "PackageDish_quantity_check" CHECK ("quantity" > 0);
 
--- ─── Commandes ───
+-- ─── Lignes de commande, devis et facture : règle de calcul selon le mode ───
+-- HT  : totalHt = PU HT × qté − remise HT ; TVA = arrondi(totalHt × taux)
+-- TTC : totalTtc = PU TTC × qté − remise TTC ; totalHt = arrondi(totalTtc / (1 + taux))
+-- Toujours : totalTtc = totalHt + TVA. round(numeric) arrondit le demi en s'éloignant de zéro,
+-- comme divideAndRound() de packages/shared/src/money.
+ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_amounts_check" CHECK (
+  "quantity" > 0 AND "taxRateBps" BETWEEN 0 AND 10000
+  AND "totalTtc" = "totalHt" + "taxAmount"
+  AND CASE "priceMode"
+    WHEN 'HT' THEN "totalHt" = "unitPriceHt"::bigint * "quantity" - "discountHt"
+                   AND "taxAmount" = round("totalHt"::numeric * "taxRateBps" / 10000)
+    ELSE "totalTtc" = "unitPriceTtc"::bigint * "quantity" - "discountTtc"
+         AND "totalHt" = round("totalTtc"::numeric * 10000 / (10000 + "taxRateBps"))
+  END
+);
+ALTER TABLE "QuoteLine" ADD CONSTRAINT "QuoteLine_amounts_check" CHECK (
+  "quantity" > 0 AND "taxRateBps" BETWEEN 0 AND 10000
+  AND "totalTtc" = "totalHt" + "taxAmount"
+  AND CASE "priceMode"
+    WHEN 'HT' THEN "totalHt" = "unitPriceHt"::bigint * "quantity" - "discountHt"
+                   AND "taxAmount" = round("totalHt"::numeric * "taxRateBps" / 10000)
+    ELSE "totalTtc" = "unitPriceTtc"::bigint * "quantity" - "discountTtc"
+         AND "totalHt" = round("totalTtc"::numeric * 10000 / (10000 + "taxRateBps"))
+  END
+);
+ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_amounts_check" CHECK (
+  "quantity" > 0 AND "taxRateBps" BETWEEN 0 AND 10000
+  AND "totalTtc" = "totalHt" + "taxAmount"
+  AND CASE "priceMode"
+    WHEN 'HT' THEN "totalHt" = "unitPriceHt"::bigint * "quantity" - "discountHt"
+                   AND "taxAmount" = round("totalHt"::numeric * "taxRateBps" / 10000)
+    ELSE "totalTtc" = "unitPriceTtc"::bigint * "quantity" - "discountTtc"
+         AND "totalHt" = round("totalTtc"::numeric * 10000 / (10000 + "taxRateBps"))
+  END
+);
+
+-- ─── Commandes, devis, paiements, avis ───
 ALTER TABLE "Order" ADD CONSTRAINT "Order_amounts_check"
   CHECK ("guestCount" > 0 AND "depositAmount" >= 0 AND "totalTtc" = "totalHt" + "totalTax");
-
--- Cohérence arithmétique des lignes (calculs : packages/shared/src/money)
-ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_amounts_check"
-  CHECK ("quantity" > 0 AND "taxRateBps" BETWEEN 0 AND 10000
-         AND "totalHt" = "unitPriceHt"::bigint * "quantity" - "discountHt"
-         AND "totalTtc" = "totalHt" + "taxAmount");
-ALTER TABLE "QuoteLine" ADD CONSTRAINT "QuoteLine_amounts_check"
-  CHECK ("quantity" > 0 AND "taxRateBps" BETWEEN 0 AND 10000
-         AND "totalHt" = "unitPriceHt"::bigint * "quantity" - "discountHt"
-         AND "totalTtc" = "totalHt" + "taxAmount");
-ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_amounts_check"
-  CHECK ("quantity" > 0 AND "taxRateBps" BETWEEN 0 AND 10000
-         AND "totalHt" = "unitPriceHt"::bigint * "quantity" - "discountHt"
-         AND "totalTtc" = "totalHt" + "taxAmount");
-
 ALTER TABLE "Quote" ADD CONSTRAINT "Quote_amounts_check"
   CHECK ("version" > 0 AND "totalTtc" = "totalHt" + "totalTax");
-
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_amount_check" CHECK ("amount" > 0);
-
 ALTER TABLE "Review" ADD CONSTRAINT "Review_rating_check" CHECK ("rating" BETWEEN 1 AND 5);
+
+-- ─── Mode de prix figé à la création d'une commande ou d'un devis ───
+-- (les factures sont entièrement immuables, voir plus bas)
+CREATE FUNCTION price_mode_frozen() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW."priceMode" IS DISTINCT FROM OLD."priceMode" THEN
+    RAISE EXCEPTION '% % : le mode de prix est figé à la création du document', TG_TABLE_NAME, OLD."id";
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "Order_price_mode_frozen"
+  BEFORE UPDATE OF "priceMode" ON "Order"
+  FOR EACH ROW EXECUTE FUNCTION price_mode_frozen();
+CREATE TRIGGER "Quote_price_mode_frozen"
+  BEFORE UPDATE OF "priceMode" ON "Quote"
+  FOR EACH ROW EXECUTE FUNCTION price_mode_frozen();
+
+-- ─── Totaux d'une commande ou d'un devis = somme de ses lignes (fin de transaction) ───
+-- Arguments : table du document, table des lignes, colonne de référence au document.
+CREATE FUNCTION document_check_totals() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+  doc_table  text := TG_ARGV[0];
+  line_table text := TG_ARGV[1];
+  fk_column  text := TG_ARGV[2];
+  doc_id     uuid;
+  consistent boolean;
+BEGIN
+  IF TG_TABLE_NAME = doc_table THEN
+    doc_id := NEW."id";
+  ELSIF TG_OP = 'DELETE' THEN
+    doc_id := (to_jsonb(OLD) ->> fk_column)::uuid;
+  ELSE
+    doc_id := (to_jsonb(NEW) ->> fk_column)::uuid;
+  END IF;
+
+  EXECUTE format(
+    'SELECT d."totalHt" = COALESCE(SUM(l."totalHt"), 0)
+        AND d."totalTax" = COALESCE(SUM(l."taxAmount"), 0)
+        AND d."totalTtc" = COALESCE(SUM(l."totalTtc"), 0)
+       FROM %I d LEFT JOIN %I l ON l.%I = d."id"
+      WHERE d."id" = $1
+      GROUP BY d."id"',
+    doc_table, line_table, fk_column)
+  INTO consistent USING doc_id;
+
+  -- NULL : document supprimé dans la même transaction, rien à vérifier
+  IF consistent IS FALSE THEN
+    RAISE EXCEPTION '% % : totaux incohérents avec la somme des lignes', doc_table, doc_id
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER "Order_totals"
+  AFTER INSERT OR UPDATE ON "Order" DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION document_check_totals('Order', 'OrderItem', 'orderId');
+CREATE CONSTRAINT TRIGGER "OrderItem_totals"
+  AFTER INSERT OR UPDATE OR DELETE ON "OrderItem" DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION document_check_totals('Order', 'OrderItem', 'orderId');
+CREATE CONSTRAINT TRIGGER "Quote_totals"
+  AFTER INSERT OR UPDATE ON "Quote" DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION document_check_totals('Quote', 'QuoteLine', 'quoteId');
+CREATE CONSTRAINT TRIGGER "QuoteLine_totals"
+  AFTER INSERT OR UPDATE OR DELETE ON "QuoteLine" DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION document_check_totals('Quote', 'QuoteLine', 'quoteId');
 
 -- ─── Factures & avoirs ───
 -- Facture : montants positifs, pas de référence. Avoir : montants négatifs, référence obligatoire.
 ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_type_amounts_check"
   CHECK (
-    "totalTtc" = "totalHt" + "totalTax" AND "sequenceNumber" > 0 AND (
+    "totalTtc" = "totalHt" + "totalTax" AND "sequenceNumber" > 0
+    AND jsonb_typeof("taxBreakdown") = 'array' AND (
       ("type" = 'INVOICE' AND "originalInvoiceId" IS NULL AND "totalTtc" >= 0) OR
       ("type" = 'CREDIT_NOTE' AND "originalInvoiceId" IS NOT NULL AND "totalTtc" <= 0)
     )
   );
 
 -- Immuabilité : une facture émise ne peut être ni modifiée (sauf pdfUrl) ni supprimée.
+-- Code d'erreur par défaut de RAISE (P0001) : Prisma transmet le message tel quel.
 CREATE FUNCTION invoice_prevent_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
-    RAISE EXCEPTION 'Facture % immuable : suppression interdite', OLD."id"
-      USING ERRCODE = 'restrict_violation';
+    RAISE EXCEPTION 'Facture % immuable : suppression interdite', OLD."id";
   END IF;
   IF (to_jsonb(NEW) - 'pdfUrl' - 'updatedAt') IS DISTINCT FROM (to_jsonb(OLD) - 'pdfUrl' - 'updatedAt') THEN
-    RAISE EXCEPTION 'Facture % immuable : toute correction passe par un avoir', OLD."id"
-      USING ERRCODE = 'restrict_violation';
+    RAISE EXCEPTION 'Facture % immuable : toute correction passe par un avoir', OLD."id";
   END IF;
   RETURN NEW;
 END;
@@ -1034,7 +1155,7 @@ CREATE TRIGGER "Invoice_immutable"
 
 CREATE FUNCTION invoice_line_prevent_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  RAISE EXCEPTION 'Ligne de facture % immuable', OLD."id" USING ERRCODE = 'restrict_violation';
+  RAISE EXCEPTION 'Ligne de facture % immuable', OLD."id";
 END;
 $$;
 
@@ -1042,14 +1163,15 @@ CREATE TRIGGER "InvoiceLine_immutable"
   BEFORE UPDATE OR DELETE ON "InvoiceLine"
   FOR EACH ROW EXECUTE FUNCTION invoice_line_prevent_mutation();
 
--- Vérification différée (en fin de transaction) : au moins une ligne, totaux = somme des lignes,
--- un avoir référence une facture (pas un autre avoir). Comme les totaux ne peuvent plus être
--- modifiés après coup, ajouter une ligne à une facture existante est aussi impossible.
+-- Vérification différée (en fin de transaction) : au moins une ligne, totaux et récapitulatif
+-- de TVA par taux égaux aux sommes des lignes, un avoir référence une facture (pas un avoir).
+-- Comme les totaux ne peuvent plus être modifiés, ajouter une ligne après coup est impossible.
 CREATE FUNCTION invoice_check_consistency() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
-  target_id uuid;
-  invoice   record;
-  sums      record;
+  target_id          uuid;
+  invoice            record;
+  sums               record;
+  expected_breakdown jsonb;
 BEGIN
   IF TG_TABLE_NAME = 'Invoice' THEN
     target_id := NEW."id";
@@ -1057,7 +1179,7 @@ BEGIN
     target_id := NEW."invoiceId";
   END IF;
 
-  SELECT "type", "totalHt", "totalTax", "totalTtc", "originalInvoiceId"
+  SELECT "type", "totalHt", "totalTax", "totalTtc", "taxBreakdown", "originalInvoiceId"
     INTO invoice FROM "Invoice" WHERE "id" = target_id;
 
   SELECT COUNT(*) AS line_count,
@@ -1066,11 +1188,24 @@ BEGIN
          COALESCE(SUM("totalTtc"), 0) AS ttc
     INTO sums FROM "InvoiceLine" WHERE "invoiceId" = target_id;
 
+  SELECT COALESCE(
+           jsonb_agg(jsonb_build_object('taxRateBps', rate, 'baseHt', base_ht, 'taxAmount', tax)
+                     ORDER BY rate),
+           '[]'::jsonb)
+    INTO expected_breakdown
+    FROM (SELECT "taxRateBps" AS rate, SUM("totalHt") AS base_ht, SUM("taxAmount") AS tax
+            FROM "InvoiceLine" WHERE "invoiceId" = target_id
+           GROUP BY "taxRateBps") AS by_rate;
+
   IF sums.line_count = 0 THEN
     RAISE EXCEPTION 'Facture % sans ligne', target_id USING ERRCODE = 'check_violation';
   END IF;
   IF invoice."totalHt" <> sums.ht OR invoice."totalTax" <> sums.tax OR invoice."totalTtc" <> sums.ttc THEN
     RAISE EXCEPTION 'Facture % : totaux incohérents avec les lignes', target_id
+      USING ERRCODE = 'check_violation';
+  END IF;
+  IF invoice."taxBreakdown" <> expected_breakdown THEN
+    RAISE EXCEPTION 'Facture % : récapitulatif de TVA incohérent avec les lignes', target_id
       USING ERRCODE = 'check_violation';
   END IF;
   IF invoice."type" = 'CREDIT_NOTE' AND NOT EXISTS (

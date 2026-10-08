@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
 import { PrismaPg } from '@prisma/adapter-pg';
-import { computeDocumentTotals, computeLineAmounts } from '@traiteur/shared';
+import {
+  computeDocumentTotals,
+  computeLineAmounts,
+  type LineAmounts,
+  type LineInput,
+  type PriceMode,
+} from '@traiteur/shared';
 
 import { PrismaClient } from '../../src/generated/prisma/client';
 import { getTestDatabaseUrl } from './test-database-url';
@@ -41,16 +47,18 @@ export async function createTenant(prisma: PrismaClient): Promise<TestTenant> {
   return { traiteurId: traiteur.id, clientMembershipId: membership.id };
 }
 
+/** Commande vide (totaux à zéro) dans le mode demandé. */
 export async function createOrder(
   prisma: PrismaClient,
   tenant: TestTenant,
-  reference = `CMD-${randomUUID().slice(0, 8)}`,
+  options: { reference?: string; priceMode?: PriceMode } = {},
 ) {
   return prisma.order.create({
     data: {
       traiteurId: tenant.traiteurId,
       clientId: tenant.clientMembershipId,
-      reference,
+      reference: options.reference ?? `CMD-${randomUUID().slice(0, 8)}`,
+      priceMode: options.priceMode ?? 'TTC',
       eventType: 'WEDDING',
       eventDate: new Date('2026-12-12T18:00:00Z'),
       guestCount: 100,
@@ -60,26 +68,44 @@ export async function createOrder(
   });
 }
 
-/** Lignes et totaux cohérents, calculés avec la logique partagée. */
-export function buildInvoiceAmounts(sign: 1 | -1 = 1) {
-  const lines = [
-    computeLineAmounts({ unitPriceHt: sign * 29_167, quantity: 100, taxRateBps: 2000 }),
-    computeLineAmounts({ unitPriceHt: sign * 150_000, quantity: 1, taxRateBps: 2000 }),
+/** Colonnes d'une ligne (sans priceMode : recopié depuis le document en création imbriquée). */
+export function toLineRow(line: LineAmounts, index = 0) {
+  return {
+    itemType: 'CUSTOM' as const,
+    label: `Ligne ${index + 1}`,
+    quantity: line.quantity,
+    unitPriceHt: line.unitPriceHt,
+    unitPriceTtc: line.unitPriceTtc,
+    discountHt: line.discountHt,
+    discountTtc: line.discountTtc,
+    taxRateBps: line.taxRateBps,
+    totalHt: line.totalHt,
+    taxAmount: line.taxAmount,
+    totalTtc: line.totalTtc,
+    sortOrder: index,
+  };
+}
+
+/** Lignes d'exemple calculées avec la logique partagée (deux taux de TVA). */
+export function sampleLines(priceMode: PriceMode = 'TTC', sign: 1 | -1 = 1): LineAmounts[] {
+  const make = (unitPrice: number, quantity: number, taxRateBps: number): LineInput =>
+    priceMode === 'TTC'
+      ? { priceMode, unitPriceTtc: sign * unitPrice, quantity, taxRateBps }
+      : { priceMode, unitPriceHt: sign * unitPrice, quantity, taxRateBps };
+  return [
+    computeLineAmounts(make(25_000, 120, 2000)),
+    computeLineAmounts(make(1_500, 120, 1000)),
+    computeLineAmounts(make(800_000, 1, 2000)),
   ];
+}
+
+/** Lignes, totaux et récapitulatif de TVA d'une facture cohérente. */
+export function buildInvoiceAmounts(priceMode: PriceMode = 'TTC', sign: 1 | -1 = 1) {
+  const lines = sampleLines(priceMode, sign);
   const totals = computeDocumentTotals(lines);
   return {
-    lines: lines.map((line, index) => ({
-      itemType: 'CUSTOM' as const,
-      label: `Ligne ${index + 1}`,
-      quantity: line.quantity,
-      unitPriceHt: line.unitPriceHt,
-      discountHt: line.discountHt,
-      taxRateBps: line.taxRateBps,
-      totalHt: line.totalHt,
-      taxAmount: line.taxAmount,
-      totalTtc: line.totalTtc,
-      sortOrder: index,
-    })),
+    lines: lines.map(toLineRow),
     totals: { totalHt: totals.totalHt, totalTax: totals.totalTax, totalTtc: totals.totalTtc },
+    taxBreakdown: totals.taxBreakdown.map((entry) => ({ ...entry })),
   };
 }

@@ -12,8 +12,11 @@ import {
   getDefaultFeatureFlags,
   type LineAmounts,
   type LocalizedText,
+  type CatalogPrices,
+  computeCatalogPrices,
+  type PriceMode,
   PERMISSIONS,
-  toStoredPriceHt,
+  unitPriceFor,
 } from '@traiteur/shared';
 
 import {
@@ -33,9 +36,11 @@ export const DEMO_PASSWORD = 'Password123!';
 const TAX_RATE = 2000; // 20 %
 const DEMO_ORDER_MARKER = 'Commande de démonstration (seed)';
 
-/** Prix saisis TTC par le traiteur (mode TTC), en dirhams. */
+/** Montant en dirhams → centimes. */
 const mad = (amount: number) => Math.round(amount * 100);
-const priceHt = (ttcMad: number) => toStoredPriceHt(mad(ttcMad), 'TTC', TAX_RATE);
+/** Le traiteur de démo saisit ses prix TTC : le TTC est conservé, le HT est dérivé. */
+const catalogPrices = (ttcMad: number, taxRateBps = TAX_RATE): CatalogPrices =>
+  computeCatalogPrices(mad(ttcMad), 'TTC', taxRateBps);
 
 // ─────────────────────── Permissions ───────────────────────
 
@@ -266,6 +271,8 @@ interface DishSeed {
   name: LocalizedText;
   description?: LocalizedText;
   ttc: number;
+  /** Taux propre au plat (sinon taux par défaut du traiteur). */
+  taxRateBps?: number;
   unit?: DishUnit;
   minQuantity?: number;
   allergens?: string[];
@@ -360,6 +367,7 @@ const DISHES: DishSeed[] = [
     category: 'boissons',
     name: { fr: 'Jus de fruits frais', ar: 'عصير فواكه طازجة' },
     ttc: 15,
+    taxRateBps: 1000, // exemple de taux réduit : 10 %
   },
 ];
 
@@ -443,7 +451,8 @@ async function seedCatalog(traiteurId: string) {
     const data = {
       categoryId: categoryIds.get(dish.category) ?? null,
       name: dish.name,
-      priceHt: priceHt(dish.ttc),
+      ...catalogPrices(dish.ttc, dish.taxRateBps),
+      taxRateBps: dish.taxRateBps ?? null,
       unit: dish.unit ?? 'PER_PERSON',
       minQuantity: dish.minQuantity ?? 1,
       allergens: dish.allergens ?? [],
@@ -461,7 +470,8 @@ async function seedCatalog(traiteurId: string) {
     const data = {
       name: pkg.name,
       description: pkg.description,
-      pricePerPersonHt: priceHt(pkg.ttcPerPerson),
+      pricePerPersonHt: catalogPrices(pkg.ttcPerPerson).priceHt,
+      pricePerPersonTtc: catalogPrices(pkg.ttcPerPerson).priceTtc,
       minGuests: pkg.minGuests,
       maxGuests: pkg.maxGuests,
     };
@@ -484,7 +494,7 @@ async function seedCatalog(traiteurId: string) {
   }
 
   for (const extra of EXTRA_SERVICES) {
-    const data = { name: extra.name, priceHt: priceHt(extra.ttc), pricingUnit: extra.pricingUnit };
+    const data = { name: extra.name, ...catalogPrices(extra.ttc), pricingUnit: extra.pricingUnit };
     await prisma.extraService.upsert({
       where: { id: extra.id },
       update: data,
@@ -503,6 +513,7 @@ async function seedCatalog(traiteurId: string) {
 interface DemoLine extends LineAmounts {
   itemType: LineItemType;
   label: string;
+  dishId?: string;
   packageId?: string;
   extraServiceId?: string;
 }
@@ -510,6 +521,7 @@ interface DemoLine extends LineAmounts {
 async function seedDemoOrder(
   traiteur: Awaited<ReturnType<typeof seedTraiteur>>,
   memberships: Map<DemoUserKey, string>,
+  dishIds: Map<string, string>,
   packageIds: Map<string, string>,
 ): Promise<void> {
   const clientId = memberships.get('client');
@@ -517,7 +529,8 @@ async function seedDemoOrder(
   const employeeId = memberships.get('employee');
   const driverId = memberships.get('driver');
   const packageId = packageIds.get('formule-fiancailles');
-  if (!clientId || !adminId || !employeeId || !driverId || !packageId) {
+  const juiceId = dishIds.get('jus-frais');
+  if (!clientId || !adminId || !employeeId || !driverId || !packageId || !juiceId) {
     throw new Error('Données de démonstration incomplètes');
   }
 
@@ -532,43 +545,76 @@ async function seedDemoOrder(
   const guests = 120;
   const [decoration, waiter] = EXTRA_SERVICES;
   if (!decoration || !waiter) throw new Error('Services de démonstration manquants');
+
+  // Le mode de prix du traiteur est figé sur chaque document créé.
+  const priceMode: PriceMode = traiteur.priceEntryMode;
+  const line = (prices: CatalogPrices, quantity: number, taxRateBps: number, discount = 0) =>
+    computeLineAmounts(
+      priceMode === 'TTC'
+        ? {
+            priceMode,
+            unitPriceTtc: unitPriceFor(prices, priceMode),
+            quantity,
+            discountTtc: discount,
+            taxRateBps,
+          }
+        : {
+            priceMode,
+            unitPriceHt: unitPriceFor(prices, priceMode),
+            quantity,
+            discountHt: discount,
+            taxRateBps,
+          },
+    );
+
   const lines: DemoLine[] = [
     {
       itemType: 'PACKAGE',
       label: 'Formule Fiançailles',
       packageId,
-      ...computeLineAmounts({ unitPriceHt: priceHt(250), quantity: guests, taxRateBps: TAX_RATE }),
+      ...line(catalogPrices(250), guests, TAX_RATE), // 250 MAD × 120 = 30 000,00 MAD TTC
+    },
+    {
+      itemType: 'DISH',
+      label: 'Jus de fruits frais',
+      dishId: juiceId,
+      ...line(catalogPrices(15, 1000), guests, 1000),
     },
     {
       itemType: 'EXTRA_SERVICE',
       label: 'Serveur supplémentaire (par soirée)',
       extraServiceId: waiter.id,
-      ...computeLineAmounts({ unitPriceHt: priceHt(400), quantity: 4, taxRateBps: TAX_RATE }),
+      ...line(catalogPrices(400), 4, TAX_RATE),
     },
     {
       itemType: 'EXTRA_SERVICE',
       label: 'Décoration florale de la salle',
       extraServiceId: decoration.id,
-      ...computeLineAmounts({
-        unitPriceHt: priceHt(8000),
-        quantity: 1,
-        discountHt: priceHt(1000), // geste commercial de 1 000 MAD TTC
-        taxRateBps: TAX_RATE,
-      }),
+      // geste commercial de 1 000 MAD TTC
+      ...line(catalogPrices(8000), 1, TAX_RATE, catalogPrices(1000).priceTtc),
     },
   ];
   const totals = computeDocumentTotals(lines);
-  const toRow = (line: DemoLine, index: number) => ({
-    itemType: line.itemType,
-    label: line.label,
-    quantity: line.quantity,
-    unitPriceHt: line.unitPriceHt,
-    discountHt: line.discountHt,
-    taxRateBps: line.taxRateBps,
-    totalHt: line.totalHt,
-    taxAmount: line.taxAmount,
-    totalTtc: line.totalTtc,
+  // Le mode de la ligne est recopié depuis le document par la clé composite : pas de priceMode ici.
+  const toRow = (row: DemoLine, index: number) => ({
+    itemType: row.itemType,
+    label: row.label,
+    quantity: row.quantity,
+    unitPriceHt: row.unitPriceHt,
+    unitPriceTtc: row.unitPriceTtc,
+    discountHt: row.discountHt,
+    discountTtc: row.discountTtc,
+    taxRateBps: row.taxRateBps,
+    totalHt: row.totalHt,
+    taxAmount: row.taxAmount,
+    totalTtc: row.totalTtc,
     sortOrder: index,
+  });
+  const toCatalogRow = (row: DemoLine, index: number) => ({
+    ...toRow(row, index),
+    dishId: row.dishId ?? null,
+    packageId: row.packageId ?? null,
+    extraServiceId: row.extraServiceId ?? null,
   });
 
   const eventDate = new Date('2026-11-21T19:00:00+01:00');
@@ -588,6 +634,7 @@ async function seedDemoOrder(
         venueAddress: '8, avenue Hassan II',
         city: 'Casablanca',
         status: 'CONFIRMED',
+        priceMode,
         confirmedAt: new Date(),
         notes: 'Prévoir une table d’honneur pour 10 personnes.',
         internalNotes: DEMO_ORDER_MARKER,
@@ -596,11 +643,7 @@ async function seedDemoOrder(
         totalTtc: totals.totalTtc,
         depositAmount,
         items: {
-          create: lines.map((line, index) => ({
-            ...toRow(line, index),
-            packageId: line.packageId ?? null,
-            extraServiceId: line.extraServiceId ?? null,
-          })),
+          create: lines.map(toCatalogRow),
         },
       },
     });
@@ -612,6 +655,7 @@ async function seedDemoOrder(
         orderId: created.id,
         reference: quoteNumber.reference,
         status: 'ACCEPTED',
+        priceMode,
         totalHt: totals.totalHt,
         totalTax: totals.totalTax,
         totalTtc: totals.totalTtc,
@@ -619,11 +663,7 @@ async function seedDemoOrder(
         sentAt: new Date(),
         acceptedAt: new Date(),
         lines: {
-          create: lines.map((line, index) => ({
-            ...toRow(line, index),
-            packageId: line.packageId ?? null,
-            extraServiceId: line.extraServiceId ?? null,
-          })),
+          create: lines.map(toCatalogRow),
         },
       },
     });
@@ -640,9 +680,11 @@ async function seedDemoOrder(
         number: invoiceNumber.reference,
         year: invoiceNumber.year,
         sequenceNumber: invoiceNumber.value,
+        priceMode,
         totalHt: totals.totalHt,
         totalTax: totals.totalTax,
         totalTtc: totals.totalTtc,
+        taxBreakdown: totals.taxBreakdown.map((entry) => ({ ...entry })),
         dueDate: eventDate,
         sellerSnapshot: {
           legalName: traiteur.legalName,
@@ -701,7 +743,7 @@ async function seedDemoOrder(
   });
 
   console.log(
-    `✓ Commande ${order.reference} (${guests} invités, ${(totals.totalTtc / 100).toFixed(2)} MAD TTC) avec devis, facture, acompte et équipe`,
+    `✓ Commande ${order.reference} en mode ${priceMode} : ${guests} invités, ${(totals.totalHt / 100).toFixed(2)} HT + ${(totals.totalTax / 100).toFixed(2)} TVA = ${(totals.totalTtc / 100).toFixed(2)} MAD TTC (devis, facture, acompte, équipe)`,
   );
 }
 
@@ -709,8 +751,8 @@ async function main(): Promise<void> {
   await seedPermissions();
   const traiteur = await seedTraiteur();
   const { memberships } = await seedUsers(traiteur.id);
-  const { packageIds } = await seedCatalog(traiteur.id);
-  await seedDemoOrder(traiteur, memberships, packageIds);
+  const { dishIds, packageIds } = await seedCatalog(traiteur.id);
+  await seedDemoOrder(traiteur, memberships, dishIds, packageIds);
 }
 
 main()

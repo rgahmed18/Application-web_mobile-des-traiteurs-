@@ -58,7 +58,7 @@ describe('Numérotation des documents (DocumentSequence)', () => {
             traiteurId: tenant.traiteurId,
             type: 'ORDER',
           });
-          return createOrder(tx as unknown as PrismaClient, tenant, reference);
+          return createOrder(tx as unknown as PrismaClient, tenant, { reference });
         }),
       ),
     );

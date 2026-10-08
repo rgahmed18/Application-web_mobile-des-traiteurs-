@@ -223,13 +223,28 @@ Le `SUPER_ADMIN` passe les contrôles de rôle et de permission.
 
 - Montants **entiers en centimes**, jamais de nombre à virgule. Taux en points de base
   (`2000` = 20 %).
-- Prix **stockés HT**. `Traiteur.priceEntryMode` (`TTC` par défaut) indique comment le traiteur
-  saisit ses prix ; un prix saisi TTC est converti en HT à l'enregistrement.
-- TVA calculée et **arrondie au centime par ligne** (au plus proche, demi s'éloignant de zéro) ;
-  les totaux sont la somme des lignes. Ventilation par taux pour les factures.
+- **Catalogue** : chaque prix est stocké en HT et en TTC. `Traiteur.priceEntryMode` (`TTC` par
+  défaut) indique lequel fait foi : le prix saisi est conservé tel quel, l'autre est dérivé.
+- **Documents** (commande, devis, facture) : le mode de prix est **figé à la création** et
+  recopié sur chaque ligne. Si le traiteur change de mode, les anciens documents ne bougent pas.
+- **Calcul d'une ligne**, arrondi au centime (au plus proche, demi s'éloignant de zéro) :
+
+  | Mode | Ce qui fait foi                             | Calcul                                                                 |
+  | ---- | ------------------------------------------- | ---------------------------------------------------------------------- |
+  | TTC  | `totalTtc = PU TTC × quantité − remise TTC` | `totalHt = arrondi(totalTtc / (1 + taux))`, `TVA = totalTtc − totalHt` |
+  | HT   | `totalHt = PU HT × quantité − remise HT`    | `TVA = arrondi(totalHt × taux)`, `totalTtc = totalHt + TVA`            |
+
+  Dans les deux cas, HT + TVA = TTC exactement, et le montant saisi est restitué au centime :
+  250 MAD TTC × 120 invités = 30 000,00 MAD, à tous les taux (7, 10, 14, 20 %).
+
+- **Totaux** = somme des lignes, jamais recalculés depuis un total. Les factures portent aussi le
+  **récapitulatif de TVA par taux** (`taxBreakdown` : base HT, taux, montant).
 - Traiteur non assujetti (`isVatRegistered = false`) : taux 0.
 - Toute la logique est dans `packages/shared/src/money/money.ts`, couverte par des tests.
-- Des contraintes `CHECK` en base vérifient la cohérence arithmétique de chaque ligne.
+- La base vérifie elle-même ces règles : `CHECK` sur chaque ligne selon son mode, mode de la
+  ligne égal à celui du document (clé composite), mode figé (trigger), totaux des commandes et
+  devis égaux à la somme des lignes et récapitulatif de TVA des factures exact (vérifications en
+  fin de transaction).
 
 ### Numérotation des documents
 
@@ -271,12 +286,20 @@ Elle **doit** être appelée dans la même transaction que la création du docum
 
 Certaines garanties ne s'expriment pas dans le schéma Prisma et sont écrites à la main dans
 les migrations : contraintes `CHECK`, index `NULLS NOT DISTINCT`, `ON DELETE SET NULL (colonne)`
-et triggers des factures. **`pnpm --filter @traiteur/api db:check-drift`** vérifie (en CI aussi)
+et triggers (factures, mode de prix, totaux). **`pnpm --filter @traiteur/api db:check-drift`** vérifie (en CI aussi)
 que Prisma ne cherche pas à les annuler.
 
-Pour modifier le schéma : `pnpm db:migrate` génère une migration ; si elle touche une
-relation facultative entre tables métier, réécrivez son `ON DELETE SET NULL` en
-`ON DELETE SET NULL ("colonne")` avant de l'appliquer (`prisma migrate dev --create-only`).
+Pour modifier le schéma :
+
+```bash
+cd apps/api
+pnpm exec prisma migrate dev --create-only --name ma_modification
+# si la migration ajoute une relation facultative entre tables métier :
+pnpm db:patch-set-null prisma/migrations/<dossier>/migration.sql
+pnpm db:migrate        # applique la migration
+pnpm db:generate       # Prisma 7 ne régénère plus le client automatiquement
+pnpm db:check-drift    # doit répondre « No difference detected »
+```
 
 ## Tests et qualité
 
@@ -305,16 +328,17 @@ request :
 
 ## Référence des commandes
 
-| Commande                                     | Effet                                              |
-| -------------------------------------------- | -------------------------------------------------- |
-| `pnpm docker:up` / `pnpm docker:down`        | Démarre / arrête PostgreSQL et Redis               |
-| `pnpm db:migrate`                            | Crée et applique les migrations (développement)    |
-| `pnpm db:seed`                               | Charge les données de démonstration                |
-| `pnpm db:reset`                              | Vide la base, réapplique les migrations et le seed |
-| `pnpm db:generate`                           | Régénère le client Prisma                          |
-| `pnpm --filter @traiteur/api db:deploy`      | Applique les migrations (production / CI)          |
-| `pnpm --filter @traiteur/api db:check-drift` | Vérifie que schéma et migrations concordent        |
-| `pnpm --filter @traiteur/api db:studio`      | Interface graphique de la base                     |
+| Commande                                                  | Effet                                              |
+| --------------------------------------------------------- | -------------------------------------------------- |
+| `pnpm docker:up` / `pnpm docker:down`                     | Démarre / arrête PostgreSQL et Redis               |
+| `pnpm db:migrate`                                         | Crée et applique les migrations (développement)    |
+| `pnpm db:seed`                                            | Charge les données de démonstration                |
+| `pnpm db:reset`                                           | Vide la base, réapplique les migrations et le seed |
+| `pnpm db:generate`                                        | Régénère le client Prisma                          |
+| `pnpm --filter @traiteur/api db:deploy`                   | Applique les migrations (production / CI)          |
+| `pnpm --filter @traiteur/api db:patch-set-null <fichier>` | Réécrit les SET NULL composites d'une migration    |
+| `pnpm --filter @traiteur/api db:check-drift`              | Vérifie que schéma et migrations concordent        |
+| `pnpm --filter @traiteur/api db:studio`                   | Interface graphique de la base                     |
 
 ## Dépannage
 

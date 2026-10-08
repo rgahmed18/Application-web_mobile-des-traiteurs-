@@ -9,8 +9,10 @@
 //   `ON DELETE SET NULL` généré par `ON DELETE SET NULL ("colonne")` afin de ne
 //   jamais vider `traiteurId` (PostgreSQL 15+). Prisma affiche un avertissement
 //   à ce sujet : il est attendu.
-// - Montants en centimes (Int), toujours stockés HT. Taux de TVA en points de
-//   base (2000 = 20,00 %). Calculs et arrondis : packages/shared/src/money.
+// - Montants en centimes (Int). Taux de TVA en points de base (2000 = 20,00 %).
+//   Catalogue : prix HT et TTC stockés ; celui du mode de saisie du traiteur fait foi.
+//   Documents : mode de prix (HT ou TTC) figé à la création, recopié sur chaque ligne
+//   (clé composite) ; chaque ligne vérifie HT + TVA = TTC. Calculs : packages/shared/src/money.
 // - Textes traduisibles en JSONB au format LocalizedText { fr, ar?, en? }.
 // - Contraintes non exprimables en Prisma (CHECK, NULLS NOT DISTINCT, triggers
 //   d'immuabilité des factures) : voir prisma/migrations/*/migration.sql.
@@ -48,9 +50,10 @@ enum TraiteurStatus {
   CANCELLED
 }
 
-enum PriceEntryMode {
-  HT // le traiteur saisit ses prix hors taxes
-  TTC // le traiteur saisit ses prix toutes taxes comprises (converti en HT au stockage)
+// Mode de prix : saisie du catalogue (Traiteur) et règle de calcul figée d'un document.
+enum PriceMode {
+  HT // le prix HT fait foi : TVA = arrondi(HT × taux), TTC = HT + TVA
+  TTC // le prix TTC fait foi : HT = arrondi(TTC / (1 + taux)), TVA = TTC − HT
 }
 
 enum UserStatus {
@@ -210,9 +213,9 @@ model Traiteur {
   maxEventsPerDay Int? // null = pas de limite
 
   // Fiscalité et informations légales (factures / devis)
-  isVatRegistered   Boolean        @default(true)
-  defaultTaxRateBps Int            @default(2000) // 20 %
-  priceEntryMode    PriceEntryMode @default(TTC)
+  isVatRegistered   Boolean   @default(true)
+  defaultTaxRateBps Int       @default(2000) // 20 %
+  priceEntryMode    PriceMode @default(TTC) // mode des nouveaux prix et des nouveaux documents
   legalName         String?
   ice               String? // Identifiant Commun de l'Entreprise
   rcNumber          String? // Registre de commerce
@@ -467,7 +470,8 @@ model Dish {
   slug        String
   name        Json // LocalizedText
   description Json? // LocalizedText
-  priceHt     Int // centimes
+  priceHt     Int // centimes ; fait foi si le traiteur saisit en HT, dérivé sinon
+  priceTtc    Int // centimes ; fait foi si le traiteur saisit en TTC, dérivé sinon
   taxRateBps  Int? // null = taux par défaut du traiteur
   unit        DishUnit @default(PER_PERSON)
   minQuantity Int      @default(1)
@@ -490,19 +494,20 @@ model Dish {
 }
 
 model Package {
-  id               String   @id @default(uuid()) @db.Uuid
-  traiteurId       String   @db.Uuid
-  slug             String
-  name             Json // LocalizedText
-  description      Json? // LocalizedText
-  pricePerPersonHt Int // centimes
-  taxRateBps       Int? // null = taux par défaut du traiteur
-  minGuests        Int      @default(1)
-  maxGuests        Int?
-  imageUrl         String?
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                String   @id @default(uuid()) @db.Uuid
+  traiteurId        String   @db.Uuid
+  slug              String
+  name              Json // LocalizedText
+  description       Json? // LocalizedText
+  pricePerPersonHt  Int // centimes ; fait foi si le traiteur saisit en HT, dérivé sinon
+  pricePerPersonTtc Int // centimes ; fait foi si le traiteur saisit en TTC, dérivé sinon
+  taxRateBps        Int? // null = taux par défaut du traiteur
+  minGuests         Int      @default(1)
+  maxGuests         Int?
+  imageUrl          String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   traiteur   Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   dishes     PackageDish[]
@@ -537,7 +542,8 @@ model ExtraService {
   traiteurId  String      @db.Uuid
   name        Json // LocalizedText — ex. décoration, DJ, serveurs supplémentaires
   description Json? // LocalizedText
-  priceHt     Int // centimes
+  priceHt     Int // centimes ; fait foi si le traiteur saisit en HT, dérivé sinon
+  priceTtc    Int // centimes ; fait foi si le traiteur saisit en TTC, dérivé sinon
   taxRateBps  Int? // null = taux par défaut du traiteur
   pricingUnit PricingUnit @default(FLAT)
   isActive    Boolean     @default(true)
@@ -569,9 +575,10 @@ model Order {
   latitude           Decimal?    @db.Decimal(9, 6)
   longitude          Decimal?    @db.Decimal(9, 6)
   status             OrderStatus @default(PENDING)
+  priceMode          PriceMode // figé à la création (trigger), recopié sur les lignes
   notes              String?
   internalNotes      String?
-  // Totaux en centimes = somme des lignes
+  // Totaux en centimes = somme des lignes (vérifié en fin de transaction)
   totalHt            Int         @default(0)
   totalTax           Int         @default(0)
   totalTtc           Int         @default(0)
@@ -595,6 +602,7 @@ model Order {
 
   @@unique([traiteurId, reference])
   @@unique([id, traiteurId])
+  @@unique([id, traiteurId, priceMode]) // cible des lignes : même mode que la commande
   @@index([traiteurId, status])
   @@index([traiteurId, eventDate])
   @@index([traiteurId, clientId])
@@ -609,20 +617,25 @@ model OrderItem {
   packageId      String?      @db.Uuid
   extraServiceId String?      @db.Uuid
   label          String // snapshot du libellé (langue du client) au moment de la commande
+  // Montants en centimes. Le prix unitaire et la remise du mode de la ligne font foi ;
+  // ceux de l'autre mode sont indicatifs. Règles vérifiées par CHECK (voir PriceMode).
+  priceMode      PriceMode // toujours égal à celui de la commande (clé composite)
   quantity       Int
-  unitPriceHt    Int // centimes
+  unitPriceHt    Int
+  unitPriceTtc   Int
   discountHt     Int          @default(0)
+  discountTtc    Int          @default(0)
   taxRateBps     Int // 0 si le traiteur n'est pas assujetti
-  totalHt        Int // unitPriceHt × quantity − discountHt
-  taxAmount      Int // arrondi au centime par ligne
-  totalTtc       Int // totalHt + taxAmount
+  totalHt        Int
+  taxAmount      Int
+  totalTtc       Int // totalHt + taxAmount, exactement
   sortOrder      Int          @default(0)
   notes          String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   traiteur     Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  order        Order         @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  order        Order         @relation(fields: [orderId, traiteurId, priceMode], references: [id, traiteurId, priceMode], onDelete: Cascade)
   dish         Dish?         @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
   package      Package?      @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
   extraService ExtraService? @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
@@ -637,6 +650,8 @@ model Quote {
   reference  String // ex. DEV-2026-00001 (DocumentSequence)
   version    Int         @default(1)
   status     QuoteStatus @default(DRAFT)
+  priceMode  PriceMode // figé à la création (trigger), recopié sur les lignes
+  // Totaux = somme des lignes (vérifié en fin de transaction)
   totalHt    Int         @default(0)
   totalTax   Int         @default(0)
   totalTtc   Int         @default(0)
@@ -657,6 +672,7 @@ model Quote {
   @@unique([traiteurId, reference])
   @@unique([orderId, version])
   @@unique([id, traiteurId])
+  @@unique([id, traiteurId, priceMode]) // cible des lignes : même mode que le devis
   @@index([traiteurId, status])
 }
 
@@ -669,9 +685,12 @@ model QuoteLine {
   packageId      String?      @db.Uuid
   extraServiceId String?      @db.Uuid
   label          String
+  priceMode      PriceMode // toujours égal à celui du devis (clé composite)
   quantity       Int
   unitPriceHt    Int
+  unitPriceTtc   Int
   discountHt     Int          @default(0)
+  discountTtc    Int          @default(0)
   taxRateBps     Int
   totalHt        Int
   taxAmount      Int
@@ -681,7 +700,7 @@ model QuoteLine {
   updatedAt      DateTime     @updatedAt
 
   traiteur     Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  quote        Quote         @relation(fields: [quoteId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  quote        Quote         @relation(fields: [quoteId, traiteurId, priceMode], references: [id, traiteurId, priceMode], onDelete: Cascade)
   dish         Dish?         @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
   package      Package?      @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
   extraService ExtraService? @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
@@ -704,10 +723,14 @@ model Invoice {
   issuedAt          DateTime    @default(now())
   dueDate           DateTime?
   currency          String      @default("MAD") @db.Char(3)
+  priceMode         PriceMode // règle de calcul figée, recopiée sur les lignes
   // Montants en centimes, négatifs pour un avoir ; égaux à la somme des lignes (trigger différé)
   totalHt           Int
   totalTax          Int
   totalTtc          Int
+  // Récapitulatif de TVA par taux : [{ taxRateBps, baseHt, taxAmount }] trié par taux,
+  // égal aux sommes des lignes par taux (trigger différé)
+  taxBreakdown      Json
   // Snapshots au moment de l'émission : la facture ne dépend plus des données vivantes
   sellerSnapshot    Json // raison sociale, ICE, RC, IF, adresse, RIB... du traiteur
   buyerSnapshot     Json // nom, téléphone, adresse (et ICE si entreprise) du client
@@ -725,6 +748,7 @@ model Invoice {
   @@unique([traiteurId, number])
   @@unique([traiteurId, type, year, sequenceNumber])
   @@unique([id, traiteurId])
+  @@unique([id, traiteurId, priceMode]) // cible des lignes : même mode que la facture
   @@index([traiteurId, orderId])
   @@index([traiteurId, issuedAt])
 }
@@ -732,24 +756,27 @@ model Invoice {
 // Ligne de facture : snapshot pur, sans lien vers le catalogue (une suppression
 // de plat ne doit jamais modifier une facture émise).
 model InvoiceLine {
-  id          String       @id @default(uuid()) @db.Uuid
-  traiteurId  String       @db.Uuid
-  invoiceId   String       @db.Uuid
-  itemType    LineItemType
-  label       String
-  quantity    Int
-  unitPriceHt Int
-  discountHt  Int          @default(0)
-  taxRateBps  Int
-  totalHt     Int
-  taxAmount   Int
-  totalTtc    Int
-  sortOrder   Int          @default(0)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id           String       @id @default(uuid()) @db.Uuid
+  traiteurId   String       @db.Uuid
+  invoiceId    String       @db.Uuid
+  itemType     LineItemType
+  label        String
+  priceMode    PriceMode // toujours égal à celui de la facture (clé composite)
+  quantity     Int
+  unitPriceHt  Int
+  unitPriceTtc Int
+  discountHt   Int          @default(0)
+  discountTtc  Int          @default(0)
+  taxRateBps   Int
+  totalHt      Int
+  taxAmount    Int
+  totalTtc     Int
+  sortOrder    Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Restrict)
-  invoice  Invoice  @relation(fields: [invoiceId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+  invoice  Invoice  @relation(fields: [invoiceId, traiteurId, priceMode], references: [id, traiteurId, priceMode], onDelete: Restrict)
 
   @@index([traiteurId, invoiceId])
 }
