@@ -7,24 +7,22 @@ import 'dotenv/config';
 import { hash } from '@node-rs/argon2';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
-  computeDocumentTotals,
-  computeLineAmounts,
-  getDefaultFeatureFlags,
-  type LineAmounts,
-  type LocalizedText,
   type CatalogPrices,
   computeCatalogPrices,
-  type PriceMode,
+  computeDocumentTotals,
+  getDefaultFeatureFlags,
+  type LocalizedText,
   PERMISSIONS,
+  type PriceMode,
   unitPriceFor,
 } from '@traiteur/shared';
 
+import { type DishUnit, type PricingUnit, PrismaClient } from '../src/generated/prisma/client';
 import {
-  type DishUnit,
-  type LineItemType,
-  type PricingUnit,
-  PrismaClient,
-} from '../src/generated/prisma/client';
+  addDocumentLines,
+  computeDraftAmounts,
+  type LineDraft,
+} from '../src/documents/document-lines';
 import { nextDocumentNumber } from '../src/sequences/document-sequence';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -510,14 +508,6 @@ async function seedCatalog(traiteurId: string) {
 
 // ─────────────────── Commande, devis, facture de démo ───────────────────
 
-interface DemoLine extends LineAmounts {
-  itemType: LineItemType;
-  label: string;
-  dishId?: string;
-  packageId?: string;
-  extraServiceId?: string;
-}
-
 async function seedDemoOrder(
   traiteur: Awaited<ReturnType<typeof seedTraiteur>>,
   memberships: Map<DemoUserKey, string>,
@@ -548,73 +538,62 @@ async function seedDemoOrder(
 
   // Le mode de prix du traiteur est figé sur chaque document créé.
   const priceMode: PriceMode = traiteur.priceEntryMode;
-  const line = (prices: CatalogPrices, quantity: number, taxRateBps: number, discount = 0) =>
-    computeLineAmounts(
-      priceMode === 'TTC'
-        ? {
-            priceMode,
-            unitPriceTtc: unitPriceFor(prices, priceMode),
-            quantity,
-            discountTtc: discount,
-            taxRateBps,
-          }
-        : {
-            priceMode,
-            unitPriceHt: unitPriceFor(prices, priceMode),
-            quantity,
-            discountHt: discount,
-            taxRateBps,
-          },
-    );
-
-  const lines: DemoLine[] = [
+  // Saisies dans le mode du document : le prix qui fait foi au catalogue (TTC ici).
+  const price = (prices: CatalogPrices) => unitPriceFor(prices, priceMode);
+  const drafts: LineDraft[] = [
     {
       itemType: 'PACKAGE',
       label: 'Formule Fiançailles',
       packageId,
-      ...line(catalogPrices(250), guests, TAX_RATE), // 250 MAD × 120 = 30 000,00 MAD TTC
+      quantity: guests,
+      unitPrice: price(catalogPrices(250)), // 250 MAD × 120 = 30 000,00 MAD TTC
+      taxRateBps: TAX_RATE,
     },
     {
       itemType: 'DISH',
       label: 'Jus de fruits frais',
       dishId: juiceId,
-      ...line(catalogPrices(15, 1000), guests, 1000),
+      quantity: guests,
+      unitPrice: price(catalogPrices(15, 1000)),
+      taxRateBps: 1000,
     },
     {
       itemType: 'EXTRA_SERVICE',
       label: 'Serveur supplémentaire (par soirée)',
       extraServiceId: waiter.id,
-      ...line(catalogPrices(400), 4, TAX_RATE),
+      quantity: 4,
+      unitPrice: price(catalogPrices(400)),
+      taxRateBps: TAX_RATE,
     },
     {
       itemType: 'EXTRA_SERVICE',
       label: 'Décoration florale de la salle',
       extraServiceId: decoration.id,
-      // geste commercial de 1 000 MAD TTC
-      ...line(catalogPrices(8000), 1, TAX_RATE, catalogPrices(1000).priceTtc),
+      quantity: 1,
+      unitPrice: price(catalogPrices(8000)),
+      discount: price(catalogPrices(1000)), // geste commercial de 1 000 MAD TTC
+      taxRateBps: TAX_RATE,
     },
   ];
-  const totals = computeDocumentTotals(lines);
-  // Le mode de la ligne est recopié depuis le document par la clé composite : pas de priceMode ici.
-  const toRow = (row: DemoLine, index: number) => ({
-    itemType: row.itemType,
-    label: row.label,
-    quantity: row.quantity,
-    unitPriceHt: row.unitPriceHt,
-    unitPriceTtc: row.unitPriceTtc,
-    discountHt: row.discountHt,
-    discountTtc: row.discountTtc,
-    taxRateBps: row.taxRateBps,
-    totalHt: row.totalHt,
-    taxAmount: row.taxAmount,
-    totalTtc: row.totalTtc,
+  // Mêmes calculs que DocumentLinesService : utilisés pour l'acompte et la facture (snapshot).
+  const lines = drafts.map((draft) => ({
+    draft,
+    amounts: computeDraftAmounts(priceMode, draft),
+  }));
+  const totals = computeDocumentTotals(lines.map(({ amounts }) => amounts));
+  const toInvoiceRow = ({ draft, amounts }: (typeof lines)[number], index: number) => ({
+    itemType: draft.itemType,
+    label: draft.label,
+    quantity: amounts.quantity,
+    unitPriceHt: amounts.unitPriceHt,
+    unitPriceTtc: amounts.unitPriceTtc,
+    discountHt: amounts.discountHt,
+    discountTtc: amounts.discountTtc,
+    taxRateBps: amounts.taxRateBps,
+    totalHt: amounts.totalHt,
+    taxAmount: amounts.taxAmount,
+    totalTtc: amounts.totalTtc,
     sortOrder: index,
-  });
-  const toCatalogRow = (row: DemoLine, index: number) => ({
-    ...toRow(row, index),
-    dishId: row.dishId ?? null,
-    packageId: row.packageId ?? null,
-    extraServiceId: row.extraServiceId ?? null,
   });
 
   const eventDate = new Date('2026-11-21T19:00:00+01:00');
@@ -638,35 +617,25 @@ async function seedDemoOrder(
         confirmedAt: new Date(),
         notes: 'Prévoir une table d’honneur pour 10 personnes.',
         internalNotes: DEMO_ORDER_MARKER,
-        totalHt: totals.totalHt,
-        totalTax: totals.totalTax,
-        totalTtc: totals.totalTtc,
         depositAmount,
-        items: {
-          create: lines.map(toCatalogRow),
-        },
       },
     });
+    await addDocumentLines(tx, { kind: 'ORDER', id: created.id, traiteurId: traiteur.id }, drafts);
 
     const quoteNumber = await nextDocumentNumber(tx, { traiteurId: traiteur.id, type: 'QUOTE' });
-    await tx.quote.create({
+    const quote = await tx.quote.create({
       data: {
         traiteurId: traiteur.id,
         orderId: created.id,
         reference: quoteNumber.reference,
         status: 'ACCEPTED',
         priceMode,
-        totalHt: totals.totalHt,
-        totalTax: totals.totalTax,
-        totalTtc: totals.totalTtc,
         validUntil: new Date('2026-11-01T00:00:00+01:00'),
         sentAt: new Date(),
         acceptedAt: new Date(),
-        lines: {
-          create: lines.map(toCatalogRow),
-        },
       },
     });
+    await addDocumentLines(tx, { kind: 'QUOTE', id: quote.id, traiteurId: traiteur.id }, drafts);
 
     const invoiceNumber = await nextDocumentNumber(tx, {
       traiteurId: traiteur.id,
@@ -703,7 +672,7 @@ async function seedDemoOrder(
           phone: '+212600000005',
           address: '45, boulevard Anfa, Casablanca',
         },
-        lines: { create: lines.map(toRow) },
+        lines: { create: lines.map(toInvoiceRow) },
       },
     });
 

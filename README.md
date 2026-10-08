@@ -174,6 +174,7 @@ Organisation de l'API (`apps/api/src`) : un module par domaine.
 | `auth/`      | Inscription, connexion, OTP SMS, JWT, refresh tokens                  |
 | `access/`    | Permissions, feature flags et les 5 guards globaux                    |
 | `sequences/` | Numérotation continue des documents                                   |
+| `documents/` | Lignes de commande et de devis (seul point d’écriture, totaux inclus) |
 | `audit/`     | Journal d'audit (service prêt, pas encore branché)                    |
 
 ## Choix d'architecture
@@ -246,6 +247,30 @@ Le `SUPER_ADMIN` passe les contrôles de rôle et de permission.
   devis égaux à la somme des lignes et récapitulatif de TVA des factures exact (vérifications en
   fin de transaction).
 
+### Lignes de commande et de devis
+
+`DocumentLinesService` (`apps/api/src/documents`) est le **seul** point d'entrée pour ajouter,
+modifier ou supprimer une ligne de commande ou de devis. Chaque opération, dans une seule
+transaction :
+
+1. verrouille le document (`SELECT … FOR UPDATE`) : deux modifications simultanées d'un même
+   document sont exécutées l'une après l'autre ;
+2. calcule les lignes dans le mode de prix figé du document ;
+3. écrit les lignes ;
+4. recalcule les totaux du document comme somme de ses lignes.
+
+En dernier rempart, la base vérifie au **COMMIT** que les totaux égalent la somme des lignes :
+`CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED` sur `Order`, `OrderItem`, `Quote` et
+`QuoteLine`. Les états intermédiaires d'une transaction sont donc permis, pas un état final
+incohérent.
+
+Une règle ESLint (`no-restricted-syntax`, `apps/api/eslint.config.mjs`) interdit toute écriture
+dans `OrderItem` ou `QuoteLine` ailleurs que dans `src/documents/document-lines.ts`, qu'elle
+soit directe (`tx.orderItem.create`) ou imbriquée (`order.update({ data: { items: … } })`).
+Les lectures restent libres. Le test `document-lines.lint.spec.ts` vérifie que la règle détecte
+bien chaque forme de contournement. Seuls les tests d'intégration, qui éprouvent les contraintes
+de la base, en sont exemptés.
+
 ### Numérotation des documents
 
 `CMD-2026-00001`, `DEV-…`, `FAC-…`, `AV-…` : continue, **par traiteur, par type et par année**
@@ -274,13 +299,42 @@ Elle **doit** être appelée dans la même transaction que la création du docum
 - Access token JWT HS256 (15 min) ; refresh token opaque de 256 bits stocké haché (30 jours),
   **à usage unique avec rotation**. Le rejeu d'un jeton déjà utilisé révoque toute la session.
 - Codes SMS : 6 chiffres, seul un HMAC est stocké (lié au numéro et à l'usage), 5 minutes de
-  validité, 5 tentatives, 60 s entre deux envois, 5 codes par heure et par numéro.
+  validité, 5 tentatives. Un code n'est consommé que si l'opération peut aboutir (un compte déjà
+  existant à l'inscription, un profil manquant à la connexion le laissent valide).
 - L'inscription par mot de passe exige un code SMS : impossible de créer un compte au nom du
   numéro d'un tiers.
 - Réponses identiques que le compte existe ou non (pas d'énumération des comptes).
-- Limitation de débit par IP sur les routes d'authentification.
 - Fournisseur SMS simulé (`SMS_PROVIDER=console`) en développement, **interdit en production**
   par la validation des variables d'environnement.
+
+### Protections contre les abus
+
+| Menace                     | Protection                                                             | Réglage                                           |
+| -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------- |
+| SMS pumping                | 60 s entre deux codes, 5 codes / heure / numéro                        | `OTP_RESEND_COOLDOWN_SECONDS`, `OTP_MAX_PER_HOUR` |
+|                            | 20 demandes / 24 h / adresse IP, tous numéros confondus                | `OTP_MAX_PER_IP_PER_DAY`                          |
+|                            | Plafond global de SMS envoyés sur 24 h                                 | `SMS_DAILY_GLOBAL_LIMIT` (2000)                   |
+|                            | SMS envoyés seulement aux indicatifs autorisés (Maroc par défaut)      | `SMS_ALLOWED_COUNTRY_CODES` (`212`)               |
+| Force brute (mot de passe) | Verrouillage progressif du compte après 5 échecs : 1, 5, 15, 60 min…   | `LOGIN_MAX_FAILURES`, `LOGIN_LOCKOUT_MINUTES`     |
+| Rafales de requêtes        | Limiteur de débit par IP (20 à 5 requêtes / min selon la route d'auth) | compteurs dans Redis                              |
+
+- **Numéros hors indicatifs autorisés** : le compte reste possible et la réponse est identique,
+  mais aucun SMS n'est envoyé. Ces numéros ne peuvent donc pas utiliser les codes SMS, ni
+  s'inscrire eux-mêmes : leur compte doit être créé autrement (par le traiteur, plus tard).
+- **Verrouillage** : un compte verrouillé refuse même le bon mot de passe. La réponse
+  (`INVALID_CREDENTIALS`, même message, même durée grâce à une vérification Argon2 factice) est
+  identique pour un mot de passe faux, un compte verrouillé ou un compte inexistant. Les
+  tentatives faites pendant le verrouillage ne l'allongent pas. Le compteur repart à zéro après
+  une connexion réussie (mot de passe ou code SMS) ou une réinitialisation du mot de passe.
+- **Journal d'audit** : `auth.login_failed`, `auth.account_locked`, `auth.login_blocked` et
+  `auth.password_reset`, avec l'IP et le user-agent. Chaque plafond atteint (SMS, IP, compte)
+  est aussi journalisé en `warn`.
+- **Limiteur de débit** : compteurs dans Redis (script Lua atomique), partagés entre toutes les
+  instances de l'API et conservés après un redémarrage. Si Redis est indisponible, les requêtes
+  passent (journalisé) : les protections critiques ci-dessus reposent sur PostgreSQL.
+- **IP réelle derrière un proxy** : `TRUST_PROXY` (désactivé par défaut) accepte `true`, un
+  nombre de proxys ou une liste d'adresses. Ne l'activez jamais sans proxy : un client pourrait
+  sinon choisir son IP via l'en-tête `X-Forwarded-For` et contourner les quotas.
 
 ### SQL hors Prisma
 

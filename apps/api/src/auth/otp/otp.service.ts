@@ -1,8 +1,8 @@
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { OTP_CODE_LENGTH, type OtpRequestResponse } from '@traiteur/shared';
+import { maskPhone, OTP_CODE_LENGTH, type OtpRequestResponse } from '@traiteur/shared';
 
 import { appErrors } from '../../common/errors';
 import type { Env } from '../../config/env.schema';
@@ -11,6 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SMS_PROVIDER, type SmsProvider } from './sms.provider';
 
 const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 export interface OtpRequestOptions {
   /** false = ne pas envoyer de SMS mais répondre à l'identique (anti-énumération des comptes). */
@@ -24,7 +25,11 @@ export class OtpService {
   private readonly maxAttempts: number;
   private readonly cooldownSeconds: number;
   private readonly maxPerHour: number;
+  private readonly maxPerIpPerDay: number;
+  private readonly smsDailyLimit: number;
+  private readonly allowedCountryCodes: readonly string[];
   private readonly secret: string;
+  private readonly logger = new Logger(OtpService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -35,10 +40,19 @@ export class OtpService {
     this.maxAttempts = config.get('OTP_MAX_ATTEMPTS', { infer: true });
     this.cooldownSeconds = config.get('OTP_RESEND_COOLDOWN_SECONDS', { infer: true });
     this.maxPerHour = config.get('OTP_MAX_PER_HOUR', { infer: true });
+    this.maxPerIpPerDay = config.get('OTP_MAX_PER_IP_PER_DAY', { infer: true });
+    this.smsDailyLimit = config.get('SMS_DAILY_GLOBAL_LIMIT', { infer: true });
+    this.allowedCountryCodes = config.get('SMS_ALLOWED_COUNTRY_CODES', { infer: true });
     this.secret = config.get('OTP_SECRET', { infer: true });
   }
 
-  /** Génère un code, invalide les précédents et l'envoie par SMS. */
+  /**
+   * Génère un code, invalide les précédents et l'envoie par SMS.
+   *
+   * Protections contre le « SMS pumping » (envoi massif de SMS surtaxés aux frais du traiteur) :
+   * délai entre deux envois, quota par numéro (1 h), quota par IP (24 h), indicatifs pays
+   * autorisés et plafond global de SMS (24 h). Chaque plafond atteint est journalisé (warn).
+   */
   async requestCode(
     phone: string,
     purpose: OtpPurpose,
@@ -56,29 +70,64 @@ export class OtpService {
     if (last) {
       const elapsed = (now.getTime() - last.createdAt.getTime()) / 1000;
       if (elapsed < this.cooldownSeconds) {
-        const retryAfterSeconds = Math.ceil(this.cooldownSeconds - elapsed);
         throw appErrors.tooManyRequests(
           'OTP_RATE_LIMITED',
           'Veuillez patienter avant de redemander un code',
-          {
-            retryAfterSeconds,
-          },
+          { retryAfterSeconds: Math.ceil(this.cooldownSeconds - elapsed) },
         );
       }
     }
-    // Quota horaire par numéro, tous usages confondus (protège contre l'envoi massif de SMS)
+
+    // Quota horaire par numéro, tous usages confondus
     if (recent.length >= this.maxPerHour) {
+      this.logger.warn(`Quota horaire de codes atteint pour ${maskPhone(phone)}`);
       throw appErrors.tooManyRequests(
         'OTP_RATE_LIMITED',
         'Trop de codes demandés, réessayez plus tard',
-        {
-          retryAfterSeconds: 3600,
-        },
+        { retryAfterSeconds: 3600 },
       );
     }
 
+    // Quota par IP sur 24 h, tous numéros confondus (un attaquant fait varier les numéros)
+    const dayAgo = new Date(now.getTime() - DAY_MS);
+    if (ipAddress) {
+      const fromIp = await this.prisma.otpCode.count({
+        where: { ipAddress, createdAt: { gt: dayAgo } },
+      });
+      if (fromIp >= this.maxPerIpPerDay) {
+        this.logger.warn(`Quota quotidien de codes atteint pour l'IP ${ipAddress}`);
+        throw appErrors.tooManyRequests(
+          'OTP_RATE_LIMITED',
+          'Trop de codes demandés, réessayez plus tard',
+          { retryAfterSeconds: 24 * 3600 },
+        );
+      }
+    }
+
+    // Indicatifs non autorisés : le code est créé (réponse identique) mais aucun SMS ne part.
+    const countryAllowed = this.isSmsAllowed(phone);
+    if (deliver && !countryAllowed) {
+      this.logger.log(`SMS non envoyé : indicatif non autorisé (${maskPhone(phone)})`);
+    }
+    const sendSms = deliver && countryAllowed;
+
+    // Plafond global de SMS envoyés sur 24 h (coût maîtrisé même en cas d'attaque distribuée)
+    if (sendSms) {
+      const sentToday = await this.prisma.otpCode.count({
+        where: { smsSentAt: { gt: dayAgo } },
+      });
+      if (sentToday >= this.smsDailyLimit) {
+        this.logger.warn(`Plafond global de SMS atteint (${this.smsDailyLimit} sur 24 h)`);
+        throw appErrors.tooManyRequests(
+          'OTP_RATE_LIMITED',
+          "L'envoi de SMS est temporairement indisponible, réessayez plus tard",
+          { retryAfterSeconds: 3600 },
+        );
+      }
+    }
+
     const code = this.generateCode();
-    await this.prisma.$transaction([
+    const [, created] = await this.prisma.$transaction([
       // Un seul code actif à la fois par usage
       this.prisma.otpCode.updateMany({
         where: { phone, purpose, usedAt: null, expiresAt: { gt: now } },
@@ -92,16 +141,31 @@ export class OtpService {
           expiresAt: new Date(now.getTime() + this.ttlSeconds * 1000),
           maxAttempts: this.maxAttempts,
           ipAddress,
+          // Réservé avant l'envoi pour être compté dans le plafond global
+          smsSentAt: sendSms ? now : null,
         },
       }),
     ]);
 
-    if (deliver) {
+    if (sendSms) {
       const minutes = Math.round(this.ttlSeconds / 60);
-      await this.sms.send(phone, `Votre code de vérification : ${code} (valable ${minutes} min).`);
+      try {
+        await this.sms.send(
+          phone,
+          `Votre code de vérification : ${code} (valable ${minutes} min).`,
+        );
+      } catch (error) {
+        await this.prisma.otpCode.update({ where: { id: created.id }, data: { smsSentAt: null } });
+        throw error;
+      }
     }
 
     return { retryAfterSeconds: this.cooldownSeconds, expiresInSeconds: this.ttlSeconds };
+  }
+
+  /** Le numéro (E.164) appartient-il à un indicatif autorisé à recevoir des SMS ? */
+  isSmsAllowed(phone: string): boolean {
+    return this.allowedCountryCodes.some((code) => phone.startsWith(`+${code}`));
   }
 
   /** Vérifie et consomme un code en une seule étape. */

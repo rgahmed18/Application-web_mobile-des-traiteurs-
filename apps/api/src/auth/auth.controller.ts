@@ -108,8 +108,9 @@ export class AuthController {
   @ApiNoContentResponse()
   resetPassword(
     @Body(new ZodValidationPipe(passwordResetSchema)) body: PasswordResetInput,
+    @Client() client: ClientInfo,
   ): Promise<void> {
-    return this.auth.resetPassword(body);
+    return this.auth.resetPassword(body, client);
   }
 
   @Public()

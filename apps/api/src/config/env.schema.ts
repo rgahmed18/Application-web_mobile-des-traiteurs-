@@ -7,6 +7,44 @@ const booleanString = z
 
 const secret = (name: string) => z.string().min(32, `${name} doit contenir au moins 32 caractères`);
 
+/** Liste séparée par des virgules ("a, b,c" → ["a", "b", "c"]). */
+const commaList = (defaultValue: string) =>
+  z
+    .string()
+    .default(defaultValue)
+    .transform((value) =>
+      value
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    );
+
+/**
+ * Réglage « trust proxy » d'Express, qui détermine l'IP réelle du client (request.ip) :
+ *   false (défaut)    → l'IP de la connexion TCP, aucun en-tête X-Forwarded-For n'est lu
+ *   true              → un seul proxy de confiance devant l'API (équivaut à 1)
+ *   N                 → N proxys de confiance (ex. CDN + load balancer = 2)
+ *   liste d'adresses  → proxys de confiance par IP / sous-réseau (ex. "loopback, 10.0.0.0/8")
+ * Ne jamais l'activer sans proxy : un client pourrait alors falsifier son IP.
+ */
+export type TrustProxySetting = false | number | string[];
+
+const trustProxy = z
+  .string()
+  .trim()
+  .default('false')
+  .transform((value): TrustProxySetting => {
+    if (value === '' || value === 'false') return false;
+    if (value === 'true') return 1;
+    if (/^\d+$/.test(value)) return Number(value);
+    return value.split(',').map((item) => item.trim());
+  })
+  .refine((value) => value !== 0 && (!Array.isArray(value) || value.every(Boolean)), {
+    message: 'valeur invalide (false, true, nombre de proxys ou liste d’adresses)',
+  });
+
+const countryCode = z.string().regex(/^[1-9]\d{0,3}$/, 'indicatif pays invalide (ex. 212)');
+
 /** Schéma des variables d'environnement : l'API refuse de démarrer si elles sont invalides. */
 export const envSchema = z
   .object({
@@ -23,7 +61,7 @@ export const envSchema = z
       ),
     SWAGGER_ENABLED: booleanString,
     /** À activer derrière un reverse proxy (IP réelle du client pour la limitation de débit). */
-    TRUST_PROXY: booleanString,
+    TRUST_PROXY: trustProxy,
 
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
     REDIS_URL: z.url({ protocol: /^rediss?$/ }),
@@ -38,7 +76,30 @@ export const envSchema = z
     OTP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
     OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().min(0).default(60),
     OTP_MAX_PER_HOUR: z.coerce.number().int().min(1).default(5),
+    /** Demandes de code par adresse IP sur 24 h glissantes, tous numéros confondus. */
+    OTP_MAX_PER_IP_PER_DAY: z.coerce.number().int().min(1).default(20),
     SMS_PROVIDER: z.enum(['console']).default('console'),
+    /** Plafond global de SMS envoyés sur 24 h glissantes (protection contre le « SMS pumping »). */
+    SMS_DAILY_GLOBAL_LIMIT: z.coerce.number().int().min(1).default(2000),
+    /** Indicatifs pays autorisés à recevoir un SMS, sans « + » (ex. "212,33"). */
+    SMS_ALLOWED_COUNTRY_CODES: commaList('212').pipe(
+      z.array(countryCode).min(1, 'au moins un indicatif est requis'),
+    ),
+
+    /** Échecs de connexion consécutifs avant le premier verrouillage du compte. */
+    LOGIN_MAX_FAILURES: z.coerce.number().int().min(1).max(50).default(5),
+    /** Durées de verrouillage progressives en minutes ; la dernière s'applique ensuite. */
+    LOGIN_LOCKOUT_MINUTES: commaList('1,5,15,60,240,1440').pipe(
+      z
+        .array(
+          z
+            .string()
+            .regex(/^\d+$/, 'durée en minutes attendue')
+            .transform(Number)
+            .pipe(z.number().int().positive()),
+        )
+        .min(1, 'au moins une durée est requise'),
+    ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.SMS_PROVIDER === 'console') {

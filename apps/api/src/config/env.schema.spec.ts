@@ -44,6 +44,45 @@ describe('validateEnv', () => {
     );
   });
 
+  it('applique les protections par défaut (SMS Maroc uniquement, verrouillage progressif)', () => {
+    const env = validateEnv(validEnv);
+    expect(env.SMS_ALLOWED_COUNTRY_CODES).toEqual(['212']);
+    expect(env.OTP_MAX_PER_IP_PER_DAY).toBe(20);
+    expect(env.SMS_DAILY_GLOBAL_LIMIT).toBe(2000);
+    expect(env.LOGIN_MAX_FAILURES).toBe(5);
+    expect(env.LOGIN_LOCKOUT_MINUTES).toEqual([1, 5, 15, 60, 240, 1440]);
+    expect(env.TRUST_PROXY).toBe(false);
+  });
+
+  it('lit les listes configurables', () => {
+    const env = validateEnv({
+      ...validEnv,
+      SMS_ALLOWED_COUNTRY_CODES: '212, 33',
+      LOGIN_LOCKOUT_MINUTES: '2,10',
+    });
+    expect(env.SMS_ALLOWED_COUNTRY_CODES).toEqual(['212', '33']);
+    expect(env.LOGIN_LOCKOUT_MINUTES).toEqual([2, 10]);
+  });
+
+  it('refuse un indicatif pays invalide', () => {
+    expect(() => validateEnv({ ...validEnv, SMS_ALLOWED_COUNTRY_CODES: '+212' })).toThrow(
+      /SMS_ALLOWED_COUNTRY_CODES/,
+    );
+  });
+
+  it.each([
+    ['false', false],
+    ['true', 1],
+    ['2', 2],
+    ['loopback, 10.0.0.0/8', ['loopback', '10.0.0.0/8']],
+  ])('interprète TRUST_PROXY=%s', (value, expected) => {
+    expect(validateEnv({ ...validEnv, TRUST_PROXY: value }).TRUST_PROXY).toEqual(expected);
+  });
+
+  it('refuse TRUST_PROXY=0', () => {
+    expect(() => validateEnv({ ...validEnv, TRUST_PROXY: '0' })).toThrow(/TRUST_PROXY/);
+  });
+
   it('interdit le fournisseur SMS simulé en production', () => {
     expect(() => validateEnv({ ...validEnv, NODE_ENV: 'production' })).toThrow(/SMS_PROVIDER/);
   });

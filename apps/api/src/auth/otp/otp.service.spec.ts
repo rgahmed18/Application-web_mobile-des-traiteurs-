@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 
 import { getErrorCode } from '../../common/errors';
@@ -16,6 +17,8 @@ interface OtpRow {
   attempts: number;
   maxAttempts: number;
   usedAt: Date | null;
+  ipAddress: string | null;
+  smsSentAt: Date | null;
   createdAt: Date;
 }
 
@@ -27,6 +30,8 @@ interface OtpWhere {
   expiresAt?: { gt: Date };
   createdAt?: { gt: Date };
   attempts?: { lt: number };
+  ipAddress?: string;
+  smsSentAt?: { gt: Date };
 }
 
 /** Stockage OTP en mémoire reproduisant la sémantique des requêtes Prisma utilisées. */
@@ -42,7 +47,10 @@ class InMemoryOtpStore {
       (where.usedAt === undefined || row.usedAt === null) &&
       (where.expiresAt === undefined || row.expiresAt > where.expiresAt.gt) &&
       (where.createdAt === undefined || row.createdAt > where.createdAt.gt) &&
-      (where.attempts === undefined || row.attempts < where.attempts.lt)
+      (where.attempts === undefined || row.attempts < where.attempts.lt) &&
+      (where.ipAddress === undefined || row.ipAddress === where.ipAddress) &&
+      (where.smsSentAt === undefined ||
+        (row.smsSentAt !== null && row.smsSentAt > where.smsSentAt.gt))
     );
   }
 
@@ -55,6 +63,12 @@ class InMemoryOtpStore {
   readonly otpCode = {
     findMany: ({ where }: { where: OtpWhere }) => Promise.resolve(this.sorted(where)),
     findFirst: ({ where }: { where: OtpWhere }) => Promise.resolve(this.sorted(where)[0] ?? null),
+    count: ({ where }: { where: OtpWhere }) => Promise.resolve(this.sorted(where).length),
+    update: ({ where, data }: { where: { id: string }; data: { smsSentAt: Date | null } }) => {
+      const row = this.rows.find((candidate) => candidate.id === where.id);
+      if (row) row.smsSentAt = data.smsSentAt;
+      return Promise.resolve(row);
+    },
     create: ({ data }: { data: Omit<OtpRow, 'id' | 'attempts' | 'usedAt' | 'createdAt'> }) => {
       this.sequence += 1;
       const row: OtpRow = {
@@ -92,15 +106,20 @@ const settings: Partial<Env> = {
   OTP_MAX_ATTEMPTS: 3,
   OTP_RESEND_COOLDOWN_SECONDS: 60,
   OTP_MAX_PER_HOUR: 5,
+  OTP_MAX_PER_IP_PER_DAY: 4,
+  SMS_DAILY_GLOBAL_LIMIT: 100,
+  SMS_ALLOWED_COUNTRY_CODES: ['212'],
   OTP_SECRET: 'x'.repeat(32),
 };
-const config = {
-  get: (key: keyof Env) => settings[key],
-} as unknown as ConfigService<Env, true>;
+function configWith(overrides: Partial<Env> = {}): ConfigService<Env, true> {
+  const values = { ...settings, ...overrides };
+  return { get: (key: keyof Env) => values[key] } as unknown as ConfigService<Env, true>;
+}
+const config = configWith();
 
 const PHONE = '+212612345678';
 
-function setup() {
+function setup(overrides: Partial<Env> = {}) {
   const store = new InMemoryOtpStore();
   const sent: string[] = [];
   const sms: SmsProvider = {
@@ -109,7 +128,7 @@ function setup() {
       return Promise.resolve();
     },
   };
-  const service = new OtpService(store as unknown as PrismaService, sms, config);
+  const service = new OtpService(store as unknown as PrismaService, sms, configWith(overrides));
   const lastCode = () => /(\d{6})/.exec(sent.at(-1) ?? '')?.[1] ?? '';
   return { store, sent, service, lastCode };
 }
@@ -223,5 +242,72 @@ describe('OtpService', () => {
     expect(sent).toHaveLength(0);
     expect(store.rows).toHaveLength(1);
     expect(response).toEqual({ retryAfterSeconds: 60, expiresInSeconds: 300 });
+  });
+
+  describe('protections contre le SMS pumping', () => {
+    /** Simule le délai de renvoi écoulé pour tous les codes déjà émis. */
+    function ageAll(store: InMemoryOtpStore, ms = 120_000) {
+      for (const row of store.rows) row.createdAt = new Date(row.createdAt.getTime() - ms);
+    }
+
+    it('limite les demandes par IP sur 24 h, tous numéros confondus, et journalise', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const { service, store } = setup();
+      for (let i = 0; i < 4; i += 1) {
+        await service.requestCode(`+21261234567${i}`, 'LOGIN', { ipAddress: '203.0.113.7' });
+        ageAll(store);
+      }
+      expect(
+        await errorCodeOf(
+          service.requestCode('+212612345679', 'LOGIN', { ipAddress: '203.0.113.7' }),
+        ),
+      ).toBe('OTP_RATE_LIMITED');
+      // Une autre IP n'est pas concernée
+      await expect(
+        service.requestCode('+212612345679', 'LOGIN', { ipAddress: '198.51.100.1' }),
+      ).resolves.toBeDefined();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('203.0.113.7'));
+      warn.mockRestore();
+    });
+
+    it('applique un plafond global de SMS sur 24 h et journalise', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const { service, sent } = setup({ SMS_DAILY_GLOBAL_LIMIT: 3 });
+      for (let i = 0; i < 3; i += 1) await service.requestCode(`+21270000000${i}`, 'LOGIN');
+      expect(sent).toHaveLength(3);
+      expect(await errorCodeOf(service.requestCode('+212700000009', 'LOGIN'))).toBe(
+        'OTP_RATE_LIMITED',
+      );
+      expect(sent).toHaveLength(3);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('Plafond global'));
+      warn.mockRestore();
+    });
+
+    it('n’envoie pas de SMS hors des indicatifs autorisés, mais répond à l’identique', async () => {
+      const { service, sent, store } = setup();
+      const response = await service.requestCode('+33612345678', 'LOGIN');
+      expect(response).toEqual({ retryAfterSeconds: 60, expiresInSeconds: 300 });
+      expect(sent).toHaveLength(0);
+      expect(store.rows[0]?.smsSentAt).toBeNull();
+      expect(service.isSmsAllowed('+212612345678')).toBe(true);
+      expect(service.isSmsAllowed('+33612345678')).toBe(false);
+    });
+
+    it('les codes non envoyés ne consomment pas le plafond global', async () => {
+      const { service, sent } = setup({ SMS_DAILY_GLOBAL_LIMIT: 1 });
+      for (let i = 0; i < 3; i += 1) await service.requestCode(`+3361234567${i}`, 'LOGIN');
+      await service.requestCode('+212612345678', 'LOGIN');
+      expect(sent).toHaveLength(1);
+    });
+
+    it('libère la réservation si le fournisseur SMS échoue', async () => {
+      const store = new InMemoryOtpStore();
+      const failing: SmsProvider = {
+        send: () => Promise.reject(new Error('opérateur indisponible')),
+      };
+      const service = new OtpService(store as unknown as PrismaService, failing, config);
+      await expect(service.requestCode(PHONE, 'LOGIN')).rejects.toThrow('opérateur indisponible');
+      expect(store.rows[0]?.smsSentAt).toBeNull();
+    });
   });
 });

@@ -17,7 +17,8 @@ async function bootstrap(): Promise<void> {
   const config: AppConfigService = app.get(ConfigService);
 
   // Derrière un reverse proxy, request.ip doit refléter l'IP réelle du client
-  if (config.get('TRUST_PROXY', { infer: true })) app.set('trust proxy', 1);
+  // (X-Forwarded-For lu uniquement depuis les proxys de confiance ; désactivé par défaut).
+  app.set('trust proxy', config.get('TRUST_PROXY', { infer: true }));
   app.use(helmet());
   app.enableCors({ origin: config.get('CORS_ORIGINS', { infer: true }), credentials: true });
   app.setGlobalPrefix('api');

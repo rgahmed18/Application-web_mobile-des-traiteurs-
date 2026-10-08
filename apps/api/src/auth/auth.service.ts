@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   type AuthContext,
   type AuthSession,
@@ -14,16 +15,26 @@ import {
 } from '@traiteur/shared';
 
 import { PermissionsService } from '../access/permissions.service';
+import { AuditService } from '../audit/audit.service';
 import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
+import type { Env } from '../config/env.schema';
 import type { User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from './auth-user';
+import { computeLockedUntil, isLocked } from './login-lockout';
 import { OtpService } from './otp/otp.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
 const UNAVAILABLE_TRAITEUR_STATUSES = new Set(['SUSPENDED', 'CANCELLED']);
+
+/**
+ * Message unique pour tout échec de connexion par mot de passe : il ne révèle ni si le compte
+ * existe, ni s'il est verrouillé.
+ */
+const LOGIN_FAILED_MESSAGE =
+  'Identifiants incorrects ou compte temporairement verrouillé. Réessayez dans quelques minutes.';
 
 interface ContextOptions {
   /** Crée un Membership CLIENT si l'utilisateur n'en a pas encore chez ce traiteur. */
@@ -32,18 +43,28 @@ interface ContextOptions {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly maxLoginFailures: number;
+  private readonly lockoutMinutes: readonly number[];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
     private readonly otp: OtpService,
     private readonly permissions: PermissionsService,
-  ) {}
+    private readonly audit: AuditService,
+    config: ConfigService<Env, true>,
+  ) {
+    this.maxLoginFailures = config.get('LOGIN_MAX_FAILURES', { infer: true });
+    this.lockoutMinutes = config.get('LOGIN_LOCKOUT_MINUTES', { infer: true });
+  }
 
   /** Inscription avec mot de passe ; le téléphone est prouvé par un code SMS (SIGNUP). */
   async register(input: RegisterInput, client: ClientInfo): Promise<AuthSession> {
     const traiteur = await this.findAvailableTraiteur(input.traiteurSlug);
-    await this.otp.verifyCode(input.phone, 'SIGNUP', input.code);
+    // Vérifie le code sans le consommer : un conflit (compte ou email existant) le laisse valide.
+    const otpId = await this.otp.checkCode(input.phone, 'SIGNUP', input.code);
 
     if (await this.prisma.user.findUnique({ where: { phone: input.phone } })) {
       throw appErrors.conflict(
@@ -54,6 +75,7 @@ export class AuthService {
     if (input.email && (await this.prisma.user.findUnique({ where: { email: input.email } }))) {
       throw appErrors.conflict('EMAIL_TAKEN', 'Cette adresse email est déjà utilisée');
     }
+    await this.otp.consumeCode(otpId);
 
     const user = await this.prisma.user.create({
       data: {
@@ -71,15 +93,31 @@ export class AuthService {
     return this.createSession(user, context, client);
   }
 
-  /** Connexion par téléphone ou email + mot de passe. */
+  /**
+   * Connexion par téléphone ou email + mot de passe.
+   * Après LOGIN_MAX_FAILURES échecs consécutifs, le compte est verrouillé de façon progressive.
+   * Compte inconnu, mot de passe faux ou compte verrouillé : réponse et durée identiques.
+   */
   async login(input: LoginInput, client: ClientInfo): Promise<AuthSession> {
+    const now = new Date();
     const user = await this.findByIdentifier(input.identifier);
+    const locked = user !== null && isLocked(user.lockedUntil, now);
+
+    // Une vérification Argon2 a toujours lieu (réelle ou factice) pour un temps de réponse constant.
     const valid =
-      user?.passwordHash !== null && user?.passwordHash !== undefined
+      !locked && user?.passwordHash !== null && user?.passwordHash !== undefined
         ? await this.passwords.verify(user.passwordHash, input.password)
         : await this.passwords.verifyAgainstDummy(input.password);
+
     if (!user || !valid) {
-      throw appErrors.unauthorized('INVALID_CREDENTIALS', 'Identifiants incorrects');
+      if (user && locked) {
+        await this.auditAuth('auth.login_blocked', user, client, {
+          lockedUntil: user.lockedUntil?.toISOString() ?? null,
+        });
+      } else if (user) {
+        await this.recordFailedLogin(user, client, now);
+      }
+      throw appErrors.unauthorized('INVALID_CREDENTIALS', LOGIN_FAILED_MESSAGE);
     }
     this.assertUserActive(user);
 
@@ -133,16 +171,21 @@ export class AuthService {
   }
 
   /** Nouveau mot de passe après vérification par SMS ; toutes les sessions sont révoquées. */
-  async resetPassword(input: PasswordResetInput): Promise<void> {
+  async resetPassword(input: PasswordResetInput, client: ClientInfo): Promise<void> {
     await this.otp.verifyCode(input.phone, 'PASSWORD_RESET', input.code);
     const user = await this.prisma.user.findUnique({ where: { phone: input.phone } });
     if (!user) throw appErrors.badRequest('INVALID_OTP', 'Code invalide ou expiré');
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash: await this.passwords.hash(input.newPassword) },
+      data: {
+        passwordHash: await this.passwords.hash(input.newPassword),
+        failedLoginCount: 0,
+        lockedUntil: null,
+      },
     });
     await this.tokens.revokeAllForUser(user.id);
+    await this.auditAuth('auth.password_reset', user, client, {});
   }
 
   /** Rotation du refresh token ; le contexte (rôle, statut) est relu en base. */
@@ -311,8 +354,57 @@ export class AuthService {
     if (user.status !== 'ACTIVE') throw appErrors.forbidden('ACCOUNT_DISABLED', 'Compte désactivé');
   }
 
+  /** Connexion réussie (mot de passe ou code SMS) : remise à zéro du compteur d'échecs. */
   private async touchLastLogin(userId: string): Promise<void> {
-    await this.prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastLoginAt: new Date(), failedLoginCount: 0, lockedUntil: null },
+    });
+  }
+
+  /** Incrémente le compteur d'échecs (de façon atomique) et verrouille au-delà du seuil. */
+  private async recordFailedLogin(user: User, client: ClientInfo, now: Date): Promise<void> {
+    const { failedLoginCount } = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginCount: { increment: 1 } },
+      select: { failedLoginCount: true },
+    });
+    await this.auditAuth('auth.login_failed', user, client, { failedLoginCount });
+
+    const lockedUntil = computeLockedUntil(
+      failedLoginCount,
+      this.maxLoginFailures,
+      this.lockoutMinutes,
+      now,
+    );
+    if (lockedUntil) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { lockedUntil } });
+      this.logger.warn(
+        `Compte ${user.id} verrouillé jusqu'à ${lockedUntil.toISOString()} (${failedLoginCount} échecs)`,
+      );
+      await this.auditAuth('auth.account_locked', user, client, {
+        failedLoginCount,
+        lockedUntil: lockedUntil.toISOString(),
+      });
+    }
+  }
+
+  /** Événement de sécurité dans le journal d'audit (niveau plateforme : identité globale). */
+  private auditAuth(
+    action: string,
+    user: User,
+    client: ClientInfo,
+    after: Record<string, string | number | null>,
+  ): Promise<void> {
+    return this.audit.record({
+      traiteurId: null,
+      actor: null,
+      action,
+      entityType: 'User',
+      entityId: user.id,
+      after,
+      client,
+    });
   }
 
   private toAuthUser(user: User): AuthUser {

@@ -258,18 +258,21 @@ model Traiteur {
 
 // Identité globale : un compte unique, utilisable chez plusieurs traiteurs.
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  phone        String     @unique // format E.164, ex. +212612345678
-  email        String?    @unique
-  passwordHash String? // null = compte sans mot de passe (connexion par OTP SMS)
-  firstName    String
-  lastName     String
-  locale       Locale     @default(fr)
-  status       UserStatus @default(ACTIVE)
-  isSuperAdmin Boolean    @default(false)
-  lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id               String     @id @default(uuid()) @db.Uuid
+  phone            String     @unique // format E.164, ex. +212612345678
+  email            String?    @unique
+  passwordHash     String? // null = compte sans mot de passe (connexion par OTP SMS)
+  firstName        String
+  lastName         String
+  locale           Locale     @default(fr)
+  status           UserStatus @default(ACTIVE)
+  isSuperAdmin     Boolean    @default(false)
+  lastLoginAt      DateTime?
+  // Protection contre la force brute : échecs consécutifs et verrouillage progressif
+  failedLoginCount Int        @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   memberships   Membership[]
   refreshTokens RefreshToken[]
@@ -360,9 +363,13 @@ model OtpCode {
   maxAttempts Int        @default(5)
   usedAt      DateTime?
   ipAddress   String?
+  // null = aucun SMS envoyé (indicatif non autorisé, compte inconnu en réinitialisation...)
+  smsSentAt   DateTime?
   createdAt   DateTime   @default(now())
 
   @@index([phone, purpose, createdAt])
+  @@index([ipAddress, createdAt]) // quota par IP
+  @@index([smsSentAt]) // plafond global de SMS
 }
 
 // ───────────────────── Permissions & offres ─────────────────────

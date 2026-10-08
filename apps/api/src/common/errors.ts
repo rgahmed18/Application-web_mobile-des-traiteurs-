@@ -27,7 +27,9 @@ export type AppErrorCode =
   | 'TENANT_MISMATCH'
   | 'FORBIDDEN_ROLE'
   | 'MISSING_PERMISSION'
-  | 'FEATURE_DISABLED';
+  | 'FEATURE_DISABLED'
+  | 'DOCUMENT_NOT_FOUND'
+  | 'LINE_NOT_FOUND';
 
 export interface AppErrorBody {
   code: AppErrorCode;
