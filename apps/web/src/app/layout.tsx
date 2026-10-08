@@ -1,32 +1,43 @@
-import { DEFAULT_LOCALE, getTextDirection } from '@traiteur/shared';
+import { getTextDirection } from '@traiteur/shared';
 import type { Metadata } from 'next';
-import { Geist } from 'next/font/google';
+import { Geist, IBM_Plex_Sans_Arabic } from 'next/font/google';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import './globals.css';
 import { Providers } from './providers';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const latinFont = Geist({
+  variable: '--font-latin',
   subsets: ['latin'],
 });
 
-export const metadata: Metadata = {
-  title: 'Gestion Traiteurs',
-  description: 'Plateforme de gestion pour traiteurs de fêtes',
-};
+// Police arabe lisible à l'écran, avec les mêmes graisses que l'interface latine
+const arabicFont = IBM_Plex_Sans_Arabic({
+  variable: '--font-arabic',
+  subsets: ['arabic'],
+  weight: ['400', '500', '600', '700'],
+});
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
-  // La langue sera dynamique (fr / ar) lors de la mise en place de l'i18n.
-  const locale = DEFAULT_LOCALE;
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('metadata');
+  return { title: t('title'), description: t('description') };
+}
+
+export default async function RootLayout({ children }: LayoutProps<'/'>) {
+  const locale = await getLocale();
+  const dir = getTextDirection(locale);
 
   return (
     <html
       lang={locale}
-      dir={getTextDirection(locale)}
-      className={`${geistSans.variable} h-full antialiased`}
+      dir={dir}
+      className={`${latinFont.variable} ${arabicFont.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <Providers>{children}</Providers>
+        <NextIntlClientProvider>
+          <Providers dir={dir}>{children}</Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

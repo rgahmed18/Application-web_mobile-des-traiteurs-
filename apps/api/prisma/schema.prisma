@@ -254,6 +254,7 @@ model Traiteur {
   messages          Message[]
   reviews           Review[]
   auditLogs         AuditLog[]
+  mediaUploads      MediaUpload[]
 }
 
 // Identité globale : un compte unique, utilisable chez plusieurs traiteurs.
@@ -471,22 +472,23 @@ model Category {
 }
 
 model Dish {
-  id          String   @id @default(uuid()) @db.Uuid
-  traiteurId  String   @db.Uuid
-  categoryId  String?  @db.Uuid
+  id          String    @id @default(uuid()) @db.Uuid
+  traiteurId  String    @db.Uuid
+  categoryId  String?   @db.Uuid
   slug        String
   name        Json // LocalizedText
   description Json? // LocalizedText
   priceHt     Int // centimes ; fait foi si le traiteur saisit en HT, dérivé sinon
   priceTtc    Int // centimes ; fait foi si le traiteur saisit en TTC, dérivé sinon
   taxRateBps  Int? // null = taux par défaut du traiteur
-  unit        DishUnit @default(PER_PERSON)
-  minQuantity Int      @default(1)
-  imageUrl    String?
+  unit        DishUnit  @default(PER_PERSON)
+  minQuantity Int       @default(1)
+  imageKey    String? // photo traitée (MediaUpload) : traiteurs/<id>/catalog/<uuid>
   allergens   String[]
-  isAvailable Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isAvailable Boolean   @default(true) // indisponibilité temporaire (hors saison...)
+  archivedAt  DateTime? // retiré du catalogue (conservé pour l'historique des commandes)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   traiteur      Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   category      Category?     @relation(fields: [categoryId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
@@ -498,23 +500,25 @@ model Dish {
   @@unique([id, traiteurId])
   @@index([traiteurId, categoryId])
   @@index([traiteurId, isAvailable])
+  @@index([traiteurId, archivedAt])
 }
 
 model Package {
-  id                String   @id @default(uuid()) @db.Uuid
-  traiteurId        String   @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  traiteurId        String    @db.Uuid
   slug              String
   name              Json // LocalizedText
   description       Json? // LocalizedText
   pricePerPersonHt  Int // centimes ; fait foi si le traiteur saisit en HT, dérivé sinon
   pricePerPersonTtc Int // centimes ; fait foi si le traiteur saisit en TTC, dérivé sinon
   taxRateBps        Int? // null = taux par défaut du traiteur
-  minGuests         Int      @default(1)
+  minGuests         Int       @default(1)
   maxGuests         Int?
-  imageUrl          String?
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  imageKey          String? // photo traitée (MediaUpload)
+  isActive          Boolean   @default(true)
+  archivedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   traiteur   Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   dishes     PackageDish[]
@@ -554,6 +558,7 @@ model ExtraService {
   taxRateBps  Int? // null = taux par défaut du traiteur
   pricingUnit PricingUnit @default(FLAT)
   isActive    Boolean     @default(true)
+  archivedAt  DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -898,6 +903,36 @@ model Review {
 
   @@unique([orderId, traiteurId]) // un avis par commande
   @@index([traiteurId, isPublished])
+}
+
+// ─────────────────────────── Médias ───────────────────────────
+
+enum MediaUploadStatus {
+  PENDING // URL d'envoi délivrée, fichier pas encore traité
+  READY // photo traitée (variantes WebP), pas encore rattachée à un élément
+  ATTACHED // utilisée par un plat ou une formule
+  DETACHED // remplacée ou élément supprimé : à effacer après le délai de grâce
+}
+
+// Suivi des photos envoyées : une photo jamais rattachée (ou remplacée) depuis 24 h est
+// supprimée du stockage par une tâche planifiée (BullMQ).
+model MediaUpload {
+  id         String            @id @default(uuid()) @db.Uuid
+  traiteurId String            @db.Uuid
+  status     MediaUploadStatus @default(PENDING)
+  rawKey     String // fichier brut envoyé par le navigateur (tmp/...), supprimé après traitement
+  imageKey   String?           @unique // base des variantes traitées (traiteurs/<id>/catalog/<uuid>)
+  entityType String? // Dish | Package
+  entityId   String?           @db.Uuid
+  detachedAt DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([status, detachedAt])
+  @@index([traiteurId])
 }
 
 // ─────────────────────────── Audit ───────────────────────────

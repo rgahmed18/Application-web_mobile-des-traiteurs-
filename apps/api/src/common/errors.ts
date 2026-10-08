@@ -29,7 +29,15 @@ export type AppErrorCode =
   | 'MISSING_PERMISSION'
   | 'FEATURE_DISABLED'
   | 'DOCUMENT_NOT_FOUND'
-  | 'LINE_NOT_FOUND';
+  | 'LINE_NOT_FOUND'
+  | 'NOT_FOUND'
+  | 'SLUG_TAKEN'
+  | 'ITEM_IN_USE'
+  | 'DISH_IN_PACKAGE'
+  | 'ITEM_ARCHIVED'
+  | 'IMAGE_INVALID'
+  | 'IMAGE_TOO_LARGE'
+  | 'UPLOAD_NOT_FOUND';
 
 export interface AppErrorBody {
   code: AppErrorCode;

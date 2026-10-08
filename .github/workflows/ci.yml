@@ -39,9 +39,9 @@ jobs:
         run: pnpm turbo run lint typecheck test build
 
   database:
-    name: Migrations, seed et tests d'intégration
+    name: Migrations, seed, tests d'intégration et parcours e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17-alpine
@@ -64,6 +64,22 @@ jobs:
       TEST_DATABASE_URL: postgresql://traiteur:traiteur@localhost:5432/gestion_traiteurs_test
       JWT_ACCESS_SECRET: ci-jwt-secret-not-used-in-production-000000
       OTP_SECRET: ci-otp-secret-not-used-in-production-000000
+      CORS_ORIGINS: http://localhost:3001
+      TRUST_PROXY: loopback
+      # Stockage des photos : RustFS (compatible S3), démarré ci-dessous
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: traiteur-media
+      S3_ACCESS_KEY_ID: traiteur
+      S3_SECRET_ACCESS_KEY: traiteur-secret
+      S3_FORCE_PATH_STYLE: 'true'
+      S3_PUBLIC_URL: http://localhost:9000/traiteur-media
+      S3_AUTO_SETUP: 'true'
+      # Back-office (parcours Playwright)
+      NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
+      NEXT_PUBLIC_MEDIA_URL: http://localhost:9000/traiteur-media
+      API_INTERNAL_URL: http://localhost:3000/api/v1
+      TRAITEUR_SLUG: dar-diafa
     steps:
       - uses: actions/checkout@v5
 
@@ -75,6 +91,18 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # Conteneur lancé à la main : les services GitHub Actions ne permettent pas d'attendre
+      # un conteneur sans commande de santé intégrée.
+      - name: Stockage S3 (RustFS)
+        run: |
+          docker run -d --name storage -p 9000:9000             -e RUSTFS_ACCESS_KEY=traiteur -e RUSTFS_SECRET_KEY=traiteur-secret             rustfs/rustfs:1.0.1
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null http://localhost:9000 && exit 0
+            sleep 2
+          done
+          docker logs storage
+          exit 1
 
       - name: Build du paquet partagé et génération du client Prisma
         run: pnpm turbo run build --filter=@traiteur/shared && pnpm db:generate
@@ -91,5 +119,19 @@ jobs:
       - name: Seed (exécuté deux fois pour vérifier l'idempotence)
         run: pnpm db:seed && pnpm db:seed
 
-      - name: Tests d'intégration (concurrence, contraintes, factures)
+      - name: Tests d'intégration (concurrence, contraintes, factures, catalogue)
         run: pnpm --filter @traiteur/api test:int
+
+      - name: Navigateur Playwright
+        run: pnpm --filter @traiteur/web exec playwright install --with-deps chromium
+
+      - name: Parcours e2e du back-office (connexion, plat avec photo, formule)
+        run: pnpm --filter @traiteur/web test:e2e
+
+      - name: Rapport Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7

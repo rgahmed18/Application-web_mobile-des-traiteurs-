@@ -19,12 +19,13 @@ Langues : français et arabe (RTL), anglais facultatif. Devise par défaut : MAD
 2. [Installation](#installation)
 3. [Lancer le projet](#lancer-le-projet)
 4. [Comptes de démonstration](#comptes-de-démonstration)
-5. [Tester l'authentification](#tester-lauthentification)
-6. [Structure du monorepo](#structure-du-monorepo)
-7. [Choix d'architecture](#choix-darchitecture)
-8. [Tests et qualité](#tests-et-qualité)
-9. [Référence des commandes](#référence-des-commandes)
-10. [Dépannage](#dépannage)
+5. [Back-office web](#back-office-web)
+6. [Tester l'authentification](#tester-lauthentification)
+7. [Structure du monorepo](#structure-du-monorepo)
+8. [Choix d'architecture](#choix-darchitecture)
+9. [Tests et qualité](#tests-et-qualité)
+10. [Référence des commandes](#référence-des-commandes)
+11. [Dépannage](#dépannage)
 
 ---
 
@@ -34,7 +35,7 @@ Langues : français et arabe (RTL), anglais facultatif. Devise par défaut : MAD
 | -------------- | ---------------------- | ----------------------------------------------------- |
 | Node.js        | **24 LTS** (ou 22.23+) | Node 22.13 et antérieurs font planter le CLI NestJS   |
 | pnpm           | 10.x                   | `npm i -g pnpm@10`                                    |
-| Docker Desktop | récent                 | Pour PostgreSQL 17 et Redis 7                         |
+| Docker Desktop | récent                 | PostgreSQL 17, Redis 7, stockage S3 (RustFS)          |
 | Expo Go        | facultatif             | Pour ouvrir les applications mobiles sur un téléphone |
 
 ## Installation
@@ -62,7 +63,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 > si l'une d'elles est absente ou invalide (voir `apps/api/src/config/env.schema.ts`).
 
 ```bash
-# 3. PostgreSQL + Redis
+# 3. PostgreSQL + Redis + stockage des photos (RustFS, compatible S3)
 pnpm docker:up
 
 # 4. Base de données : migrations puis données de démonstration
@@ -73,6 +74,12 @@ pnpm db:seed
 PostgreSQL est exposé sur le port **5433** (et non 5432) pour ne pas entrer en conflit avec une
 installation locale. Au premier démarrage, Docker crée aussi la base `gestion_traiteurs_test`
 utilisée par les tests d'intégration.
+
+Les photos du catalogue sont stockées dans **RustFS** (compatible S3), lancé par docker compose :
+API S3 sur le port **9000**, console web sur http://localhost:9001 (identifiants `traiteur` /
+`traiteur-secret`). L'API crée le bucket `traiteur-media`, sa lecture publique (photos traitées
+uniquement) et son CORS au démarrage (`S3_AUTO_SETUP=true`). En production : Cloudflare R2,
+voir les commentaires de `apps/api/.env.example`.
 
 ## Lancer le projet
 
@@ -86,7 +93,8 @@ pnpm dev:web      # site web seul
 | ----------------- | -------------------------------------------------------- |
 | API               | http://localhost:3000/api/v1                             |
 | Swagger (doc API) | http://localhost:3000/docs                               |
-| Web (Next.js)     | http://localhost:3001                                    |
+| Back-office       | http://localhost:3001/admin                              |
+| Console RustFS    | http://localhost:9001                                    |
 | Mobile client     | `pnpm --filter @traiteur/mobile-client dev` puis Expo Go |
 | Mobile équipe     | `pnpm --filter @traiteur/mobile-staff dev` puis Expo Go  |
 | Prisma Studio     | `pnpm --filter @traiteur/api db:studio`                  |
@@ -97,8 +105,8 @@ Depuis un téléphone physique, remplacez `localhost` par l'adresse IP locale de
 ## Comptes de démonstration
 
 Le seed crée le traiteur **Dar Diafa Traiteur** (slug `dar-diafa`, offre PRO, prix saisis TTC),
-un catalogue marocain bilingue (12 plats, 2 formules, 3 services), une commande de fiançailles
-avec devis, facture, acompte et équipe affectée.
+un catalogue marocain bilingue (6 catégories, 21 plats, 3 formules, 4 services) illustré par des
+images générées, une commande de fiançailles avec devis, facture, acompte et équipe affectée.
 
 Mot de passe commun : **`Password123!`**
 
@@ -111,6 +119,55 @@ Mot de passe commun : **`Password123!`**
 | CLIENT         | +212600000005 | client@exemple.ma               |
 
 Le seed est **idempotent** : il peut être relancé sans créer de doublons.
+
+Pour remplacer l'illustration d'un plat ou d'une formule par une vraie photo (JPEG, PNG ou WebP ;
+convertir d'abord une photo HEIC d'iPhone) :
+
+```bash
+pnpm --filter @traiteur/api catalog:set-photo --traiteur dar-diafa --dish pastilla-poulet --file ./photos/pastilla.jpg
+pnpm --filter @traiteur/api catalog:set-photo --traiteur dar-diafa --package formule-mariage-prestige --file ./photos/mariage.jpg
+```
+
+L'identifiant est le slug du plat ou de la formule (visible dans Prisma Studio). L'ancienne photo
+est supprimée du stockage 24 h plus tard par la tâche de nettoyage.
+
+## Back-office web
+
+http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` (gérant).
+
+- **Connexion** par mot de passe ou par code SMS (le code s'affiche dans les logs de l'API en
+  développement), mot de passe oublié.
+- **Français / arabe** (bouton en haut de l'écran) : toute l'interface passe en arabe et en
+  miroir (RTL). Chiffres occidentaux, montants au format marocain (`1.250,00 MAD` /
+  `1.250,00 د.م.`), dates `JJ/MM/AAAA` dans le fuseau du traiteur.
+- **Menu** filtré selon les permissions de `/auth/me` ; Commandes, Calendrier, Clients,
+  Personnel et Paramètres affichent « Bientôt disponible ».
+- **Catalogue** (`catalog.read` pour consulter, `catalog.write` pour modifier) :
+  - plats : recherche, filtres catégorie et disponibilité, pagination, photo, allergènes, prix
+    saisi en HT ou TTC selon le traiteur avec l'autre montant affiché en direct ;
+  - formules : composition (plats et quantités par personne), invités min / max, prix par
+    personne et valeur indicative des plats au détail calculée en direct ;
+  - catégories : ordre par glisser-déposer (souris, doigt ou clavier : Espace puis flèches) ;
+  - services : prix et unité de tarification ;
+  - bouton **Dupliquer** (plats et formules, composition comprise) ;
+  - un élément déjà utilisé dans une commande ou un devis ne peut pas être supprimé, seulement
+    archivé ; chaque modification est inscrite au journal d'audit ;
+  - alerte avant de quitter un formulaire modifié et non enregistré.
+
+**Session** : le jeton d'accès reste en mémoire (jamais dans `localStorage`) ; le refresh token
+est dans un cookie `httpOnly; Secure; SameSite=Strict` limité à `/api/session`, posé par les
+routes Next (`apps/web/src/app/api/session`) qui relaient l'API. Le jeton d'accès est renouvelé
+automatiquement une minute avant son expiration. Les routes de session vérifient l'origine de la
+requête et transmettent l'IP du navigateur : `TRUST_PROXY` de l'API doit faire confiance au
+serveur Next (`loopback` en développement).
+
+**Photos** : JPEG, PNG, WebP ou HEIC/HEIF (iPhone). Le navigateur convertit le HEIC (bibliothèque
+`heic-to`, licence LGPL, chargée seulement si nécessaire), applique l'orientation EXIF, réduit la
+photo (2560 px max) et la réencode en JPEG, ce qui supprime les métadonnées (position GPS
+comprise). Elle est envoyée directement au stockage par URL présignée (type et taille signés,
+5 Mo max), puis l'API vérifie le contenu réel du fichier et produit deux variantes WebP (1200 et
+400 px) sans métadonnées. Une photo jamais rattachée, ou remplacée, est supprimée après 24 h par
+une tâche BullMQ horaire (`media-orphans-cleanup`).
 
 ## Tester l'authentification
 
@@ -170,12 +227,14 @@ Organisation de l'API (`apps/api/src`) : un module par domaine.
 | `config/`    | Validation Zod des variables d'environnement                          |
 | `prisma/`    | Client Prisma (pilote PostgreSQL natif `adapter-pg`)                  |
 | `redis/`     | Connexion Redis (cache des permissions et des fonctionnalités)        |
-| `queue/`     | BullMQ (file `notifications`, prête pour les traitements asynchrones) |
+| `queue/`     | BullMQ (files `notifications` et `media`)                             |
+| `storage/`   | Stockage S3 (URL présignées, traitement des images avec sharp)        |
+| `catalog/`   | Catégories, plats, formules, services, photos (`/api/v1/catalog`)     |
 | `auth/`      | Inscription, connexion, OTP SMS, JWT, refresh tokens                  |
 | `access/`    | Permissions, feature flags et les 5 guards globaux                    |
 | `sequences/` | Numérotation continue des documents                                   |
 | `documents/` | Lignes de commande et de devis (seul point d’écriture, totaux inclus) |
-| `audit/`     | Journal d'audit (service prêt, pas encore branché)                    |
+| `audit/`     | Journal d'audit (authentification, catalogue)                         |
 
 ## Choix d'architecture
 
@@ -332,9 +391,10 @@ Elle **doit** être appelée dans la même transaction que la création du docum
 - **Limiteur de débit** : compteurs dans Redis (script Lua atomique), partagés entre toutes les
   instances de l'API et conservés après un redémarrage. Si Redis est indisponible, les requêtes
   passent (journalisé) : les protections critiques ci-dessus reposent sur PostgreSQL.
-- **IP réelle derrière un proxy** : `TRUST_PROXY` (désactivé par défaut) accepte `true`, un
-  nombre de proxys ou une liste d'adresses. Ne l'activez jamais sans proxy : un client pourrait
-  sinon choisir son IP via l'en-tête `X-Forwarded-For` et contourner les quotas.
+- **IP réelle derrière un proxy** : `TRUST_PROXY` accepte `true`, un nombre de proxys ou une
+  liste d'adresses (`loopback` en développement, pour le serveur Next du back-office). Ne
+  faites jamais confiance à une adresse qui n'est pas un proxy : un client pourrait sinon
+  choisir son IP via l'en-tête `X-Forwarded-For` et contourner les quotas.
 
 ### SQL hors Prisma
 
@@ -360,31 +420,37 @@ pnpm db:check-drift    # doit répondre « No difference detected »
 ```bash
 pnpm lint          # ESLint (analyse typée, "any" interdit)
 pnpm typecheck     # TypeScript strict
-pnpm test          # tests unitaires (Vitest pour shared, Jest pour l'API)
+pnpm test          # tests unitaires (Vitest pour shared et web, Jest pour l'API)
 pnpm build         # build de toutes les applications
 pnpm format        # Prettier
 
 # Tests d'intégration (PostgreSQL réel, base gestion_traiteurs_test recréée à chaque lancement)
 pnpm --filter @traiteur/api test:int
+
+# Parcours e2e du back-office (Playwright) : connexion, puis plat avec photo et formule.
+# Docker démarré et base seedée ; l'API et le web sont lancés s'ils ne tournent pas déjà.
+pnpm --filter @traiteur/web exec playwright install chromium   # une seule fois
+pnpm --filter @traiteur/web test:e2e
 ```
 
 Les tests d'intégration couvrent la numérotation sous 50 transactions simultanées, l'absence de
 trou après un échec, l'isolation entre traiteurs imposée par la base, les contraintes `CHECK`
-et l'immuabilité des factures. Par sécurité, ils refusent de s'exécuter sur une base dont le nom
+et l'immuabilité des factures, ainsi que l'API du catalogue (isolation entre traiteurs,
+permissions, prix HT/TTC, archivage, audit, photos). Par sécurité, ils refusent de s'exécuter sur une base dont le nom
 ne se termine pas par `_test`.
 
 **CI GitHub Actions** (`.github/workflows/ci.yml`), à chaque push sur `main` et chaque pull
 request :
 
 1. Formatage, lint, typecheck, tests unitaires et build.
-2. Avec PostgreSQL et Redis : migrations, détection d'écart schéma/migrations, seed exécuté
-   deux fois (idempotence), tests d'intégration.
+2. Avec PostgreSQL, Redis et RustFS : migrations, détection d'écart schéma/migrations, seed
+   exécuté deux fois (idempotence), tests d'intégration, parcours e2e Playwright.
 
 ## Référence des commandes
 
 | Commande                                                  | Effet                                              |
 | --------------------------------------------------------- | -------------------------------------------------- |
-| `pnpm docker:up` / `pnpm docker:down`                     | Démarre / arrête PostgreSQL et Redis               |
+| `pnpm docker:up` / `pnpm docker:down`                     | Démarre / arrête PostgreSQL, Redis et RustFS       |
 | `pnpm db:migrate`                                         | Crée et applique les migrations (développement)    |
 | `pnpm db:seed`                                            | Charge les données de démonstration                |
 | `pnpm db:reset`                                           | Vide la base, réapplique les migrations et le seed |
@@ -393,6 +459,8 @@ request :
 | `pnpm --filter @traiteur/api db:patch-set-null <fichier>` | Réécrit les SET NULL composites d'une migration    |
 | `pnpm --filter @traiteur/api db:check-drift`              | Vérifie que schéma et migrations concordent        |
 | `pnpm --filter @traiteur/api db:studio`                   | Interface graphique de la base                     |
+| `pnpm --filter @traiteur/api catalog:set-photo …`         | Remplace la photo d'un plat ou d'une formule       |
+| `pnpm --filter @traiteur/web test:e2e`                    | Parcours Playwright du back-office                 |
 
 ## Dépannage
 
@@ -405,5 +473,10 @@ request :
   `docker compose exec postgres psql -U traiteur -d gestion_traiteurs -c "CREATE DATABASE gestion_traiteurs_test"`.
 - **Avertissement Prisma « onDelete SetNull … referenced field is required »** : attendu, voir
   [SQL hors Prisma](#sql-hors-prisma).
+- **« Request has expired » à l'envoi d'une photo** : l'horloge du PC est décalée. L'API
+  compense un décalage avec le stockage (avertissement dans ses logs), mais resynchronisez
+  l'heure de Windows (Paramètres › Heure et langue › Synchroniser maintenant).
+- **Photo non affichée** : vérifiez que RustFS tourne (`docker compose ps`) et que
+  `NEXT_PUBLIC_MEDIA_URL` (web) correspond à `S3_PUBLIC_URL` (API).
 - **Client Prisma introuvable ou obsolète** : `pnpm db:generate` (Prisma 7 ne le régénère plus
   automatiquement après une migration).

@@ -37,12 +37,12 @@ describe('resolveEffectivePermissions', () => {
       defaults,
       [
         { permissionKey: 'quotes.manage', granted: false },
-        { permissionKey: 'catalog.manage', granted: true },
+        { permissionKey: 'catalog.write', granted: true },
       ],
       critical,
     );
     expect(result.has('quotes.manage')).toBe(false);
-    expect(result.has('catalog.manage')).toBe(true);
+    expect(result.has('catalog.write')).toBe(true);
   });
 
   it('ignore toute surcharge d’une permission critique', () => {

@@ -19,7 +19,14 @@ export function createExpoConfig(tsconfigRootDir) {
       languageOptions: {
         parserOptions: { projectService: true, tsconfigRootDir },
       },
-      rules: strictTypeScriptRules,
+      rules: {
+        ...strictTypeScriptRules,
+        // Les gestionnaires React (onPress) peuvent être asynchrones
+        '@typescript-eslint/no-misused-promises': [
+          'error',
+          { checksVoidReturn: { attributes: false } },
+        ],
+      },
     },
     prettier,
   ]);

@@ -11,6 +11,7 @@ import { RolesGuard } from './access/guards/roles.guard';
 import { TenantGuard } from './access/guards/tenant.guard';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { CatalogModule } from './catalog/catalog.module';
 import { DocumentsModule } from './documents/documents.module';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
@@ -19,6 +20,7 @@ import { QueueModule } from './queue/queue.module';
 import { RedisThrottlerStorage } from './redis/redis-throttler.storage';
 import { REDIS_CLIENT, RedisModule } from './redis/redis.module';
 import { SequencesModule } from './sequences/sequences.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -38,7 +40,9 @@ import { SequencesModule } from './sequences/sequences.module';
     AuditModule,
     SequencesModule,
     DocumentsModule,
+    StorageModule,
     AuthModule,
+    CatalogModule,
   ],
   controllers: [HealthController],
   providers: [

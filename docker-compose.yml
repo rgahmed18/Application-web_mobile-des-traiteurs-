@@ -39,6 +39,23 @@ services:
       timeout: 5s
       retries: 10
 
+  # Stockage S3 des photos : RustFS (compatible S3 et MinIO) ; Cloudflare R2 en production.
+  # MinIO ne publie plus d'images Docker pour son édition communautaire.
+  # Le bucket, sa lecture publique et son CORS sont configurés par l'API au démarrage.
+  storage:
+    image: rustfs/rustfs:1.0.1
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-traiteur}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-traiteur-secret}
+      RUSTFS_CONSOLE_ENABLE: 'true'
+    ports:
+      - '${S3_PORT:-9000}:9000'
+      - '${S3_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - storage-data:/data
+
 volumes:
   postgres-data:
   redis-data:
+  storage-data:

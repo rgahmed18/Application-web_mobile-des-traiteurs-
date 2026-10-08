@@ -21,7 +21,14 @@ export function createNextConfig(tsconfigRootDir) {
       languageOptions: {
         parserOptions: { projectService: true, tsconfigRootDir },
       },
-      rules: strictTypeScriptRules,
+      rules: {
+        ...strictTypeScriptRules,
+        // Les gestionnaires React (onSubmit, onClick) peuvent être asynchrones
+        '@typescript-eslint/no-misused-promises': [
+          'error',
+          { checksVoidReturn: { attributes: false } },
+        ],
+      },
     },
     prettier,
   ]);

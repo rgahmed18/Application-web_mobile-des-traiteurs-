@@ -7,12 +7,12 @@ import 'dotenv/config';
 import { hash } from '@node-rs/argon2';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
+  type Allergen,
   type CatalogPrices,
   computeCatalogPrices,
   computeDocumentTotals,
   getDefaultFeatureFlags,
   type LocalizedText,
-  PERMISSIONS,
   type PriceMode,
   unitPriceFor,
 } from '@traiteur/shared';
@@ -23,6 +23,9 @@ import {
   computeDraftAmounts,
   type LineDraft,
 } from '../src/documents/document-lines';
+import { syncPermissionCatalog } from '../src/access/permission-catalog';
+import { generateIllustration, PALETTES } from './lib/illustrations';
+import { connectScriptStorage, storeAndAttachImage } from './lib/media-script';
 import { nextDocumentNumber } from '../src/sequences/document-sequence';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -43,47 +46,8 @@ const catalogPrices = (ttcMad: number, taxRateBps = TAX_RATE): CatalogPrices =>
 // ─────────────────────── Permissions ───────────────────────
 
 async function seedPermissions(): Promise<void> {
-  for (const definition of PERMISSIONS) {
-    await prisma.permission.upsert({
-      where: { key: definition.key },
-      update: {
-        module: definition.module,
-        description: definition.description,
-        isTenantEditable: definition.isTenantEditable,
-      },
-      create: {
-        key: definition.key,
-        module: definition.module,
-        description: definition.description,
-        isTenantEditable: definition.isTenantEditable,
-      },
-    });
-  }
-
-  const permissions = await prisma.permission.findMany({ select: { id: true, key: true } });
-  const idByKey = new Map(permissions.map((p) => [p.key, p.id]));
-  const desired = PERMISSIONS.flatMap((definition) =>
-    definition.defaultRoles.map((role) => ({
-      traiteurId: null,
-      role,
-      permissionId: idByKey.get(definition.key) ?? '',
-      granted: true,
-    })),
-  );
-
-  // Matrice par défaut (traiteurId = null) : ajout des lignes manquantes…
-  await prisma.rolePermission.createMany({ data: desired, skipDuplicates: true });
-  // …et retrait des lignes qui ne figurent plus dans le catalogue.
-  const desiredKeys = new Set(desired.map((d) => `${d.role}:${d.permissionId}`));
-  const existing = await prisma.rolePermission.findMany({
-    where: { traiteurId: null },
-    select: { id: true, role: true, permissionId: true },
-  });
-  const obsolete = existing.filter((row) => !desiredKeys.has(`${row.role}:${row.permissionId}`));
-  if (obsolete.length > 0) {
-    await prisma.rolePermission.deleteMany({ where: { id: { in: obsolete.map((r) => r.id) } } });
-  }
-  console.log(`✓ ${PERMISSIONS.length} permissions, ${desired.length} droits par défaut`);
+  const { permissions, defaultGrants } = await syncPermissionCatalog(prisma);
+  console.log(`✓ ${permissions} permissions, ${defaultGrants} droits par défaut`);
 }
 
 // ─────────────────────── Traiteur ───────────────────────
@@ -128,7 +92,7 @@ async function seedTraiteur() {
 
   // Exemple de surcharge : ce traiteur autorise ses employés à gérer le catalogue.
   const catalogManage = await prisma.permission.findUniqueOrThrow({
-    where: { key: 'catalog.manage' },
+    where: { key: 'catalog.write' },
   });
   await prisma.rolePermission.upsert({
     where: {
@@ -267,105 +231,275 @@ interface DishSeed {
   slug: string;
   category: string;
   name: LocalizedText;
-  description?: LocalizedText;
+  description: LocalizedText;
   ttc: number;
   /** Taux propre au plat (sinon taux par défaut du traiteur). */
   taxRateBps?: number;
   unit?: DishUnit;
   minQuantity?: number;
-  allergens?: string[];
+  allergens?: Allergen[];
 }
 
 const CATEGORIES: { slug: string; name: LocalizedText }[] = [
   { slug: 'entrees', name: { fr: 'Entrées', ar: 'المقبلات' } },
+  { slug: 'soupes', name: { fr: 'Soupes', ar: 'الحساء' } },
   { slug: 'plats', name: { fr: 'Plats principaux', ar: 'الأطباق الرئيسية' } },
+  { slug: 'poissons', name: { fr: 'Poissons', ar: 'الأسماك' } },
   { slug: 'patisseries', name: { fr: 'Pâtisseries et desserts', ar: 'الحلويات' } },
   { slug: 'boissons', name: { fr: 'Boissons', ar: 'المشروبات' } },
 ];
 
+/** Palette d'illustration de chaque catégorie (voir prisma/lib/illustrations.ts). */
+const CATEGORY_PALETTE: Record<string, string> = {
+  entrees: 'entrees',
+  soupes: 'plats',
+  plats: 'plats',
+  poissons: 'boissons',
+  patisseries: 'patisseries',
+  boissons: 'boissons',
+};
+
 const DISHES: DishSeed[] = [
+  // Entrées
   {
     slug: 'salades-marocaines',
     category: 'entrees',
     name: { fr: 'Assortiment de salades marocaines', ar: 'سلطات مغربية متنوعة' },
+    description: {
+      fr: 'Zaalouk, taktouka, carottes au cumin et betteraves, servis en petits plats.',
+      ar: 'زعلوك، تكتوكة، جزر بالكمون وشمندر، تقدم في صحون صغيرة.',
+    },
     ttc: 25,
+  },
+  {
+    slug: 'briouates-viande',
+    category: 'entrees',
+    name: { fr: 'Briouates à la viande hachée', ar: 'بريوات باللحم المفروم' },
+    description: {
+      fr: 'Feuilles de brick croustillantes farcies de viande hachée épicée.',
+      ar: 'أوراق البسطيلة المقرمشة محشوة باللحم المفروم المتبل.',
+    },
+    ttc: 3,
+    unit: 'PER_PIECE',
+    minQuantity: 50,
+    allergens: ['gluten', 'eggs'],
   },
   {
     slug: 'pastilla-poulet',
     category: 'entrees',
     name: { fr: 'Pastilla au poulet et amandes', ar: 'بسطيلة بالدجاج واللوز' },
+    description: {
+      fr: 'Feuilletée sucrée-salée, poulet confit, amandes grillées, cannelle et sucre glace.',
+      ar: 'بسطيلة حلوة ومالحة بالدجاج واللوز المحمص والقرفة والسكر.',
+    },
     ttc: 45,
-    allergens: ['gluten', 'fruits à coque', 'œufs'],
+    allergens: ['gluten', 'nuts', 'eggs'],
   },
   {
     slug: 'pastilla-fruits-de-mer',
     category: 'entrees',
     name: { fr: 'Pastilla aux fruits de mer', ar: 'بسطيلة بالحوت' },
+    description: {
+      fr: 'Crevettes, calamars et poisson blanc, vermicelles et chermoula.',
+      ar: 'قمرون وكلمار وسمك أبيض مع الشعرية والشرمولة.',
+    },
     ttc: 60,
-    allergens: ['gluten', 'crustacés', 'poisson'],
+    allergens: ['gluten', 'crustaceans', 'molluscs', 'fish', 'eggs'],
   },
+  // Soupes
+  {
+    slug: 'harira',
+    category: 'soupes',
+    name: { fr: 'Harira traditionnelle', ar: 'حريرة تقليدية' },
+    description: {
+      fr: 'Soupe de tomates, lentilles et pois chiches, servie avec dattes et chebakia.',
+      ar: 'حساء الطماطم والعدس والحمص، يقدم مع التمر والشباكية.',
+    },
+    ttc: 15,
+    allergens: ['gluten', 'celery'],
+  },
+  // Plats
   {
     slug: 'mechoui',
     category: 'plats',
     name: { fr: "Méchoui d'agneau", ar: 'مشوي الخروف' },
+    description: {
+      fr: 'Épaule d’agneau rôtie lentement, servie avec cumin et sel.',
+      ar: 'كتف خروف مشوي على نار هادئة، يقدم مع الكمون والملح.',
+    },
     ttc: 120,
   },
   {
     slug: 'tajine-agneau-pruneaux',
     category: 'plats',
     name: { fr: "Tajine d'agneau aux pruneaux", ar: 'طاجين اللحم بالبرقوق' },
+    description: {
+      fr: 'Agneau fondant, pruneaux caramélisés, amandes et graines de sésame.',
+      ar: 'لحم غنمي طري مع البرقوق المعسل واللوز والجلجلان.',
+    },
     ttc: 85,
-    allergens: ['sésame', 'fruits à coque'],
+    allergens: ['sesame', 'nuts'],
+  },
+  {
+    slug: 'tajine-poulet-citron',
+    category: 'plats',
+    name: { fr: 'Tajine de poulet au citron confit', ar: 'طاجين الدجاج بالحامض المرقد' },
+    description: {
+      fr: 'Poulet fermier, citron confit, olives violettes et gingembre.',
+      ar: 'دجاج بلدي بالحامض المرقد والزيتون والزنجبيل.',
+    },
+    ttc: 60,
   },
   {
     slug: 'poulet-mhammer',
     category: 'plats',
     name: { fr: "Poulet m'hammer aux olives", ar: 'دجاج محمر بالزيتون' },
+    description: {
+      fr: 'Poulet mijoté puis doré au four, sauce au safran et olives.',
+      ar: 'دجاج مطهو ثم محمر في الفرن، بمرق الزعفران والزيتون.',
+    },
     ttc: 65,
   },
   {
     slug: 'couscous-sept-legumes',
     category: 'plats',
     name: { fr: 'Couscous aux sept légumes', ar: 'كسكس بسبع خضار' },
+    description: {
+      fr: 'Semoule roulée à la main, sept légumes de saison et bouillon parfumé.',
+      ar: 'كسكس مفتول يدويًا بسبع خضار موسمية ومرق معطر.',
+    },
     ttc: 55,
+    allergens: ['gluten', 'celery'],
+  },
+  {
+    slug: 'rfissa',
+    category: 'plats',
+    name: { fr: 'Rfissa au poulet', ar: 'رفيسة بالدجاج' },
+    description: {
+      fr: 'Msemmen effiloché, poulet, lentilles et fenugrec : le plat des naissances.',
+      ar: 'مسمن مقطع بالدجاج والعدس والحلبة، طبق المناسبات العائلية.',
+    },
+    ttc: 70,
     allergens: ['gluten'],
   },
+  {
+    slug: 'tangia',
+    category: 'plats',
+    name: { fr: 'Tangia marrakchie', ar: 'طنجية مراكشية' },
+    description: {
+      fr: 'Jarret de bœuf cuit lentement au cumin, citron confit et smen.',
+      ar: 'لحم بقري مطهو ببطء بالكمون والحامض المرقد والسمن.',
+    },
+    ttc: 95,
+    allergens: ['milk'],
+  },
+  {
+    slug: 'mrouzia',
+    category: 'plats',
+    name: { fr: 'Mrouzia aux raisins secs', ar: 'مروزية بالزبيب' },
+    description: {
+      fr: 'Agneau au ras-el-hanout, miel, raisins secs et amandes : plat de fête.',
+      ar: 'لحم غنمي برأس الحانوت والعسل والزبيب واللوز، طبق الأعياد.',
+    },
+    ttc: 110,
+    allergens: ['nuts'],
+  },
+  // Poissons
+  {
+    slug: 'poisson-chermoula',
+    category: 'poissons',
+    name: { fr: 'Poisson à la chermoula', ar: 'سمك بالشرمولة' },
+    description: {
+      fr: 'Loup ou dorade au four, chermoula, pommes de terre et poivrons.',
+      ar: 'قاروص أو دوراد في الفرن بالشرمولة والبطاطس والفلفل.',
+    },
+    ttc: 90,
+    allergens: ['fish'],
+  },
+  // Pâtisseries et desserts
   {
     slug: 'cornes-de-gazelle',
     category: 'patisseries',
     name: { fr: 'Cornes de gazelle', ar: 'كعب الغزال' },
+    description: {
+      fr: 'Pâte fine farcie de pâte d’amande parfumée à la fleur d’oranger.',
+      ar: 'عجين رقيق محشو بعجينة اللوز المعطرة بماء الزهر.',
+    },
     ttc: 4,
     unit: 'PER_PIECE',
     minQuantity: 50,
-    allergens: ['gluten', 'fruits à coque'],
+    allergens: ['gluten', 'nuts'],
   },
   {
     slug: 'chebakia',
     category: 'patisseries',
     name: { fr: 'Chebakia au miel', ar: 'شباكية بالعسل' },
+    description: {
+      fr: 'Fleurs de pâte frites, enrobées de miel et de sésame.',
+      ar: 'عجين مقلي على شكل وردة، مغطى بالعسل والجلجلان.',
+    },
     ttc: 3,
     unit: 'PER_PIECE',
     minQuantity: 50,
-    allergens: ['gluten', 'sésame'],
+    allergens: ['gluten', 'sesame'],
+  },
+  {
+    slug: 'ghriba-amandes',
+    category: 'patisseries',
+    name: { fr: 'Ghriba aux amandes', ar: 'غريبة باللوز' },
+    description: {
+      fr: 'Biscuits craquelés aux amandes, moelleux à cœur.',
+      ar: 'حلوى اللوز المشققة، طرية من الداخل.',
+    },
+    ttc: 3,
+    unit: 'PER_PIECE',
+    minQuantity: 50,
+    allergens: ['nuts', 'eggs'],
+  },
+  {
+    slug: 'sellou',
+    category: 'patisseries',
+    name: { fr: 'Sellou (sfouf)', ar: 'سلو (السفوف)' },
+    description: {
+      fr: 'Farine grillée, amandes, sésame, anis et miel, servi au kilo.',
+      ar: 'دقيق محمص ولوز وجلجلان ونافع وعسل، يباع بالكيلو.',
+    },
+    ttc: 180,
+    unit: 'PER_KG',
+    allergens: ['gluten', 'nuts', 'sesame'],
   },
   {
     slug: 'plateau-fruits',
     category: 'patisseries',
     name: { fr: 'Plateau de fruits de saison', ar: 'طبق فواكه موسمية' },
+    description: {
+      fr: 'Fruits frais découpés, présentés sur plateau.',
+      ar: 'فواكه طازجة مقطعة، تقدم في طبق.',
+    },
     ttc: 20,
   },
+  // Boissons
   {
     slug: 'the-menthe',
     category: 'boissons',
     name: { fr: 'Thé à la menthe', ar: 'أتاي بالنعناع' },
+    description: {
+      fr: 'Thé vert à la menthe fraîche, servi à la théière.',
+      ar: 'شاي أخضر بالنعناع الطري، يقدم في البراد.',
+    },
     ttc: 10,
   },
   {
     slug: 'jus-frais',
     category: 'boissons',
     name: { fr: 'Jus de fruits frais', ar: 'عصير فواكه طازجة' },
+    description: {
+      fr: 'Orange, avocat ou panaché selon la saison.',
+      ar: 'برتقال أو أفوكا أو مشكل حسب الموسم.',
+    },
     ttc: 15,
     taxRateBps: 1000, // exemple de taux réduit : 10 %
+    allergens: ['milk'],
   },
 ];
 
@@ -374,64 +508,101 @@ const PACKAGES = [
     slug: 'formule-fiancailles',
     name: { fr: 'Formule Fiançailles', ar: 'عرض الخطوبة' },
     description: {
-      fr: 'Salades, pastilla, poulet m’hammer, pâtisseries et thé.',
-      ar: 'سلطات، بسطيلة، دجاج محمر، حلويات وأتاي.',
+      fr: 'Salades, pastilla au poulet, poulet m’hammer, cornes de gazelle et thé.',
+      ar: 'سلطات، بسطيلة بالدجاج، دجاج محمر، كعب الغزال وأتاي.',
     },
     ttcPerPerson: 250,
     minGuests: 50,
     maxGuests: 300,
     dishes: [
-      'salades-marocaines',
-      'pastilla-poulet',
-      'poulet-mhammer',
-      'cornes-de-gazelle',
-      'the-menthe',
+      ['salades-marocaines', 1],
+      ['pastilla-poulet', 1],
+      ['poulet-mhammer', 1],
+      ['cornes-de-gazelle', 3],
+      ['the-menthe', 1],
     ],
   },
   {
     slug: 'formule-mariage-prestige',
     name: { fr: 'Formule Mariage Prestige', ar: 'عرض العرس الفاخر' },
     description: {
-      fr: 'Le grand menu traditionnel des mariages marocains.',
-      ar: 'القائمة التقليدية الكبرى للأعراس المغربية.',
+      fr: 'Le grand menu traditionnel des mariages marocains, du méchoui aux pâtisseries.',
+      ar: 'القائمة التقليدية الكبرى للأعراس المغربية، من المشوي إلى الحلويات.',
     },
     ttcPerPerson: 450,
     minGuests: 100,
     maxGuests: 800,
     dishes: [
-      'pastilla-fruits-de-mer',
-      'mechoui',
-      'tajine-agneau-pruneaux',
-      'plateau-fruits',
-      'cornes-de-gazelle',
-      'chebakia',
-      'the-menthe',
-      'jus-frais',
+      ['pastilla-fruits-de-mer', 1],
+      ['mechoui', 1],
+      ['tajine-agneau-pruneaux', 1],
+      ['plateau-fruits', 1],
+      ['cornes-de-gazelle', 2],
+      ['chebakia', 2],
+      ['the-menthe', 1],
+      ['jus-frais', 1],
+    ],
+  },
+  {
+    slug: 'formule-aqiqa',
+    name: { fr: 'Formule Aqiqa', ar: 'عرض العقيقة' },
+    description: {
+      fr: 'Harira, rfissa au poulet, ghriba et thé pour célébrer une naissance.',
+      ar: 'حريرة، رفيسة بالدجاج، غريبة وأتاي للاحتفال بالمولود.',
+    },
+    ttcPerPerson: 180,
+    minGuests: 30,
+    maxGuests: 200,
+    dishes: [
+      ['harira', 1],
+      ['rfissa', 1],
+      ['ghriba-amandes', 2],
+      ['the-menthe', 1],
     ],
   },
 ] as const;
 
-const EXTRA_SERVICES: { id: string; name: LocalizedText; ttc: number; pricingUnit: PricingUnit }[] =
-  [
-    {
-      id: 'e0000000-0000-4000-8000-000000000001',
-      name: { fr: 'Décoration florale de la salle', ar: 'تزيين القاعة بالورود' },
-      ttc: 8000,
-      pricingUnit: 'FLAT',
+interface ServiceSeed {
+  id: string;
+  name: LocalizedText;
+  description: LocalizedText;
+  ttc: number;
+  pricingUnit: PricingUnit;
+}
+
+const EXTRA_SERVICES: ServiceSeed[] = [
+  {
+    id: 'e0000000-0000-4000-8000-000000000001',
+    name: { fr: 'Décoration florale de la salle', ar: 'تزيين القاعة بالورود' },
+    description: { fr: 'Centres de table et arche fleurie.', ar: 'زينة الطاولات وقوس من الورود.' },
+    ttc: 8000,
+    pricingUnit: 'FLAT',
+  },
+  {
+    id: 'e0000000-0000-4000-8000-000000000002',
+    name: { fr: 'Serveur supplémentaire (par soirée)', ar: 'نادل إضافي (لكل أمسية)' },
+    description: { fr: 'Service en tenue traditionnelle.', ar: 'خدمة بلباس تقليدي.' },
+    ttc: 400,
+    pricingUnit: 'PER_UNIT',
+  },
+  {
+    id: 'e0000000-0000-4000-8000-000000000003',
+    name: { fr: 'Troupe de musique andalouse', ar: 'جوق الموسيقى الأندلسية' },
+    description: { fr: 'Orchestre de 6 musiciens, 4 heures.', ar: 'جوق من 6 عازفين لمدة 4 ساعات.' },
+    ttc: 6000,
+    pricingUnit: 'FLAT',
+  },
+  {
+    id: 'e0000000-0000-4000-8000-000000000004',
+    name: { fr: 'Location de vaisselle traditionnelle', ar: 'كراء الأواني التقليدية' },
+    description: {
+      fr: 'Théières, plateaux et tajines décoratifs, par invité.',
+      ar: 'براريد وصواني وطواجن للزينة، لكل ضيف.',
     },
-    {
-      id: 'e0000000-0000-4000-8000-000000000002',
-      name: { fr: 'Serveur supplémentaire (par soirée)', ar: 'نادل إضافي (لكل أمسية)' },
-      ttc: 400,
-      pricingUnit: 'PER_UNIT',
-    },
-    {
-      id: 'e0000000-0000-4000-8000-000000000003',
-      name: { fr: 'Troupe de musique andalouse', ar: 'جوق الموسيقى الأندلسية' },
-      ttc: 6000,
-      pricingUnit: 'FLAT',
-    },
-  ];
+    ttc: 15,
+    pricingUnit: 'PER_PERSON',
+  },
+];
 
 async function seedCatalog(traiteurId: string) {
   const categoryIds = new Map<string, string>();
@@ -449,6 +620,7 @@ async function seedCatalog(traiteurId: string) {
     const data = {
       categoryId: categoryIds.get(dish.category) ?? null,
       name: dish.name,
+      description: dish.description,
       ...catalogPrices(dish.ttc, dish.taxRateBps),
       taxRateBps: dish.taxRateBps ?? null,
       unit: dish.unit ?? 'PER_PERSON',
@@ -480,19 +652,24 @@ async function seedCatalog(traiteurId: string) {
     });
     packageIds.set(pkg.slug, row.id);
 
-    for (const [index, dishSlug] of pkg.dishes.entries()) {
+    for (const [index, [dishSlug, quantity]] of pkg.dishes.entries()) {
       const dishId = dishIds.get(dishSlug);
       if (!dishId) throw new Error(`Plat inconnu dans la formule : ${dishSlug}`);
       await prisma.packageDish.upsert({
         where: { packageId_dishId: { packageId: row.id, dishId } },
-        update: { sortOrder: index },
-        create: { traiteurId, packageId: row.id, dishId, sortOrder: index },
+        update: { sortOrder: index, quantity },
+        create: { traiteurId, packageId: row.id, dishId, sortOrder: index, quantity },
       });
     }
   }
 
   for (const extra of EXTRA_SERVICES) {
-    const data = { name: extra.name, ...catalogPrices(extra.ttc), pricingUnit: extra.pricingUnit };
+    const data = {
+      name: extra.name,
+      description: extra.description,
+      ...catalogPrices(extra.ttc),
+      pricingUnit: extra.pricingUnit,
+    };
     await prisma.extraService.upsert({
       where: { id: extra.id },
       update: data,
@@ -504,6 +681,63 @@ async function seedCatalog(traiteurId: string) {
     `✓ Catalogue : ${CATEGORIES.length} catégories, ${DISHES.length} plats, ${PACKAGES.length} formules, ${EXTRA_SERVICES.length} services`,
   );
   return { dishIds, packageIds };
+}
+
+/**
+ * Illustrations de démonstration (générées, sans droits) pour chaque plat et formule sans photo.
+ * Remplaçables par de vraies photos : pnpm --filter @traiteur/api catalog:set-photo.
+ */
+async function seedIllustrations(
+  traiteurId: string,
+  dishIds: Map<string, string>,
+  packageIds: Map<string, string>,
+): Promise<void> {
+  const storage = await connectScriptStorage();
+  if (!storage) {
+    console.warn('⚠ Variables S3_* absentes : catalogue créé sans photos.');
+    return;
+  }
+
+  let created = 0;
+  try {
+    for (const dish of DISHES) {
+      const id = dishIds.get(dish.slug);
+      if (!id) continue;
+      const row = await prisma.dish.findUniqueOrThrow({
+        where: { id },
+        select: { imageKey: true },
+      });
+      if (row.imageKey) continue;
+      const palette = PALETTES[CATEGORY_PALETTE[dish.category] ?? 'plats'] ?? PALETTES.plats;
+      if (!palette) continue;
+      const image = await generateIllustration(dish.slug, palette);
+      const imageKey = await storeAndAttachImage(prisma, storage, traiteurId, 'Dish', id, image);
+      await prisma.dish.update({ where: { id }, data: { imageKey } });
+      created += 1;
+    }
+    for (const pkg of PACKAGES) {
+      const id = packageIds.get(pkg.slug);
+      const palette = PALETTES.formules;
+      if (!id || !palette) continue;
+      const row = await prisma.package.findUniqueOrThrow({
+        where: { id },
+        select: { imageKey: true },
+      });
+      if (row.imageKey) continue;
+      const image = await generateIllustration(pkg.slug, palette);
+      const imageKey = await storeAndAttachImage(prisma, storage, traiteurId, 'Package', id, image);
+      await prisma.package.update({ where: { id }, data: { imageKey } });
+      created += 1;
+    }
+  } catch (error) {
+    console.warn(`⚠ Stockage des photos injoignable (docker compose up ?) : ${String(error)}`);
+    return;
+  }
+  console.log(
+    created > 0
+      ? `✓ ${created} illustration(s) de démonstration générée(s)`
+      : '✓ Illustrations déjà présentes',
+  );
 }
 
 // ─────────────────── Commande, devis, facture de démo ───────────────────
@@ -721,6 +955,7 @@ async function main(): Promise<void> {
   const traiteur = await seedTraiteur();
   const { memberships } = await seedUsers(traiteur.id);
   const { dishIds, packageIds } = await seedCatalog(traiteur.id);
+  await seedIllustrations(traiteur.id, dishIds, packageIds);
   await seedDemoOrder(traiteur, memberships, dishIds, packageIds);
 }
 

@@ -5,6 +5,10 @@ const validEnv = {
   REDIS_URL: 'redis://localhost:6379',
   JWT_ACCESS_SECRET: 'a'.repeat(32),
   OTP_SECRET: 'b'.repeat(32),
+  S3_ENDPOINT: 'http://localhost:9000',
+  S3_ACCESS_KEY_ID: 'cle',
+  S3_SECRET_ACCESS_KEY: 'secret',
+  S3_PUBLIC_URL: 'http://localhost:9000/traiteur-media',
 };
 
 describe('validateEnv', () => {
@@ -81,6 +85,14 @@ describe('validateEnv', () => {
 
   it('refuse TRUST_PROXY=0', () => {
     expect(() => validateEnv({ ...validEnv, TRUST_PROXY: '0' })).toThrow(/TRUST_PROXY/);
+  });
+
+  it('exige la configuration du stockage des photos', () => {
+    expect(() => validateEnv({ ...validEnv, S3_ENDPOINT: undefined })).toThrow(/S3_ENDPOINT/);
+    expect(validateEnv(validEnv)).toMatchObject({
+      S3_BUCKET: 'traiteur-media',
+      S3_AUTO_SETUP: false,
+    });
   });
 
   it('interdit le fournisseur SMS simulé en production', () => {

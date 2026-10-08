@@ -100,6 +100,20 @@ export const envSchema = z
         )
         .min(1, 'au moins une durée est requise'),
     ),
+
+    /** Stockage S3 des photos : RustFS en développement, Cloudflare R2 en production. */
+    S3_ENDPOINT: z.url(),
+    /** « auto » pour Cloudflare R2. */
+    S3_REGION: z.string().min(1).default('us-east-1'),
+    S3_BUCKET: z.string().min(3).default('traiteur-media'),
+    S3_ACCESS_KEY_ID: z.string().min(1),
+    S3_SECRET_ACCESS_KEY: z.string().min(1),
+    /** Adressage « endpoint/bucket/clé » (RustFS, MinIO) plutôt que « bucket.endpoint/clé ». */
+    S3_FORCE_PATH_STYLE: booleanString,
+    /** Base publique des photos traitées (domaine R2 ou CDN en production). */
+    S3_PUBLIC_URL: z.url(),
+    /** Crée le bucket, sa lecture publique et son CORS au démarrage (développement, CI). */
+    S3_AUTO_SETUP: booleanString,
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && env.SMS_PROVIDER === 'console') {
