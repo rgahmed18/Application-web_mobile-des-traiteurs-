@@ -2,12 +2,18 @@
 //
 // Conventions :
 // - Chaque table métier porte un `traiteurId` (isolation multi-tenant).
-// - Les relations obligatoires entre tables métier utilisent une clé étrangère
-//   composite (id, traiteurId) : la base refuse physiquement qu'une commande
-//   du traiteur A référence un client du traiteur B.
-// - Montants en centimes (Int). Taux de TVA en points de base (2000 = 20,00 %).
-// - Textes traduisibles en JSONB au format LocalizedText { fr, ar?, en? }
-//   (schéma Zod dans packages/shared).
+// - Toutes les relations entre tables métier utilisent une clé étrangère
+//   composite (id, traiteurId) : la base refuse physiquement qu'une donnée du
+//   traiteur A référence une donnée du traiteur B.
+//   Pour les relations facultatives, la migration SQL remplace le
+//   `ON DELETE SET NULL` généré par `ON DELETE SET NULL ("colonne")` afin de ne
+//   jamais vider `traiteurId` (PostgreSQL 15+). Prisma affiche un avertissement
+//   à ce sujet : il est attendu.
+// - Montants en centimes (Int), toujours stockés HT. Taux de TVA en points de
+//   base (2000 = 20,00 %). Calculs et arrondis : packages/shared/src/money.
+// - Textes traduisibles en JSONB au format LocalizedText { fr, ar?, en? }.
+// - Contraintes non exprimables en Prisma (CHECK, NULLS NOT DISTINCT, triggers
+//   d'immuabilité des factures) : voir prisma/migrations/*/migration.sql.
 
 generator client {
   provider     = "prisma-client"
@@ -42,6 +48,11 @@ enum TraiteurStatus {
   CANCELLED
 }
 
+enum PriceEntryMode {
+  HT // le traiteur saisit ses prix hors taxes
+  TTC // le traiteur saisit ses prix toutes taxes comprises (converti en HT au stockage)
+}
+
 enum UserStatus {
   ACTIVE
   DISABLED
@@ -57,6 +68,12 @@ enum Locale {
   fr
   ar
   en
+}
+
+enum OtpPurpose {
+  LOGIN
+  SIGNUP
+  PASSWORD_RESET
 }
 
 enum DishUnit {
@@ -107,6 +124,18 @@ enum QuoteStatus {
   ACCEPTED
   REJECTED
   EXPIRED
+}
+
+enum InvoiceType {
+  INVOICE
+  CREDIT_NOTE // avoir : montants négatifs, référence la facture d'origine
+}
+
+enum DocumentType {
+  ORDER
+  QUOTE
+  INVOICE
+  CREDIT_NOTE
 }
 
 enum PaymentStatus {
@@ -166,22 +195,24 @@ enum MessageSenderType {
 // ─────────────────────── Tenant & identité ───────────────────────
 
 model Traiteur {
-  id            String           @id @default(uuid()) @db.Uuid
-  slug          String           @unique
-  name          String
-  email         String
-  phone         String
-  city          String?
-  logoUrl       String?
-  plan          SubscriptionPlan @default(BASIQUE)
-  status        TraiteurStatus   @default(TRIAL)
-  defaultLocale Locale           @default(fr)
-  currency      String           @default("MAD") @db.Char(3)
-  timezone      String           @default("Africa/Casablanca")
+  id              String           @id @default(uuid()) @db.Uuid
+  slug            String           @unique
+  name            String
+  email           String
+  phone           String
+  city            String?
+  logoUrl         String?
+  plan            SubscriptionPlan @default(BASIQUE)
+  status          TraiteurStatus   @default(TRIAL)
+  defaultLocale   Locale           @default(fr)
+  currency        String           @default("MAD") @db.Char(3)
+  timezone        String           @default("Africa/Casablanca")
+  maxEventsPerDay Int? // null = pas de limite
 
-  // Informations légales et fiscales (factures / devis)
-  isVatRegistered   Boolean @default(true)
-  defaultTaxRateBps Int     @default(2000) // 20 %
+  // Fiscalité et informations légales (factures / devis)
+  isVatRegistered   Boolean        @default(true)
+  defaultTaxRateBps Int            @default(2000) // 20 %
+  priceEntryMode    PriceEntryMode @default(TTC)
   legalName         String?
   ice               String? // Identifiant Commun de l'Entreprise
   rcNumber          String? // Registre de commerce
@@ -196,24 +227,30 @@ model Traiteur {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships      Membership[]
-  clientAddresses  ClientAddress[]
-  rolePermissions  RolePermission[]
-  featureFlags     FeatureFlag[]
-  categories       Category[]
-  dishes           Dish[]
-  packages         Package[]
-  packageDishes    PackageDish[]
-  extraServices    ExtraService[]
-  orders           Order[]
-  orderItems       OrderItem[]
-  quotes           Quote[]
-  quoteLines       QuoteLine[]
-  payments         Payment[]
-  staffAssignments StaffAssignment[]
-  conversations    Conversation[]
-  messages         Message[]
-  reviews          Review[]
+  memberships       Membership[]
+  refreshTokens     RefreshToken[]
+  clientAddresses   ClientAddress[]
+  rolePermissions   RolePermission[]
+  featureFlags      FeatureFlag[]
+  blockedDates      BlockedDate[]
+  documentSequences DocumentSequence[]
+  categories        Category[]
+  dishes            Dish[]
+  packages          Package[]
+  packageDishes     PackageDish[]
+  extraServices     ExtraService[]
+  orders            Order[]
+  orderItems        OrderItem[]
+  quotes            Quote[]
+  quoteLines        QuoteLine[]
+  invoices          Invoice[]
+  invoiceLines      InvoiceLine[]
+  payments          Payment[]
+  staffAssignments  StaffAssignment[]
+  conversations     Conversation[]
+  messages          Message[]
+  reviews           Review[]
+  auditLogs         AuditLog[]
 }
 
 // Identité globale : un compte unique, utilisable chez plusieurs traiteurs.
@@ -221,7 +258,7 @@ model User {
   id           String     @id @default(uuid()) @db.Uuid
   phone        String     @unique // format E.164, ex. +212612345678
   email        String?    @unique
-  passwordHash String
+  passwordHash String? // null = compte sans mot de passe (connexion par OTP SMS)
   firstName    String
   lastName     String
   locale       Locale     @default(fr)
@@ -233,6 +270,7 @@ model User {
 
   memberships   Membership[]
   refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
 }
 
 // Appartenance d'un utilisateur à un traiteur, avec son rôle.
@@ -287,7 +325,10 @@ model ClientAddress {
 model RefreshToken {
   id           String    @id @default(uuid()) @db.Uuid
   userId       String    @db.Uuid
-  membershipId String?   @db.Uuid // contexte traiteur actif (null pour SUPER_ADMIN)
+  // Contexte actif de la session : traiteur + appartenance (SUPER_ADMIN : membershipId null,
+  // traiteurId null en contexte plateforme ou renseigné s'il agit dans un traiteur)
+  traiteurId   String?   @db.Uuid
+  membershipId String?   @db.Uuid
   familyId     String    @db.Uuid // chaîne de rotation, révoquée entièrement en cas de réutilisation
   tokenHash    String    @unique
   expiresAt    DateTime
@@ -298,10 +339,27 @@ model RefreshToken {
   createdAt    DateTime  @default(now())
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  traiteur   Traiteur?   @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   membership Membership? @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
+}
+
+// Codes à usage unique envoyés par SMS. Seul le hash du code est stocké.
+model OtpCode {
+  id          String     @id @default(uuid()) @db.Uuid
+  phone       String // E.164
+  codeHash    String
+  purpose     OtpPurpose
+  expiresAt   DateTime
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(5)
+  usedAt      DateTime?
+  ipAddress   String?
+  createdAt   DateTime   @default(now())
+
+  @@index([phone, purpose, createdAt])
 }
 
 // ───────────────────── Permissions & offres ─────────────────────
@@ -332,7 +390,7 @@ model RolePermission {
   traiteur   Traiteur?  @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
-  // Unicité aussi garantie quand traiteurId est null : index NULLS NOT DISTINCT (migration SQL)
+  // NULLS NOT DISTINCT ajouté en SQL : unicité garantie aussi pour la matrice par défaut
   @@unique([traiteurId, role, permissionId])
   @@index([role])
 }
@@ -349,6 +407,36 @@ model FeatureFlag {
   traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
 
   @@unique([traiteurId, key])
+}
+
+// ─────────────────── Disponibilités & numérotation ───────────────────
+
+model BlockedDate {
+  id         String   @id @default(uuid()) @db.Uuid
+  traiteurId String   @db.Uuid
+  date       DateTime @db.Date
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+
+  @@unique([traiteurId, date])
+}
+
+// Compteurs de numérotation continue (sans trou) par traiteur, type et année.
+model DocumentSequence {
+  id         String       @id @default(uuid()) @db.Uuid
+  traiteurId String       @db.Uuid
+  type       DocumentType
+  year       Int
+  lastValue  Int          @default(0)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+
+  @@unique([traiteurId, type, year])
 }
 
 // ─────────────────────────── Catalogue ───────────────────────────
@@ -368,6 +456,7 @@ model Category {
   dishes   Dish[]
 
   @@unique([traiteurId, slug])
+  @@unique([id, traiteurId])
   @@index([traiteurId, sortOrder])
 }
 
@@ -389,7 +478,7 @@ model Dish {
   updatedAt   DateTime @updatedAt
 
   traiteur      Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  category      Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category      Category?     @relation(fields: [categoryId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
   packageDishes PackageDish[]
   orderItems    OrderItem[]
   quoteLines    QuoteLine[]
@@ -459,6 +548,7 @@ model ExtraService {
   orderItems OrderItem[]
   quoteLines QuoteLine[]
 
+  @@unique([id, traiteurId])
   @@index([traiteurId, isActive])
 }
 
@@ -467,7 +557,7 @@ model ExtraService {
 model Order {
   id                 String      @id @default(uuid()) @db.Uuid
   traiteurId         String      @db.Uuid
-  reference          String // ex. CMD-2026-0001, unique par traiteur
+  reference          String // ex. CMD-2026-00001 (DocumentSequence)
   clientId           String      @db.Uuid // Membership du client
   eventType          EventType
   eventDate          DateTime
@@ -497,6 +587,7 @@ model Order {
   client           Membership        @relation("OrderClient", fields: [clientId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
   items            OrderItem[]
   quotes           Quote[]
+  invoices         Invoice[]
   payments         Payment[]
   staffAssignments StaffAssignment[]
   conversations    Conversation[]
@@ -523,8 +614,8 @@ model OrderItem {
   discountHt     Int          @default(0)
   taxRateBps     Int // 0 si le traiteur n'est pas assujetti
   totalHt        Int // unitPriceHt × quantity − discountHt
-  taxAmount      Int
-  totalTtc       Int
+  taxAmount      Int // arrondi au centime par ligne
+  totalTtc       Int // totalHt + taxAmount
   sortOrder      Int          @default(0)
   notes          String?
   createdAt      DateTime     @default(now())
@@ -532,9 +623,9 @@ model OrderItem {
 
   traiteur     Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   order        Order         @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
-  dish         Dish?         @relation(fields: [dishId], references: [id], onDelete: SetNull)
-  package      Package?      @relation(fields: [packageId], references: [id], onDelete: SetNull)
-  extraService ExtraService? @relation(fields: [extraServiceId], references: [id], onDelete: SetNull)
+  dish         Dish?         @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  package      Package?      @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  extraService ExtraService? @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
   @@index([traiteurId, orderId])
 }
@@ -543,7 +634,7 @@ model Quote {
   id         String      @id @default(uuid()) @db.Uuid
   traiteurId String      @db.Uuid
   orderId    String      @db.Uuid
-  reference  String // ex. DEV-2026-0001
+  reference  String // ex. DEV-2026-00001 (DocumentSequence)
   version    Int         @default(1)
   status     QuoteStatus @default(DRAFT)
   totalHt    Int         @default(0)
@@ -591,11 +682,76 @@ model QuoteLine {
 
   traiteur     Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   quote        Quote         @relation(fields: [quoteId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
-  dish         Dish?         @relation(fields: [dishId], references: [id], onDelete: SetNull)
-  package      Package?      @relation(fields: [packageId], references: [id], onDelete: SetNull)
-  extraService ExtraService? @relation(fields: [extraServiceId], references: [id], onDelete: SetNull)
+  dish         Dish?         @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  package      Package?      @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  extraService ExtraService? @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
   @@index([traiteurId, quoteId])
+}
+
+// Facture ou avoir. Immuable une fois créé (triggers SQL) : seul pdfUrl peut être renseigné.
+// Une correction passe par un avoir (CREDIT_NOTE) qui référence la facture d'origine.
+model Invoice {
+  id                String      @id @default(uuid()) @db.Uuid
+  traiteurId        String      @db.Uuid
+  orderId           String      @db.Uuid
+  type              InvoiceType @default(INVOICE)
+  number            String // ex. FAC-2026-00001 / AV-2026-00001
+  year              Int
+  sequenceNumber    Int
+  originalInvoiceId String?     @db.Uuid // obligatoire pour un avoir (CHECK)
+  reason            String? // motif de l'avoir
+  issuedAt          DateTime    @default(now())
+  dueDate           DateTime?
+  currency          String      @default("MAD") @db.Char(3)
+  // Montants en centimes, négatifs pour un avoir ; égaux à la somme des lignes (trigger différé)
+  totalHt           Int
+  totalTax          Int
+  totalTtc          Int
+  // Snapshots au moment de l'émission : la facture ne dépend plus des données vivantes
+  sellerSnapshot    Json // raison sociale, ICE, RC, IF, adresse, RIB... du traiteur
+  buyerSnapshot     Json // nom, téléphone, adresse (et ICE si entreprise) du client
+  notes             String?
+  pdfUrl            String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  traiteur        Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Restrict)
+  order           Order         @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+  originalInvoice Invoice?      @relation("CreditNotes", fields: [originalInvoiceId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+  creditNotes     Invoice[]     @relation("CreditNotes")
+  lines           InvoiceLine[]
+
+  @@unique([traiteurId, number])
+  @@unique([traiteurId, type, year, sequenceNumber])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, orderId])
+  @@index([traiteurId, issuedAt])
+}
+
+// Ligne de facture : snapshot pur, sans lien vers le catalogue (une suppression
+// de plat ne doit jamais modifier une facture émise).
+model InvoiceLine {
+  id          String       @id @default(uuid()) @db.Uuid
+  traiteurId  String       @db.Uuid
+  invoiceId   String       @db.Uuid
+  itemType    LineItemType
+  label       String
+  quantity    Int
+  unitPriceHt Int
+  discountHt  Int          @default(0)
+  taxRateBps  Int
+  totalHt     Int
+  taxAmount   Int
+  totalTtc    Int
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Restrict)
+  invoice  Invoice  @relation(fields: [invoiceId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+
+  @@index([traiteurId, invoiceId])
 }
 
 model Payment {
@@ -617,7 +773,7 @@ model Payment {
 
   traiteur   Traiteur    @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   order      Order       @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
-  recordedBy Membership? @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  recordedBy Membership? @relation("PaymentRecordedBy", fields: [recordedById, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
   @@index([traiteurId, orderId])
   @@index([traiteurId, status])
@@ -660,8 +816,8 @@ model Conversation {
   updatedAt     DateTime            @updatedAt
 
   traiteur Traiteur    @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  client   Membership? @relation("ConversationClient", fields: [clientId], references: [id], onDelete: SetNull)
-  order    Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  client   Membership? @relation("ConversationClient", fields: [clientId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  order    Order?      @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
   messages Message[]
 
   @@unique([traiteurId, channel, externalId])
@@ -684,7 +840,7 @@ model Message {
 
   traiteur         Traiteur     @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   conversation     Conversation @relation(fields: [conversationId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
-  senderMembership Membership?  @relation(fields: [senderMembershipId], references: [id], onDelete: SetNull)
+  senderMembership Membership?  @relation(fields: [senderMembershipId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
   @@index([traiteurId, conversationId, createdAt])
 }
@@ -708,4 +864,28 @@ model Review {
 
   @@unique([orderId, traiteurId]) // un avis par commande
   @@index([traiteurId, isPublished])
+}
+
+// ─────────────────────────── Audit ───────────────────────────
+
+// Journal d'audit, en ajout seul. traiteurId = null pour une action plateforme (SUPER_ADMIN).
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  traiteurId  String?  @db.Uuid
+  actorUserId String?  @db.Uuid // null = action système
+  actorRole   Role?
+  action      String // ex. "invoice.issued", "permission.overridden"
+  entityType  String // ex. "Invoice"
+  entityId    String?
+  before      Json?
+  after       Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  traiteur Traiteur? @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  actor    User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([traiteurId, createdAt])
+  @@index([entityType, entityId])
 }

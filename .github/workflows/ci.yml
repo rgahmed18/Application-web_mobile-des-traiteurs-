@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+  # Valeurs factices : seules les commandes Prisma (generate) lisent ces variables dans ce job
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  REDIS_URL: redis://localhost:6379
+
+jobs:
+  quality:
+    name: Lint, typecheck, tests unitaires, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Formatage (Prettier)
+        run: pnpm format:check
+
+      - name: Lint, typecheck, tests unitaires et build
+        run: pnpm turbo run lint typecheck test build
+
+  database:
+    name: Migrations, seed et tests d'intégration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: traiteur
+          POSTGRES_PASSWORD: traiteur
+          POSTGRES_DB: gestion_traiteurs
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U traiteur -d gestion_traiteurs"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://traiteur:traiteur@localhost:5432/gestion_traiteurs
+      TEST_DATABASE_URL: postgresql://traiteur:traiteur@localhost:5432/gestion_traiteurs_test
+      JWT_ACCESS_SECRET: ci-jwt-secret-not-used-in-production-000000
+      OTP_SECRET: ci-otp-secret-not-used-in-production-000000
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build du paquet partagé et génération du client Prisma
+        run: pnpm turbo run build --filter=@traiteur/shared && pnpm db:generate
+
+      - name: Base de test
+        run: PGPASSWORD=traiteur psql -h localhost -U traiteur -d gestion_traiteurs -c 'CREATE DATABASE gestion_traiteurs_test'
+
+      - name: Migrations
+        run: pnpm --filter @traiteur/api db:deploy
+
+      - name: Aucun écart entre schéma Prisma et migrations
+        run: pnpm --filter @traiteur/api db:check-drift
+
+      - name: Seed (exécuté deux fois pour vérifier l'idempotence)
+        run: pnpm db:seed && pnpm db:seed
+
+      - name: Tests d'intégration (concurrence, contraintes, factures)
+        run: pnpm --filter @traiteur/api test:int

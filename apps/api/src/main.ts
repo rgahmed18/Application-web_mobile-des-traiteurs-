@@ -1,16 +1,23 @@
 import { Logger, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { z } from 'zod';
 
 import { AppModule } from './app.module';
 import type { AppConfigService } from './config/app-config.module';
 
+// Messages de validation en français (les codes d'erreur restent stables pour les clients)
+z.config(z.locales.fr());
+
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config: AppConfigService = app.get(ConfigService);
 
+  // Derrière un reverse proxy, request.ip doit refléter l'IP réelle du client
+  if (config.get('TRUST_PROXY', { infer: true })) app.set('trust proxy', 1);
   app.use(helmet());
   app.enableCors({ origin: config.get('CORS_ORIGINS', { infer: true }), credentials: true });
   app.setGlobalPrefix('api');
