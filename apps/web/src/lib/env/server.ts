@@ -13,6 +13,11 @@ const serverEnvSchema = z.object({
   TRAITEUR_SLUG: z.string().min(1).default('dar-diafa'),
   /** Durée de vie du cookie de session, alignée sur REFRESH_TOKEN_TTL_DAYS de l'API. */
   REFRESH_COOKIE_MAX_AGE_DAYS: z.coerce.number().int().positive().default(30),
+  /**
+   * Nombre de proxys de confiance devant Next (Nginx = 1, Cloudflare + Nginx = 2). Détermine
+   * quelle adresse de X-Forwarded-For est l'IP réelle du navigateur ; 0 : aucune n'est lue.
+   */
+  WEB_TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
   /** Cookie « Secure » : à désactiver uniquement pour un navigateur qui le refuse en http local. */
   REFRESH_COOKIE_SECURE: z
     .enum(['true', 'false'])
@@ -32,5 +37,12 @@ export function serverEnv(): ServerEnv {
     throw new Error(`Variables d'environnement invalides (web) :\n${details.join('\n')}`);
   }
   cached = result.data;
+  if (process.env.NODE_ENV === 'production' && cached.WEB_TRUSTED_PROXY_HOPS === 0) {
+    // Sans proxy déclaré, aucune IP n'est transmise : l'API voit tous les navigateurs avec
+    // l'adresse du serveur Next et leur applique les mêmes quotas par IP.
+    console.warn(
+      "WEB_TRUSTED_PROXY_HOPS=0 en production : l'IP des navigateurs n'est pas transmise à l'API (voir README).",
+    );
+  }
   return cached;
 }

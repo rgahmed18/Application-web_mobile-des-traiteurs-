@@ -6,6 +6,8 @@ import type { z } from 'zod';
 
 import { serverEnv } from '@/lib/env/server';
 
+import { clientIpFromHeaders } from './client-ip';
+
 /**
  * Proxy de session (« Backend For Frontend »).
  * Seul endroit qui voit le refresh token : il vit dans un cookie httpOnly, Secure,
@@ -24,10 +26,12 @@ export function jsonError(status: number, code: string, message: string): NextRe
 /**
  * Protection CSRF : en plus de SameSite=Strict, les requêtes doivent venir de ce site.
  * Les navigateurs envoient toujours l'en-tête Origin sur un fetch POST.
+ * Seul l'en-tête Host est comparé : X-Forwarded-Host peut être envoyé par le client (Next ne le
+ * renseigne que s'il est absent). Derrière un proxy, celui-ci doit transmettre le Host d'origine.
  */
 export function rejectCrossOrigin(request: NextRequest): NextResponse | null {
   const origin = request.headers.get('origin');
-  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  const host = request.headers.get('host');
   if (!origin || !host || new URL(origin).host !== host) {
     return jsonError(403, 'CROSS_ORIGIN', 'Origine de la requête refusée');
   }
@@ -47,12 +51,6 @@ export async function readBody<TSchema extends z.ZodType>(
   }
 }
 
-/** IP du navigateur, transmise à l'API pour la limitation de débit et le journal d'audit. */
-function clientIp(request: NextRequest): string | null {
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwarded || request.headers.get('x-real-ip');
-}
-
 /** Appel POST à l'API depuis le serveur Next. */
 export async function callApi(
   request: NextRequest,
@@ -60,7 +58,10 @@ export async function callApi(
   body: JsonBody,
 ): Promise<Response> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const ip = clientIp(request);
+  // IP du navigateur (limitation de débit, journal d'audit) : seulement si elle vient de nos
+  // proxys ; sinon aucune, et l'API voit l'adresse du serveur Next. Les en-têtes du client ne
+  // sont jamais recopiés.
+  const ip = clientIpFromHeaders(request.headers, serverEnv().WEB_TRUSTED_PROXY_HOPS);
   if (ip) headers['X-Forwarded-For'] = ip;
   const userAgent = request.headers.get('user-agent');
   if (userAgent) headers['User-Agent'] = userAgent;

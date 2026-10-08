@@ -158,8 +158,8 @@ http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` 
 est dans un cookie `httpOnly; Secure; SameSite=Strict` limité à `/api/session`, posé par les
 routes Next (`apps/web/src/app/api/session`) qui relaient l'API. Le jeton d'accès est renouvelé
 automatiquement une minute avant son expiration. Les routes de session vérifient l'origine de la
-requête et transmettent l'IP du navigateur : `TRUST_PROXY` de l'API doit faire confiance au
-serveur Next (`loopback` en développement).
+requête et transmettent l'IP du navigateur uniquement si elle provient d'un proxy de confiance
+(`WEB_TRUSTED_PROXY_HOPS`, voir [IP réelle des clients](#ip-réelle-des-clients)).
 
 **Photos** : JPEG, PNG, WebP ou HEIC/HEIF (iPhone). Le navigateur convertit le HEIC (bibliothèque
 `heic-to`, licence LGPL, chargée seulement si nécessaire), applique l'orientation EXIF, réduit la
@@ -391,10 +391,64 @@ Elle **doit** être appelée dans la même transaction que la création du docum
 - **Limiteur de débit** : compteurs dans Redis (script Lua atomique), partagés entre toutes les
   instances de l'API et conservés après un redémarrage. Si Redis est indisponible, les requêtes
   passent (journalisé) : les protections critiques ci-dessus reposent sur PostgreSQL.
-- **IP réelle derrière un proxy** : `TRUST_PROXY` accepte `true`, un nombre de proxys ou une
-  liste d'adresses (`loopback` en développement, pour le serveur Next du back-office). Ne
-  faites jamais confiance à une adresse qui n'est pas un proxy : un client pourrait sinon
-  choisir son IP via l'en-tête `X-Forwarded-For` et contourner les quotas.
+- **IP réelle derrière un proxy** : voir ci-dessous.
+
+### IP réelle des clients
+
+Les quotas par IP (codes SMS, limiteur de débit) et le journal d'audit reposent sur l'IP du
+navigateur. L'en-tête `X-Forwarded-For` est une liste `client, proxy1, proxy2…` où chaque proxy
+**ajoute à droite** l'adresse qu'il voit : seules les entrées ajoutées par nos propres proxys
+sont fiables, tout ce qui est à leur gauche peut être écrit par le client.
+
+Deux réglages, à faire correspondre au déploiement :
+
+- **`WEB_TRUSTED_PROXY_HOPS`** (back-office Next, routes `/api/session`) : nombre de proxys de
+  confiance devant Next. Avec `N`, l'IP retenue est la N-ième adresse de `X-Forwarded-For` **en
+  partant de la droite**, transmise seule à l'API. Avec `0`, `X-Forwarded-For` et `X-Real-IP`
+  reçus sont ignorés et aucune IP n'est transmise : l'API voit alors tous les navigateurs avec
+  l'adresse du serveur Next (Next ne donne pas accès à l'adresse du socket aux routes). Le
+  back-office avertit au démarrage si cette valeur vaut `0` en production.
+- **`TRUST_PROXY`** (API) : adresses de confiance pour Express, qui lit `X-Forwarded-For` de la
+  droite vers la gauche et s'arrête à la première adresse non fiable. Il doit couvrir les
+  proxys devant l'API **et le serveur Next** (qui relaie l'IP du navigateur).
+
+| Déploiement                                      | `WEB_TRUSTED_PROXY_HOPS` | `TRUST_PROXY` (API)                                    |
+| ------------------------------------------------ | ------------------------ | ------------------------------------------------------ |
+| Développement                                    | `0`                      | `loopback`                                             |
+| Nginx devant Next et l'API (même serveur)        | `1`                      | `loopback`                                             |
+| Nginx, Next et API sur des machines différentes  | `1`                      | adresses de Nginx et de Next, ex. `10.0.0.5,10.0.0.6`  |
+| Cloudflare → Nginx, module `real_ip` (conseillé) | `1`                      | comme ci-dessus                                        |
+| Cloudflare → Nginx, sans `real_ip`               | `2`                      | adresses de Nginx et de Next + plages IP de Cloudflare |
+
+Configuration Nginx (identique pour le site et l'API) :
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3001;   # 3000 pour l'API
+    proxy_set_header Host $host;        # comparé à l'en-tête Origin (protection CSRF)
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;   # ajoute, ne remplace pas
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Derrière **Cloudflare**, la solution conseillée est le module `real_ip` de Nginx : l'adresse
+transmise par Cloudflare n'est acceptée que si la connexion vient de Cloudflare, et un accès
+direct à Nginx (qui contourne Cloudflare) garde l'adresse réelle de l'attaquant.
+
+```nginx
+# Plages publiées sur https://www.cloudflare.com/ips/ (une ligne par plage, à tenir à jour)
+set_real_ip_from 173.245.48.0/20;
+set_real_ip_from 2400:cb00::/32;
+real_ip_header CF-Connecting-IP;
+```
+
+Sans `real_ip` (`WEB_TRUSTED_PROXY_HOPS=2`), Nginx **doit refuser** toute connexion qui ne
+vient pas de Cloudflare (pare-feu ou `allow` / `deny`) : sinon un client qui joint Nginx
+directement choisit l'adresse placée en deuxième position.
+
+Dans tous les cas, `API_INTERNAL_URL` doit joindre l'API **directement** (réseau interne ou
+Nginx local), jamais en repassant par Cloudflare, et `NEXT_PUBLIC_API_URL` passe par le même
+proxy que le site. Ne faites jamais confiance à une adresse qui n'est pas un proxy.
 
 ### SQL hors Prisma
 
