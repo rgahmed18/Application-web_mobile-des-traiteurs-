@@ -123,7 +123,7 @@ describe('API des paiements (application complète)', () => {
     lines: [
       {
         itemType: 'CUSTOM',
-        label: 'Prestation',
+        label: { fr: 'Prestation' },
         quantity: 1,
         unitPrice: 1_000_000,
         taxRateBps: 2000,

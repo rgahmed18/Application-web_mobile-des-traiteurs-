@@ -17,6 +17,7 @@ import type { AuthenticatedUser } from '../auth/auth-user';
 import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
+import { readLineLabel } from '../documents/line-label';
 import type { Prisma } from '../generated/prisma/client';
 import { DOCUMENT_TEMPLATE_VERSION, PdfService } from '../pdf/pdf.service';
 import { sellerSelect } from '../pdf/seller';
@@ -347,7 +348,7 @@ export class InvoicesService {
           : null,
         reason: invoice.reason,
         notes: invoice.notes,
-        lines: invoice.lines,
+        lines: invoice.lines.map((line) => ({ ...line, label: readLineLabel(line.label) })),
         totals: {
           totalHt: invoice.totalHt,
           totalTax: invoice.totalTax,

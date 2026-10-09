@@ -338,7 +338,7 @@ describe('API du catalogue (application complète)', () => {
             priceMode: 'TTC',
             itemType: 'DISH',
             dishId: ordered.id,
-            label: 'Plat',
+            label: { fr: 'Plat' },
             quantity: 1,
             unitPriceHt: 20_833,
             unitPriceTtc: 25_000,

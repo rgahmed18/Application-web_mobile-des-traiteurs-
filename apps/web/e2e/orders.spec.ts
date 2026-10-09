@@ -71,7 +71,7 @@ test('client, commande de 3 lignes confirmée, puis retrouvée dans le calendrie
   await page.getByRole('button', { name: 'Ajouter' }).click();
   await page.getByRole('menuitem', { name: 'Ligne libre' }).click();
   const custom = page.getByTestId('order-lines').getByRole('listitem').nth(2);
-  await custom.getByLabel('Libellé').fill('Décoration de table');
+  await custom.getByLabel('Libellé (français)').fill('Décoration de table');
   await custom.getByLabel('Prix unitaire TTC').fill('1500');
 
   await expect(page.getByTestId('order-lines').getByRole('listitem')).toHaveCount(3);

@@ -5,6 +5,7 @@ import {
   eventTypeSchema,
   lineItemTypeSchema,
   type LineAmounts,
+  type LocalizedText,
   type Order,
   orderCreateSchema,
   type PriceMode,
@@ -25,7 +26,8 @@ export const lineFormSchema = z.object({
   dishId: z.string().nullable(),
   packageId: z.string().nullable(),
   extraServiceId: z.string().nullable(),
-  label: z.string(),
+  /** Libellé dans toutes les langues (copie du catalogue) ; une ligne libre : fr et/ou ar. */
+  label: z.object({ fr: z.string(), ar: z.string(), en: z.string() }),
   quantity: z.string(),
   /** Prix unitaire dans le mode de prix de la commande. */
   unitPrice: z.string(),
@@ -93,6 +95,7 @@ export const orderFormSchema = z
         dishId: line.dishId,
         packageId: line.packageId,
         extraServiceId: line.extraServiceId,
+        // Traductions vides ignorées par le schéma partagé (repli sur le texte disponible)
         label: line.label,
         quantity,
         unitPrice,
@@ -107,6 +110,17 @@ export const orderFormSchema = z
 
 export type OrderFormValues = z.input<typeof orderFormSchema>;
 export type OrderFormOutput = z.output<typeof orderFormSchema>;
+
+/** Libellé enregistré (ou nom du catalogue) → champs du formulaire. */
+export function formLabel(label: LocalizedText): LineFormValues['label'] {
+  return { fr: label.fr, ar: label.ar ?? '', en: label.en ?? '' };
+}
+
+/** Libellé affiché dans l'interface : langue de l'utilisateur, sinon le texte disponible. */
+export function formLabelText(label: LineFormValues['label'], locale: string): string {
+  const preferred = locale === 'ar' ? label.ar : locale === 'en' ? label.en : label.fr;
+  return preferred.trim() || label.fr.trim() || label.ar.trim() || label.en.trim();
+}
 
 let keySequence = 0;
 export const newLineKey = () => `line-${Date.now().toString(36)}-${(keySequence += 1)}`;
@@ -152,7 +166,7 @@ export function orderToFormValues(order: Order): OrderFormValues {
       dishId: line.dishId,
       packageId: line.packageId,
       extraServiceId: line.extraServiceId,
-      label: line.label,
+      label: formLabel(line.label),
       quantity: String(line.quantity),
       unitPrice: centsToAmount(line.unitPrice),
       discount: line.discount === 0 ? '' : centsToAmount(line.discount),

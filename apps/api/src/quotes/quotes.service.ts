@@ -7,6 +7,7 @@ import {
   amountToWords,
   computeDocumentTotals,
   type Download,
+  lineLabelText,
   type ManualAcceptanceInput,
   plannedDeposit,
   type PublicAcceptInput,
@@ -29,9 +30,11 @@ import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
 import type { Env } from '../config/env.schema';
 import type { LineDraft } from '../documents/document-lines';
+import { readLineLabel } from '../documents/line-label';
 import { DocumentLinesService } from '../documents/document-lines.service';
 import type { OrderItem, OrderStatus, Prisma } from '../generated/prisma/client';
 import { dayAvailability, hasConflict, lockDay } from '../orders/availability';
+import { joinAddress } from '../pdf/document-model';
 import { capitalize } from '../pdf/format';
 import { DOCUMENT_TEMPLATE_VERSION, PdfService } from '../pdf/pdf.service';
 import { type Seller, sellerSelect } from '../pdf/seller';
@@ -568,13 +571,16 @@ export class QuotesService {
         endTime: snapshot.event.endTime,
         endsNextDay: snapshot.event.endsNextDay,
         guestCount: snapshot.event.guestCount,
-        venue: [snapshot.event.venueName, snapshot.event.venueAddress, snapshot.event.city]
-          .filter((part): part is string => Boolean(part))
-          .join(', '),
+        venue: joinAddress([
+          snapshot.event.venueName,
+          snapshot.event.venueAddress,
+          snapshot.event.city,
+        ]),
       },
       priceMode: quote.priceMode,
       lines: quote.lines.map((line) => ({
-        label: line.label,
+        // Libellé dans la langue affichée au client (repli sur le français)
+        label: lineLabelText(readLineLabel(line.label), locale),
         quantity: line.quantity,
         unitPrice: ttc ? line.unitPriceTtc : line.unitPriceHt,
         discount: ttc ? line.discountTtc : line.discountHt,
@@ -1008,7 +1014,7 @@ export class QuotesService {
         priceMode: quote.priceMode,
         notes: quote.notes,
         snapshot,
-        lines: quote.lines,
+        lines: quote.lines.map((line) => ({ ...line, label: readLineLabel(line.label) })),
         acceptance:
           status === 'ACCEPTED' && quote.acceptanceMode && quote.acceptedAt
             ? {
@@ -1038,7 +1044,7 @@ export class QuotesService {
       const ttc = item.priceMode === 'TTC';
       return {
         itemType: item.itemType,
-        label: item.label,
+        label: readLineLabel(item.label),
         quantity: item.quantity,
         unitPrice: ttc ? item.unitPriceTtc : item.unitPriceHt,
         discount: ttc ? item.discountTtc : item.discountHt,

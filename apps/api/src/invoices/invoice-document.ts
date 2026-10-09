@@ -1,4 +1,4 @@
-import { amountToWords, type InvoiceKind } from '@traiteur/shared';
+import { amountToWords, type InvoiceKind, type LineLabel, lineLabelText } from '@traiteur/shared';
 
 import type { DocumentModel } from '../pdf/document-model';
 import { auto, ltr } from '../pdf/document-model';
@@ -26,7 +26,7 @@ export interface InvoiceDocumentData {
   reason: string | null;
   notes: string | null;
   lines: {
-    label: string;
+    label: LineLabel;
     quantity: number;
     unitPriceHt: number;
     discountHt: number;
@@ -137,7 +137,7 @@ export function invoiceDocument(data: InvoiceDocumentData): DocumentModel {
       ],
       rows: data.lines.map((line) => [
         {
-          main: auto(line.label),
+          main: auto(lineLabelText(line.label, locale)),
           // Remise HT de la ligne : P.U. × Qté − remise = total HT
           sub: line.discountHt > 0 ? t.discountOf(money(line.discountHt, locale)) : null,
         },

@@ -18,6 +18,7 @@
  */
 import {
   computeDocumentTotals,
+  type LineLabel,
   computeLineAmounts,
   type DocumentTotals,
   type LineAmounts,
@@ -42,7 +43,8 @@ export interface DocumentRef {
  */
 export interface LineDraft {
   itemType: LineItemType;
-  label: string;
+  /** Libellé figé dans toutes les langues disponibles. */
+  label: LineLabel;
   quantity: number;
   unitPrice: number;
   discount?: number;

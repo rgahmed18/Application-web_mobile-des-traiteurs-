@@ -463,6 +463,14 @@ Le `SUPER_ADMIN` passe les contrôles de rôle et de permission.
 
 ### Lignes de commande et de devis
 
+**Libellés multilingues** : chaque ligne (commande, devis, facture) garde son libellé figé dans
+toutes les langues disponibles (`LocalizedText { fr, ar?, en? }`, colonne JSONB `label`), copié
+du catalogue au moment de l'ajout ; une ligne libre se saisit en français et/ou en arabe (sans
+français, le texte arabe sert de repli). Chaque document s'affiche entièrement dans sa langue,
+avec repli sur le français. Les libellés produits par l'application (acompte, acompte déduit,
+frais d'annulation, remboursement) sont rédigés dans toutes les langues. La base exige un
+libellé français non vide (`CHECK`).
+
 `DocumentLinesService` (`apps/api/src/documents`) est le **seul** point d'entrée pour ajouter,
 modifier ou supprimer une ligne de commande ou de devis. Chaque opération, dans une seule
 transaction :

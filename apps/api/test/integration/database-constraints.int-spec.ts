@@ -407,7 +407,10 @@ describe('Contraintes de la base de données', () => {
         /immuable/,
       );
       await expect(
-        prisma.invoiceLine.update({ where: { id: invoice.lines[0]?.id }, data: { label: 'X' } }),
+        prisma.invoiceLine.update({
+          where: { id: invoice.lines[0]?.id },
+          data: { label: { fr: 'X' } },
+        }),
       ).rejects.toThrow(/immuable/);
     });
 

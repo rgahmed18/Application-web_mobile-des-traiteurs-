@@ -9,7 +9,7 @@ import { createOrder, createTenant, createTestPrisma, type TestTenant } from './
 
 const draft = (overrides: Partial<LineDraft> = {}): LineDraft => ({
   itemType: 'CUSTOM',
-  label: 'Ligne',
+  label: { fr: 'Ligne' },
   quantity: 1,
   unitPrice: 10_000,
   taxRateBps: 2000,
@@ -61,8 +61,8 @@ describe('DocumentLinesService (base réelle)', () => {
     const tenant = await createTenant(prisma);
     const ref = await orderRef(tenant);
     const result = await service.addLines(ref, [
-      draft({ itemType: 'PACKAGE', label: 'Formule', quantity: 120, unitPrice: 25_000 }),
-      draft({ label: 'Jus', quantity: 120, unitPrice: 1_500, taxRateBps: 1000 }),
+      draft({ itemType: 'PACKAGE', label: { fr: 'Formule' }, quantity: 120, unitPrice: 25_000 }),
+      draft({ label: { fr: 'Jus' }, quantity: 120, unitPrice: 1_500, taxRateBps: 1000 }),
     ]);
 
     expect(result.priceMode).toBe('TTC');
@@ -78,7 +78,10 @@ describe('DocumentLinesService (base réelle)', () => {
   it('met les totaux à jour après modification et suppression d’une ligne', async () => {
     const tenant = await createTenant(prisma);
     const ref = await orderRef(tenant);
-    await service.addLines(ref, [draft({ label: 'A' }), draft({ label: 'B', unitPrice: 5_000 })]);
+    await service.addLines(ref, [
+      draft({ label: { fr: 'A' } }),
+      draft({ label: { fr: 'B' }, unitPrice: 5_000 }),
+    ]);
     const [first, second] = await prisma.orderItem.findMany({
       where: { orderId: ref.id },
       orderBy: { sortOrder: 'asc' },
@@ -88,7 +91,7 @@ describe('DocumentLinesService (base réelle)', () => {
     const updated = await service.updateLine(
       ref,
       first.id,
-      draft({ label: 'A', quantity: 3, discount: 1_000 }),
+      draft({ label: { fr: 'A' }, quantity: 3, discount: 1_000 }),
     );
     expect(updated.totals.totalTtc).toBe(3 * 10_000 - 1_000 + 5_000);
 
@@ -113,7 +116,7 @@ describe('DocumentLinesService (base réelle)', () => {
     const ref = await orderRef(tenant);
     await Promise.all(
       Array.from({ length: 20 }, (_, index) =>
-        service.addLines(ref, [draft({ label: `L${index}`, unitPrice: 1_000 + index })]),
+        service.addLines(ref, [draft({ label: { fr: `L${index}` }, unitPrice: 1_000 + index })]),
       ),
     );
     const stored = await storedTotals(ref);

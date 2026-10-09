@@ -1,6 +1,11 @@
 'use client';
 
-import { getLocalizedText, type LineItemType, type Locale, type PriceMode } from '@traiteur/shared';
+import {
+  getLocalizedText,
+  type LineItemType,
+  type LocalizedText,
+  type PriceMode,
+} from '@traiteur/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
@@ -22,8 +27,8 @@ import { formatMoney } from '@/lib/format/money';
 export interface CatalogChoice {
   itemType: Exclude<LineItemType, 'CUSTOM'>;
   id: string;
-  /** Libellé figé dans la langue du client. */
-  label: string;
+  /** Nom du catalogue dans toutes ses langues : copié tel quel sur la ligne. */
+  label: LocalizedText;
   /** Prix unitaire dans le mode de prix de la commande. */
   unitPrice: number;
   taxRateBps: number;
@@ -34,8 +39,6 @@ export interface CatalogChoice {
 interface CatalogPickerProps {
   kind: Exclude<LineItemType, 'CUSTOM'> | null;
   priceMode: PriceMode;
-  /** Langue des libellés enregistrés (celle du client). */
-  labelLocale: Locale;
   onPick: (choice: CatalogChoice) => void;
   onClose: () => void;
 }
@@ -46,13 +49,7 @@ interface Option extends CatalogChoice {
 }
 
 /** Recherche d'une formule, d'un plat ou d'un service du catalogue (éléments archivés exclus). */
-export function CatalogPicker({
-  kind,
-  priceMode,
-  labelLocale,
-  onPick,
-  onClose,
-}: CatalogPickerProps) {
+export function CatalogPicker({ kind, priceMode, onPick, onClose }: CatalogPickerProps) {
   const t = useTranslations('orders.form.lines');
   const locale = useLocale();
   const [search, setSearch] = useState('');
@@ -67,7 +64,7 @@ export function CatalogPicker({
       ? (packages.data?.items ?? []).map((item) => ({
           itemType: 'PACKAGE',
           id: item.id,
-          label: getLocalizedText(item.name, labelLocale),
+          label: item.name,
           displayName: getLocalizedText(item.name, locale),
           imageKey: item.imageKey,
           unitPrice: price(item.pricePerPersonHt, item.pricePerPersonTtc),
@@ -81,7 +78,7 @@ export function CatalogPicker({
             .map((item) => ({
               itemType: 'DISH',
               id: item.id,
-              label: getLocalizedText(item.name, labelLocale),
+              label: item.name,
               displayName: getLocalizedText(item.name, locale),
               imageKey: item.imageKey,
               unitPrice: price(item.priceHt, item.priceTtc),
@@ -102,7 +99,7 @@ export function CatalogPicker({
               .map((item) => ({
                 itemType: 'EXTRA_SERVICE',
                 id: item.id,
-                label: getLocalizedText(item.name, labelLocale),
+                label: item.name,
                 displayName: getLocalizedText(item.name, locale),
                 imageKey: null,
                 unitPrice: price(item.priceHt, item.priceTtc),

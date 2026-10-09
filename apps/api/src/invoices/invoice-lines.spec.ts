@@ -15,7 +15,7 @@ import {
 const stored = (label: string, unitPriceTtc: number, quantity: number, taxRateBps: number) => ({
   ...computeLineAmounts({ priceMode: 'TTC', unitPriceTtc, quantity, taxRateBps }),
   itemType: 'CUSTOM' as const,
-  label,
+  label: { fr: label },
 });
 
 // Commande : 20 000,00 à 20 % (repas) + 2 700,00 à 10 % (transport)
@@ -23,8 +23,10 @@ const order: StoredLine[] = [
   stored('Repas', 25_000, 80, 2000),
   stored('Transport', 270_000, 1, 1000),
 ];
-const label = (rate: number, several: boolean) =>
-  several ? `Acompte (TVA ${rate / 100} %)` : 'Acompte';
+const label = (rate: number, several: boolean) => ({
+  fr: several ? `Acompte (TVA ${rate / 100} %)` : 'Acompte',
+  ar: 'تسبيق',
+});
 
 describe('prorate', () => {
   it('somme exacte, parts proportionnelles (plus forts restes)', () => {
@@ -38,7 +40,7 @@ describe('prorate', () => {
 describe('lignes de facture', () => {
   it('acompte : une ligne par taux au prorata, total TTC exact', () => {
     const lines = depositLines('TTC', 681_000, order, label);
-    expect(lines.map((line) => [line.label, line.taxRateBps, line.totalTtc])).toEqual([
+    expect(lines.map((line) => [line.label.fr, line.taxRateBps, line.totalTtc])).toEqual([
       ['Acompte (TVA 10 %)', 1000, 81_000],
       ['Acompte (TVA 20 %)', 2000, 600_000],
     ]);
@@ -54,10 +56,9 @@ describe('lignes de facture', () => {
     const deposit = depositLines('TTC', 681_000, order, label);
     const balance = [
       ...copyLines(order),
-      ...deductionLines(
-        [{ number: 'FAC-2026-00001', lines: deposit }],
-        (number) => `Acompte ${number}`,
-      ),
+      ...deductionLines([{ number: 'FAC-2026-00001', lines: deposit }], (number) => ({
+        fr: `Acompte ${number}`,
+      })),
     ];
     const totals = invoiceTotals(balance);
     const orderTotals = invoiceTotals(copyLines(order));
@@ -83,13 +84,13 @@ describe('lignes de facture', () => {
 
   it('avoir partiel (remboursement) : montant réparti par taux, négatif', () => {
     const deposit = depositLines('TTC', 681_000, order, label);
-    const credit = partialCreditLines('TTC', 400_000, deposit, () => 'Remboursement');
+    const credit = partialCreditLines('TTC', 400_000, deposit, () => ({ fr: 'Remboursement' }));
     expect(invoiceTotals(credit).totalTtc).toBe(-400_000);
     expect(credit.every((line) => line.totalTtc < 0)).toBe(true);
   });
 
   it('frais d’annulation : une ligne TTC au taux choisi', () => {
-    const [line] = cancellationFeeLines(204_300, 2000, 'Frais d’annulation');
+    const [line] = cancellationFeeLines(204_300, 2000, { fr: 'Frais d’annulation' });
     expect(line).toMatchObject({ priceMode: 'TTC', totalTtc: 204_300, totalHt: 170_250 });
   });
 });

@@ -44,7 +44,8 @@ export function InvoiceList() {
   const title = useInvoiceTitle();
   const today = todayInTimeZone(timeZone);
   const [from, setFrom] = useState(`${today.slice(0, 7)}-01`);
-  const [to, setTo] = useState(today);
+  // Sans date de fin par défaut : une facture tout juste émise reste visible
+  const [to, setTo] = useState('');
   const [type, setType] = useState<InvoiceType | typeof ALL>(ALL);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);

@@ -1,3 +1,5 @@
+import type { LineLabel } from '@traiteur/shared';
+
 import type { DocLocale } from './format';
 
 /** Libellés des documents PDF, en français et en arabe (même structure dans les deux langues). */
@@ -241,3 +243,11 @@ export function docLabels(locale: DocLocale): Labels {
 }
 
 export type DocLabels = Labels;
+
+/**
+ * Libellé de ligne produit par l'application (acompte, solde, frais, remboursement), rédigé dans
+ * toutes les langues des documents : chaque PDF l'affiche ensuite dans sa propre langue.
+ */
+export function inAllLocales(build: (t: Labels, locale: DocLocale) => string): LineLabel {
+  return { fr: build(FR, 'fr'), ar: build(AR, 'ar') };
+}

@@ -15,6 +15,8 @@ import {
   type OrderTransitionResult,
   type OrderUpdateInput,
   FIRM_ORDER_STATUSES,
+  type LineLabel,
+  lineLabelKey,
   OPEN_FIRM_ORDER_STATUSES,
   plannedDeposit,
   todayInTimeZone,
@@ -99,7 +101,7 @@ function lineKey(line: {
   dishId: string | null;
   packageId: string | null;
   extraServiceId: string | null;
-  label: string;
+  label: LineLabel;
   quantity: number;
   unitPrice: number;
   discount: number;
@@ -112,7 +114,7 @@ function lineKey(line: {
     line.dishId,
     line.packageId,
     line.extraServiceId,
-    line.label,
+    lineLabelKey(line.label),
     line.quantity,
     line.unitPrice,
     line.discount,

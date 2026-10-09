@@ -687,7 +687,7 @@ model OrderItem {
   dishId         String?      @db.Uuid
   packageId      String?      @db.Uuid
   extraServiceId String?      @db.Uuid
-  label          String // snapshot du libellé (langue du client) au moment de la commande
+  label          Json // LocalizedText { fr, ar?, en? } figé à l'ajout de la ligne (copie du catalogue ou saisie)
   // Montants en centimes. Le prix unitaire et la remise du mode de la ligne font foi ;
   // ceux de l'autre mode sont indicatifs. Règles vérifiées par CHECK (voir PriceMode).
   priceMode      PriceMode // toujours égal à celui de la commande (clé composite)
@@ -820,7 +820,7 @@ model QuoteLine {
   dishId         String?      @db.Uuid
   packageId      String?      @db.Uuid
   extraServiceId String?      @db.Uuid
-  label          String
+  label          Json // LocalizedText figé (copie de la ligne de commande)
   priceMode      PriceMode // toujours égal à celui du devis (clé composite)
   quantity       Int
   unitPriceHt    Int
@@ -902,7 +902,7 @@ model InvoiceLine {
   traiteurId   String       @db.Uuid
   invoiceId    String       @db.Uuid
   itemType     LineItemType
-  label        String
+  label        Json // LocalizedText figé : chaque PDF s'affiche dans sa langue (repli fr)
   priceMode    PriceMode // toujours égal à celui de la facture (clé composite)
   quantity     Int
   unitPriceHt  Int

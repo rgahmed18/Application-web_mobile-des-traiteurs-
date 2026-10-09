@@ -12,6 +12,7 @@ import {
   computeCatalogPrices,
   computeDocumentTotals,
   getDefaultFeatureFlags,
+  type LineLabel,
   type LocalizedText,
   type PriceMode,
   unitPriceFor,
@@ -802,7 +803,7 @@ async function seedDemoOrder(
   const drafts: LineDraft[] = [
     {
       itemType: 'PACKAGE',
-      label: 'Formule Fiançailles',
+      label: catalogName(PACKAGES, 'formule-fiancailles'),
       packageId,
       quantity: guests,
       unitPrice: price(catalogPrices(250)), // 250 MAD × 120 = 30 000,00 MAD TTC
@@ -811,7 +812,7 @@ async function seedDemoOrder(
     },
     {
       itemType: 'DISH',
-      label: 'Jus de fruits frais',
+      label: catalogName(DISHES, 'jus-frais'),
       dishId: juiceId,
       quantity: guests,
       unitPrice: price(catalogPrices(15, 1000)),
@@ -820,7 +821,7 @@ async function seedDemoOrder(
     },
     {
       itemType: 'EXTRA_SERVICE',
-      label: 'Serveur supplémentaire (par soirée)',
+      label: waiter.name,
       extraServiceId: waiter.id,
       quantity: 4,
       unitPrice: price(catalogPrices(400)),
@@ -828,7 +829,7 @@ async function seedDemoOrder(
     },
     {
       itemType: 'EXTRA_SERVICE',
-      label: 'Décoration florale de la salle',
+      label: decoration.name,
       extraServiceId: decoration.id,
       quantity: 1,
       unitPrice: price(catalogPrices(8000)),
@@ -942,6 +943,13 @@ async function seedDemoOrder(
   );
 }
 
+/** Nom d'un article du catalogue de démonstration, dans toutes ses langues. */
+function catalogName(items: readonly { slug: string; name: LineLabel }[], slug: string): LineLabel {
+  const item = items.find((entry) => entry.slug === slug);
+  if (!item) throw new Error(`Article de démonstration inconnu : ${slug}`);
+  return item.name;
+}
+
 // ─────────────────── Clients et commandes de démonstration ───────────────────
 
 /** Prix et identifiants du catalogue, dans le mode de prix des commandes du traiteur. */
@@ -952,12 +960,12 @@ function demoCatalog(
 ): DemoCatalog {
   const ref = (
     id: string | undefined,
-    label: string,
+    label: LineLabel,
     ttc: number,
     taxRateBps: number,
     perPerson: boolean,
   ): CatalogRef => {
-    if (!id) throw new Error(`Article inconnu : ${label}`);
+    if (!id) throw new Error(`Article inconnu : ${label.fr}`);
     return {
       id,
       label,
@@ -971,7 +979,7 @@ function demoCatalog(
     packages: new Map(
       PACKAGES.map((pkg) => [
         pkg.slug,
-        ref(packageIds.get(pkg.slug), pkg.name.fr, pkg.ttcPerPerson, TAX_RATE, true),
+        ref(packageIds.get(pkg.slug), pkg.name, pkg.ttcPerPerson, TAX_RATE, true),
       ]),
     ),
     dishes: new Map(
@@ -979,7 +987,7 @@ function demoCatalog(
         dish.slug,
         ref(
           dishIds.get(dish.slug),
-          dish.name.fr,
+          dish.name,
           dish.ttc,
           dish.taxRateBps ?? TAX_RATE,
           (dish.unit ?? 'PER_PERSON') === 'PER_PERSON',
@@ -989,13 +997,7 @@ function demoCatalog(
     services: new Map(
       EXTRA_SERVICES.map((service, index) => [
         serviceKeys[index] ?? service.id,
-        ref(
-          service.id,
-          service.name.fr,
-          service.ttc,
-          TAX_RATE,
-          service.pricingUnit === 'PER_PERSON',
-        ),
+        ref(service.id, service.name, service.ttc, TAX_RATE, service.pricingUnit === 'PER_PERSON'),
       ]),
     ),
   };

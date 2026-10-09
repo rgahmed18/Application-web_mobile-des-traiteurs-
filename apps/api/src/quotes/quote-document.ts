@@ -1,14 +1,20 @@
-import { amountToWords, computeDocumentTotals, type PriceMode } from '@traiteur/shared';
+import {
+  amountToWords,
+  computeDocumentTotals,
+  type LineLabel,
+  lineLabelText,
+  type PriceMode,
+} from '@traiteur/shared';
 
 import type { DocumentModel } from '../pdf/document-model';
-import { auto, ltr } from '../pdf/document-model';
+import { auto, joinAddress, ltr } from '../pdf/document-model';
 import { amount, capitalize, type DocLocale, localDate, money, rate } from '../pdf/format';
 import { docLabels } from '../pdf/labels';
 import { type Seller, sellerFooter, sellerHeader } from '../pdf/seller';
 import type { QuoteSnapshot } from './quote-snapshot';
 
 export interface QuoteLineData {
-  label: string;
+  label: LineLabel;
   quantity: number;
   unitPriceHt: number;
   unitPriceTtc: number;
@@ -49,11 +55,7 @@ export function quoteDocument(data: QuoteDocumentData): DocumentModel {
     ? `${t.from} ${ltr(event.startTime)} ${t.to} ${ltr(event.endTime)}${event.endsNextDay ? ` ${t.nextDay}` : ''}`
     : ltr(event.startTime);
   // Adresse d'un seul tenant : en latin, elle reste dans l'ordre même dans un document arabe
-  const venue = auto(
-    [event.venueName, event.venueAddress, event.city]
-      .filter((part): part is string => Boolean(part))
-      .join(', '),
-  );
+  const venue = auto(joinAddress([event.venueName, event.venueAddress, event.city]));
 
   const watermark: Partial<Record<QuoteDocumentData['status'], string>> = {
     DRAFT: t.draft,
@@ -137,7 +139,7 @@ export function quoteDocument(data: QuoteDocumentData): DocumentModel {
         const discount = ttc ? line.discountTtc : line.discountHt;
         return [
           {
-            main: auto(line.label),
+            main: auto(lineLabelText(line.label, locale)),
             sub: discount > 0 ? t.discountOf(money(discount, locale)) : null,
           },
           ltr(line.quantity),

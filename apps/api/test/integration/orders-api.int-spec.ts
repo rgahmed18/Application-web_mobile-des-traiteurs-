@@ -143,7 +143,7 @@ describe('API clients, commandes et calendrier (application complète)', () => {
       {
         itemType: 'DISH',
         dishId,
-        label: 'Pastilla',
+        label: { fr: 'Pastilla' },
         quantity: 100,
         unitPrice: 4_500,
         taxRateBps: 2000,
@@ -151,7 +151,7 @@ describe('API clients, commandes et calendrier (application complète)', () => {
       },
       {
         itemType: 'CUSTOM',
-        label: 'Gâteau de mariage',
+        label: { fr: 'Gâteau de mariage' },
         quantity: 1,
         unitPrice: 300_000,
         discount: 20_000,
@@ -160,7 +160,7 @@ describe('API clients, commandes et calendrier (application complète)', () => {
       },
       {
         itemType: 'CUSTOM',
-        label: 'Jus frais',
+        label: { fr: 'Jus frais' },
         quantity: 100,
         unitPrice: 1_500,
         taxRateBps: 1000,
@@ -356,6 +356,34 @@ describe('API clients, commandes et calendrier (application complète)', () => {
   // ─────────────────────────── Commandes ───────────────────────────
 
   describe('commandes', () => {
+    it('libellés figés dans toutes les langues ; ligne libre saisie en arabe seulement', async () => {
+      const client = await createClient(employeeA);
+      const base = orderBody(client.id, dishA);
+      const order = await createOrder(
+        employeeA,
+        orderBody(client.id, dishA, {
+          lines: [
+            { ...base.lines[0], label: { fr: 'Pastilla', ar: 'بسطيلة' } },
+            { ...base.lines[1], label: { ar: 'كعكة العرس' } },
+            { ...base.lines[2], label: { fr: 'Jus frais', ar: '' } },
+          ],
+        }),
+      );
+      const labels = (order.lines as unknown as { label: Record<string, string> }[]).map(
+        (line) => line.label,
+      );
+      expect(labels).toEqual([
+        { fr: 'Pastilla', ar: 'بسطيلة' },
+        // Sans français, le texte arabe sert de repli
+        { fr: 'كعكة العرس', ar: 'كعكة العرس' },
+        { fr: 'Jus frais' },
+      ]);
+      const empty = await api(employeeA)
+        .post('/orders', orderBody(client.id, dishA, { lines: [{ ...base.lines[1], label: {} }] }))
+        .expect(400);
+      expect(empty.body).toMatchObject({ code: 'VALIDATION_ERROR' });
+    });
+
     it('crée une commande avec 3 lignes : totaux exacts, référence, lignes par personne', async () => {
       const client = await createClient(employeeA);
       const order = await createOrder(employeeA, orderBody(client.id, dishA));

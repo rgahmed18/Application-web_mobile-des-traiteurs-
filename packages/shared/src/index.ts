@@ -20,3 +20,4 @@ export * from './payments/payment-schedule';
 export * from './payments/payment.schemas';
 export * from './quotes/quote.schemas';
 export * from './invoices/invoice.schemas';
+export * from './orders/line-label';

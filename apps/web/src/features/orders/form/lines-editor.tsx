@@ -4,7 +4,6 @@ import {
   COMMON_TAX_RATES_BPS,
   formatTaxRate,
   type LineItemType,
-  type Locale,
   type PriceMode,
 } from '@traiteur/shared';
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from 'lucide-react';
@@ -47,7 +46,13 @@ import { centsToAmount } from '@/features/catalog/forms/form-values';
 import { currencyLabel, formatMoney } from '@/lib/format/money';
 
 import { type CatalogChoice, CatalogPicker } from './catalog-picker';
-import { lineAmounts, newLineKey, type OrderFormValues } from './order-form-schema';
+import {
+  formLabel,
+  formLabelText,
+  lineAmounts,
+  newLineKey,
+  type OrderFormValues,
+} from './order-form-schema';
 
 type CatalogKind = Exclude<LineItemType, 'CUSTOM'>;
 
@@ -56,7 +61,6 @@ interface LinesEditorProps {
   priceMode: PriceMode;
   isVatRegistered: boolean;
   defaultTaxRateBps: number;
-  labelLocale: Locale;
   disabled: boolean;
 }
 
@@ -66,7 +70,6 @@ export function LinesEditor({
   priceMode,
   isVatRegistered,
   defaultTaxRateBps,
-  labelLocale,
   disabled,
 }: LinesEditorProps) {
   const t = useTranslations('orders.form.lines');
@@ -94,7 +97,7 @@ export function LinesEditor({
       dishId: choice.itemType === 'DISH' ? choice.id : null,
       packageId: choice.itemType === 'PACKAGE' ? choice.id : null,
       extraServiceId: choice.itemType === 'EXTRA_SERVICE' ? choice.id : null,
-      label: choice.label,
+      label: formLabel(choice.label),
       quantity: String(quantity),
       unitPrice: centsToAmount(choice.unitPrice),
       discount: '',
@@ -112,7 +115,7 @@ export function LinesEditor({
       dishId: null,
       packageId: null,
       extraServiceId: null,
-      label: '',
+      label: { fr: '', ar: '', en: '' },
       quantity: '1',
       unitPrice: '',
       discount: '',
@@ -145,13 +148,25 @@ export function LinesEditor({
                     {t(`types.${field.itemType}`)}
                   </Badge>
                   <div className="min-w-0 flex-1">
-                    <Input
-                      aria-label={t('label')}
-                      placeholder={t('label')}
-                      disabled={disabled}
-                      aria-invalid={Boolean(error('label'))}
-                      {...control.register(`lines.${index}.label`)}
-                    />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Input
+                        aria-label={t('label')}
+                        placeholder={t('label')}
+                        dir="auto"
+                        disabled={disabled}
+                        aria-invalid={Boolean(error('label'))}
+                        {...control.register(`lines.${index}.label.fr`)}
+                      />
+                      <Input
+                        aria-label={t('labelAr')}
+                        placeholder={t('labelAr')}
+                        dir="rtl"
+                        lang="ar"
+                        disabled={disabled}
+                        aria-invalid={Boolean(error('label'))}
+                        {...control.register(`lines.${index}.label.ar`)}
+                      />
+                    </div>
                     {error('label') && <FieldError>{error('label')}</FieldError>}
                   </div>
                   <div className="flex shrink-0">
@@ -179,7 +194,7 @@ export function LinesEditor({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      aria-label={`${t('remove')} — ${line?.label ?? ''}`}
+                      aria-label={`${t('remove')} — ${line ? formLabelText(line.label, locale) : ''}`}
                       disabled={disabled}
                       onClick={() => remove(index)}
                     >
@@ -335,7 +350,6 @@ export function LinesEditor({
         <CatalogPicker
           kind={picking}
           priceMode={priceMode}
-          labelLocale={labelLocale}
           onPick={addFromCatalog}
           onClose={() => setPicking(null)}
         />

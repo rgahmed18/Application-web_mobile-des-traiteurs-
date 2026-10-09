@@ -6,6 +6,7 @@ import {
   type CancellationRefund,
   availableTransitions,
   formatTaxRate,
+  lineLabelText,
   type Order,
   type OrderHistoryEntry,
   type OrderStatus,
@@ -438,7 +439,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 {data.lines.map((line) => (
                   <li key={line.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium">{line.label}</p>
+                      <p className="font-medium">{lineLabelText(line.label, locale)}</p>
                       <p className="text-sm text-muted-foreground">
                         <span dir="ltr">
                           {line.quantity} × {unit(line)}

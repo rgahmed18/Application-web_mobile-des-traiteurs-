@@ -155,7 +155,7 @@ describe('API des devis (application complète)', () => {
     lines: [
       {
         itemType: 'CUSTOM',
-        label: 'Menu mariage',
+        label: { fr: 'Menu mariage' },
         quantity: 120,
         unitPrice: 25_000,
         taxRateBps: 2000,
@@ -163,7 +163,7 @@ describe('API des devis (application complète)', () => {
       },
       {
         itemType: 'CUSTOM',
-        label: 'Service',
+        label: { fr: 'Service', ar: 'الخدمة' },
         quantity: 1,
         unitPrice: 200_000,
         taxRateBps: 2000,
@@ -261,7 +261,10 @@ describe('API des devis (application complète)', () => {
 
     // Lignes figées par la base une fois le devis envoyé
     await expect(
-      prisma.quoteLine.updateMany({ where: { quoteId: draft.id }, data: { label: 'Modifié' } }),
+      prisma.quoteLine.updateMany({
+        where: { quoteId: draft.id },
+        data: { label: { fr: 'Modifié' } },
+      }),
     ).rejects.toThrow(/devis envoyé/);
     await api(admin)
       .patch(`/quotes/${draft.id}`, { validUntil: casablancaDay(20), locale: 'fr', notes: null })
@@ -288,6 +291,8 @@ describe('API des devis (application complète)', () => {
     const ar = (await publicApi.get(`${token}?lang=ar`).expect(200)).body as PublicQuoteBody;
     expect(ar.amountInWords).toBe('اثنان وثلاثون ألف درهم');
     expect(ar.terms).toBe('تسبيق 30٪ عند التأكيد.');
+    // Libellés figés dans toutes les langues : traduction arabe, sinon repli sur le français
+    expect(ar.lines.map((line) => line.label)).toEqual(['Menu mariage', 'الخدمة']);
 
     const missing = await publicApi.get('A'.repeat(43)).expect(404);
     expect(missing.headers['x-robots-tag']).toContain('noindex');

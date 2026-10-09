@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import type { Prisma } from '../generated/prisma/client';
+import { joinAddress } from '../pdf/document-model';
 import { type Seller, sellerSelect } from '../pdf/seller';
 
 /**
@@ -101,7 +102,7 @@ export function buyerSnapshot(row: BuyerRow): BuyerSnapshot {
     name: `${row.firstName} ${row.lastName}`.trim(),
     phone: row.user.phone,
     email: row.email,
-    address: address ? `${address.address}, ${address.city}` : null,
+    address: address ? joinAddress([address.address, address.city]) : null,
     companyName: row.companyName,
     ice: row.companyIce,
   };

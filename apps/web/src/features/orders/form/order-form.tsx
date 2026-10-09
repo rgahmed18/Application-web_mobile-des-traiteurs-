@@ -4,7 +4,6 @@ import {
   type Availability,
   type CatalogSettings,
   EVENT_TYPES,
-  type Locale,
   type Order,
   orderEditPolicy,
   type OrderEditPolicy,
@@ -12,7 +11,7 @@ import {
 import { InfoIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -54,6 +53,7 @@ import { ClientPicker } from './client-picker';
 import { LinesEditor } from './lines-editor';
 import {
   emptyOrderForm,
+  formLabelText,
   type OrderFormOutput,
   orderFormSchema,
   orderToFormValues,
@@ -85,6 +85,7 @@ export function OrderForm({
   initialClientId,
   onReload,
 }: OrderFormProps) {
+  const locale = useLocale();
   const tc = useTranslations('common');
   const tf = useTranslations('orders.form');
   const tEvent = useTranslations('eventType');
@@ -113,7 +114,6 @@ export function OrderForm({
     name: ['clientId', 'eventDate', 'endTime', 'lines'],
   });
   const client = useClient(clientId === '' ? null : clientId);
-  const labelLocale: Locale = client.data?.locale ?? 'fr';
 
   const [saved, setSaved] = useState(false);
   const [forceRequest, setForceRequest] = useState<{
@@ -161,7 +161,7 @@ export function OrderForm({
       to,
       lines: perPerson.map(({ line, index }) => ({
         index,
-        label: line.label,
+        label: formLabelText(line.label, locale),
         from: Number(line.quantity),
       })),
     });
@@ -443,7 +443,6 @@ export function OrderForm({
               priceMode={priceMode}
               isVatRegistered={settings.isVatRegistered}
               defaultTaxRateBps={settings.defaultTaxRateBps}
-              labelLocale={labelLocale}
               disabled={locked.framed}
             />
           </FormSection>

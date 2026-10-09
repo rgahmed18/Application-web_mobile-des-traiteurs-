@@ -2,15 +2,17 @@ import {
   addDays,
   formatTaxRate,
   type InvoiceKind,
+  lineLabelText,
   todayInTimeZone,
   utcToZoned,
   zonedToUtc,
 } from '@traiteur/shared';
 
 import { appErrors } from '../common/errors';
+import { readLineLabel } from '../documents/line-label';
 import type { Prisma } from '../generated/prisma/client';
 import { localizedTerms } from '../pdf/seller';
-import { docLabels } from '../pdf/labels';
+import { type DocLabels, docLabels, inAllLocales } from '../pdf/labels';
 import { nextDocumentNumber } from '../sequences/document-sequence';
 import {
   cancellationFeeLines,
@@ -21,6 +23,7 @@ import {
   type InvoiceLineDraft,
   invoiceTotals,
   partialCreditLines,
+  type StoredLine,
 } from './invoice-lines';
 import {
   buyerSelect,
@@ -148,6 +151,20 @@ export async function invoicingState(
   };
 }
 
+/** Lignes lues en base, libellés typés (LocalizedText). */
+function stored<T extends Omit<StoredLine, 'label'> & { label: Prisma.JsonValue }>(
+  lines: readonly T[],
+): (T & StoredLine)[] {
+  return lines.map((line) => ({ ...line, label: readLineLabel(line.label) }));
+}
+
+/**
+ * Libellé produit par l'application, dans toutes les langues, suivi du taux de TVA quand le
+ * document en compte plusieurs.
+ */
+const rateLabel = (base: (t: DocLabels) => string) => (rate: number, several: boolean) =>
+  inAllLocales((t) => (several ? `${base(t)}${t.rateSuffix(formatTaxRate(rate))}` : base(t)));
+
 /** Pourcentage lisible d'un acompte (« 30 % », « 29,5 % »). */
 function percentOf(part: number, total: number): string {
   const value = Math.round((part * 10_000) / total) / 100;
@@ -232,15 +249,22 @@ async function createInvoice(tx: Db, params: CreateParams): Promise<string> {
 }
 
 async function invoiceContext(tx: Db, traiteurId: string, clientId: string) {
-  const [seller, buyer] = await Promise.all([
+  const [seller, buyer, clock] = await Promise.all([
     tx.traiteur.findUniqueOrThrow({ where: { id: traiteurId }, select: invoiceSellerSelect }),
     tx.membership.findFirstOrThrow({
       where: { id: clientId, traiteurId },
       select: { locale: true },
     }),
+    // Heure de la base : la même que la date d'émission imposée par le trigger, pour que
+    // l'échéance soit calculée à partir du même jour
+    tx.$queryRaw<{ now: Date }[]>`SELECT now() AS "now"`,
   ]);
   const locale: 'fr' | 'ar' = buyer.locale === 'ar' ? 'ar' : 'fr';
-  return { seller, locale, today: todayInTimeZone(seller.timezone) };
+  return {
+    seller,
+    locale,
+    today: todayInTimeZone(seller.timezone, clock[0]?.now ?? new Date()),
+  };
 }
 
 /** Émet la facture demandée si elle est possible ; retourne son identifiant. */
@@ -256,18 +280,15 @@ export async function issueInvoice(
   }
   const { order } = state;
   const { seller, locale, today } = await invoiceContext(tx, traiteurId, order.clientId);
-  const t = docLabels(locale);
   const eventDay = utcToZoned(order.eventDate, seller.timezone).date;
   const balanceDue = addDays(eventDay, -seller.balanceDueDays);
-  const rateLabel = (base: string) => (rate: number, several: boolean) =>
-    several ? `${base}${t.rateSuffix(formatTaxRate(rate))}` : base;
 
   let lines: InvoiceLineDraft[];
   let priceMode = order.priceMode;
   let dueDay: string | null = today;
   switch (kind) {
     case 'TOTAL':
-      lines = copyLines(order.items);
+      lines = copyLines(stored(order.items));
       dueDay = balanceDue > today ? balanceDue : today;
       break;
     case 'DEPOSIT':
@@ -275,7 +296,7 @@ export async function issueInvoice(
         order.priceMode,
         amount,
         order.items,
-        rateLabel(t.depositLine(percentOf(amount, order.totalTtc), order.reference)),
+        rateLabel((t) => t.depositLine(percentOf(amount, order.totalTtc), order.reference)),
       );
       break;
     case 'BALANCE': {
@@ -283,9 +304,10 @@ export async function issueInvoice(
         (invoice) => invoice.kind === 'DEPOSIT' && isActive(invoice, state.credited),
       );
       lines = [
-        ...copyLines(order.items),
-        ...deductionLines(deposits, (number, rate, several) =>
-          rateLabel(t.deductedDeposit(number))(rate, several),
+        ...copyLines(stored(order.items)),
+        ...deductionLines(
+          deposits.map((deposit) => ({ number: deposit.number, lines: stored(deposit.lines) })),
+          (number, rate, several) => rateLabel((t) => t.deductedDeposit(number))(rate, several),
         ),
       ];
       dueDay = balanceDue > today ? balanceDue : today;
@@ -296,7 +318,11 @@ export async function issueInvoice(
       const rate = seller.isVatRegistered
         ? (seller.cancellationFeeTaxRateBps ?? seller.defaultTaxRateBps)
         : 0;
-      lines = cancellationFeeLines(amount, rate, t.cancellationFeeLine(order.reference));
+      lines = cancellationFeeLines(
+        amount,
+        rate,
+        inAllLocales((t) => t.cancellationFeeLine(order.reference)),
+      );
       break;
     }
   }
@@ -338,7 +364,7 @@ export async function issueCreditNote(
     type: 'CREDIT_NOTE',
     kind: invoice.kind,
     priceMode: invoice.priceMode,
-    lines: fullCreditLines(invoice.lines),
+    lines: fullCreditLines(stored(invoice.lines)),
     locale: invoice.locale === 'ar' ? 'ar' : 'fr',
     dueDay: null,
     notes: null,
@@ -372,15 +398,21 @@ export async function creditOnCancellation(
     const credited = state.credited.get(invoice.id) ?? 0;
     const open = invoice.totalTtc + credited;
     const amount = Math.min(remaining, open);
-    const label = t.refundLine(invoice.number);
+    const invoiceLines = stored(invoice.lines);
     const lines =
       amount === invoice.totalTtc && credited === 0
-        ? fullCreditLines(invoice.lines).map((line) => ({
+        ? fullCreditLines(invoiceLines).map((line) => ({
             ...line,
-            label: `${label} — ${line.label}`,
+            label: inAllLocales(
+              (labels, lang) =>
+                `${labels.refundLine(invoice.number)} — ${lineLabelText(line.label, lang)}`,
+            ),
           }))
-        : partialCreditLines(invoice.priceMode, amount, invoice.lines, (rate, several) =>
-            several ? `${label}${t.rateSuffix(formatTaxRate(rate))}` : label,
+        : partialCreditLines(
+            invoice.priceMode,
+            amount,
+            invoiceLines,
+            rateLabel((labels) => labels.refundLine(invoice.number)),
           );
     const id = await createInvoice(tx, {
       traiteurId: params.traiteurId,

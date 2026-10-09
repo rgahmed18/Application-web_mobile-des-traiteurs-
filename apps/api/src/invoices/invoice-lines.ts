@@ -3,6 +3,7 @@ import {
   computeLineAmounts,
   divideAndRound,
   type DocumentTotals,
+  type LineLabel,
   type LineAmounts,
   negateLineAmounts,
   type PriceMode,
@@ -16,13 +17,13 @@ export type InvoiceItemType = 'DISH' | 'PACKAGE' | 'EXTRA_SERVICE' | 'CUSTOM';
 
 export interface InvoiceLineDraft extends LineAmounts {
   itemType: InvoiceItemType;
-  label: string;
+  label: LineLabel;
 }
 
 /** Ligne enregistrée (commande, facture) dont on reprend les montants tels quels. */
 export interface StoredLine {
   itemType: InvoiceItemType;
-  label: string;
+  label: LineLabel;
   priceMode: PriceMode;
   quantity: number;
   unitPriceHt: number;
@@ -73,7 +74,7 @@ function amountLine(
   priceMode: PriceMode,
   amountTtc: number,
   taxRateBps: number,
-  label: string,
+  label: LineLabel,
 ): InvoiceLineDraft {
   const amounts =
     priceMode === 'TTC'
@@ -92,7 +93,7 @@ function prorataLines(
   priceMode: PriceMode,
   amountTtc: number,
   reference: readonly Pick<LineAmounts, 'taxRateBps' | 'totalTtc'>[],
-  label: (taxRateBps: number, several: boolean) => string,
+  label: (taxRateBps: number, several: boolean) => LineLabel,
 ): InvoiceLineDraft[] {
   const rates = ttcByRate(reference).filter(([, ttc]) => ttc > 0);
   const shares = prorate(
@@ -128,7 +129,7 @@ export function depositLines(
   priceMode: PriceMode,
   amountTtc: number,
   orderLines: readonly Pick<LineAmounts, 'taxRateBps' | 'totalTtc'>[],
-  label: (taxRateBps: number, several: boolean) => string,
+  label: (taxRateBps: number, several: boolean) => LineLabel,
 ): InvoiceLineDraft[] {
   return prorataLines(priceMode, amountTtc, orderLines, label);
 }
@@ -136,7 +137,7 @@ export function depositLines(
 /** Acomptes déjà facturés, déduits d'une facture de solde : leurs lignes en négatif. */
 export function deductionLines(
   deposits: readonly { number: string; lines: readonly StoredLine[] }[],
-  label: (number: string, taxRateBps: number, several: boolean) => string,
+  label: (number: string, taxRateBps: number, several: boolean) => LineLabel,
 ): InvoiceLineDraft[] {
   return deposits.flatMap((deposit) =>
     copyLines(deposit.lines).map((line) => ({
@@ -161,7 +162,7 @@ export function partialCreditLines(
   priceMode: PriceMode,
   amountTtc: number,
   invoiceLines: readonly StoredLine[],
-  label: (taxRateBps: number, several: boolean) => string,
+  label: (taxRateBps: number, several: boolean) => LineLabel,
 ): InvoiceLineDraft[] {
   return prorataLines(priceMode, amountTtc, invoiceLines, label).map((line) => ({
     ...negateLineAmounts(line),
@@ -174,7 +175,7 @@ export function partialCreditLines(
 export function cancellationFeeLines(
   amountTtc: number,
   taxRateBps: number,
-  label: string,
+  label: LineLabel,
 ): InvoiceLineDraft[] {
   return [amountLine('TTC', amountTtc, taxRateBps, label)];
 }

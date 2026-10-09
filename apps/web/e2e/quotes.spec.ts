@@ -42,7 +42,8 @@ test('devis envoyé par lien sécurisé, accepté en ligne, puis facture d’aco
   await page.getByRole('button', { name: 'Ajouter' }).click();
   await page.getByRole('menuitem', { name: 'Ligne libre' }).click();
   const line = page.getByTestId('order-lines').getByRole('listitem').first();
-  await line.getByLabel('Libellé').fill('Prestation mariage');
+  await line.getByLabel('Libellé (français)').fill('Prestation mariage');
+  await line.getByLabel('Libellé en arabe (facultatif)').fill('خدمة حفل الزفاف');
   await line.getByLabel('Prix unitaire TTC').fill('10000');
   await page.getByRole('button', { name: 'Enregistrer (en attente)' }).click();
   await expect(page.getByText(/Commande CMD-\d{4}-\d{5} enregistrée/)).toBeVisible();

@@ -136,7 +136,7 @@ describe('API des factures (application complète)', () => {
         lines: [
           {
             itemType: 'CUSTOM',
-            label: 'Déjeuner',
+            label: { fr: 'Déjeuner' },
             quantity: 80,
             unitPrice: 10_000,
             taxRateBps: 2000,
@@ -144,7 +144,7 @@ describe('API des factures (application complète)', () => {
           },
           {
             itemType: 'CUSTOM',
-            label: 'Transport',
+            label: { fr: 'Transport' },
             quantity: 1,
             unitPrice: 200_000,
             taxRateBps: 1000,
@@ -155,6 +155,14 @@ describe('API des factures (application complète)', () => {
       .expect(201);
     return response.body as OrderBody;
   }
+
+  /** Jour courant selon la base (date d'émission imposée par elle), fuseau de Casablanca. */
+  const databaseDay = async () => {
+    const [row] = await prisma.$queryRaw<{ now: Date }[]>`SELECT now() AS "now"`;
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(
+      row?.now ?? new Date(),
+    );
+  };
 
   const invoicing = async (orderId: string) =>
     (await api(admin).get(`/orders/${orderId}/invoices`).expect(200)).body as Invoicing;
@@ -213,8 +221,8 @@ describe('API des factures (application complète)', () => {
       kind: 'DEPOSIT',
       totalTtc: 300_000,
       clientIce: '002345678000012',
-      issuedOn: casablancaDay(0),
-      dueDate: casablancaDay(0),
+      issuedOn: await databaseDay(),
+      dueDate: await databaseDay(),
     });
     expect(deposit?.number).toMatch(/^FAC-\d{4}-\d{5}$/);
     expect(deposit?.clientName).toBe('Atlas Conseil SARL (Omar Alaoui)');
@@ -224,6 +232,15 @@ describe('API des factures (application complète)', () => {
       { taxRateBps: 2000, baseHt: 200_000, taxAmount: 40_000 },
     ]);
     expect(afterDeposit.available).toMatchObject({ TOTAL: null, DEPOSIT: null, BALANCE: 700_000 });
+    // Libellés produits par l'application : rédigés dans toutes les langues des documents
+    const depositLines = await prisma.invoiceLine.findMany({
+      where: { invoiceId: deposit?.id ?? '' },
+      orderBy: { sortOrder: 'asc' },
+    });
+    expect(depositLines[0]?.label).toMatchObject({
+      fr: expect.stringContaining('Acompte de 30 %') as unknown,
+      ar: expect.stringContaining('تسبيق بنسبة 30٪') as unknown,
+    });
 
     // PDF figé dès l'émission : empreinte et version du gabarit
     const row = await prisma.invoice.findUniqueOrThrow({ where: { id: deposit?.id ?? '' } });
@@ -420,7 +437,7 @@ describe('API des factures (application complète)', () => {
   });
 
   it('liste et export comptable : CSV (BOM, « ; », virgule décimale) et xlsx', async () => {
-    const today = casablancaDay(0);
+    const today = await databaseDay();
     const page = (await api(admin).get(`/invoices?from=${today}&to=${today}`).expect(200)).body as {
       items: InvoiceBody[];
       total: number;

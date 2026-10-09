@@ -43,6 +43,15 @@ export const ltr = (value: string | number): string => `\u2066${value}\u2069`;
 const ARABIC = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 
 /**
+ * Parties d'une adresse jointes par une virgule : \u00AB \u060C \u00BB (virgule arabe) si l'adresse est r\u00E9dig\u00E9e
+ * en arabe, sinon \u00AB , \u00BB. Les parties vides sont ignor\u00E9es.
+ */
+export function joinAddress(parts: readonly (string | null | undefined)[]): string {
+  const present = parts.filter((part): part is string => Boolean(part?.trim()));
+  return present.join(present.some((part) => ARABIC.test(part)) ? '\u060C ' : ', ');
+}
+
+/**
  * Texte libre (adresse, nom, libellé) : posé de gauche à droite s'il ne contient aucune lettre
  * arabe — sinon « 12, rue des Orangers » se réordonne mal au milieu d'un document arabe.
  */

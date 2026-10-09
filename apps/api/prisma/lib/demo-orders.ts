@@ -10,6 +10,7 @@ import {
   plannedDeposit,
   type PriceMode,
   zonedToUtc,
+  type LineLabel,
 } from '@traiteur/shared';
 
 import type { LineDraft } from '../../src/documents/document-lines';
@@ -20,7 +21,8 @@ import { nextDocumentNumber } from '../../src/sequences/document-sequence';
 /** Article du catalogue avec son prix TTC (le traiteur de démo saisit en TTC). */
 export interface CatalogRef {
   id: string;
-  label: string;
+  /** Nom du catalogue dans toutes ses langues (copié sur la ligne). */
+  label: LineLabel;
   /** Prix unitaire dans le mode de la commande (centimes). */
   unitPrice: number;
   taxRateBps: number;
@@ -118,7 +120,7 @@ type LineSpec =
   | { package: string }
   | { dish: string; quantity?: number }
   | { service: string; quantity: number }
-  | { custom: string; unitPrice: number; quantity: number; discount?: number };
+  | { custom: LineLabel; unitPrice: number; quantity: number; discount?: number };
 
 interface OrderSpec {
   client: ClientKey;
@@ -241,7 +243,11 @@ const ORDERS: OrderSpec[] = [
     lines: [
       { dish: 'briouates-viande', quantity: 90 },
       { dish: 'the-menthe' },
-      { custom: 'Livraison et installation', unitPrice: DH(500), quantity: 1 },
+      {
+        custom: { fr: 'Livraison et installation', ar: 'التوصيل والتركيب' },
+        unitPrice: DH(500),
+        quantity: 1,
+      },
     ],
   },
   {
@@ -257,7 +263,11 @@ const ORDERS: OrderSpec[] = [
     lines: [
       { dish: 'pastilla-poulet' },
       { dish: 'cornes-de-gazelle', quantity: 150 },
-      { custom: 'Gâteau d’anniversaire', unitPrice: DH(1200), quantity: 1 },
+      {
+        custom: { fr: 'Gâteau d’anniversaire', ar: 'كعكة عيد الميلاد' },
+        unitPrice: DH(1200),
+        quantity: 1,
+      },
     ],
   },
   // À venir
@@ -301,7 +311,12 @@ const ORDERS: OrderSpec[] = [
     lines: [
       { package: 'formule-mariage-prestige' },
       { service: 'serveur', quantity: 6 },
-      { custom: 'Remise fidélité', unitPrice: DH(2000), quantity: 1, discount: DH(2000) },
+      {
+        custom: { fr: 'Remise fidélité', ar: 'تخفيض الوفاء' },
+        unitPrice: DH(2000),
+        quantity: 1,
+        discount: DH(2000),
+      },
     ],
   },
   // Jour complet : trois commandes fermes pour une capacité de 3

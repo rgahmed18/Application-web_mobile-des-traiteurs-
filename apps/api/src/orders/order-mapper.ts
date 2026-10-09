@@ -7,6 +7,7 @@ import {
   utcToZoned,
 } from '@traiteur/shared';
 
+import { readLineLabel } from '../documents/line-label';
 import type { Prisma } from '../generated/prisma/client';
 
 export const orderSummaryInclude = {
@@ -47,7 +48,7 @@ export function toOrderLine(item: ItemRow): OrderLine {
     dishId: item.dishId,
     packageId: item.packageId,
     extraServiceId: item.extraServiceId,
-    label: item.label,
+    label: readLineLabel(item.label),
     quantity: item.quantity,
     unitPrice: ttc ? item.unitPriceTtc : item.unitPriceHt,
     discount: ttc ? item.discountTtc : item.discountHt,

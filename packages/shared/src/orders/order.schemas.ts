@@ -11,6 +11,7 @@ import {
 import { MAX_TAX_RATE_BPS, PRICE_MODES } from '../money/money';
 import { cancellationRefundSchema } from '../payments/payment.schemas';
 import { localDateSchema, localTimeSchema } from '../time/zoned';
+import { lineLabelInputSchema, lineLabelSchema } from './line-label';
 
 // ─────────────────────────── Saisies ───────────────────────────
 
@@ -27,7 +28,8 @@ export const orderLineInputSchema = z
     dishId: z.uuid().nullable().default(null),
     packageId: z.uuid().nullable().default(null),
     extraServiceId: z.uuid().nullable().default(null),
-    label: z.string().trim().min(1).max(200),
+    /** Libellé dans toutes les langues disponibles (copie du catalogue ou saisie libre). */
+    label: lineLabelInputSchema,
     quantity: z.number().int().min(1).max(100_000),
     unitPrice: centsSchema,
     discount: centsSchema.default(0),
@@ -210,7 +212,7 @@ export const orderLineSchema = z.object({
   dishId: z.uuid().nullable(),
   packageId: z.uuid().nullable(),
   extraServiceId: z.uuid().nullable(),
-  label: z.string(),
+  label: lineLabelSchema,
   quantity: z.number().int(),
   /** Prix unitaire et remise dans le mode de la commande (montants saisis). */
   unitPrice: z.number().int(),

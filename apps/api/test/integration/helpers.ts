@@ -78,7 +78,7 @@ export async function createOrder(
 export function toLineRow(line: LineAmounts, index = 0) {
   return {
     itemType: 'CUSTOM' as const,
-    label: `Ligne ${index + 1}`,
+    label: { fr: `Ligne ${index + 1}` },
     quantity: line.quantity,
     unitPriceHt: line.unitPriceHt,
     unitPriceTtc: line.unitPriceTtc,
