@@ -17,7 +17,7 @@ import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { loadCatalogSettings, requireTraiteurId } from './catalog-common';
-import { uuidParam } from './catalog-http';
+import { uuidParam } from '../common/http/uuid-param';
 import { MediaService } from './media/media.service';
 
 @ApiTags('catalog')

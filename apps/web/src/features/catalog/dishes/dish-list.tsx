@@ -21,10 +21,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { usePermission } from '@/features/auth/session-provider';
 import { formatMoney } from '@/lib/format/money';
+import { EmptyState, PaginationBar } from '@/components/layout/list-states';
 
 import { useCatalogSettings, useCategories, useDishes } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
-import { EmptyState, ItemThumb, PaginationBar, StatusBadge } from '../components/catalog-ui';
+import { ItemThumb, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useDebouncedValue } from '../use-debounced-value';
 import { useLocalized } from '../use-localized';

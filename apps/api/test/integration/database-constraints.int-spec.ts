@@ -320,7 +320,13 @@ describe('Contraintes de la base de données', () => {
       });
       await expect(
         prisma.membership.create({
-          data: { traiteurId: tenant.traiteurId, userId: user.id, role: 'SUPER_ADMIN' },
+          data: {
+            traiteurId: tenant.traiteurId,
+            userId: user.id,
+            role: 'SUPER_ADMIN',
+            firstName: 'Super',
+            lastName: 'Admin',
+          },
         }),
       ).rejects.toThrow(/Membership_role_not_super_admin_check/);
     });

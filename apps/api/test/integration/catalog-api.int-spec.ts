@@ -58,7 +58,7 @@ describe('API du catalogue (application complète)', () => {
       },
     });
     const membership = await prisma.membership.create({
-      data: { traiteurId, userId: user.id, role },
+      data: { traiteurId, userId: user.id, role, firstName: 'Test', lastName: role },
     });
     const issued = await tokens.issueTokens(
       user.id,
@@ -306,7 +306,13 @@ describe('API du catalogue (application complète)', () => {
         },
       });
       const clientMembership = await prisma.membership.create({
-        data: { traiteurId: adminA.traiteurId, userId: client.id, role: 'CLIENT' },
+        data: {
+          traiteurId: adminA.traiteurId,
+          userId: client.id,
+          role: 'CLIENT',
+          firstName: 'Client',
+          lastName: 'A',
+        },
       });
       await prisma.$transaction(async (tx) => {
         const order = await tx.order.create({

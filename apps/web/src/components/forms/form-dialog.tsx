@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-import { UnsavedChangesGuard } from '../forms/unsaved-changes-guard';
+import { UnsavedChangesGuard } from './unsaved-changes-guard';
 
 interface FormDialogProps {
   open: boolean;

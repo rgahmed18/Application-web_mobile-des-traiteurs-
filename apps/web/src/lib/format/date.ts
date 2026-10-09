@@ -54,3 +54,44 @@ export function formatDateTime(value: Date | string, timeZone = DEFAULT_TIME_ZON
   const { day, month, year, hour, minute } = partsInTimeZone(toDate(value), timeZone);
   return `${day}/${month}/${year} ${hour}:${minute}`;
 }
+
+/** Jour civil « AAAA-MM-JJ » (déjà dans le fuseau du traiteur) → « JJ/MM/AAAA ». */
+export function formatLocalDate(date: string): string {
+  const [year, month, day] = date.split('-');
+  return `${day ?? ''}/${month ?? ''}/${year ?? ''}`;
+}
+
+const intlLocale = (locale: string) => (locale === 'ar' ? 'ar-MA' : 'fr-FR');
+const nameFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function nameFormatter(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}:${JSON.stringify(options)}`;
+  let formatter = nameFormatters.get(key);
+  if (!formatter) {
+    // Noms seulement (jamais de chiffres) : pas de risque de chiffres arabes-indiens
+    formatter = new Intl.DateTimeFormat(intlLocale(locale), { ...options, timeZone: 'UTC' });
+    nameFormatters.set(key, formatter);
+  }
+  return formatter;
+}
+
+const atNoonUtc = (date: string) => new Date(`${date}T12:00:00Z`);
+
+/** « octobre » / « أكتوبر » pour un jour civil. */
+export function monthName(date: string, locale: string): string {
+  return nameFormatter(locale, { month: 'long' }).format(atNoonUtc(date));
+}
+
+/** « lun. » / « الاثنين » */
+export function weekdayName(
+  date: string,
+  locale: string,
+  width: 'short' | 'long' = 'short',
+): string {
+  return nameFormatter(locale, { weekday: width }).format(atNoonUtc(date));
+}
+
+/** « samedi 24/10/2026 » */
+export function formatLongDate(date: string, locale: string): string {
+  return `${weekdayName(date, locale, 'long')} ${formatLocalDate(date)}`;
+}

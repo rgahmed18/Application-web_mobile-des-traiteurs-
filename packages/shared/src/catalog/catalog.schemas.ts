@@ -139,7 +139,7 @@ export type ExtraServiceInput = z.infer<typeof extraServiceInputSchema>;
 
 // ─────────────────────────── Listes ───────────────────────────
 
-const booleanQuery = z
+export const booleanQuery = z
   .enum(['true', 'false'])
   .transform((value) => value === 'true')
   .optional();

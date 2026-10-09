@@ -37,7 +37,18 @@ export type AppErrorCode =
   | 'ITEM_ARCHIVED'
   | 'IMAGE_INVALID'
   | 'IMAGE_TOO_LARGE'
-  | 'UPLOAD_NOT_FOUND';
+  | 'UPLOAD_NOT_FOUND'
+  | 'CLIENT_EXISTS'
+  | 'PHONE_IS_STAFF'
+  | 'ORDER_VERSION_CONFLICT'
+  | 'AVAILABILITY_CONFLICT'
+  | 'INVALID_TRANSITION'
+  | 'REASON_REQUIRED'
+  | 'ORDER_LOCKED'
+  | 'LINES_REQUIRED'
+  | 'INVALID_TAX_RATE'
+  | 'INVALID_PERIOD'
+  | 'VALIDATION_ERROR';
 
 export interface AppErrorBody {
   code: AppErrorCode;
@@ -56,7 +67,8 @@ export const appErrors = {
     new UnauthorizedException(body(code, message)),
   forbidden: (code: AppErrorCode, message: string) => new ForbiddenException(body(code, message)),
   notFound: (code: AppErrorCode, message: string) => new NotFoundException(body(code, message)),
-  conflict: (code: AppErrorCode, message: string) => new ConflictException(body(code, message)),
+  conflict: (code: AppErrorCode, message: string, extra?: Record<string, unknown>) =>
+    new ConflictException(body(code, message, extra)),
   tooManyRequests: (code: AppErrorCode, message: string, extra?: Record<string, unknown>) =>
     new HttpException(body(code, message, extra), HttpStatus.TOO_MANY_REQUESTS),
 };

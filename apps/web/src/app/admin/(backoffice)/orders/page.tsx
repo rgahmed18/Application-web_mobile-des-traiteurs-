@@ -1,5 +1,15 @@
-import { ComingSoon } from '@/components/layout/coming-soon';
+import { Suspense } from 'react';
 
-export default function Page() {
-  return <ComingSoon permission="orders.read" />;
+import { RequirePermission } from '@/features/auth/auth-gates';
+import { OrderList } from '@/features/orders/order-list';
+
+export default function OrdersPage() {
+  // useSearchParams (filtres reçus du tableau de bord) exige une frontière Suspense
+  return (
+    <RequirePermission permission="orders.read">
+      <Suspense>
+        <OrderList />
+      </Suspense>
+    </RequirePermission>
+  );
 }

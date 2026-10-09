@@ -36,6 +36,16 @@ export const TRANSLATED_ERROR_CODES = [
   'API_UNREACHABLE',
   'DISH_IN_PACKAGE',
   'ITEM_ARCHIVED',
+  'CLIENT_EXISTS',
+  'PHONE_IS_STAFF',
+  'ORDER_VERSION_CONFLICT',
+  'AVAILABILITY_CONFLICT',
+  'INVALID_TRANSITION',
+  'REASON_REQUIRED',
+  'ORDER_LOCKED',
+  'LINES_REQUIRED',
+  'INVALID_TAX_RATE',
+  'INVALID_PERIOD',
 ] as const;
 export type TranslatedErrorCode = (typeof TRANSLATED_ERROR_CODES)[number];
 
@@ -51,6 +61,8 @@ export class ApiError extends Error {
     message: string,
     readonly issues: ValidationIssue[] = [],
     readonly retryAfterSeconds: number | null = null,
+    /** Corps complet de l'erreur : détails propres au code (disponibilité, auteur…). */
+    readonly details: Record<string, unknown> = {},
   ) {
     super(message);
     this.name = 'ApiError';
@@ -103,6 +115,7 @@ export async function toApiError(response: Response): Promise<ApiError> {
     typeof record.message === 'string' ? record.message : response.statusText,
     issues,
     retryAfter,
+    record,
   );
 }
 

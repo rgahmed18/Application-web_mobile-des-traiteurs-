@@ -26,7 +26,7 @@ import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
 import { useSaveExtraService } from '../catalog-api';
-import { FormDialog } from '../components/form-dialog';
+import { FormDialog } from '@/components/forms/form-dialog';
 import {
   amountToCents,
   centsToAmount,

@@ -28,7 +28,8 @@ export const PERMISSIONS = [
   { key: 'orders.read', module: 'orders', description: 'Consulter toutes les commandes', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
   { key: 'orders.read_own', module: 'orders', description: 'Consulter ses propres commandes', isTenantEditable: true, defaultRoles: [CLIENT] },
   { key: 'orders.create', module: 'orders', description: 'Créer une commande', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE, CLIENT] },
-  { key: 'orders.manage', module: 'orders', description: 'Modifier et changer le statut des commandes', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
+  { key: 'orders.write', module: 'orders', description: 'Modifier et changer le statut des commandes', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
+  { key: 'orders.edit_confirmed', module: 'orders', description: 'Modifier une commande confirmée (date, invités, lignes), avec motif', isTenantEditable: true, defaultRoles: [ADMIN] },
   { key: 'orders.cancel', module: 'orders', description: 'Annuler une commande', isTenantEditable: true, defaultRoles: [ADMIN] },
   // Calendrier et disponibilités
   { key: 'calendar.read', module: 'calendar', description: 'Consulter le calendrier', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
@@ -53,7 +54,7 @@ export const PERMISSIONS = [
   { key: 'deliveries.update_status', module: 'deliveries', description: 'Mettre à jour le statut de livraison', isTenantEditable: true, defaultRoles: [ADMIN, DRIVER] },
   // Clients
   { key: 'clients.read', module: 'clients', description: 'Consulter les fiches clients', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
-  { key: 'clients.manage', module: 'clients', description: 'Modifier les fiches clients', isTenantEditable: true, defaultRoles: [ADMIN] },
+  { key: 'clients.write', module: 'clients', description: 'Créer et modifier les fiches clients', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
   // Messagerie
   { key: 'conversations.read', module: 'conversations', description: 'Consulter les conversations', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
   { key: 'conversations.reply', module: 'conversations', description: 'Répondre aux clients', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },

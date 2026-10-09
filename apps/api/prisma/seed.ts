@@ -24,6 +24,7 @@ import {
   type LineDraft,
 } from '../src/documents/document-lines';
 import { syncPermissionCatalog } from '../src/access/permission-catalog';
+import { type CatalogRef, type DemoCatalog, seedDemoClientsAndOrders } from './lib/demo-orders';
 import { generateIllustration, PALETTES } from './lib/illustrations';
 import { connectScriptStorage, storeAndAttachImage } from './lib/media-script';
 import { nextDocumentNumber } from '../src/sequences/document-sequence';
@@ -196,7 +197,14 @@ async function seedUsers(traiteurId: string) {
       const membership = await prisma.membership.upsert({
         where: { userId_traiteurId: { userId: user.id, traiteurId } },
         update: { role: demo.role, status: 'ACTIVE' },
-        create: { userId: user.id, traiteurId, role: demo.role },
+        create: {
+          userId: user.id,
+          traiteurId,
+          role: demo.role,
+          firstName: demo.firstName,
+          lastName: demo.lastName,
+          email: demo.email,
+        },
       });
       memberships.set(demo.key, membership.id);
     }
@@ -782,6 +790,7 @@ async function seedDemoOrder(
       quantity: guests,
       unitPrice: price(catalogPrices(250)), // 250 MAD × 120 = 30 000,00 MAD TTC
       taxRateBps: TAX_RATE,
+      perPerson: true,
     },
     {
       itemType: 'DISH',
@@ -790,6 +799,7 @@ async function seedDemoOrder(
       quantity: guests,
       unitPrice: price(catalogPrices(15, 1000)),
       taxRateBps: 1000,
+      perPerson: true,
     },
     {
       itemType: 'EXTRA_SERVICE',
@@ -950,13 +960,82 @@ async function seedDemoOrder(
   );
 }
 
+// ─────────────────── Clients et commandes de démonstration ───────────────────
+
+/** Prix et identifiants du catalogue, dans le mode de prix des commandes du traiteur. */
+function demoCatalog(
+  priceMode: PriceMode,
+  dishIds: Map<string, string>,
+  packageIds: Map<string, string>,
+): DemoCatalog {
+  const ref = (
+    id: string | undefined,
+    label: string,
+    ttc: number,
+    taxRateBps: number,
+    perPerson: boolean,
+  ): CatalogRef => {
+    if (!id) throw new Error(`Article inconnu : ${label}`);
+    return {
+      id,
+      label,
+      unitPrice: unitPriceFor(catalogPrices(ttc, taxRateBps), priceMode),
+      taxRateBps,
+      perPerson,
+    };
+  };
+  const serviceKeys = ['decoration', 'serveur', 'musique', 'vaisselle'];
+  return {
+    packages: new Map(
+      PACKAGES.map((pkg) => [
+        pkg.slug,
+        ref(packageIds.get(pkg.slug), pkg.name.fr, pkg.ttcPerPerson, TAX_RATE, true),
+      ]),
+    ),
+    dishes: new Map(
+      DISHES.map((dish) => [
+        dish.slug,
+        ref(
+          dishIds.get(dish.slug),
+          dish.name.fr,
+          dish.ttc,
+          dish.taxRateBps ?? TAX_RATE,
+          (dish.unit ?? 'PER_PERSON') === 'PER_PERSON',
+        ),
+      ]),
+    ),
+    services: new Map(
+      EXTRA_SERVICES.map((service, index) => [
+        serviceKeys[index] ?? service.id,
+        ref(
+          service.id,
+          service.name.fr,
+          service.ttc,
+          TAX_RATE,
+          service.pricingUnit === 'PER_PERSON',
+        ),
+      ]),
+    ),
+  };
+}
+
 async function main(): Promise<void> {
   await seedPermissions();
   const traiteur = await seedTraiteur();
-  const { memberships } = await seedUsers(traiteur.id);
+  const { users, memberships } = await seedUsers(traiteur.id);
   const { dishIds, packageIds } = await seedCatalog(traiteur.id);
   await seedIllustrations(traiteur.id, dishIds, packageIds);
   await seedDemoOrder(traiteur, memberships, dishIds, packageIds);
+  const salmaId = memberships.get('client');
+  const adminUserId = users.get('admin');
+  if (!salmaId || !adminUserId) throw new Error('Comptes de démonstration manquants');
+  await seedDemoClientsAndOrders(
+    prisma,
+    traiteur,
+    salmaId,
+    adminUserId,
+    demoCatalog(traiteur.priceEntryMode, dishIds, packageIds),
+  );
 }
 
 main()

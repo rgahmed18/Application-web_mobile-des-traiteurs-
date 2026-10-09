@@ -42,7 +42,13 @@ export async function createTenant(prisma: PrismaClient): Promise<TestTenant> {
     },
   });
   const membership = await prisma.membership.create({
-    data: { traiteurId: traiteur.id, userId: user.id, role: 'CLIENT' },
+    data: {
+      traiteurId: traiteur.id,
+      userId: user.id,
+      role: 'CLIENT',
+      firstName: 'Client',
+      lastName: 'Test',
+    },
   });
   return { traiteurId: traiteur.id, clientMembershipId: membership.id };
 }

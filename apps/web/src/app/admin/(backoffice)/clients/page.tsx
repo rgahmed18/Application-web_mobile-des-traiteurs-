@@ -1,5 +1,10 @@
-import { ComingSoon } from '@/components/layout/coming-soon';
+import { RequirePermission } from '@/features/auth/auth-gates';
+import { ClientList } from '@/features/clients/client-list';
 
-export default function Page() {
-  return <ComingSoon permission="clients.read" />;
+export default function ClientsPage() {
+  return (
+    <RequirePermission permission="clients.read">
+      <ClientList />
+    </RequirePermission>
+  );
 }

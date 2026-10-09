@@ -8,19 +8,12 @@ import {
   type TaxSettings,
 } from '@traiteur/shared';
 
-import type { AuthenticatedUser } from '../auth/auth-user';
 import { appErrors } from '../common/errors';
 import { Prisma } from '../generated/prisma/client';
 
 type Db = Prisma.TransactionClient;
 
-/** Traiteur des opérations du catalogue : toujours celui du jeton, jamais une donnée du client. */
-export function requireTraiteurId(user: AuthenticatedUser): string {
-  if (!user.traiteurId) {
-    throw appErrors.forbidden('TRAITEUR_REQUIRED', 'Aucun traiteur actif dans la session');
-  }
-  return user.traiteurId;
-}
+export { requireTraiteurId } from '../common/tenant';
 
 export interface PricingSettings extends TaxSettings {
   priceEntryMode: PriceMode;

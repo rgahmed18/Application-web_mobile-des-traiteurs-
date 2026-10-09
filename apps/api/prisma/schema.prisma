@@ -230,31 +230,32 @@ model Traiteur {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships       Membership[]
-  refreshTokens     RefreshToken[]
-  clientAddresses   ClientAddress[]
-  rolePermissions   RolePermission[]
-  featureFlags      FeatureFlag[]
-  blockedDates      BlockedDate[]
-  documentSequences DocumentSequence[]
-  categories        Category[]
-  dishes            Dish[]
-  packages          Package[]
-  packageDishes     PackageDish[]
-  extraServices     ExtraService[]
-  orders            Order[]
-  orderItems        OrderItem[]
-  quotes            Quote[]
-  quoteLines        QuoteLine[]
-  invoices          Invoice[]
-  invoiceLines      InvoiceLine[]
-  payments          Payment[]
-  staffAssignments  StaffAssignment[]
-  conversations     Conversation[]
-  messages          Message[]
-  reviews           Review[]
-  auditLogs         AuditLog[]
-  mediaUploads      MediaUpload[]
+  memberships        Membership[]
+  refreshTokens      RefreshToken[]
+  clientAddresses    ClientAddress[]
+  rolePermissions    RolePermission[]
+  featureFlags       FeatureFlag[]
+  blockedDates       BlockedDate[]
+  documentSequences  DocumentSequence[]
+  categories         Category[]
+  dishes             Dish[]
+  packages           Package[]
+  packageDishes      PackageDish[]
+  extraServices      ExtraService[]
+  orders             Order[]
+  orderItems         OrderItem[]
+  orderStatusChanges OrderStatusChange[]
+  quotes             Quote[]
+  quoteLines         QuoteLine[]
+  invoices           Invoice[]
+  invoiceLines       InvoiceLine[]
+  payments           Payment[]
+  staffAssignments   StaffAssignment[]
+  conversations      Conversation[]
+  messages           Message[]
+  reviews            Review[]
+  auditLogs          AuditLog[]
+  mediaUploads       MediaUpload[]
 }
 
 // Identité globale : un compte unique, utilisable chez plusieurs traiteurs.
@@ -288,6 +289,12 @@ model Membership {
   userId        String           @db.Uuid
   role          Role
   status        MembershipStatus @default(ACTIVE)
+  // Coordonnées telles que le traiteur les connaît : jamais partagées entre traiteurs ni
+  // recopiées vers le compte global (User). Initialisées depuis le compte à sa création.
+  firstName     String
+  lastName      String
+  email         String?
+  locale        Locale           @default(fr) // langue de communication avec ce client
   internalNotes String? // notes du traiteur sur ce client / employé
   tags          String[]
   createdAt     DateTime         @default(now())
@@ -587,6 +594,8 @@ model Order {
   latitude           Decimal?    @db.Decimal(9, 6)
   longitude          Decimal?    @db.Decimal(9, 6)
   status             OrderStatus @default(PENDING)
+  // Verrouillage optimiste : incrémenté à chaque écriture (commande, lignes, statut)
+  version            Int         @default(1)
   priceMode          PriceMode // figé à la création (trigger), recopié sur les lignes
   notes              String?
   internalNotes      String?
@@ -602,8 +611,8 @@ model Order {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  traiteur         Traiteur          @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  client           Membership        @relation("OrderClient", fields: [clientId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+  traiteur         Traiteur            @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  client           Membership          @relation("OrderClient", fields: [clientId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
   items            OrderItem[]
   quotes           Quote[]
   invoices         Invoice[]
@@ -611,6 +620,7 @@ model Order {
   staffAssignments StaffAssignment[]
   conversations    Conversation[]
   review           Review?
+  statusChanges    OrderStatusChange[]
 
   @@unique([traiteurId, reference])
   @@unique([id, traiteurId])
@@ -642,6 +652,8 @@ model OrderItem {
   taxAmount      Int
   totalTtc       Int // totalHt + taxAmount, exactement
   sortOrder      Int          @default(0)
+  // Quantité liée au nombre d'invités : proposée à la mise à jour quand les invités changent
+  perPerson      Boolean      @default(false)
   notes          String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -653,6 +665,26 @@ model OrderItem {
   extraService ExtraService? @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
   @@index([traiteurId, orderId])
+}
+
+// Historique des statuts d'une commande (affiché sur la fiche ; AuditLog reste le journal technique).
+model OrderStatusChange {
+  id                 String       @id @default(uuid()) @db.Uuid
+  traiteurId         String       @db.Uuid
+  orderId            String       @db.Uuid
+  fromStatus         OrderStatus? // null = création
+  toStatus           OrderStatus
+  reason             String?
+  // Le traiteur a confirmé malgré une date bloquée ou une capacité atteinte
+  availabilityForced Boolean      @default(false)
+  actorUserId        String?      @db.Uuid
+  actorName          String? // instantané : le nom reste lisible si le compte disparaît
+  createdAt          DateTime     @default(now())
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  order    Order    @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+
+  @@index([traiteurId, orderId, createdAt])
 }
 
 model Quote {

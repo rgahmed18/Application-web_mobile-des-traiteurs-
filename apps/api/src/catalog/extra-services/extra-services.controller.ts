@@ -31,7 +31,7 @@ import { CurrentUser, RequirePermissions } from '../../auth/decorators';
 import { Client, type ClientInfo } from '../../common/http/client-info';
 import { zodToOpenApi } from '../../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../../common/zod/zod-validation.pipe';
-import { uuidParam } from '../catalog-http';
+import { uuidParam } from '../../common/http/uuid-param';
 import { ExtraServicesService } from './extra-services.service';
 
 const serviceResponse = { schema: zodToOpenApi(extraServiceSchema, 'output') };

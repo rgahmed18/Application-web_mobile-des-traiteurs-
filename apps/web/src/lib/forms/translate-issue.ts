@@ -20,6 +20,11 @@ export type ValidationMessageKey =
   | 'maxGuestsBelowMin'
   | 'duplicateDish'
   | 'invalidAmount'
+  | 'discountTooHigh'
+  | 'endBeforeStart'
+  | 'linesRequired'
+  | 'invalidTime'
+  | 'invalidDate'
   | 'invalid';
 
 export interface TranslatedIssue {
@@ -39,7 +44,18 @@ const CUSTOM_KEYS = new Set<ValidationMessageKey>([
   'maxGuestsBelowMin',
   'duplicateDish',
   'invalidAmount',
+  'discountTooHigh',
+  'endBeforeStart',
+  'linesRequired',
 ]);
+
+/** Champs saisis comme des montants (« 250,50 ») : message d'erreur avec un exemple. */
+function isAmountField(field: string): boolean {
+  return field.startsWith('price') || field === 'unitprice' || field === 'discount';
+}
+
+const isTimeField = (field: string) => field.endsWith('time');
+const isDateField = (field: string) => field.endsWith('date');
 
 function lastPathSegment(issue: z.core.$ZodIssue): string {
   const segment = issue.path.at(-1);
@@ -73,7 +89,7 @@ export function translateIssue(issue: z.core.$ZodIssue): TranslatedIssue {
       if (missing) return { key: 'required' };
       if (issue.expected === 'number' || issue.expected === 'int') {
         // Montant saisi illisible (« 25,5,0 ») : message dédié avec un exemple
-        return field.startsWith('price') ? { key: 'invalidAmount' } : { key: 'invalidNumber' };
+        return isAmountField(field) ? { key: 'invalidAmount' } : { key: 'invalidNumber' };
       }
       return { key: 'invalid' };
     }
@@ -81,12 +97,15 @@ export function translateIssue(issue: z.core.$ZodIssue): TranslatedIssue {
       if (issue.format === 'email') return { key: 'invalidEmail' };
       if (field === 'code') return { key: 'invalidCode' };
       if (field.includes('password')) return { key: 'passwordWeak' };
+      if (isTimeField(field)) return { key: 'invalidTime' };
+      if (isDateField(field)) return { key: 'invalidDate' };
       return { key: 'invalid' };
     case 'custom': {
       const key: unknown = issue.params?.i18n;
       if (typeof key === 'string' && CUSTOM_KEYS.has(key as ValidationMessageKey)) {
         return { key: key as ValidationMessageKey };
       }
+      if (isDateField(field)) return { key: 'invalidDate' };
       return field.includes('phone') ? { key: 'invalidPhone' } : { key: 'invalid' };
     }
     default:

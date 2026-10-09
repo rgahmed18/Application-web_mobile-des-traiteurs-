@@ -12,9 +12,11 @@ import { TenantGuard } from './access/guards/tenant.guard';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { ClientsModule } from './clients/clients.module';
 import { DocumentsModule } from './documents/documents.module';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
+import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './queue/queue.module';
 import { RedisThrottlerStorage } from './redis/redis-throttler.storage';
@@ -43,6 +45,8 @@ import { StorageModule } from './storage/storage.module';
     StorageModule,
     AuthModule,
     CatalogModule,
+    ClientsModule,
+    OrdersModule,
   ],
   controllers: [HealthController],
   providers: [

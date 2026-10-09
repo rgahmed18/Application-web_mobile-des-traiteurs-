@@ -27,7 +27,7 @@ import { FormActions, FormHeader, FormSection } from '../components/form-layout'
 import { ImageUploadField } from '../forms/image-upload-field';
 import { LocalizedTextFields } from '../forms/localized-text-fields';
 import { PriceFields } from '../forms/price-fields';
-import { UnsavedChangesGuard } from '../forms/unsaved-changes-guard';
+import { UnsavedChangesGuard } from '@/components/forms/unsaved-changes-guard';
 import { useLocalized } from '../use-localized';
 import { dishFormSchema, dishToFormValues, EMPTY_DISH_FORM } from './dish-form-schema';
 

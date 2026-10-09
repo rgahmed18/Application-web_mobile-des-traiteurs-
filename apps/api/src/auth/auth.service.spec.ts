@@ -203,7 +203,16 @@ describe('AuthService.login', () => {
     const { service, membershipCreate } = setup({ user: buildUser(), membership: null });
     const session = await service.login(input, client);
     expect(membershipCreate).toHaveBeenCalledWith({
-      data: { userId: buildUser().id, traiteurId: TRAITEUR.id, role: 'CLIENT' },
+      // Coordonnées propres au traiteur, initialisées depuis le compte
+      data: {
+        userId: buildUser().id,
+        traiteurId: TRAITEUR.id,
+        role: 'CLIENT',
+        firstName: 'Salma',
+        lastName: 'Bennani',
+        email: 'client@exemple.ma',
+        locale: 'fr',
+      },
     });
     expect(session.context.role).toBe('CLIENT');
   });

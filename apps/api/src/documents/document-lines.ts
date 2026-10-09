@@ -9,7 +9,9 @@
  *   3. écrit les lignes ;
  *   4. recalcule les totaux du document comme somme de ses lignes.
  * La base vérifie en fin de transaction que les totaux égalent la somme des lignes
- * (CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED).
+ * (CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED). L'écriture des totaux incrémente la
+ * version de la commande (trigger Order_bump_version) : le verrouillage optimiste voit aussi
+ * les modifications de lignes.
  *
  * Les fonctions prennent un client de transaction : utilisées par DocumentLinesService (API)
  * et par le seed. Les factures, immuables, ne sont pas concernées.
@@ -51,6 +53,8 @@ export interface LineDraft {
   sortOrder?: number;
   /** Commandes uniquement (les lignes de devis n'ont pas de note). */
   notes?: string | null;
+  /** Commandes uniquement : quantité liée au nombre d'invités. */
+  perPerson?: boolean;
 }
 
 export interface DocumentLinesResult {
@@ -155,6 +159,7 @@ export async function addDocumentLines(
           ...toColumns(doc, priceMode, draft, offset + index),
           orderId: doc.id,
           notes: draft.notes ?? null,
+          perPerson: draft.perPerson ?? false,
         })),
       });
     } else {
@@ -182,7 +187,7 @@ export async function updateDocumentLine(
     doc.kind === 'ORDER'
       ? await tx.orderItem.updateMany({
           where: { id: lineId, orderId: doc.id, traiteurId: doc.traiteurId },
-          data: { ...columns, notes: draft.notes ?? null },
+          data: { ...columns, notes: draft.notes ?? null, perPerson: draft.perPerson ?? false },
         })
       : await tx.quoteLine.updateMany({
           where: { id: lineId, quoteId: doc.id, traiteurId: doc.traiteurId },

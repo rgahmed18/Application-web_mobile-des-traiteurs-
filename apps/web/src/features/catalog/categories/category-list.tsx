@@ -30,10 +30,11 @@ import { Switch } from '@/components/ui/switch';
 import { usePermission } from '@/features/auth/session-provider';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/layout/list-states';
 
 import { useCategories, useReorderCategories, useSaveCategory } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
-import { EmptyState, StatusBadge } from '../components/catalog-ui';
+import { StatusBadge } from '../components/catalog-ui';
 import { useLocalized } from '../use-localized';
 import { CategoryFormDialog } from './category-form';
 

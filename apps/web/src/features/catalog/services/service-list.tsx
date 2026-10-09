@@ -11,10 +11,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { usePermission } from '@/features/auth/session-provider';
 import { formatMoney } from '@/lib/format/money';
+import { EmptyState } from '@/components/layout/list-states';
 
 import { useCatalogSettings, useExtraServices } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
-import { EmptyState, StatusBadge } from '../components/catalog-ui';
+import { StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useLocalized } from '../use-localized';
 import { ServiceFormDialog } from './service-form';

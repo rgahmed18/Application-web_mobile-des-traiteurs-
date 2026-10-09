@@ -86,7 +86,16 @@ export class AuthService {
         lastName: input.lastName,
         locale: input.locale ?? 'fr',
         lastLoginAt: new Date(),
-        memberships: { create: { traiteurId: traiteur.id, role: 'CLIENT' } },
+        memberships: {
+          create: {
+            traiteurId: traiteur.id,
+            role: 'CLIENT',
+            firstName: input.firstName,
+            lastName: input.lastName,
+            email: input.email ?? null,
+            locale: input.locale ?? 'fr',
+          },
+        },
       },
     });
     const context = await this.resolveContext(user, traiteur.slug, { autoJoinAsClient: false });
@@ -275,7 +284,16 @@ export class AuthService {
       // Un client existant peut commander chez un nouveau traiteur ; les rôles du personnel
       // ne sont jamais attribués automatiquement (invitation par le traiteur).
       membership = await this.prisma.membership.create({
-        data: { userId: user.id, traiteurId: traiteur.id, role: 'CLIENT' },
+        data: {
+          userId: user.id,
+          traiteurId: traiteur.id,
+          role: 'CLIENT',
+          // Coordonnées propres à ce traiteur, initialisées depuis le compte
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          locale: user.locale,
+        },
       });
     } else if (membership.status === 'INVITED') {
       membership = await this.prisma.membership.update({

@@ -38,7 +38,13 @@
     "createdSuccess": "Élément créé",
     "archivedSuccess": "Élément archivé",
     "restoredSuccess": "Élément restauré",
-    "deletedSuccess": "Élément supprimé"
+    "deletedSuccess": "Élément supprimé",
+    "today": "Aujourd’hui",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "reload": "Recharger",
+    "viewAll": "Tout voir",
+    "unknown": "—"
   },
   "language": {
     "label": "Langue"
@@ -117,12 +123,21 @@
     "welcome": "Bonjour {name}",
     "subtitle": "Voici l’essentiel de votre activité.",
     "cards": {
-      "todayEvents": "Événements du jour",
-      "upcomingEvents": "Événements à venir",
-      "pendingQuotes": "Devis en attente",
-      "monthRevenue": "Chiffre d’affaires du mois"
+      "todayEvents": "Commandes du jour",
+      "upcomingEvents": "À venir (7 jours)",
+      "monthRevenue": "CA des événements du mois",
+      "awaiting": "En attente de confirmation",
+      "toClose": "À clôturer"
     },
-    "notAvailableYet": "Disponible avec le module Commandes"
+    "hints": {
+      "todayEvents": "Événements prévus aujourd’hui",
+      "upcomingEvents": "Hors aujourd’hui",
+      "awaiting": "Demandes et devis à traiter",
+      "toClose": "Événements passés non clôturés",
+      "monthRevenue": "{count, plural, =0 {Aucune commande confirmée} one {# commande confirmée, TTC} other {# commandes confirmées, TTC}}"
+    },
+    "todayList": "Aujourd’hui",
+    "noEventToday": "Aucun événement aujourd’hui."
   },
   "errors": {
     "generic": "Une erreur est survenue. Réessayez dans un instant.",
@@ -159,7 +174,17 @@
       "NO_BACKOFFICE_ACCESS": "Ce compte n’a pas accès à l’espace de gestion.",
       "API_UNREACHABLE": "Le serveur est momentanément indisponible. Réessayez dans un instant.",
       "DISH_IN_PACKAGE": "Ce plat fait partie d’une formule : retirez-le de la formule ou archivez-le.",
-      "ITEM_ARCHIVED": "Un élément archivé ne peut pas être ajouté. Restaurez-le d’abord."
+      "ITEM_ARCHIVED": "Un élément archivé ne peut pas être ajouté. Restaurez-le d’abord.",
+      "CLIENT_EXISTS": "Ce numéro est déjà enregistré parmi vos clients.",
+      "PHONE_IS_STAFF": "Ce numéro appartient à un membre de votre équipe.",
+      "ORDER_VERSION_CONFLICT": "Cette commande a été modifiée entre-temps. Rechargez-la.",
+      "AVAILABILITY_CONFLICT": "Cette date est bloquée ou complète.",
+      "INVALID_TRANSITION": "Ce changement de statut n’est pas possible.",
+      "REASON_REQUIRED": "Un motif est obligatoire.",
+      "ORDER_LOCKED": "Cette modification n’est plus possible pour cette commande.",
+      "LINES_REQUIRED": "Ajoutez au moins une prestation.",
+      "INVALID_TAX_RATE": "Établissement non assujetti : la TVA doit être à 0 %.",
+      "INVALID_PERIOD": "Période trop longue."
     }
   },
   "validation": {
@@ -177,7 +202,12 @@
     "invalid": "Valeur invalide.",
     "maxGuestsBelowMin": "Le maximum doit être supérieur ou égal au minimum.",
     "duplicateDish": "Ce plat est déjà dans la formule.",
-    "invalidAmount": "Montant invalide (ex. 250 ou 250,50)."
+    "invalidAmount": "Montant invalide (ex. 250 ou 250,50).",
+    "discountTooHigh": "La remise dépasse le montant de la ligne.",
+    "endBeforeStart": "La fin doit être après le début (cochez « le lendemain » si besoin).",
+    "linesRequired": "Ajoutez au moins une prestation.",
+    "invalidTime": "Heure invalide (HH:MM).",
+    "invalidDate": "Date invalide."
   },
   "catalog": {
     "title": "Catalogue",
@@ -359,5 +389,383 @@
       "active": "Proposé aux clients",
       "saved": "Service enregistré"
     }
+  },
+  "orderStatus": {
+    "DRAFT": "Brouillon",
+    "PENDING": "En attente",
+    "QUOTED": "Devis envoyé",
+    "CONFIRMED": "Confirmée",
+    "IN_PREPARATION": "En préparation",
+    "OUT_FOR_DELIVERY": "En livraison",
+    "DELIVERED": "Livrée",
+    "COMPLETED": "Clôturée",
+    "CANCELLED": "Annulée"
+  },
+  "eventType": {
+    "WEDDING": "Mariage",
+    "ENGAGEMENT": "Fiançailles",
+    "BIRTHDAY": "Anniversaire",
+    "AQIQA": "Aqiqa",
+    "CORPORATE": "Événement d’entreprise",
+    "OTHER": "Autre"
+  },
+  "clients": {
+    "title": "Clients",
+    "subtitle": "Vos clients, leurs coordonnées et leurs commandes.",
+    "new": "Nouveau client",
+    "search": "Rechercher par nom ou téléphone",
+    "sortLabel": "Trier par",
+    "sort": {
+      "name": "Nom",
+      "createdAt": "Date d’ajout",
+      "lastOrder": "Dernière commande",
+      "totalSpent": "Total dépensé"
+    },
+    "ascending": "Croissant",
+    "descending": "Décroissant",
+    "columns": {
+      "name": "Client",
+      "phone": "Téléphone",
+      "orders": "Commandes",
+      "lastOrder": "Dernier événement",
+      "totalSpent": "Total dépensé"
+    },
+    "orderCount": "{count, plural, =0 {Aucune commande} one {# commande} other {# commandes}}",
+    "empty": "Aucun client pour le moment",
+    "emptyHint": "Ajoutez un client pour enregistrer une commande prise par téléphone.",
+    "fields": {
+      "phone": "Téléphone",
+      "phoneHint": "Numéro marocain (06…, 07…) ou international (+33…). Il identifie le compte du client.",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Email",
+      "locale": "Langue de communication",
+      "tags": "Étiquettes",
+      "tagsHint": "Séparées par des virgules (ex. fidèle, mariage).",
+      "internalNotes": "Notes internes",
+      "internalNotesHint": "Visibles uniquement par votre équipe.",
+      "address": "Adresse",
+      "city": "Ville",
+      "label": "Nom de l’adresse",
+      "isDefault": "Adresse par défaut"
+    },
+    "locales": {
+      "fr": "Français",
+      "ar": "Arabe",
+      "en": "Anglais"
+    },
+    "form": {
+      "newTitle": "Nouveau client",
+      "editTitle": "Modifier le client",
+      "firstAddress": "Adresse (facultatif)",
+      "created": "Client enregistré",
+      "saved": "Client mis à jour",
+      "exists": "Ce numéro est déjà enregistré parmi vos clients.",
+      "openExisting": "Ouvrir la fiche"
+    },
+    "detail": {
+      "contact": "Coordonnées",
+      "addresses": "Adresses",
+      "noAddress": "Aucune adresse enregistrée.",
+      "addAddress": "Ajouter une adresse",
+      "editAddress": "Modifier l’adresse",
+      "removeAddress": "Supprimer l’adresse",
+      "removeAddressConfirm": "Supprimer l’adresse « {label} » ?",
+      "default": "Par défaut",
+      "addressSaved": "Adresse enregistrée",
+      "addressRemoved": "Adresse supprimée",
+      "notes": "Notes internes",
+      "noNotes": "Aucune note.",
+      "stats": {
+        "orders": "Commandes",
+        "totalSpent": "Total dépensé",
+        "totalSpentHint": "Commandes confirmées, TTC",
+        "nextOrder": "Prochain événement",
+        "none": "Aucun"
+      },
+      "history": "Historique des commandes",
+      "noOrders": "Aucune commande pour ce client.",
+      "newOrder": "Nouvelle commande",
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "edit": "Modifier",
+      "inactive": "Compte désactivé"
+    }
+  },
+  "orders": {
+    "title": "Commandes",
+    "subtitle": "Suivez vos commandes, de la demande à la clôture.",
+    "new": "Nouvelle commande",
+    "filters": {
+      "search": "Référence ou client",
+      "status": "Statut",
+      "allStatuses": "Tous les statuts",
+      "eventType": "Type d’événement",
+      "allTypes": "Tous les types",
+      "period": "Période",
+      "periods": {
+        "upcoming": "À venir",
+        "thisMonth": "Ce mois-ci",
+        "past": "Passées",
+        "all": "Toutes les dates",
+        "custom": "Dates choisies"
+      },
+      "from": "Du",
+      "to": "Au",
+      "toClose": "À clôturer",
+      "reset": "Effacer les filtres"
+    },
+    "columns": {
+      "reference": "Référence",
+      "client": "Client",
+      "event": "Événement",
+      "guests": "Invités",
+      "total": "Total TTC",
+      "status": "Statut"
+    },
+    "guests": "{count, plural, one {# invité} other {# invités}}",
+    "empty": "Aucune commande",
+    "emptyHint": "Les commandes saisies ou reçues apparaîtront ici.",
+    "noMatch": "Aucune commande ne correspond à ces filtres.",
+    "form": {
+      "newTitle": "Nouvelle commande",
+      "editTitle": "Modifier la commande {reference}",
+      "sections": {
+        "client": "Client",
+        "event": "Événement",
+        "lines": "Prestations",
+        "notes": "Notes"
+      },
+      "client": {
+        "search": "Rechercher un client (nom ou téléphone)",
+        "noResult": "Aucun client trouvé.",
+        "newClient": "Nouveau client",
+        "change": "Changer de client",
+        "required": "Choisissez un client.",
+        "locked": "Le client ne peut plus être changé après confirmation."
+      },
+      "event": {
+        "type": "Type d’événement",
+        "date": "Date",
+        "startTime": "Début",
+        "endTime": "Fin",
+        "endsNextDay": "Se termine le lendemain",
+        "guests": "Nombre d’invités",
+        "venueName": "Nom du lieu",
+        "venueAddress": "Adresse",
+        "city": "Ville",
+        "useAddress": "Reprendre une adresse du client"
+      },
+      "lines": {
+        "add": "Ajouter",
+        "addPackage": "Formule",
+        "addDish": "Plat",
+        "addService": "Service",
+        "addCustom": "Ligne libre",
+        "searchCatalog": "Rechercher…",
+        "noCatalogResult": "Aucun résultat.",
+        "label": "Libellé",
+        "quantity": "Quantité",
+        "unitPriceTTC": "Prix unitaire TTC",
+        "unitPriceHT": "Prix unitaire HT",
+        "taxRate": "TVA",
+        "discount": "Remise",
+        "discountPercent": "en %",
+        "discountAmount": "en montant",
+        "perPerson": "Par personne",
+        "perPersonHint": "Quantité liée au nombre d’invités",
+        "notes": "Note",
+        "remove": "Retirer la ligne",
+        "moveUp": "Monter",
+        "moveDown": "Descendre",
+        "empty": "Aucune prestation. Ajoutez une formule, un plat, un service ou une ligne libre.",
+        "lineTotal": "Total ligne",
+        "types": {
+          "PACKAGE": "Formule",
+          "DISH": "Plat",
+          "EXTRA_SERVICE": "Service",
+          "CUSTOM": "Ligne libre"
+        }
+      },
+      "totals": {
+        "title": "Totaux",
+        "ht": "Total HT",
+        "tax": "TVA {rate}",
+        "ttc": "Total TTC",
+        "priceMode": "Prix saisis {mode, select, TTC {toutes taxes comprises} other {hors taxes}}",
+        "round": "Arrondir le total"
+      },
+      "round": {
+        "title": "Arrondir le total",
+        "description": "Saisissez le total TTC voulu : la remise est répartie sur les lignes, au prorata. Les remises actuelles sont remplacées.",
+        "target": "Total TTC voulu",
+        "max": "Au plus {amount} (total sans remise)",
+        "apply": "Appliquer",
+        "notExact": "Montant exact impossible en saisie HT : total le plus proche appliqué ({amount}).",
+        "tooHigh": "Le montant dépasse le total sans remise.",
+        "applied": "Remises réparties sur les lignes"
+      },
+      "notes": {
+        "client": "Notes de la commande",
+        "clientHint": "Demandes du client, précisions de service.",
+        "internal": "Notes internes",
+        "internalHint": "Visibles uniquement par votre équipe."
+      },
+      "actions": {
+        "saveDraft": "Enregistrer en brouillon",
+        "savePending": "Enregistrer (en attente)",
+        "saveConfirm": "Enregistrer et confirmer",
+        "save": "Enregistrer les modifications"
+      },
+      "reason": {
+        "title": "Motif de la modification",
+        "description": "Cette commande est confirmée : indiquez pourquoi elle change (date, invités, prestations…). Le motif est conservé dans l’historique.",
+        "label": "Motif",
+        "placeholder": "Ex. 30 invités de plus confirmés par le client",
+        "confirm": "Enregistrer"
+      },
+      "guestChange": {
+        "title": "Mettre à jour les quantités ?",
+        "description": "Le nombre d’invités passe de {from} à {to}. Choisissez les lignes « par personne » à ajuster.",
+        "line": "{label} : {from} → {to}",
+        "apply": "Mettre à jour",
+        "skip": "Ne rien changer"
+      },
+      "created": "Commande {reference} enregistrée",
+      "saved": "Commande mise à jour",
+      "confirmedHint": "Commande confirmée : un changement de date, d’invités ou de prestations demande un motif.",
+      "preparationHint": "Commande en préparation : la date ne peut plus changer.",
+      "readOnlyHint": "Commande {status} : seules les notes internes sont modifiables.",
+      "dateLocked": "La date ne peut plus être modifiée."
+    },
+    "availability": {
+      "checking": "Vérification de la disponibilité…",
+      "free": "{firm, plural, =0 {Aucun événement confirmé} one {# événement confirmé} other {# événements confirmés}} ce jour",
+      "load": "Charge du jour : {firm}/{capacity}",
+      "blocked": "Date bloquée{reason, select, none {} other { : {reason}}}",
+      "full": "Capacité atteinte : {firm}/{capacity} événements confirmés",
+      "pending": "{count, plural, one {+# en attente} other {+# en attente}}",
+      "forceTitle": "Confirmer malgré l’indisponibilité ?",
+      "forceBlocked": "Le {date} est bloqué{reason, select, none {} other { ({reason})}}.",
+      "forceFull": "Le {date} compte déjà {firm} événement(s) confirmé(s) pour une capacité de {capacity}.",
+      "forceHint": "Vous pouvez passer outre : votre décision sera tracée dans l’historique.",
+      "force": "Passer outre et enregistrer"
+    },
+    "detail": {
+      "event": "Événement",
+      "client": "Client",
+      "venue": "Lieu",
+      "guests": "Invités",
+      "schedule": "{date}, {start}{end, select, none {} other { – {end}}}",
+      "nextDay": "(le lendemain)",
+      "lines": "Prestations",
+      "totals": "Totaux",
+      "notes": "Notes de la commande",
+      "internalNotes": "Notes internes",
+      "noNotes": "Aucune note.",
+      "history": "Historique",
+      "edit": "Modifier",
+      "createdAt": "Créée le {date}",
+      "confirmedAt": "Confirmée le {date}",
+      "cancelled": "Annulée le {date} : {reason}",
+      "comingSoon": "Bientôt disponible",
+      "quotes": "Devis",
+      "quotesHint": "Création et envoi de devis à partir de cette commande.",
+      "payments": "Paiements",
+      "paymentsHint": "Acomptes, soldes et remboursements.",
+      "staff": "Personnel",
+      "staffHint": "Équipe et livreurs affectés à l’événement.",
+      "unitPrice": "PU",
+      "discount": "Remise {amount}"
+    },
+    "transitions": {
+      "CONFIRMED": "Confirmer",
+      "PENDING": "Remettre en attente",
+      "IN_PREPARATION": "Démarrer la préparation",
+      "OUT_FOR_DELIVERY": "Partir en livraison",
+      "DELIVERED": "Marquer livrée",
+      "COMPLETED": "Clôturer",
+      "CANCELLED": "Annuler la commande",
+      "done": "Statut mis à jour : {status}"
+    },
+    "cancel": {
+      "title": "Annuler la commande {reference} ?",
+      "description": "La commande restera consultable, mais ne pourra plus être modifiée ni réactivée.",
+      "refundWarning": "Les paiements éventuels devront être remboursés manuellement.",
+      "reason": "Motif de l’annulation",
+      "placeholder": "Ex. mariage reporté à l’année prochaine",
+      "confirm": "Annuler la commande",
+      "keep": "Garder la commande"
+    },
+    "unconfirm": {
+      "title": "Remettre la commande en attente ?",
+      "description": "La date ne sera plus réservée pour cet événement.",
+      "reason": "Motif",
+      "confirm": "Remettre en attente"
+    },
+    "history": {
+      "created": "Commande créée — {status}",
+      "status": "{from} → {to}",
+      "updated": "Commande modifiée",
+      "by": "par {name}",
+      "forced": "Disponibilité forcée",
+      "empty": "Aucun événement.",
+      "changes": {
+        "schedule": "date et horaires",
+        "eventType": "type d’événement",
+        "venue": "adresse",
+        "guests": "invités",
+        "lines": "prestations",
+        "venueName": "nom du lieu",
+        "notes": "notes",
+        "internalNotes": "notes internes",
+        "client": "client",
+        "availabilityForced": "disponibilité forcée"
+      }
+    },
+    "conflict": {
+      "title": "Commande modifiée entre-temps",
+      "description": "Cette commande a été modifiée par {name} à {time}. Rechargez-la pour voir la dernière version : vos changements non enregistrés seront perdus.",
+      "descriptionUnknown": "Cette commande a été modifiée entre-temps. Rechargez-la pour voir la dernière version.",
+      "reload": "Recharger la commande"
+    }
+  },
+  "calendar": {
+    "title": "Calendrier",
+    "subtitle": "Vos événements, la charge de chaque jour et les dates bloquées.",
+    "views": {
+      "month": "Mois",
+      "week": "Semaine",
+      "list": "Liste"
+    },
+    "today": "Aujourd’hui",
+    "previous": "Période précédente",
+    "next": "Période suivante",
+    "load": "{firm}/{capacity}",
+    "loadLabel": "{firm} événement(s) confirmé(s) sur {capacity}",
+    "loadUnlimited": "{firm} événement(s) confirmé(s)",
+    "blocked": "Bloqué",
+    "more": "+{count}",
+    "newOrder": "Nouvelle commande",
+    "block": "Bloquer cette date",
+    "unblock": "Débloquer",
+    "blockTitle": "Bloquer le {date} ?",
+    "blockDescription": "Aucune commande ne pourra être prise ce jour sans confirmation explicite.",
+    "blockReason": "Motif (facultatif)",
+    "blockedToast": "Date bloquée",
+    "unblockedToast": "Date débloquée",
+    "noOrders": "Aucun événement ce jour.",
+    "emptyList": "Aucun événement sur cette période.",
+    "showCancelled": "Afficher les annulées",
+    "capacity": {
+      "button": "Capacité : {capacity, select, none {illimitée} other {{capacity} / jour}}",
+      "title": "Capacité par jour",
+      "description": "Nombre maximum d’événements confirmés par jour. Au-delà, une confirmation explicite est demandée.",
+      "label": "Événements par jour",
+      "unlimited": "Pas de limite",
+      "saved": "Capacité enregistrée"
+    },
+    "dayLoad": "Charge",
+    "pendingCount": "{count, plural, one {# en attente} other {# en attente}}"
   }
 }

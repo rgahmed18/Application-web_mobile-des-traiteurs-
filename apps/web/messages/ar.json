@@ -38,7 +38,13 @@
     "createdSuccess": "تم الإنشاء",
     "archivedSuccess": "تمت الأرشفة",
     "restoredSuccess": "تم الاسترجاع",
-    "deletedSuccess": "تم الحذف"
+    "deletedSuccess": "تم الحذف",
+    "today": "اليوم",
+    "previous": "السابق",
+    "next": "التالي",
+    "reload": "إعادة التحميل",
+    "viewAll": "عرض الكل",
+    "unknown": "—"
   },
   "language": {
     "label": "اللغة"
@@ -117,12 +123,21 @@
     "welcome": "مرحبًا {name}",
     "subtitle": "إليك أهم مؤشرات نشاطك.",
     "cards": {
-      "todayEvents": "مناسبات اليوم",
-      "upcomingEvents": "المناسبات القادمة",
-      "pendingQuotes": "عروض أسعار في الانتظار",
-      "monthRevenue": "رقم معاملات الشهر"
+      "todayEvents": "طلبات اليوم",
+      "upcomingEvents": "القادمة (7 أيام)",
+      "monthRevenue": "رقم معاملات مناسبات الشهر",
+      "awaiting": "في انتظار التأكيد",
+      "toClose": "للإغلاق"
     },
-    "notAvailableYet": "متاح مع وحدة الطلبيات"
+    "hints": {
+      "todayEvents": "المناسبات المبرمجة اليوم",
+      "upcomingEvents": "باستثناء اليوم",
+      "awaiting": "طلبات وعروض أسعار للمعالجة",
+      "toClose": "مناسبات سابقة غير مغلقة",
+      "monthRevenue": "{count, plural, =0 {لا توجد طلبات مؤكدة} one {طلب مؤكد واحد، شامل الضريبة} two {طلبان مؤكدان، شامل الضريبة} few {# طلبات مؤكدة، شامل الضريبة} many {# طلبًا مؤكدًا، شامل الضريبة} other {# طلب مؤكد، شامل الضريبة}}"
+    },
+    "todayList": "اليوم",
+    "noEventToday": "لا توجد مناسبات اليوم."
   },
   "errors": {
     "generic": "حدث خطأ. أعد المحاولة بعد لحظات.",
@@ -159,7 +174,17 @@
       "NO_BACKOFFICE_ACCESS": "هذا الحساب لا يملك صلاحية الدخول إلى فضاء التدبير.",
       "API_UNREACHABLE": "الخادم غير متاح مؤقتًا. أعد المحاولة بعد لحظات.",
       "DISH_IN_PACKAGE": "هذا الطبق ضمن عرض: احذفه من العرض أو قم بأرشفته.",
-      "ITEM_ARCHIVED": "لا يمكن إضافة عنصر مؤرشف. استرجعه أولًا."
+      "ITEM_ARCHIVED": "لا يمكن إضافة عنصر مؤرشف. استرجعه أولًا.",
+      "CLIENT_EXISTS": "هذا الرقم مسجل مسبقًا ضمن زبنائك.",
+      "PHONE_IS_STAFF": "هذا الرقم يخص أحد أعضاء فريقك.",
+      "ORDER_VERSION_CONFLICT": "تم تعديل هذا الطلب في هذه الأثناء. أعد تحميله.",
+      "AVAILABILITY_CONFLICT": "هذا التاريخ محجوب أو مكتمل.",
+      "INVALID_TRANSITION": "لا يمكن إجراء هذا التغيير في الحالة.",
+      "REASON_REQUIRED": "ذكر السبب إلزامي.",
+      "ORDER_LOCKED": "لم يعد هذا التعديل ممكنًا لهذا الطلب.",
+      "LINES_REQUIRED": "أضف خدمة واحدة على الأقل.",
+      "INVALID_TAX_RATE": "مؤسسة غير خاضعة للضريبة: يجب أن تكون الضريبة 0 %.",
+      "INVALID_PERIOD": "الفترة طويلة جدًا."
     }
   },
   "validation": {
@@ -177,7 +202,12 @@
     "invalid": "قيمة غير صالحة.",
     "maxGuestsBelowMin": "يجب أن يكون الحد الأقصى أكبر من الحد الأدنى أو مساويًا له.",
     "duplicateDish": "هذا الطبق موجود مسبقًا في العرض.",
-    "invalidAmount": "مبلغ غير صحيح (مثلًا 250 أو 250,50)."
+    "invalidAmount": "مبلغ غير صحيح (مثلًا 250 أو 250,50).",
+    "discountTooHigh": "التخفيض يتجاوز مبلغ السطر.",
+    "endBeforeStart": "يجب أن تكون النهاية بعد البداية (اختر «اليوم الموالي» عند الحاجة).",
+    "linesRequired": "أضف خدمة واحدة على الأقل.",
+    "invalidTime": "توقيت غير صالح (HH:MM).",
+    "invalidDate": "تاريخ غير صالح."
   },
   "catalog": {
     "title": "قائمة المنتجات",
@@ -359,5 +389,383 @@
       "active": "معروضة للزبناء",
       "saved": "تم حفظ الخدمة"
     }
+  },
+  "orderStatus": {
+    "DRAFT": "مسودة",
+    "PENDING": "في الانتظار",
+    "QUOTED": "تم إرسال عرض السعر",
+    "CONFIRMED": "مؤكدة",
+    "IN_PREPARATION": "قيد التحضير",
+    "OUT_FOR_DELIVERY": "قيد التوصيل",
+    "DELIVERED": "تم التسليم",
+    "COMPLETED": "مغلقة",
+    "CANCELLED": "ملغاة"
+  },
+  "eventType": {
+    "WEDDING": "عرس",
+    "ENGAGEMENT": "خطوبة",
+    "BIRTHDAY": "عيد ميلاد",
+    "AQIQA": "عقيقة",
+    "CORPORATE": "حفل شركة",
+    "OTHER": "أخرى"
+  },
+  "clients": {
+    "title": "الزبناء",
+    "subtitle": "زبناؤك ومعلومات الاتصال بهم وطلباتهم.",
+    "new": "زبون جديد",
+    "search": "البحث بالاسم أو الهاتف",
+    "sortLabel": "الترتيب حسب",
+    "sort": {
+      "name": "الاسم",
+      "createdAt": "تاريخ الإضافة",
+      "lastOrder": "آخر طلب",
+      "totalSpent": "مجموع المشتريات"
+    },
+    "ascending": "تصاعدي",
+    "descending": "تنازلي",
+    "columns": {
+      "name": "الزبون",
+      "phone": "الهاتف",
+      "orders": "الطلبات",
+      "lastOrder": "آخر مناسبة",
+      "totalSpent": "مجموع المشتريات"
+    },
+    "orderCount": "{count, plural, =0 {لا توجد طلبات} one {طلب واحد} two {طلبان} few {# طلبات} many {# طلبًا} other {# طلب}}",
+    "empty": "لا يوجد زبناء حاليًا",
+    "emptyHint": "أضف زبونًا لتسجيل طلب تم عبر الهاتف.",
+    "fields": {
+      "phone": "الهاتف",
+      "phoneHint": "رقم مغربي (06… أو 07…) أو دولي (+33…). يحدد حساب الزبون.",
+      "firstName": "الاسم الشخصي",
+      "lastName": "الاسم العائلي",
+      "email": "البريد الإلكتروني",
+      "locale": "لغة التواصل",
+      "tags": "الوسوم",
+      "tagsHint": "مفصولة بفواصل (مثال: وفي، عرس).",
+      "internalNotes": "ملاحظات داخلية",
+      "internalNotesHint": "يراها فريقك فقط.",
+      "address": "العنوان",
+      "city": "المدينة",
+      "label": "اسم العنوان",
+      "isDefault": "العنوان الافتراضي"
+    },
+    "locales": {
+      "fr": "الفرنسية",
+      "ar": "العربية",
+      "en": "الإنجليزية"
+    },
+    "form": {
+      "newTitle": "زبون جديد",
+      "editTitle": "تعديل الزبون",
+      "firstAddress": "العنوان (اختياري)",
+      "created": "تم تسجيل الزبون",
+      "saved": "تم تحديث الزبون",
+      "exists": "هذا الرقم مسجل مسبقًا ضمن زبنائك.",
+      "openExisting": "فتح البطاقة"
+    },
+    "detail": {
+      "contact": "معلومات الاتصال",
+      "addresses": "العناوين",
+      "noAddress": "لا يوجد أي عنوان.",
+      "addAddress": "إضافة عنوان",
+      "editAddress": "تعديل العنوان",
+      "removeAddress": "حذف العنوان",
+      "removeAddressConfirm": "حذف العنوان «{label}»؟",
+      "default": "افتراضي",
+      "addressSaved": "تم حفظ العنوان",
+      "addressRemoved": "تم حذف العنوان",
+      "notes": "ملاحظات داخلية",
+      "noNotes": "لا توجد ملاحظات.",
+      "stats": {
+        "orders": "الطلبات",
+        "totalSpent": "مجموع المشتريات",
+        "totalSpentHint": "الطلبات المؤكدة، شامل الضريبة",
+        "nextOrder": "المناسبة القادمة",
+        "none": "لا شيء"
+      },
+      "history": "سجل الطلبات",
+      "noOrders": "لا توجد طلبات لهذا الزبون.",
+      "newOrder": "طلب جديد",
+      "call": "اتصال",
+      "whatsapp": "واتساب",
+      "edit": "تعديل",
+      "inactive": "حساب معطل"
+    }
+  },
+  "orders": {
+    "title": "الطلبات",
+    "subtitle": "تتبع طلباتك من الطلب إلى الإغلاق.",
+    "new": "طلب جديد",
+    "filters": {
+      "search": "المرجع أو الزبون",
+      "status": "الحالة",
+      "allStatuses": "كل الحالات",
+      "eventType": "نوع المناسبة",
+      "allTypes": "كل الأنواع",
+      "period": "الفترة",
+      "periods": {
+        "upcoming": "القادمة",
+        "thisMonth": "هذا الشهر",
+        "past": "السابقة",
+        "all": "كل التواريخ",
+        "custom": "تواريخ مختارة"
+      },
+      "from": "من",
+      "to": "إلى",
+      "toClose": "للإغلاق",
+      "reset": "مسح الفلاتر"
+    },
+    "columns": {
+      "reference": "المرجع",
+      "client": "الزبون",
+      "event": "المناسبة",
+      "guests": "الضيوف",
+      "total": "المجموع شامل الضريبة",
+      "status": "الحالة"
+    },
+    "guests": "{count, plural, one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفًا} other {# ضيف}}",
+    "empty": "لا توجد طلبات",
+    "emptyHint": "ستظهر هنا الطلبات المسجلة أو المستلمة.",
+    "noMatch": "لا توجد طلبات مطابقة لهذه الفلاتر.",
+    "form": {
+      "newTitle": "طلب جديد",
+      "editTitle": "تعديل الطلب {reference}",
+      "sections": {
+        "client": "الزبون",
+        "event": "المناسبة",
+        "lines": "الخدمات",
+        "notes": "ملاحظات"
+      },
+      "client": {
+        "search": "البحث عن زبون (الاسم أو الهاتف)",
+        "noResult": "لم يتم العثور على أي زبون.",
+        "newClient": "زبون جديد",
+        "change": "تغيير الزبون",
+        "required": "اختر زبونًا.",
+        "locked": "لا يمكن تغيير الزبون بعد التأكيد."
+      },
+      "event": {
+        "type": "نوع المناسبة",
+        "date": "التاريخ",
+        "startTime": "البداية",
+        "endTime": "النهاية",
+        "endsNextDay": "تنتهي في اليوم الموالي",
+        "guests": "عدد الضيوف",
+        "venueName": "اسم المكان",
+        "venueAddress": "العنوان",
+        "city": "المدينة",
+        "useAddress": "استعمال عنوان من عناوين الزبون"
+      },
+      "lines": {
+        "add": "إضافة",
+        "addPackage": "عرض",
+        "addDish": "طبق",
+        "addService": "خدمة",
+        "addCustom": "سطر حر",
+        "searchCatalog": "بحث…",
+        "noCatalogResult": "لا توجد نتائج.",
+        "label": "التسمية",
+        "quantity": "الكمية",
+        "unitPriceTTC": "ثمن الوحدة شامل الضريبة",
+        "unitPriceHT": "ثمن الوحدة دون احتساب الضريبة",
+        "taxRate": "الضريبة",
+        "discount": "التخفيض",
+        "discountPercent": "بالنسبة المئوية",
+        "discountAmount": "بالمبلغ",
+        "perPerson": "لكل فرد",
+        "perPersonHint": "كمية مرتبطة بعدد الضيوف",
+        "notes": "ملاحظة",
+        "remove": "حذف السطر",
+        "moveUp": "إلى الأعلى",
+        "moveDown": "إلى الأسفل",
+        "empty": "لا توجد خدمات. أضف عرضًا أو طبقًا أو خدمة أو سطرًا حرًا.",
+        "lineTotal": "مجموع السطر",
+        "types": {
+          "PACKAGE": "عرض",
+          "DISH": "طبق",
+          "EXTRA_SERVICE": "خدمة",
+          "CUSTOM": "سطر حر"
+        }
+      },
+      "totals": {
+        "title": "المجاميع",
+        "ht": "المجموع دون احتساب الضريبة",
+        "tax": "الضريبة على القيمة المضافة {rate}",
+        "ttc": "المجموع شامل الضريبة",
+        "priceMode": "الأثمنة {mode, select, TTC {شاملة للضريبة} other {دون احتساب الضريبة}}",
+        "round": "تقريب المجموع"
+      },
+      "round": {
+        "title": "تقريب المجموع",
+        "description": "أدخل المجموع المطلوب شامل الضريبة: يوزع التخفيض على الأسطر بالتناسب. تُستبدل التخفيضات الحالية.",
+        "target": "المجموع المطلوب شامل الضريبة",
+        "max": "على الأكثر {amount} (المجموع دون تخفيض)",
+        "apply": "تطبيق",
+        "notExact": "لا يمكن الوصول إلى المبلغ بالضبط في الإدخال دون ضريبة: تم تطبيق أقرب مجموع ({amount}).",
+        "tooHigh": "المبلغ يتجاوز المجموع دون تخفيض.",
+        "applied": "تم توزيع التخفيضات على الأسطر"
+      },
+      "notes": {
+        "client": "ملاحظات الطلب",
+        "clientHint": "طلبات الزبون وتفاصيل الخدمة.",
+        "internal": "ملاحظات داخلية",
+        "internalHint": "يراها فريقك فقط."
+      },
+      "actions": {
+        "saveDraft": "حفظ كمسودة",
+        "savePending": "حفظ (في الانتظار)",
+        "saveConfirm": "حفظ وتأكيد",
+        "save": "حفظ التعديلات"
+      },
+      "reason": {
+        "title": "سبب التعديل",
+        "description": "هذا الطلب مؤكد: وضح سبب التغيير (التاريخ، الضيوف، الخدمات…). يُحفظ السبب في السجل.",
+        "label": "السبب",
+        "placeholder": "مثال: أكد الزبون حضور 30 ضيفًا إضافيًا",
+        "confirm": "حفظ"
+      },
+      "guestChange": {
+        "title": "تحديث الكميات؟",
+        "description": "يتغير عدد الضيوف من {from} إلى {to}. اختر الأسطر «لكل فرد» التي تريد تعديلها.",
+        "line": "{label}: {from} ← {to}",
+        "apply": "تحديث",
+        "skip": "عدم التغيير"
+      },
+      "created": "تم تسجيل الطلب {reference}",
+      "saved": "تم تحديث الطلب",
+      "confirmedHint": "طلب مؤكد: تغيير التاريخ أو عدد الضيوف أو الخدمات يتطلب ذكر السبب.",
+      "preparationHint": "طلب قيد التحضير: لم يعد بالإمكان تغيير التاريخ.",
+      "readOnlyHint": "طلب {status}: يمكن تعديل الملاحظات الداخلية فقط.",
+      "dateLocked": "لم يعد بالإمكان تعديل التاريخ."
+    },
+    "availability": {
+      "checking": "جارٍ التحقق من التوفر…",
+      "free": "{firm, plural, =0 {لا توجد مناسبات مؤكدة} one {مناسبة مؤكدة واحدة} two {مناسبتان مؤكدتان} few {# مناسبات مؤكدة} many {# مناسبة مؤكدة} other {# مناسبة مؤكدة}} في هذا اليوم",
+      "load": "حمولة اليوم: {firm}/{capacity}",
+      "blocked": "تاريخ محجوب{reason, select, none {} other {: {reason}}}",
+      "full": "تم بلوغ الطاقة القصوى: {firm}/{capacity} مناسبات مؤكدة",
+      "pending": "+{count} في الانتظار",
+      "forceTitle": "التأكيد رغم عدم التوفر؟",
+      "forceBlocked": "يوم {date} محجوب{reason, select, none {} other { ({reason})}}.",
+      "forceFull": "يضم يوم {date} مسبقًا {firm} مناسبة مؤكدة من أصل طاقة {capacity}.",
+      "forceHint": "يمكنك التجاوز: سيُسجل قرارك في السجل.",
+      "force": "التجاوز والحفظ"
+    },
+    "detail": {
+      "event": "المناسبة",
+      "client": "الزبون",
+      "venue": "المكان",
+      "guests": "الضيوف",
+      "schedule": "{date}، {start}{end, select, none {} other { – {end}}}",
+      "nextDay": "(اليوم الموالي)",
+      "lines": "الخدمات",
+      "totals": "المجاميع",
+      "notes": "ملاحظات الطلب",
+      "internalNotes": "ملاحظات داخلية",
+      "noNotes": "لا توجد ملاحظات.",
+      "history": "السجل",
+      "edit": "تعديل",
+      "createdAt": "أنشئ في {date}",
+      "confirmedAt": "أكد في {date}",
+      "cancelled": "ألغي في {date}: {reason}",
+      "comingSoon": "قريبًا",
+      "quotes": "عروض الأسعار",
+      "quotesHint": "إنشاء وإرسال عروض الأسعار انطلاقًا من هذا الطلب.",
+      "payments": "الأداءات",
+      "paymentsHint": "التسبيقات والأرصدة والاسترجاعات.",
+      "staff": "المستخدمون",
+      "staffHint": "الفريق والموصلون المكلفون بالمناسبة.",
+      "unitPrice": "ثمن الوحدة",
+      "discount": "تخفيض {amount}"
+    },
+    "transitions": {
+      "CONFIRMED": "تأكيد",
+      "PENDING": "إرجاع إلى الانتظار",
+      "IN_PREPARATION": "بدء التحضير",
+      "OUT_FOR_DELIVERY": "الانطلاق للتوصيل",
+      "DELIVERED": "تم التسليم",
+      "COMPLETED": "إغلاق",
+      "CANCELLED": "إلغاء الطلب",
+      "done": "تم تحديث الحالة: {status}"
+    },
+    "cancel": {
+      "title": "إلغاء الطلب {reference}؟",
+      "description": "سيبقى الطلب قابلًا للاطلاع، لكن لن يمكن تعديله أو إعادة تفعيله.",
+      "refundWarning": "يجب استرجاع الأداءات المحتملة يدويًا.",
+      "reason": "سبب الإلغاء",
+      "placeholder": "مثال: تأجيل العرس إلى السنة المقبلة",
+      "confirm": "إلغاء الطلب",
+      "keep": "الاحتفاظ بالطلب"
+    },
+    "unconfirm": {
+      "title": "إرجاع الطلب إلى الانتظار؟",
+      "description": "لن يبقى التاريخ محجوزًا لهذه المناسبة.",
+      "reason": "السبب",
+      "confirm": "إرجاع إلى الانتظار"
+    },
+    "history": {
+      "created": "تم إنشاء الطلب — {status}",
+      "status": "{from} ← {to}",
+      "updated": "تم تعديل الطلب",
+      "by": "بواسطة {name}",
+      "forced": "تم تجاوز التوفر",
+      "empty": "لا توجد أحداث.",
+      "changes": {
+        "schedule": "التاريخ والتوقيت",
+        "eventType": "نوع المناسبة",
+        "venue": "العنوان",
+        "guests": "الضيوف",
+        "lines": "الخدمات",
+        "venueName": "اسم المكان",
+        "notes": "الملاحظات",
+        "internalNotes": "الملاحظات الداخلية",
+        "client": "الزبون",
+        "availabilityForced": "تجاوز التوفر"
+      }
+    },
+    "conflict": {
+      "title": "تم تعديل الطلب في هذه الأثناء",
+      "description": "عدّل {name} هذا الطلب على الساعة {time}. أعد تحميله لرؤية آخر نسخة: ستضيع تعديلاتك غير المحفوظة.",
+      "descriptionUnknown": "تم تعديل هذا الطلب في هذه الأثناء. أعد تحميله لرؤية آخر نسخة.",
+      "reload": "إعادة تحميل الطلب"
+    }
+  },
+  "calendar": {
+    "title": "الجدول الزمني",
+    "subtitle": "مناسباتك وحمولة كل يوم والتواريخ المحجوبة.",
+    "views": {
+      "month": "شهر",
+      "week": "أسبوع",
+      "list": "قائمة"
+    },
+    "today": "اليوم",
+    "previous": "الفترة السابقة",
+    "next": "الفترة التالية",
+    "load": "{firm}/{capacity}",
+    "loadLabel": "{firm} مناسبة مؤكدة من أصل {capacity}",
+    "loadUnlimited": "{firm} مناسبة مؤكدة",
+    "blocked": "محجوب",
+    "more": "+{count}",
+    "newOrder": "طلب جديد",
+    "block": "حجب هذا التاريخ",
+    "unblock": "إلغاء الحجب",
+    "blockTitle": "حجب يوم {date}؟",
+    "blockDescription": "لن يمكن تسجيل أي طلب في هذا اليوم دون تأكيد صريح.",
+    "blockReason": "السبب (اختياري)",
+    "blockedToast": "تم حجب التاريخ",
+    "unblockedToast": "تم إلغاء حجب التاريخ",
+    "noOrders": "لا توجد مناسبات في هذا اليوم.",
+    "emptyList": "لا توجد مناسبات في هذه الفترة.",
+    "showCancelled": "عرض الملغاة",
+    "capacity": {
+      "button": "الطاقة: {capacity, select, none {غير محدودة} other {{capacity} في اليوم}}",
+      "title": "الطاقة اليومية",
+      "description": "الحد الأقصى للمناسبات المؤكدة في اليوم. بعده يُطلب تأكيد صريح.",
+      "label": "المناسبات في اليوم",
+      "unlimited": "بدون حد",
+      "saved": "تم حفظ الطاقة"
+    },
+    "dayLoad": "الحمولة",
+    "pendingCount": "{count} في الانتظار"
   }
 }

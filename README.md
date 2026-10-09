@@ -106,7 +106,10 @@ Depuis un téléphone physique, remplacez `localhost` par l'adresse IP locale de
 
 Le seed crée le traiteur **Dar Diafa Traiteur** (slug `dar-diafa`, offre PRO, prix saisis TTC),
 un catalogue marocain bilingue (6 catégories, 21 plats, 3 formules, 4 services) illustré par des
-images générées, une commande de fiançailles avec devis, facture, acompte et équipe affectée.
+images générées, 10 clients (dont une cliente au numéro français) et 22 commandes réparties de
+mi-septembre à mi-novembre 2026 dans tous les statuts : un jour complet (24/10 : 3 événements pour
+une capacité de 3), deux dates bloquées (31/10 et 06/11), des commandes à clôturer et une commande
+de fiançailles avec devis, facture, acompte et équipe affectée.
 
 Mot de passe commun : **`Password123!`**
 
@@ -140,8 +143,27 @@ http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` 
 - **Français / arabe** (bouton en haut de l'écran) : toute l'interface passe en arabe et en
   miroir (RTL). Chiffres occidentaux, montants au format marocain (`1.250,00 MAD` /
   `1.250,00 د.م.`), dates `JJ/MM/AAAA` dans le fuseau du traiteur.
-- **Menu** filtré selon les permissions de `/auth/me` ; Commandes, Calendrier, Clients,
-  Personnel et Paramètres affichent « Bientôt disponible ».
+- **Menu** filtré selon les permissions de `/auth/me` ; Personnel et Paramètres affichent
+  « Bientôt disponible ».
+- **Tableau de bord** : commandes du jour, à venir sur 7 jours, en attente de confirmation,
+  à clôturer (événement passé, commande non clôturée) et « CA des événements du mois »
+  (commandes fermes dont l'événement tombe dans le mois, TTC). Chaque carte ouvre la liste filtrée.
+- **Clients** (`clients.read`, `clients.write`) : recherche par nom ou téléphone, tri, fiche
+  (coordonnées, adresses, notes internes, étiquettes, historique des commandes, total dépensé),
+  appel et WhatsApp en un clic. Le traiteur crée un client sans mot de passe (commande prise par
+  téléphone, numéro étranger sans SMS) ; un numéro déjà inscrit ailleurs est rattaché sans
+  doublon, et la réponse est identique à une création. Les coordonnées affichées sont celles
+  saisies par ce traiteur (`Membership`) : jamais celles d'un autre traiteur ni du compte global.
+- **Commandes** (`orders.read`, `orders.create`, `orders.write`, `orders.cancel`,
+  `orders.edit_confirmed`) : liste filtrée (statut, période, type, référence ou client),
+  formulaire guidé (client recherché ou créé à la volée, événement, lieu, prestations — formules,
+  plats, services, lignes libres — avec remises en montant ou en %, totaux HT / TVA par taux / TTC
+  en direct, bouton **Arrondir le total**), fiche avec historique et emplacements Devis, Paiements
+  et Personnel. Changer le nombre d'invités propose d'ajuster les lignes « par personne ».
+- **Calendrier** (`calendar.read`, `calendar.manage`) : vues mois, semaine et liste, commandes
+  colorées par statut, charge du jour (`2/3`), dates bloquées hachurées. Un clic sur un jour ouvre
+  ses commandes, le blocage de la date et « Nouvelle commande » pré-rempli. Capacité par jour
+  réglable depuis le calendrier.
 - **Catalogue** (`catalog.read` pour consulter, `catalog.write` pour modifier) :
   - plats : recherche, filtres catégorie et disponibilité, pagination, photo, allergènes, prix
     saisi en HT ou TTC selon le traiteur avec l'autre montant affiché en direct ;
@@ -160,6 +182,39 @@ routes Next (`apps/web/src/app/api/session`) qui relaient l'API. Le jeton d'acc�
 automatiquement une minute avant son expiration. Les routes de session vérifient l'origine de la
 requête et transmettent l'IP du navigateur uniquement si elle provient d'un proxy de confiance
 (`WEB_TRUSTED_PROXY_HOPS`, voir [IP réelle des clients](#ip-réelle-des-clients)).
+
+### Cycle de vie d'une commande
+
+Machine à états unique (`packages/shared/src/orders/order-status.ts`), imposée par l'API et
+utilisée par l'interface pour n'afficher que les actions permises :
+
+| Transition                                                      | Permission                                   | Remarque                                  |
+| --------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------- |
+| Brouillon → En attente                                          | `orders.write`                               | au moins une prestation                   |
+| Brouillon, En attente, Devis envoyé → Confirmée                 | `orders.write`                               | contrôle de disponibilité (forçage tracé) |
+| En attente ↔ Devis envoyé                                       | automatique                                  | module Devis (étape suivante)             |
+| Confirmée → En attente                                          | `orders.cancel`                              | motif obligatoire                         |
+| Confirmée → En préparation                                      | `orders.write`                               |                                           |
+| En préparation → En livraison ou Livrée ; En livraison → Livrée | `orders.write` ou `deliveries.update_status` | le livreur fait avancer la livraison      |
+| Livrée → Clôturée                                               | `orders.write`                               |                                           |
+| Brouillon … En préparation → Annulée                            | `orders.cancel`                              | motif obligatoire, sans réouverture       |
+
+Chaque transition est horodatée dans `OrderStatusChange` (historique de la fiche) et dans le
+journal d'audit. **Modification selon le statut** : tout est libre avant confirmation ; une fois
+confirmée, notes et nom du lieu restent libres, mais date, adresse, invités et prestations
+demandent `orders.edit_confirmed` et un motif (conservé dans l'historique) ; le client ne peut
+plus changer. En préparation, la date est figée ; ensuite, seules les notes internes changent.
+
+**Disponibilité** : à la création, au changement de date et à la confirmation, l'API refuse
+(409 `AVAILABILITY_CONFLICT`) une date bloquée ou un jour dont les commandes fermes atteignent
+`maxEventsPerDay` ; le traiteur peut passer outre après confirmation, et c'est tracé. Les
+commandes en attente ne consomment pas de capacité ; un événement qui finit après minuit ne
+compte que le jour de son début. Les contrôles d'un même jour sont sérialisés (verrou PostgreSQL).
+
+**Modifications simultanées** : verrouillage optimiste. `Order.version` est incrémentée par un
+trigger à chaque écriture (en-tête, lignes via `DocumentLinesService`, statut) ; une écriture
+avec une version périmée reçoit un 409 `ORDER_VERSION_CONFLICT` (« modifiée par X à HH:MM »), et
+l'interface propose de recharger.
 
 **Photos** : JPEG, PNG, WebP ou HEIC/HEIF (iPhone). Le navigateur convertit le HEIC (bibliothèque
 `heic-to`, licence LGPL, chargée seulement si nécessaire), applique l'orientation EXIF, réduit la
@@ -230,6 +285,8 @@ Organisation de l'API (`apps/api/src`) : un module par domaine.
 | `queue/`     | BullMQ (files `notifications` et `media`)                             |
 | `storage/`   | Stockage S3 (URL présignées, traitement des images avec sharp)        |
 | `catalog/`   | Catégories, plats, formules, services, photos (`/api/v1/catalog`)     |
+| `clients/`   | Clients du traiteur, adresses (`/api/v1/clients`)                     |
+| `orders/`    | Commandes, disponibilité, calendrier, tableau de bord                 |
 | `auth/`      | Inscription, connexion, OTP SMS, JWT, refresh tokens                  |
 | `access/`    | Permissions, feature flags et les 5 guards globaux                    |
 | `sequences/` | Numérotation continue des documents                                   |
@@ -481,7 +538,8 @@ pnpm format        # Prettier
 # Tests d'intégration (PostgreSQL réel, base gestion_traiteurs_test recréée à chaque lancement)
 pnpm --filter @traiteur/api test:int
 
-# Parcours e2e du back-office (Playwright) : connexion, puis plat avec photo et formule.
+# Parcours e2e du back-office (Playwright) : connexion ; plat avec photo et formule ;
+# client, commande de 3 lignes confirmée et retrouvée dans le calendrier.
 # Docker démarré et base seedée ; l'API et le web sont lancés s'ils ne tournent pas déjà.
 pnpm --filter @traiteur/web exec playwright install chromium   # une seule fois
 pnpm --filter @traiteur/web test:e2e
@@ -490,8 +548,10 @@ pnpm --filter @traiteur/web test:e2e
 Les tests d'intégration couvrent la numérotation sous 50 transactions simultanées, l'absence de
 trou après un échec, l'isolation entre traiteurs imposée par la base, les contraintes `CHECK`
 et l'immuabilité des factures, ainsi que l'API du catalogue (isolation entre traiteurs,
-permissions, prix HT/TTC, archivage, audit, photos). Par sécurité, ils refusent de s'exécuter sur une base dont le nom
-ne se termine pas par `_test`.
+permissions, prix HT/TTC, archivage, audit, photos) et celle des clients et commandes
+(isolation, création ou rattachement d'un client, machine à états, règles de modification,
+verrouillage optimiste sous écritures simultanées, disponibilité et capacité, tableau de bord).
+Par sécurité, ils refusent de s'exécuter sur une base dont le nom ne se termine pas par `_test`.
 
 **CI GitHub Actions** (`.github/workflows/ci.yml`), à chaque push sur `main` et chaque pull
 request :
