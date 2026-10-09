@@ -45,7 +45,7 @@ export type ClientCreateInput = z.infer<typeof clientCreateSchema>;
 export const clientUpdateSchema = clientFieldsSchema;
 export type ClientUpdateInput = z.infer<typeof clientUpdateSchema>;
 
-export const CLIENT_SORTS = ['name', 'createdAt', 'lastOrder', 'totalSpent'] as const;
+export const CLIENT_SORTS = ['name', 'createdAt', 'lastOrder', 'nextOrder', 'totalSpent'] as const;
 
 export const clientListQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
@@ -74,8 +74,10 @@ export const clientSummarySchema = z.object({
   orderCount: z.number().int(),
   /** Somme TTC des commandes fermes (confirmées à clôturées), en centimes. */
   totalSpent: z.number().int(),
-  /** Date de début du dernier événement (toutes commandes non annulées). */
+  /** Dernier événement passé (commandes ni annulées ni en brouillon). */
   lastOrderAt: z.iso.datetime().nullable(),
+  /** Prochain événement à venir (commandes ni annulées ni en brouillon). */
+  nextOrderAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
 });
 export type ClientSummary = z.infer<typeof clientSummarySchema>;
@@ -83,8 +85,6 @@ export type ClientSummary = z.infer<typeof clientSummarySchema>;
 export const clientSchema = clientSummarySchema.extend({
   internalNotes: z.string().nullable(),
   addresses: z.array(clientAddressSchema),
-  /** Prochain événement à venir (commande non annulée). */
-  nextOrderAt: z.iso.datetime().nullable(),
 });
 export type Client = z.infer<typeof clientSchema>;
 

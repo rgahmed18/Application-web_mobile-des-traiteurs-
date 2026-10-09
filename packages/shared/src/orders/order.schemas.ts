@@ -269,6 +269,22 @@ export const orderSchema = orderSummarySchema.extend({
 });
 export type Order = z.infer<typeof orderSchema>;
 
+/**
+ * Réponse d'un changement de statut pour un utilisateur sans orders.read (livreur) : le
+ * strict nécessaire pour enchaîner les étapes, sans prix, notes ni coordonnées du client.
+ */
+export const orderStatusUpdateSchema = z.object({
+  id: z.uuid(),
+  reference: z.string(),
+  status: orderStatusSchema,
+  version: z.number().int(),
+});
+export type OrderStatusUpdate = z.infer<typeof orderStatusUpdateSchema>;
+
+/** Réponse de POST /orders/:id/transitions : commande complète, ou minimum selon les droits. */
+export const orderTransitionResultSchema = z.union([orderSchema, orderStatusUpdateSchema]);
+export type OrderTransitionResult = z.infer<typeof orderTransitionResultSchema>;
+
 export const orderPageSchema = paginatedSchema(orderSummarySchema);
 export type OrderPage = z.infer<typeof orderPageSchema>;
 

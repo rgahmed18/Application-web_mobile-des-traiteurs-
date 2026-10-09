@@ -26,6 +26,7 @@ import {
   orderPageSchema,
   orderSchema,
   type OrderTransitionInput,
+  orderTransitionResultSchema,
   type OrderUpdateInput,
 } from '@traiteur/shared';
 import { z } from 'zod';
@@ -134,9 +135,21 @@ export function useUpdateOrder() {
 }
 
 export function useTransitionOrder() {
-  return useOrderMutation(({ id, input }: { id: string; input: OrderTransitionInput }) =>
-    apiRequest(`/orders/${id}/transitions`, { method: 'POST', body: input, schema: orderSchema }),
-  );
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: OrderTransitionInput }) =>
+      apiRequest(`/orders/${id}/transitions`, {
+        method: 'POST',
+        body: input,
+        schema: orderTransitionResultSchema,
+      }),
+    onSuccess: (result) => {
+      // Réponse complète seulement avec orders.read ; sinon la fiche sera rechargée
+      if ('lines' in result) queryClient.setQueryData(orderKeys.detail(result.id), result);
+      void queryClient.invalidateQueries({ queryKey: clientKeys.all });
+      return queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+  });
 }
 
 function useCalendarMutation<TVariables>(mutationFn: (variables: TVariables) => Promise<void>) {

@@ -63,8 +63,8 @@ export function ClientList() {
 
   const changeSort = (value: Sort) => {
     setSort(value);
-    // Les montants et dates se lisent du plus récent / plus élevé au plus faible
-    setDirection(value === 'name' ? 'asc' : 'desc');
+    // Nom et prochain événement : ordre croissant ; montants et dates passées : du plus récent
+    setDirection(value === 'name' || value === 'nextOrder' ? 'asc' : 'desc');
     setPage(1);
   };
 
@@ -168,17 +168,30 @@ export function ClientList() {
                     ))}
                   </div>
                 )}
-                <div className="grid grid-cols-3 gap-2 text-sm sm:w-96 sm:text-end">
-                  <span className="text-muted-foreground">
-                    {t('orderCount', { count: client.orderCount })}
-                  </span>
-                  <span className="text-muted-foreground" dir="ltr">
-                    {client.lastOrderAt ? formatDate(client.lastOrderAt, timeZone) : '—'}
-                  </span>
-                  <span className="font-medium tabular-nums" dir="ltr">
-                    {formatMoney(client.totalSpent, locale)}
-                  </span>
-                </div>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:w-[34rem] sm:grid-cols-4 sm:text-end">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">{t('columns.orders')}</dt>
+                    <dd>{t('orderCount', { count: client.orderCount })}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">{t('columns.lastOrder')}</dt>
+                    <dd dir="ltr" data-testid="client-last-order">
+                      {client.lastOrderAt ? formatDate(client.lastOrderAt, timeZone) : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">{t('columns.nextOrder')}</dt>
+                    <dd dir="ltr" data-testid="client-next-order">
+                      {client.nextOrderAt ? formatDate(client.nextOrderAt, timeZone) : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">{t('columns.totalSpent')}</dt>
+                    <dd className="font-medium tabular-nums" dir="ltr">
+                      {formatMoney(client.totalSpent, locale)}
+                    </dd>
+                  </div>
+                </dl>
               </Link>
             </li>
           ))}

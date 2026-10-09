@@ -12,6 +12,7 @@ import {
   type OrderListQuery,
   type OrderPage,
   type OrderTransitionInput,
+  type OrderTransitionResult,
   type OrderUpdateInput,
   OPEN_FIRM_ORDER_STATUSES,
   todayInTimeZone,
@@ -494,7 +495,7 @@ export class OrdersService {
     id: string,
     input: OrderTransitionInput,
     client: ClientInfo,
-  ): Promise<Order> {
+  ): Promise<OrderTransitionResult> {
     const traiteurId = requireTraiteurId(user);
     const permissions = await this.permissionsOf(user);
     if (!TRANSITION_PERMISSIONS.some((key) => permissions.has(key))) {
@@ -571,7 +572,17 @@ export class OrdersService {
         tx,
       );
       if (forced) await this.recordForced(tx, user, id, forced, `${from}→${input.to}`, client);
-      return toOrder(await this.load(tx, traiteurId, id), settings.timezone);
+      const updated = await this.load(tx, traiteurId, id);
+      // Sans orders.read (livreur) : ni prix, ni notes, ni coordonnées du client
+      if (!permissions.has('orders.read')) {
+        return {
+          id: updated.id,
+          reference: updated.reference,
+          status: updated.status,
+          version: updated.version,
+        };
+      }
+      return toOrder(updated, settings.timezone);
     });
   }
 

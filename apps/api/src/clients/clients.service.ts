@@ -30,10 +30,17 @@ type ClientRow = Prisma.MembershipGetPayload<{ include: typeof clientInclude }>;
 interface ClientStats {
   orderCount: number;
   totalSpent: number;
+  /** Dernier événement passé et prochain événement à venir. */
   lastOrderAt: Date | null;
+  nextOrderAt: Date | null;
 }
 
-const EMPTY_STATS: ClientStats = { orderCount: 0, totalSpent: 0, lastOrderAt: null };
+const EMPTY_STATS: ClientStats = {
+  orderCount: 0,
+  totalSpent: 0,
+  lastOrderAt: null,
+  nextOrderAt: null,
+};
 
 const toIso = (date: Date | null) => date?.toISOString() ?? null;
 
@@ -103,6 +110,11 @@ export class ClientsService {
         result = a.createdAt.getTime() - b.createdAt.getTime();
       } else if (query.sort === 'totalSpent') {
         result = key(a).totalSpent - key(b).totalSpent;
+      } else if (query.sort === 'nextOrder') {
+        // Sans événement à venir : en fin de liste dans l'ordre croissant
+        const next = (stats: ClientStats) =>
+          stats.nextOrderAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        result = next(key(a)) - next(key(b));
       } else {
         result = (key(a).lastOrderAt?.getTime() ?? 0) - (key(b).lastOrderAt?.getTime() ?? 0);
       }
@@ -339,19 +351,24 @@ export class ClientsService {
     };
   }
 
-  /** Nombre de commandes, total dépensé et dernier événement de chaque client. */
+  /** Nombre de commandes, total dépensé, dernier et prochain événement de chaque client. */
   private async statsFor(
     traiteurId: string,
     clientIds: readonly string[],
     db: Db = this.prisma,
   ): Promise<Map<string, ClientStats>> {
     if (clientIds.length === 0) return new Map();
-    const [all, firm] = await Promise.all([
+    const now = new Date();
+    const scheduled: Prisma.OrderWhereInput = {
+      traiteurId,
+      clientId: { in: [...clientIds] },
+      status: { notIn: ['CANCELLED', 'DRAFT'] },
+    };
+    const [all, firm, past, upcoming] = await Promise.all([
       db.order.groupBy({
         by: ['clientId'],
         where: { traiteurId, clientId: { in: [...clientIds] }, status: { not: 'CANCELLED' } },
         _count: { _all: true },
-        _max: { eventDate: true },
       }),
       db.order.groupBy({
         by: ['clientId'],
@@ -362,15 +379,28 @@ export class ClientsService {
         },
         _sum: { totalTtc: true },
       }),
+      db.order.groupBy({
+        by: ['clientId'],
+        where: { ...scheduled, eventDate: { lt: now } },
+        _max: { eventDate: true },
+      }),
+      db.order.groupBy({
+        by: ['clientId'],
+        where: { ...scheduled, eventDate: { gte: now } },
+        _min: { eventDate: true },
+      }),
     ]);
     const spent = new Map(firm.map((row) => [row.clientId, row._sum.totalTtc ?? 0]));
+    const last = new Map(past.map((row) => [row.clientId, row._max.eventDate]));
+    const next = new Map(upcoming.map((row) => [row.clientId, row._min.eventDate]));
     return new Map(
       all.map((row) => [
         row.clientId,
         {
           orderCount: row._count._all,
           totalSpent: spent.get(row.clientId) ?? 0,
-          lastOrderAt: row._max.eventDate,
+          lastOrderAt: last.get(row.clientId) ?? null,
+          nextOrderAt: next.get(row.clientId) ?? null,
         },
       ]),
     );
@@ -389,6 +419,7 @@ export class ClientsService {
       orderCount: stats.orderCount,
       totalSpent: stats.totalSpent,
       lastOrderAt: toIso(stats.lastOrderAt),
+      nextOrderAt: toIso(stats.nextOrderAt),
       createdAt: row.createdAt.toISOString(),
     };
   }
@@ -399,24 +430,11 @@ export class ClientsService {
       include: clientInclude,
     });
     if (!row) throw appErrors.notFound('NOT_FOUND', 'Client introuvable');
-    const [stats, next] = await Promise.all([
-      this.statsFor(traiteurId, [id], db),
-      db.order.findFirst({
-        where: {
-          traiteurId,
-          clientId: id,
-          status: { notIn: ['CANCELLED', 'DRAFT'] },
-          eventDate: { gte: new Date() },
-        },
-        orderBy: { eventDate: 'asc' },
-        select: { eventDate: true },
-      }),
-    ]);
+    const stats = await this.statsFor(traiteurId, [id], db);
     return {
       ...this.toSummary(row, stats.get(id) ?? EMPTY_STATS),
       internalNotes: row.internalNotes,
       addresses: row.addresses.map(toAddress),
-      nextOrderAt: toIso(next?.eventDate ?? null),
     };
   }
 

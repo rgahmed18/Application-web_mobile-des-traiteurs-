@@ -419,7 +419,8 @@
       "name": "Nom",
       "createdAt": "Date d’ajout",
       "lastOrder": "Dernière commande",
-      "totalSpent": "Total dépensé"
+      "totalSpent": "Total dépensé",
+      "nextOrder": "Prochain événement"
     },
     "ascending": "Croissant",
     "descending": "Décroissant",
@@ -428,7 +429,8 @@
       "phone": "Téléphone",
       "orders": "Commandes",
       "lastOrder": "Dernier événement",
-      "totalSpent": "Total dépensé"
+      "totalSpent": "Total dépensé",
+      "nextOrder": "Prochain événement"
     },
     "orderCount": "{count, plural, =0 {Aucune commande} one {# commande} other {# commandes}}",
     "empty": "Aucun client pour le moment",

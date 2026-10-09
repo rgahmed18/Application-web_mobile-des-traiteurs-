@@ -26,6 +26,8 @@ import {
   orderPageSchema,
   orderSchema,
   type OrderTransitionInput,
+  type OrderTransitionResult,
+  orderTransitionResultSchema,
   orderTransitionSchema,
   type OrderUpdateInput,
   orderUpdateSchema,
@@ -131,13 +133,16 @@ export class OrdersController {
     summary: 'Change le statut selon la machine à états (motif pour une annulation)',
   })
   @ApiBody({ schema: zodToOpenApi(orderTransitionSchema) })
-  @ApiOkResponse(orderResponse)
+  @ApiOkResponse({
+    description: 'Commande complète, ou { id, reference, status, version } sans orders.read',
+    schema: zodToOpenApi(orderTransitionResultSchema, 'output'),
+  })
   transition(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', uuidParam) id: string,
     @Body(new ZodValidationPipe(orderTransitionSchema)) body: OrderTransitionInput,
     @Client() client: ClientInfo,
-  ): Promise<Order> {
+  ): Promise<OrderTransitionResult> {
     return this.orders.transition(user, id, body, client);
   }
 }

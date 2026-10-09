@@ -282,6 +282,34 @@ describe('API clients, commandes et calendrier (application complète)', () => {
       expect(staffPhone.body).toMatchObject({ code: 'PHONE_IS_STAFF' });
     });
 
+    it('liste : dernier événement passé et prochain événement à venir, distincts', async () => {
+      const client = await createClient(adminA, { lastName: `Agenda${randomUUID().slice(0, 6)}` });
+      const pastStart = new Date(Date.now() - 20 * 86_400_000).toISOString().slice(0, 10);
+      // Commande passée : créée puis datée dans le passé (l'API refuse les dates saisies ? non, elle les accepte)
+      await createOrder(
+        adminA,
+        orderBody(client.id, dishA, { eventDate: pastStart, status: 'CONFIRMED' }),
+      );
+      await createOrder(adminA, orderBody(client.id, dishA, { eventDate: '2027-05-15' }));
+      await createOrder(adminA, orderBody(client.id, dishA, { eventDate: '2027-06-15' }));
+      // Les brouillons et les annulées ne comptent pas comme événements
+      await createOrder(
+        adminA,
+        orderBody(client.id, dishA, { eventDate: '2027-01-15', status: 'DRAFT' }),
+      );
+
+      const list = await api(adminA)
+        .get(`/clients?search=${client.id ? 'Agenda' : ''}&pageSize=100`)
+        .expect(200);
+      const row = (
+        list.body as {
+          items: { id: string; lastOrderAt: string | null; nextOrderAt: string | null }[];
+        }
+      ).items.find((item) => item.id === client.id);
+      expect(row?.lastOrderAt?.slice(0, 10)).toBe(pastStart);
+      expect(row?.nextOrderAt).toBe('2027-05-15T18:00:00.000Z');
+    });
+
     it('isolation : B ne voit ni ne modifie les clients de A', async () => {
       const client = await createClient(adminA);
       await api(adminB).get(`/clients/${client.id}`).expect(404);
@@ -439,6 +467,41 @@ describe('API clients, commandes et calendrier (application complète)', () => {
           where: { entityId: order.id, action: 'order.status_changed' },
         }),
       ).toBe(5);
+    });
+
+    it('le livreur ne reçoit que le minimum : ni prix, ni notes, ni coordonnées du client', async () => {
+      const client = await createClient(adminA);
+      let order = await createOrder(
+        adminA,
+        orderBody(client.id, dishA, {
+          status: 'CONFIRMED',
+          eventDate: '2027-04-24',
+          internalNotes: 'Code portail 1234',
+        }),
+      );
+      order = (await transition(adminA, order, 'IN_PREPARATION').expect(200)).body as OrderBody;
+
+      const asDriver = await transition(driverA, order, 'OUT_FOR_DELIVERY').expect(200);
+      expect(Object.keys(asDriver.body as object).sort()).toEqual([
+        'id',
+        'reference',
+        'status',
+        'version',
+      ]);
+      expect(asDriver.body).toMatchObject({ id: order.id, status: 'OUT_FOR_DELIVERY' });
+      expect(JSON.stringify(asDriver.body)).not.toMatch(/Code portail|totalTtc|phone|Casablanca/);
+
+      // L'équipe avec orders.read reçoit toujours la commande complète
+      const delivered = (asDriver.body as { version: number }).version;
+      const asAdmin = await transition(
+        adminA,
+        { ...order, version: delivered },
+        'DELIVERED',
+      ).expect(200);
+      expect(asAdmin.body).toMatchObject({
+        internalNotes: 'Code portail 1234',
+        totalTtc: order.totalTtc,
+      });
     });
 
     it('annulation avec motif : horodatée et motif conservé', async () => {
