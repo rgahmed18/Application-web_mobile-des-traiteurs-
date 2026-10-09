@@ -82,5 +82,9 @@ export const dashboardSchema = z.object({
     totalTtc: z.number().int(),
     orderCount: z.number().int(),
   }),
+  /** « Encaissé ce mois » : encaissements nets (remboursements déduits) du mois. */
+  monthCollected: z.object({ amount: z.number().int(), count: z.number().int() }),
+  /** « Impayés » : montants en retard sur l'échéancier des commandes confirmées. */
+  unpaid: z.object({ amount: z.number().int(), count: z.number().int() }),
 });
 export type Dashboard = z.infer<typeof dashboardSchema>;

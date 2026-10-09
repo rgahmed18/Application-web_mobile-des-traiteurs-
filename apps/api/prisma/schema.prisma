@@ -139,6 +139,7 @@ enum DocumentType {
   QUOTE
   INVOICE
   CREDIT_NOTE
+  RECEIPT
 }
 
 enum PaymentStatus {
@@ -146,6 +147,13 @@ enum PaymentStatus {
   SUCCEEDED
   FAILED
   REFUNDED
+  VOIDED // encaissement saisi par erreur, annulé (le reçu reste numéroté)
+}
+
+// Numérotation des avoirs : séquence propre (AV-…) ou partagée avec les factures
+enum CreditNoteNumbering {
+  SEPARATE
+  SHARED
 }
 
 enum PaymentMethod {
@@ -216,16 +224,30 @@ model Traiteur {
   isVatRegistered   Boolean   @default(true)
   defaultTaxRateBps Int       @default(2000) // 20 %
   priceEntryMode    PriceMode @default(TTC) // mode des nouveaux prix et des nouveaux documents
-  legalName         String?
-  ice               String? // Identifiant Commun de l'Entreprise
-  rcNumber          String? // Registre de commerce
-  taxId             String? // Identifiant fiscal (IF)
-  patenteNumber     String?
-  cnssNumber        String?
-  legalAddress      String?
-  bankName          String?
-  rib               String?
-  invoiceFooter     String?
+
+  // Documents et paiements
+  depositPercentBps         Int                 @default(3000) // acompte : 30 %
+  balanceDueDays            Int                 @default(7) // solde dû à J-7
+  quoteValidityDays         Int                 @default(15)
+  cancellationFeeTaxRateBps Int? // TVA des frais d'annulation facturés (null : taux par défaut)
+  creditNoteNumbering       CreditNoteNumbering @default(SEPARATE)
+  quoteTerms                Json? // conditions du devis { fr, ar }
+  paymentTerms              Json? // conditions de paiement de la facture { fr, ar }
+  logoKey                   String? // logo des documents PDF (stockage privé)
+
+  legalName     String?
+  legalForm     String? // SARL, SARL AU, auto-entrepreneur…
+  shareCapital  Int? // capital social en dirhams
+  rcCourt       String? // tribunal du registre de commerce
+  ice           String? // Identifiant Commun de l'Entreprise
+  rcNumber      String? // Registre de commerce
+  taxId         String? // Identifiant fiscal (IF)
+  patenteNumber String?
+  cnssNumber    String?
+  legalAddress  String?
+  bankName      String?
+  rib           String?
+  invoiceFooter String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -580,36 +602,37 @@ model ExtraService {
 // ─────────────────────────── Commandes ───────────────────────────
 
 model Order {
-  id                 String      @id @default(uuid()) @db.Uuid
-  traiteurId         String      @db.Uuid
-  reference          String // ex. CMD-2026-00001 (DocumentSequence)
-  clientId           String      @db.Uuid // Membership du client
-  eventType          EventType
-  eventDate          DateTime
-  eventEndDate       DateTime?
-  guestCount         Int
-  venueName          String?
-  venueAddress       String
-  city               String
-  latitude           Decimal?    @db.Decimal(9, 6)
-  longitude          Decimal?    @db.Decimal(9, 6)
-  status             OrderStatus @default(PENDING)
+  id                    String      @id @default(uuid()) @db.Uuid
+  traiteurId            String      @db.Uuid
+  reference             String // ex. CMD-2026-00001 (DocumentSequence)
+  clientId              String      @db.Uuid // Membership du client
+  eventType             EventType
+  eventDate             DateTime
+  eventEndDate          DateTime?
+  guestCount            Int
+  venueName             String?
+  venueAddress          String
+  city                  String
+  latitude              Decimal?    @db.Decimal(9, 6)
+  longitude             Decimal?    @db.Decimal(9, 6)
+  status                OrderStatus @default(PENDING)
   // Verrouillage optimiste : incrémenté à chaque écriture (commande, lignes, statut)
-  version            Int         @default(1)
-  priceMode          PriceMode // figé à la création (trigger), recopié sur les lignes
-  notes              String?
-  internalNotes      String?
+  version               Int         @default(1)
+  priceMode             PriceMode // figé à la création (trigger), recopié sur les lignes
+  notes                 String?
+  internalNotes         String?
   // Totaux en centimes = somme des lignes (vérifié en fin de transaction)
-  totalHt            Int         @default(0)
-  totalTax           Int         @default(0)
-  totalTtc           Int         @default(0)
-  depositAmount      Int         @default(0) // acompte demandé (TTC)
-  currency           String      @default("MAD") @db.Char(3)
-  confirmedAt        DateTime?
-  cancelledAt        DateTime?
-  cancellationReason String?
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  totalHt               Int         @default(0)
+  totalTax              Int         @default(0)
+  totalTtc              Int         @default(0)
+  depositAmount         Int         @default(0) // acompte demandé (TTC), figé à la confirmation
+  cancellationFeeAmount Int         @default(0) // payé conservé à l'annulation (frais d'annulation)
+  currency              String      @default("MAD") @db.Char(3)
+  confirmedAt           DateTime?
+  cancelledAt           DateTime?
+  cancellationReason    String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 
   traiteur         Traiteur            @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   client           Membership          @relation("OrderClient", fields: [clientId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
@@ -826,28 +849,39 @@ model InvoiceLine {
 }
 
 model Payment {
-  id           String        @id @default(uuid()) @db.Uuid
-  traiteurId   String        @db.Uuid
-  orderId      String        @db.Uuid
-  amount       Int // centimes TTC
-  currency     String        @default("MAD") @db.Char(3)
-  type         PaymentType
-  method       PaymentMethod
-  status       PaymentStatus @default(PENDING)
-  provider     String? // ex. "cmi" (paiement en ligne, plus tard)
-  providerRef  String?
-  paidAt       DateTime?
-  recordedById String?       @db.Uuid // Membership de l'employé qui a saisi le paiement
-  notes        String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id               String        @id @default(uuid()) @db.Uuid
+  traiteurId       String        @db.Uuid
+  orderId          String        @db.Uuid
+  amount           Int // centimes TTC
+  currency         String        @default("MAD") @db.Char(3)
+  type             PaymentType
+  method           PaymentMethod
+  status           PaymentStatus @default(PENDING)
+  provider         String? // ex. "cmi" (paiement en ligne, plus tard)
+  providerRef      String?
+  reference        String? // n° de chèque, référence du virement, transaction TPE
+  paidAt           DateTime?
+  // Reçu numéroté (REC-2026-00001), PDF figé à l'enregistrement
+  receiptNumber    String?
+  receiptYear      Int?
+  receiptSequence  Int?
+  receiptPdfKey    String?
+  receiptPdfSha256 String?
+  voidedAt         DateTime?
+  voidReason       String?
+  recordedById     String?       @db.Uuid // Membership de l'employé qui a saisi le paiement
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   traiteur   Traiteur    @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   order      Order       @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
   recordedBy Membership? @relation("PaymentRecordedBy", fields: [recordedById, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
+  @@unique([traiteurId, receiptNumber])
   @@index([traiteurId, orderId])
   @@index([traiteurId, status])
+  @@index([traiteurId, paidAt])
 }
 
 model StaffAssignment {

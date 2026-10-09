@@ -19,6 +19,7 @@ import { useState } from 'react';
 
 import { EmptyState, PaginationBar } from '@/components/layout/list-states';
 import { PageHeader } from '@/components/layout/page-header';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
@@ -47,6 +48,7 @@ type Period = (typeof PERIODS)[number];
 
 /** Statuts proposés dans le filtre ; « actives » = tout sauf annulées et clôturées. */
 type StatusFilter = OrderStatus | typeof ALL | 'TO_CLOSE';
+type PaymentFilter = 'unpaid' | 'overdue' | typeof ALL;
 
 function periodRange(
   period: Period,
@@ -100,6 +102,11 @@ export function OrderList() {
         : 'all',
   );
   const [eventType, setEventType] = useState<EventType | typeof ALL>(ALL);
+  // Paiement : ?payment=overdue depuis la carte « Impayés » du tableau de bord
+  const initialPayment = params.get('payment');
+  const [payment, setPayment] = useState<PaymentFilter>(
+    initialPayment === 'unpaid' || initialPayment === 'overdue' ? initialPayment : ALL,
+  );
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [search, setSearch] = useState('');
@@ -112,13 +119,18 @@ export function OrderList() {
     ...periodRange(period, today, from, to),
     ...statusQuery,
     eventType: eventType === ALL ? undefined : eventType,
+    payment: payment === ALL ? undefined : payment,
     search: debouncedSearch || undefined,
     page,
     pageSize: PAGE_SIZE,
   });
   const items = orders.data?.items ?? [];
   const filtered =
-    status !== ALL || eventType !== ALL || period !== 'upcoming' || debouncedSearch !== '';
+    status !== ALL ||
+    eventType !== ALL ||
+    payment !== ALL ||
+    period !== 'upcoming' ||
+    debouncedSearch !== '';
 
   const reset =
     <T,>(setter: (value: T) => void) =>
@@ -145,7 +157,7 @@ export function OrderList() {
         }
       />
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))]">
         <InputGroup>
           <InputGroupAddon>
             <SearchIcon aria-hidden />
@@ -200,6 +212,19 @@ export function OrderList() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={payment}
+          onValueChange={(value) => reset(setPayment)(value as PaymentFilter)}
+        >
+          <SelectTrigger className="w-full" aria-label={t('filters.payment')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t('filters.allPayments')}</SelectItem>
+            <SelectItem value="unpaid">{t('filters.unpaid')}</SelectItem>
+            <SelectItem value="overdue">{t('filters.overdue')}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {period === 'custom' && (
@@ -232,6 +257,7 @@ export function OrderList() {
           onClick={() => {
             setStatus(ALL);
             setEventType(ALL);
+            setPayment(ALL);
             setPeriod('upcoming');
             setSearch('');
             setPage(1);
@@ -286,8 +312,20 @@ export function OrderList() {
                   </span>
                   <span className="block text-muted-foreground">{order.city}</span>
                 </span>
-                <span className="font-medium tabular-nums sm:text-end" dir="ltr">
-                  {formatMoney(order.totalTtc, locale)}
+                <span className="flex flex-col sm:items-end">
+                  <span className="font-medium tabular-nums" dir="ltr">
+                    {formatMoney(order.totalTtc, locale)}
+                  </span>
+                  {order.status !== 'CANCELLED' && order.totalTtc > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {t('paidOf', { paid: formatMoney(order.paid, locale) })}
+                    </span>
+                  )}
+                  {order.overdueAmount > 0 && (
+                    <Badge variant="destructive" className="mt-0.5" data-testid="overdue-badge">
+                      {t('filters.overdue')}
+                    </Badge>
+                  )}
                 </span>
                 <OrderStatusBadge
                   status={order.status}

@@ -143,8 +143,10 @@ http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` 
 - **Français / arabe** (bouton en haut de l'écran) : toute l'interface passe en arabe et en
   miroir (RTL). Chiffres occidentaux, montants au format marocain (`1.250,00 MAD` /
   `1.250,00 د.م.`), dates `JJ/MM/AAAA` dans le fuseau du traiteur.
-- **Menu** filtré selon les permissions de `/auth/me` ; Personnel et Paramètres affichent
-  « Bientôt disponible ».
+- **Menu** filtré selon les permissions de `/auth/me` ; Personnel affiche « Bientôt disponible ».
+- **Paramètres › Documents et paiements** (`settings.manage`) : acompte, solde à J-N, validité
+  des devis, conditions FR/AR, TVA des frais d'annulation, numérotation des avoirs, mentions
+  légales (ICE, IF, RC, patente, CNSS, capital, RIB) et logo des documents.
 - **Tableau de bord** : commandes du jour, à venir sur 7 jours, en attente de confirmation,
   à clôturer (événement passé, commande non clôturée) et « CA des événements du mois »
   (commandes fermes dont l'événement tombe dans le mois, TTC). Chaque carte ouvre la liste filtrée.
@@ -182,6 +184,41 @@ routes Next (`apps/web/src/app/api/session`) qui relaient l'API. Le jeton d'acc�
 automatiquement une minute avant son expiration. Les routes de session vérifient l'origine de la
 requête et transmettent l'IP du navigateur uniquement si elle provient d'un proxy de confiance
 (`WEB_TRUSTED_PROXY_HOPS`, voir [IP réelle des clients](#ip-réelle-des-clients)).
+
+### Paiements
+
+- **Échéancier** (`packages/shared/src/payments/payment-schedule.ts`, testé) : acompte = total TTC
+  × pourcentage du traiteur (30 % par défaut), **arrondi au dirham**, figé à la confirmation et
+  ajustable ; dû à la confirmation. Solde dû N jours avant l'événement (J-7 par défaut). Si
+  l'événement est trop proche, une seule échéance : la totalité. Les paiements couvrent l'acompte
+  puis le solde ; une échéance passée non couverte est **en retard** (fuseau du traiteur).
+- **Encaissements manuels** (espèces, virement, chèque, carte sur TPE), avec référence et date
+  (jamais future). Chaque encaissement reçoit un **reçu numéroté** (`REC-2026-00001`, séquence
+  continue par traiteur et par année) dont le PDF est figé et stocké.
+- **Garanties de la base** : payé net (encaissements − remboursements) toujours compris entre 0
+  et le total TTC, vérifié en fin de transaction ; un encaissement ne se modifie ni ne se
+  supprime : une erreur s'annule (motif obligatoire), le reçu est alors marqué « ANNULÉ ».
+- Le total d'une commande ne peut pas descendre sous le montant déjà payé.
+- **Annulation d'une commande payée** : le traiteur choisit le montant remboursé ; le reste est
+  enregistré comme **frais d'annulation**.
+- Tableau de bord : « Encaissé ce mois » et « Impayés » ; liste des commandes filtrable
+  (reste à payer, en retard).
+- Paiement en ligne (CMI) : prévu (champs `provider` / `providerRef`), pas encore implémenté.
+
+### Documents PDF
+
+- Générés avec **Typst** (`@myriaddreamin/typst-ts-node-compiler`) à partir d'un gabarit unique
+  (`apps/api/assets/templates/document.typ`) : mise en forme arabe complète (liaison des lettres,
+  droite-à-gauche), chiffres occidentaux, rendu **déterministe** (mêmes données → même PDF, octet
+  pour octet). Langue du document : celle du client (français ou arabe).
+- **Polices embarquées** : IBM Plex Sans Arabic (`apps/api/assets/fonts`), sous licence
+  **SIL Open Font License 1.1** (texte complet : `apps/api/assets/fonts/OFL-IBM-Plex.txt`).
+  Aucune police propriétaire n'est utilisée.
+- **Stockage** : préfixe privé `private/` du stockage S3 (jamais public), téléchargement par URL
+  signée valable 5 minutes. Les documents émis (reçus, et plus tard devis envoyés et factures)
+  sont figés : empreinte SHA-256 et version du gabarit enregistrées, jamais régénérés.
+- **Montants en lettres** (`packages/shared/src/money/amount-words.ts`), en français et en arabe,
+  testés sur les cas difficiles (0,50 ; 1 ; 2 ; 11 ; 21 ; 71 ; 80 ; 100 ; 1 000 ; 1 000 000…).
 
 ### Cycle de vie d'une commande
 
@@ -287,6 +324,9 @@ Organisation de l'API (`apps/api/src`) : un module par domaine.
 | `catalog/`   | Catégories, plats, formules, services, photos (`/api/v1/catalog`)     |
 | `clients/`   | Clients du traiteur, adresses (`/api/v1/clients`)                     |
 | `orders/`    | Commandes, disponibilité, calendrier, tableau de bord                 |
+| `payments/`  | Encaissements, remboursements, reçus, échéancier                      |
+| `pdf/`       | Génération des documents PDF (Typst), libellés FR/AR                  |
+| `settings/`  | Paramètres du traiteur (documents et paiements)                       |
 | `auth/`      | Inscription, connexion, OTP SMS, JWT, refresh tokens                  |
 | `access/`    | Permissions, feature flags et les 5 guards globaux                    |
 | `sequences/` | Numérotation continue des documents                                   |

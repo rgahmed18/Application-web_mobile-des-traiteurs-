@@ -9,6 +9,7 @@ import {
   type OrderStatus,
 } from '../enums';
 import { MAX_TAX_RATE_BPS, PRICE_MODES } from '../money/money';
+import { cancellationRefundSchema } from '../payments/payment.schemas';
 import { localDateSchema, localTimeSchema } from '../time/zoned';
 
 // ─────────────────────────── Saisies ───────────────────────────
@@ -144,6 +145,11 @@ export const orderTransitionSchema = z.object({
   reason: optionalText(500).default(null),
   version: z.number().int().min(1),
   forceAvailability: z.boolean().default(false),
+  /**
+   * Annulation d'une commande payée : montant remboursé (le reste est conservé comme frais
+   * d'annulation). Obligatoire dès qu'un paiement a été encaissé.
+   */
+  refund: cancellationRefundSchema.nullable().default(null),
 });
 export type OrderTransitionInput = z.infer<typeof orderTransitionSchema>;
 
@@ -178,6 +184,8 @@ export const orderListQuerySchema = z.object({
     .enum(['true', 'false'])
     .transform((value) => value === 'true')
     .optional(),
+  /** Paiement : reste à payer (commandes fermes) ou en retard sur l'échéancier. */
+  payment: z.enum(['unpaid', 'overdue']).optional(),
   sort: z.enum(ORDER_SORTS).default('eventDate'),
   direction: z.enum(['asc', 'desc']).default('asc'),
   page: z.coerce.number().int().min(1).default(1),
@@ -243,6 +251,10 @@ export const orderSummarySchema = z.object({
   city: z.string(),
   priceMode: priceModeSchema,
   totalTtc: z.number().int(),
+  /** Payé net, reste à payer et montant en retard (échéancier). */
+  paid: z.number().int(),
+  remaining: z.number().int(),
+  overdueAmount: z.number().int(),
   createdAt: z.iso.datetime(),
 });
 export type OrderSummary = z.infer<typeof orderSummarySchema>;

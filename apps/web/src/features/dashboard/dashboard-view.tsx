@@ -1,7 +1,9 @@
 'use client';
 
 import {
+  BanknoteIcon,
   CalendarCheckIcon,
+  CircleAlertIcon,
   CalendarClockIcon,
   ClipboardCheckIcon,
   HourglassIcon,
@@ -19,7 +21,14 @@ import { OrderStatusBadge } from '@/features/orders/order-ui';
 import { useDashboard } from '@/features/orders/orders-api';
 import { formatMoney } from '@/lib/format/money';
 
-type CardKey = 'todayEvents' | 'upcomingEvents' | 'awaiting' | 'toClose' | 'monthRevenue';
+type CardKey =
+  | 'todayEvents'
+  | 'upcomingEvents'
+  | 'awaiting'
+  | 'toClose'
+  | 'monthRevenue'
+  | 'monthCollected'
+  | 'unpaid';
 
 interface DashboardCard {
   key: CardKey;
@@ -60,7 +69,9 @@ function StatCard({ card }: { card: DashboardCard }) {
           ) : (
             <span
               className={
-                card.key === 'monthRevenue'
+                card.key === 'monthRevenue' ||
+                card.key === 'monthCollected' ||
+                card.key === 'unpaid'
                   ? 'text-2xl font-semibold tabular-nums [overflow-wrap:anywhere]'
                   : 'text-3xl font-semibold tabular-nums'
               }
@@ -125,6 +136,21 @@ export function DashboardView() {
       value: data ? formatMoney(data.monthRevenue.totalTtc, locale) : null,
       hint: t('hints.monthRevenue', { count: data?.monthRevenue.orderCount ?? 0 }),
     },
+    {
+      key: 'monthCollected',
+      icon: BanknoteIcon,
+      href: '/admin/orders?period=all&payment=unpaid',
+      value: data ? formatMoney(data.monthCollected.amount, locale) : null,
+      hint: t('hints.monthCollected', { count: data?.monthCollected.count ?? 0 }),
+    },
+    {
+      key: 'unpaid',
+      icon: CircleAlertIcon,
+      href: '/admin/orders?period=all&payment=overdue',
+      value: data ? formatMoney(data.unpaid.amount, locale) : null,
+      hint: t('hints.unpaid', { count: data?.unpaid.count ?? 0 }),
+      attention: (data?.unpaid.count ?? 0) > 0,
+    },
   ];
 
   return (
@@ -135,7 +161,7 @@ export function DashboardView() {
       />
       {canRead && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {cards.map((card) => (
               <StatCard key={card.key} card={card} />
             ))}

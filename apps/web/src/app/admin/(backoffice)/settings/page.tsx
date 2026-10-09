@@ -1,5 +1,10 @@
-import { ComingSoon } from '@/components/layout/coming-soon';
+import { RequirePermission } from '@/features/auth/auth-gates';
+import { SettingsView } from '@/features/settings/billing-settings-form';
 
-export default function Page() {
-  return <ComingSoon permission="settings.manage" />;
+export default function SettingsPage() {
+  return (
+    <RequirePermission permission="settings.manage">
+      <SettingsView />
+    </RequirePermission>
+  );
 }

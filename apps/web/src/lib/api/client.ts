@@ -63,11 +63,13 @@ export async function apiRequest<TSchema extends z.ZodType>(
   { method = 'GET', body, query, schema, signal, accessToken }: ApiRequestOptions<TSchema>,
 ): Promise<z.infer<TSchema>> {
   const url = buildUrl(path, query);
+  // Fichier envoyé tel quel (multipart) ; sinon corps JSON
+  const isForm = body instanceof FormData;
   const init: RequestInit = {
     method,
     signal,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: body === undefined || isForm ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   };
 
   let token = accessToken ?? (await authHooks?.getAccessToken()) ?? null;
@@ -110,4 +112,15 @@ export async function sessionRequest<TSchema extends z.ZodType>(
   }
   if (!response.ok) throw await toApiError(response);
   return schema.parse(response.status === 204 ? undefined : await response.json());
+}
+
+/** Envoi d'un fichier (multipart, champ « file ») vers l'API, avec la même gestion de session. */
+export function uploadFile<TSchema extends z.ZodType>(
+  path: string,
+  file: File,
+  schema: TSchema,
+): Promise<z.infer<TSchema>> {
+  const form = new FormData();
+  form.append('file', file);
+  return apiRequest(path, { method: 'POST', body: form, schema });
 }

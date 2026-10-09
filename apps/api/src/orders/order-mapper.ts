@@ -63,7 +63,18 @@ export function toOrderLine(item: ItemRow): OrderLine {
   };
 }
 
-export function toOrderSummary(row: OrderSummaryRow, timeZone: string): OrderSummary {
+/** Payé net, reste à payer et retard (échéancier calculé par le module paiements). */
+export interface PaymentFigures {
+  paid: number;
+  remaining: number;
+  overdueAmount: number;
+}
+
+export function toOrderSummary(
+  row: OrderSummaryRow,
+  timeZone: string,
+  payment: PaymentFigures,
+): OrderSummary {
   return {
     id: row.id,
     reference: row.reference,
@@ -82,13 +93,14 @@ export function toOrderSummary(row: OrderSummaryRow, timeZone: string): OrderSum
     city: row.city,
     priceMode: row.priceMode,
     totalTtc: row.totalTtc,
+    ...payment,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
-export function toOrder(row: OrderRow, timeZone: string): Order {
+export function toOrder(row: OrderRow, timeZone: string, payment: PaymentFigures): Order {
   return {
-    ...toOrderSummary(row, timeZone),
+    ...toOrderSummary(row, timeZone, payment),
     version: row.version,
     eventEnd: row.eventEndDate?.toISOString() ?? null,
     venueAddress: row.venueAddress,

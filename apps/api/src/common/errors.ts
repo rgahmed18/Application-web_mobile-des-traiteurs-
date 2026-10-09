@@ -48,7 +48,15 @@ export type AppErrorCode =
   | 'LINES_REQUIRED'
   | 'INVALID_TAX_RATE'
   | 'INVALID_PERIOD'
-  | 'VALIDATION_ERROR';
+  | 'VALIDATION_ERROR'
+  | 'REFUND_REQUIRED'
+  | 'REFUND_EXCEEDS_PAID'
+  | 'PAYMENT_EXCEEDS_TOTAL'
+  | 'TOTAL_BELOW_PAID'
+  | 'PAYMENT_DATE_INVALID'
+  | 'PAYMENT_NOT_ALLOWED'
+  | 'PAYMENT_VOIDED'
+  | 'LOGO_INVALID';
 
 export interface AppErrorBody {
   code: AppErrorCode;

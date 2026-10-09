@@ -26,6 +26,12 @@ import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  COUNTED_PAYMENT,
+  orderSchedule,
+  paymentTotals,
+  type ScheduleSettings,
+} from '../payments/payment-state';
 import { orderSummaryInclude, toCalendarOrder } from './order-mapper';
 
 const MAX_CALENDAR_DAYS = 93;
@@ -172,13 +178,77 @@ export class CalendarService {
     });
   }
 
+  /** Encaissé du mois : encaissements nets (remboursements déduits), hors encaissements annulés. */
+  private async monthCollected(
+    traiteurId: string,
+    start: Date,
+    end: Date,
+  ): Promise<{ amount: number; count: number }> {
+    const rows = await this.prisma.payment.groupBy({
+      by: ['type'],
+      where: { traiteurId, ...COUNTED_PAYMENT, paidAt: { gte: start, lt: end } },
+      _sum: { amount: true },
+      _count: { _all: true },
+    });
+    let amount = 0;
+    let count = 0;
+    for (const row of rows) {
+      if (row.type === 'REFUND') amount -= row._sum.amount ?? 0;
+      else {
+        amount += row._sum.amount ?? 0;
+        count += row._count._all;
+      }
+    }
+    return { amount, count };
+  }
+
+  /** Impayés : montants en retard sur l'échéancier des commandes fermes. */
+  private async unpaid(
+    traiteurId: string,
+    settings: ScheduleSettings,
+    now: Date,
+  ): Promise<{ amount: number; count: number }> {
+    const orders = await this.prisma.order.findMany({
+      where: { traiteurId, status: { in: [...FIRM_ORDER_STATUSES] } },
+      select: {
+        id: true,
+        status: true,
+        totalTtc: true,
+        depositAmount: true,
+        confirmedAt: true,
+        eventDate: true,
+      },
+    });
+    const totals = await paymentTotals(
+      this.prisma,
+      traiteurId,
+      orders.map((order) => order.id),
+    );
+    let amount = 0;
+    let count = 0;
+    for (const order of orders) {
+      const overdue = orderSchedule(
+        order,
+        settings,
+        totals.get(order.id)?.net ?? 0,
+        now,
+      ).overdueAmount;
+      if (overdue > 0) {
+        amount += overdue;
+        count += 1;
+      }
+    }
+    return { amount, count };
+  }
+
   /** Cartes du tableau de bord, calculées dans le fuseau du traiteur. */
   async dashboard(user: AuthenticatedUser, now: Date = new Date()): Promise<Dashboard> {
     const traiteurId = requireTraiteurId(user);
-    const { timezone: timeZone } = await this.prisma.traiteur.findUniqueOrThrow({
+    const settings = await this.prisma.traiteur.findUniqueOrThrow({
       where: { id: traiteurId },
-      select: { timezone: true },
+      select: { timezone: true, depositPercentBps: true, balanceDueDays: true },
     });
+    const timeZone = settings.timezone;
     const today = todayInTimeZone(timeZone, now);
     const todayRange = zonedDayRange(today, timeZone);
     const weekEnd = zonedDayRange(addDays(today, 7), timeZone).end;
@@ -220,9 +290,16 @@ export class CalendarService {
       }),
     ]);
 
+    const [collected, unpaid] = await Promise.all([
+      this.monthCollected(traiteurId, monthStart, monthEnd),
+      this.unpaid(traiteurId, settings, now),
+    ]);
+
     return {
       today,
       todayOrders: todayRows.map((row) => toCalendarOrder(row, timeZone)),
+      monthCollected: collected,
+      unpaid,
       next7DaysCount,
       awaitingCount,
       toCloseCount,

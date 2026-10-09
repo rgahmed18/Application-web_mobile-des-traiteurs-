@@ -17,6 +17,9 @@ import { DocumentsModule } from './documents/documents.module';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
+import { PdfModule } from './pdf/pdf.module';
+import { SettingsModule } from './settings/settings.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './queue/queue.module';
 import { RedisThrottlerStorage } from './redis/redis-throttler.storage';
@@ -45,8 +48,11 @@ import { StorageModule } from './storage/storage.module';
     StorageModule,
     AuthModule,
     CatalogModule,
+    PdfModule,
     ClientsModule,
     OrdersModule,
+    PaymentsModule,
+    SettingsModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -3,12 +3,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import {
   type Availability,
+  type CancellationRefund,
   availableTransitions,
   formatTaxRate,
   type Order,
   type OrderHistoryEntry,
   type OrderStatus,
   PERMISSION_KEYS,
+  todayInTimeZone,
 } from '@traiteur/shared';
 import {
   ArrowLeftIcon,
@@ -34,6 +36,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePermission } from '@/features/auth/session-provider';
 import { clientName } from '@/features/clients/clients-api';
+import { CancelOrderDialog } from '@/features/payments/cancel-order-dialog';
+import { useOrderPayments } from '@/features/payments/payments-api';
+import { PaymentsCard } from '@/features/payments/payments-card';
 import { useTimeZone } from '@/features/traiteur/use-time-zone';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatDate, formatDateTime, formatLocalDate } from '@/lib/format/date';
@@ -194,7 +199,21 @@ function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) 
   const permissions = new Set(PERMISSION_KEYS.filter((key) => can(key)));
   const targets = availableTransitions(order.status, permissions).map((rule) => rule.to);
 
-  const run = (to: OrderStatus, options: { reason?: string; forceAvailability?: boolean } = {}) => {
+  // Payé net : à l'annulation d'une commande payée, le traiteur choisit le remboursement
+  const payments = useOrderPayments(
+    order.id,
+    can('payments.read') && targets.includes('CANCELLED'),
+  );
+  const paid = payments.data?.schedule.paid ?? 0;
+
+  const run = (
+    to: OrderStatus,
+    options: {
+      reason?: string;
+      forceAvailability?: boolean;
+      refund?: CancellationRefund | null;
+    } = {},
+  ) => {
     transition.mutate(
       {
         id: order.id,
@@ -203,6 +222,7 @@ function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) 
           version: order.version,
           reason: options.reason ?? null,
           forceAvailability: options.forceAvailability ?? false,
+          refund: options.refund ?? null,
         },
       },
       {
@@ -257,25 +277,27 @@ function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) 
       </div>
 
       <ReasonDialog
-        key={reasonFor ?? 'none'}
-        open={reasonFor !== null}
-        title={
-          reasonFor === 'CANCELLED'
-            ? t('cancel.title', { reference: order.reference })
-            : t('unconfirm.title')
-        }
-        description={
-          reasonFor === 'CANCELLED' ? t('cancel.description') : t('unconfirm.description')
-        }
-        warning={reasonFor === 'CANCELLED' ? t('cancel.refundWarning') : undefined}
-        label={reasonFor === 'CANCELLED' ? t('cancel.reason') : t('unconfirm.reason')}
-        placeholder={reasonFor === 'CANCELLED' ? t('cancel.placeholder') : undefined}
-        confirmLabel={reasonFor === 'CANCELLED' ? t('cancel.confirm') : t('unconfirm.confirm')}
-        destructive={reasonFor === 'CANCELLED'}
+        key={reasonFor === 'PENDING' ? 'pending' : 'none'}
+        open={reasonFor === 'PENDING'}
+        title={t('unconfirm.title')}
+        description={t('unconfirm.description')}
+        label={t('unconfirm.reason')}
+        confirmLabel={t('unconfirm.confirm')}
         pending={transition.isPending}
         onCancel={() => setReasonFor(null)}
-        onConfirm={(reason) => reasonFor && run(reasonFor, { reason })}
+        onConfirm={(reason) => run('PENDING', { reason })}
       />
+      {reasonFor === 'CANCELLED' && (
+        <CancelOrderDialog
+          open
+          reference={order.reference}
+          paid={paid}
+          today={todayInTimeZone(timeZone)}
+          pending={transition.isPending}
+          onCancel={() => setReasonFor(null)}
+          onConfirm={(reason, refund) => run('CANCELLED', { reason, refund })}
+        />
+      )}
       <ForceAvailabilityDialog
         availability={force?.availability ?? null}
         onCancel={() => setForce(null)}
@@ -459,11 +481,15 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               title={t('detail.quotes')}
               hint={t('detail.quotesHint')}
             />
-            <ComingSoonCard
-              icon={WalletIcon}
-              title={t('detail.payments')}
-              hint={t('detail.paymentsHint')}
-            />
+            {can('payments.read') ? (
+              <PaymentsCard order={data} timeZone={timeZone} />
+            ) : (
+              <ComingSoonCard
+                icon={WalletIcon}
+                title={t('detail.payments')}
+                hint={t('detail.paymentsHint')}
+              />
+            )}
             <ComingSoonCard
               icon={UserRoundCogIcon}
               title={t('detail.staff')}

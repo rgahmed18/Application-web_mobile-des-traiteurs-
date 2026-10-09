@@ -1,15 +1,16 @@
 import { z } from 'zod';
 
-export const DOCUMENT_TYPES = ['ORDER', 'QUOTE', 'INVOICE', 'CREDIT_NOTE'] as const;
+export const DOCUMENT_TYPES = ['ORDER', 'QUOTE', 'INVOICE', 'CREDIT_NOTE', 'RECEIPT'] as const;
 export const documentTypeSchema = z.enum(DOCUMENT_TYPES);
 export type DocumentType = z.infer<typeof documentTypeSchema>;
 
-/** Préfixes des références : CMD-2026-00001, DEV-…, FAC-…, AV-… */
+/** Préfixes des références : CMD-2026-00001, DEV-…, FAC-…, AV-…, REC-… (reçus de paiement) */
 export const DOCUMENT_PREFIXES: Readonly<Record<DocumentType, string>> = {
   ORDER: 'CMD',
   QUOTE: 'DEV',
   INVOICE: 'FAC',
   CREDIT_NOTE: 'AV',
+  RECEIPT: 'REC',
 };
 
 const SEQUENCE_PADDING = 5;

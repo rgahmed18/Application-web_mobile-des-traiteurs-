@@ -12,9 +12,9 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import type { Env } from '../config/env.schema';
-import { createS3Client, ensureMediaBucket, putPublicObject } from './s3-client';
+import { createS3Client, ensureMediaBucket, PRIVATE_PREFIX, putPublicObject } from './s3-client';
 
-export { PUBLIC_PREFIX, UPLOAD_PREFIX } from './s3-client';
+export { PRIVATE_PREFIX, PUBLIC_PREFIX, UPLOAD_PREFIX } from './s3-client';
 
 export interface PresignedUpload {
   url: string;
@@ -115,6 +115,28 @@ export class StorageService implements OnModuleInit {
     return putPublicObject(this.client, this.bucket, key, body, contentType);
   }
 
+  /** Dépôt d'un document privé (préfixe private/, jamais public). */
+  async putPrivate(key: string, body: Buffer, contentType: string): Promise<void> {
+    if (!key.startsWith(PRIVATE_PREFIX)) throw new Error(`Clé privée attendue : ${key}`);
+    await this.client.send(
+      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }),
+    );
+  }
+
+  /** URL de téléchargement signée, valable quelques minutes, avec le nom de fichier proposé. */
+  async signedDownloadUrl(key: string, fileName: string, expiresInSeconds = 300): Promise<string> {
+    const encoded = encodeURIComponent(fileName);
+    return getSignedUrl(
+      this.client,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ResponseContentDisposition: `inline; filename="${fileName.replace(/[^ -~]/g, '_')}"; filename*=UTF-8''${encoded}`,
+      }),
+      { expiresIn: expiresInSeconds, signingDate: new Date(Date.now() + this.clockOffsetMs) },
+    );
+  }
+
   async copy(sourceKey: string, targetKey: string): Promise<void> {
     await this.client.send(
       new CopyObjectCommand({
@@ -155,6 +177,8 @@ export class StorageService implements OnModuleInit {
             'les URL d’envoi sont signées avec l’heure du stockage. Synchronisez l’heure du serveur.',
         );
         this.clockOffsetMs = offset;
+        // Requêtes signées par le SDK (dépôts, copies) : même correction, sans attendre un refus
+        this.client.config.systemClockOffset = offset;
       }
     } catch (error) {
       this.logger.warn(`Stockage injoignable au démarrage : ${String(error)}`);

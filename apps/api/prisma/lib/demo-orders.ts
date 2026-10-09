@@ -7,6 +7,7 @@ import {
   addDays,
   type EventType,
   type OrderStatus,
+  plannedDeposit,
   type PriceMode,
   zonedToUtc,
 } from '@traiteur/shared';
@@ -609,4 +610,138 @@ export async function seedDemoClientsAndOrders(
   console.log(
     `✓ ${DEMO_CLIENTS.length + 1} clients, ${ORDERS.length} commandes de démonstration (sept. à nov. 2026), ${DEMO_BLOCKED_DATES.length} dates bloquées`,
   );
+}
+
+/**
+ * Paiements de démonstration (idempotent) : commandes clôturées soldées, livrées avec un solde
+ * en retard, confirmées avec ou sans acompte, une annulation avec remboursement partiel.
+ */
+export async function seedDemoPayments(
+  prisma: PrismaClient,
+  traiteur: { id: string; timezone: string; depositPercentBps: number },
+  adminMembershipId: string,
+): Promise<void> {
+  const traiteurId = traiteur.id;
+  const orders = await prisma.order.findMany({
+    where: { traiteurId, internalNotes: { startsWith: MARKER } },
+    orderBy: { internalNotes: 'asc' },
+  });
+  if (
+    await prisma.payment.count({
+      where: { traiteurId, orderId: { in: orders.map((order) => order.id) } },
+    })
+  ) {
+    console.log('✓ Paiements de démonstration déjà présents');
+    return;
+  }
+
+  const day = (date: Date, offset: number) => new Date(date.getTime() + offset * 86_400_000);
+  let count = 0;
+  for (const [index, order] of orders.entries()) {
+    const deposit = plannedDeposit(order.totalTtc, traiteur.depositPercentBps);
+    const confirmedAt = order.confirmedAt ?? order.createdAt;
+    const plan: {
+      amount: number;
+      type: 'DEPOSIT' | 'BALANCE' | 'FULL' | 'REFUND';
+      at: Date;
+      method: 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'CARD';
+    }[] = [];
+    if (order.status === 'COMPLETED') {
+      plan.push({
+        amount: deposit,
+        type: 'DEPOSIT',
+        at: day(confirmedAt, 1),
+        method: 'BANK_TRANSFER',
+      });
+      plan.push({
+        amount: order.totalTtc - deposit,
+        type: 'BALANCE',
+        at: day(order.eventDate, -8),
+        method: 'CHEQUE',
+      });
+    } else if (order.status === 'DELIVERED' || order.status === 'IN_PREPARATION') {
+      // Acompte payé, solde toujours dû : en retard
+      plan.push({ amount: deposit, type: 'DEPOSIT', at: day(confirmedAt, 1), method: 'CASH' });
+    } else if (order.status === 'CONFIRMED' && index % 3 !== 0) {
+      plan.push({
+        amount: deposit,
+        type: 'DEPOSIT',
+        at: day(confirmedAt, 1),
+        method: index % 2 ? 'CARD' : 'BANK_TRANSFER',
+      });
+    } else if (
+      order.status === 'CANCELLED' &&
+      order.cancellationReason?.startsWith('Événement reporté')
+    ) {
+      plan.push({
+        amount: deposit,
+        type: 'DEPOSIT',
+        at: day(order.createdAt, 1),
+        method: 'BANK_TRANSFER',
+      });
+    }
+    if (plan.length === 0 && order.status !== 'CANCELLED') {
+      if (order.confirmedAt) {
+        await prisma.order.update({ where: { id: order.id }, data: { depositAmount: deposit } });
+      }
+      continue;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (order.confirmedAt) {
+        await tx.order.update({ where: { id: order.id }, data: { depositAmount: deposit } });
+      }
+      for (const payment of plan) {
+        const paidAt = payment.at > new Date() ? new Date() : payment.at;
+        const number = await nextDocumentNumber(tx, {
+          traiteurId,
+          type: 'RECEIPT',
+          date: paidAt,
+          timeZone: traiteur.timezone,
+        });
+        await tx.payment.create({
+          data: {
+            traiteurId,
+            orderId: order.id,
+            amount: payment.amount,
+            type: payment.type,
+            method: payment.method,
+            status: 'SUCCEEDED',
+            paidAt,
+            recordedById: adminMembershipId,
+            receiptNumber: number.reference,
+            receiptYear: number.year,
+            receiptSequence: number.value,
+            createdAt: paidAt,
+          },
+        });
+        count += 1;
+      }
+      // Annulation après acompte : 70 % remboursés, le reste conservé comme frais d'annulation
+      if (order.status === 'CANCELLED' && plan.length > 0) {
+        const refund = Math.round((deposit * 0.7) / 100) * 100;
+        const at = order.cancelledAt ?? day(order.createdAt, 2);
+        await tx.payment.create({
+          data: {
+            traiteurId,
+            orderId: order.id,
+            amount: refund,
+            type: 'REFUND',
+            method: 'BANK_TRANSFER',
+            status: 'SUCCEEDED',
+            paidAt: at,
+            recordedById: adminMembershipId,
+            notes: 'Remboursement à l’annulation de la commande',
+            createdAt: at,
+          },
+        });
+        await tx.order.update({
+          where: { id: order.id },
+          data: { cancellationFeeAmount: deposit - refund },
+        });
+        count += 1;
+      }
+    });
+  }
+  console.log(`✓ ${count} paiements de démonstration (reçus REC-…, retards, remboursement)`);
 }

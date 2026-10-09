@@ -127,14 +127,18 @@
       "upcomingEvents": "À venir (7 jours)",
       "monthRevenue": "CA des événements du mois",
       "awaiting": "En attente de confirmation",
-      "toClose": "À clôturer"
+      "toClose": "À clôturer",
+      "monthCollected": "Encaissé ce mois",
+      "unpaid": "Impayés"
     },
     "hints": {
       "todayEvents": "Événements prévus aujourd’hui",
       "upcomingEvents": "Hors aujourd’hui",
       "awaiting": "Demandes et devis à traiter",
       "toClose": "Événements passés non clôturés",
-      "monthRevenue": "{count, plural, =0 {Aucune commande confirmée} one {# commande confirmée, TTC} other {# commandes confirmées, TTC}}"
+      "monthRevenue": "{count, plural, =0 {Aucune commande confirmée} one {# commande confirmée, TTC} other {# commandes confirmées, TTC}}",
+      "monthCollected": "{count, plural, =0 {Aucun encaissement} one {# encaissement, remboursements déduits} other {# encaissements, remboursements déduits}}",
+      "unpaid": "{count, plural, =0 {Aucune échéance en retard} one {# commande en retard} other {# commandes en retard}}"
     },
     "todayList": "Aujourd’hui",
     "noEventToday": "Aucun événement aujourd’hui."
@@ -184,7 +188,15 @@
       "ORDER_LOCKED": "Cette modification n’est plus possible pour cette commande.",
       "LINES_REQUIRED": "Ajoutez au moins une prestation.",
       "INVALID_TAX_RATE": "Établissement non assujetti : la TVA doit être à 0 %.",
-      "INVALID_PERIOD": "Période trop longue."
+      "INVALID_PERIOD": "Période trop longue.",
+      "REFUND_REQUIRED": "Commande payée : indiquez le montant remboursé.",
+      "REFUND_EXCEEDS_PAID": "Le remboursement dépasse le montant payé.",
+      "PAYMENT_EXCEEDS_TOTAL": "Le total payé dépasserait le total TTC de la commande.",
+      "TOTAL_BELOW_PAID": "Le total ne peut pas descendre sous le montant déjà payé.",
+      "PAYMENT_DATE_INVALID": "La date ne peut pas être dans le futur.",
+      "PAYMENT_NOT_ALLOWED": "Commande annulée : aucun encaissement possible.",
+      "PAYMENT_VOIDED": "Cet encaissement est déjà annulé.",
+      "LOGO_INVALID": "Image illisible (PNG, JPEG ou WebP attendu)."
     }
   },
   "validation": {
@@ -515,7 +527,11 @@
       "from": "Du",
       "to": "Au",
       "toClose": "À clôturer",
-      "reset": "Effacer les filtres"
+      "reset": "Effacer les filtres",
+      "payment": "Paiement",
+      "allPayments": "Tous les paiements",
+      "unpaid": "Reste à payer",
+      "overdue": "En retard"
     },
     "columns": {
       "reference": "Référence",
@@ -523,7 +539,8 @@
       "event": "Événement",
       "guests": "Invités",
       "total": "Total TTC",
-      "status": "Statut"
+      "status": "Statut",
+      "payment": "Paiement"
     },
     "guests": "{count, plural, one {# invité} other {# invités}}",
     "empty": "Aucune commande",
@@ -730,7 +747,8 @@
       "description": "Cette commande a été modifiée par {name} à {time}. Rechargez-la pour voir la dernière version : vos changements non enregistrés seront perdus.",
       "descriptionUnknown": "Cette commande a été modifiée entre-temps. Rechargez-la pour voir la dernière version.",
       "reload": "Recharger la commande"
-    }
+    },
+    "paidOf": "{paid} payé"
   },
   "calendar": {
     "title": "Calendrier",
@@ -769,5 +787,132 @@
     },
     "dayLoad": "Charge",
     "pendingCount": "{count, plural, one {# en attente} other {# en attente}}"
+  },
+  "payments": {
+    "title": "Paiements",
+    "total": "Total TTC",
+    "paid": "Payé",
+    "remaining": "Reste à payer",
+    "overdue": "En retard",
+    "overdueSince": "{amount} en retard depuis le {date}",
+    "schedule": "Échéancier",
+    "installments": {
+      "DEPOSIT": "Acompte",
+      "BALANCE": "Solde",
+      "FULL": "Totalité"
+    },
+    "dueOn": "avant le {date}",
+    "dueAtConfirmation": "à la confirmation",
+    "installmentPaid": "Réglé",
+    "installmentPartial": "{amount} restant",
+    "list": "Encaissements",
+    "empty": "Aucun encaissement pour le moment.",
+    "types": {
+      "DEPOSIT": "Acompte",
+      "BALANCE": "Solde",
+      "FULL": "Paiement intégral",
+      "REFUND": "Remboursement"
+    },
+    "methods": {
+      "CASH": "Espèces",
+      "BANK_TRANSFER": "Virement",
+      "CHEQUE": "Chèque",
+      "CARD": "Carte (TPE)"
+    },
+    "receipt": "Reçu",
+    "voided": "Annulé",
+    "voidedReason": "Annulé : {reason}",
+    "recordedBy": "par {name}",
+    "record": "Enregistrer un paiement",
+    "refund": "Rembourser",
+    "void": "Annuler cet encaissement",
+    "editDeposit": "Modifier l’acompte",
+    "depositPlanned": "Acompte prévu : {amount}",
+    "depositLocked": "Acompte demandé : {amount}",
+    "refunded": "Remboursé : {amount}",
+    "cancellationFee": "Frais d’annulation conservés : {amount}",
+    "onlineSoon": "Paiement en ligne (CMI) : bientôt disponible",
+    "form": {
+      "recordTitle": "Enregistrer un paiement",
+      "refundTitle": "Enregistrer un remboursement",
+      "amount": "Montant",
+      "amountHint": "Reste à payer : {amount}",
+      "refundHint": "Au plus {amount} (payé net)",
+      "method": "Mode",
+      "reference": "Référence",
+      "referenceHint": "N° de chèque, référence du virement ou de la transaction TPE",
+      "date": "Date",
+      "notes": "Note",
+      "recorded": "Paiement enregistré — reçu {number}",
+      "refundRecorded": "Remboursement enregistré"
+    },
+    "voidDialog": {
+      "title": "Annuler cet encaissement ?",
+      "description": "À utiliser pour une saisie erronée : l’encaissement ne compte plus et son reçu est marqué « annulé ». Il ne peut pas être rétabli.",
+      "reason": "Motif",
+      "confirm": "Annuler l’encaissement",
+      "done": "Encaissement annulé"
+    },
+    "depositDialog": {
+      "title": "Acompte demandé",
+      "description": "Montant TTC attendu à la confirmation. Le solde est recalculé automatiquement.",
+      "amount": "Acompte",
+      "saved": "Acompte enregistré"
+    },
+    "cancellation": {
+      "title": "Remboursement",
+      "paid": "Déjà payé : {amount}",
+      "amount": "Montant remboursé",
+      "fee": "Conservé comme frais d’annulation : {amount}",
+      "method": "Mode de remboursement",
+      "date": "Date du remboursement"
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Documents, paiements et mentions légales de votre établissement.",
+    "billing": {
+      "title": "Documents et paiements",
+      "schedule": "Échéancier",
+      "depositPercent": "Acompte (en %)",
+      "depositPercentHint": "Pourcentage du total TTC, arrondi au dirham. 0 : pas d’acompte.",
+      "balanceDueDays": "Solde dû (jours avant l’événement)",
+      "balanceDueDaysHint": "7 : solde à régler au plus tard 7 jours avant l’événement.",
+      "quoteValidityDays": "Validité des devis (jours)",
+      "quoteTerms": "Conditions imprimées sur les devis",
+      "quoteTermsHint": "Acompte, annulation, modification du nombre d’invités…",
+      "paymentTerms": "Conditions de paiement (factures)",
+      "invoicing": "Facturation",
+      "cancellationFeeTaxRate": "TVA des frais d’annulation",
+      "defaultRate": "Taux par défaut ({rate})",
+      "creditNoteNumbering": "Numérotation des avoirs",
+      "numbering": {
+        "SEPARATE": "Séquence propre (AV-2026-00001)",
+        "SHARED": "Partagée avec les factures"
+      },
+      "numberingHint": "À valider avec votre comptable. Ne changez pas en cours d’année.",
+      "legal": "Mentions légales",
+      "legalName": "Raison sociale",
+      "legalForm": "Forme juridique",
+      "shareCapital": "Capital social (dirhams)",
+      "ice": "ICE",
+      "rcNumber": "N° RC",
+      "rcCourt": "Tribunal du RC",
+      "taxId": "Identifiant fiscal (IF)",
+      "patenteNumber": "Patente",
+      "cnssNumber": "CNSS",
+      "legalAddress": "Adresse du siège",
+      "bankName": "Banque",
+      "rib": "RIB",
+      "invoiceFooter": "Pied de page des documents",
+      "logo": "Logo des documents",
+      "logoHint": "PNG, JPEG ou WebP, 5 Mo au plus. Converti en PNG.",
+      "uploadLogo": "Choisir un logo",
+      "removeLogo": "Retirer le logo",
+      "hasLogo": "Logo en place",
+      "noLogo": "Aucun logo",
+      "logoSaved": "Logo enregistré",
+      "saved": "Paramètres enregistrés"
+    }
   }
 }

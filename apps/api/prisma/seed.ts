@@ -24,7 +24,12 @@ import {
   type LineDraft,
 } from '../src/documents/document-lines';
 import { syncPermissionCatalog } from '../src/access/permission-catalog';
-import { type CatalogRef, type DemoCatalog, seedDemoClientsAndOrders } from './lib/demo-orders';
+import {
+  type CatalogRef,
+  type DemoCatalog,
+  seedDemoClientsAndOrders,
+  seedDemoPayments,
+} from './lib/demo-orders';
 import { generateIllustration, PALETTES } from './lib/illustrations';
 import { connectScriptStorage, storeAndAttachImage } from './lib/media-script';
 import { nextDocumentNumber } from '../src/sequences/document-sequence';
@@ -66,6 +71,17 @@ async function seedTraiteur() {
     defaultTaxRateBps: TAX_RATE,
     priceEntryMode: 'TTC' as const,
     legalName: 'Dar Diafa SARL',
+    legalForm: 'SARL',
+    shareCapital: 100_000,
+    rcCourt: 'Casablanca',
+    quoteTerms: {
+      fr: 'Acompte de 30 % à l’acceptation du devis, solde au plus tard 7 jours avant l’événement. Annulation : acompte remboursé intégralement plus de 30 jours avant l’événement, à moitié plus de 15 jours avant, non remboursé ensuite. Nombre d’invités modifiable jusqu’à 7 jours avant l’événement.',
+      ar: 'تسبيق بنسبة 30 % عند قبول العرض، ويؤدى الباقي على الأكثر 7 أيام قبل المناسبة. الإلغاء: يُسترجع التسبيق كاملًا قبل أكثر من 30 يومًا من المناسبة، ونصفه قبل أكثر من 15 يومًا، ولا يسترجع بعد ذلك. يمكن تعديل عدد الضيوف إلى غاية 7 أيام قبل المناسبة.',
+    },
+    paymentTerms: {
+      fr: 'Paiement par virement, chèque, carte ou espèces. Facture payable à réception.',
+      ar: 'الأداء بالتحويل أو الشيك أو البطاقة أو نقدًا. الفاتورة واجبة الأداء عند التوصل بها.',
+    },
     ice: '001234567000089',
     rcNumber: '123456',
     taxId: '12345678',
@@ -1036,6 +1052,9 @@ async function main(): Promise<void> {
     adminUserId,
     demoCatalog(traiteur.priceEntryMode, dishIds, packageIds),
   );
+  const adminMembershipId = memberships.get('admin');
+  if (!adminMembershipId) throw new Error('Gérant de démonstration manquant');
+  await seedDemoPayments(prisma, traiteur, adminMembershipId);
 }
 
 main()

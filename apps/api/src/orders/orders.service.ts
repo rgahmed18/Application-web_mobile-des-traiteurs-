@@ -14,7 +14,9 @@ import {
   type OrderTransitionInput,
   type OrderTransitionResult,
   type OrderUpdateInput,
+  FIRM_ORDER_STATUSES,
   OPEN_FIRM_ORDER_STATUSES,
+  plannedDeposit,
   todayInTimeZone,
   utcToZoned,
   zonedDayRange,
@@ -33,10 +35,13 @@ import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextDocumentNumber } from '../sequences/document-sequence';
 import { type AvailabilitySettings, dayAvailability, hasConflict, lockDay } from './availability';
+import { paymentSummary, paymentTotals, type ScheduleSettings } from '../payments/payment-state';
 import {
   orderInclude,
   type OrderRow,
   orderSummaryInclude,
+  type OrderSummaryRow,
+  type PaymentFigures,
   toOrder,
   toOrderLine,
   toOrderSummary,
@@ -44,7 +49,7 @@ import {
 
 type Db = Prisma.TransactionClient;
 
-interface OrderSettings extends AvailabilitySettings {
+interface OrderSettings extends AvailabilitySettings, ScheduleSettings {
   priceEntryMode: 'HT' | 'TTC';
   isVatRegistered: boolean;
 }
@@ -136,6 +141,10 @@ export class OrdersService {
     const traiteurId = requireTraiteurId(user);
     const settings = await this.settings(this.prisma, traiteurId);
     const where = this.listWhere(traiteurId, query, settings.timezone);
+    if (query.payment) {
+      const ids = await this.paymentFilterIds(traiteurId, query.payment, settings);
+      where.AND = [...(Array.isArray(where.AND) ? where.AND : []), { id: { in: ids } }];
+    }
     const direction = query.direction;
     const orderBy: Prisma.OrderOrderByWithRelationInput[] =
       query.sort === 'createdAt'
@@ -155,7 +164,9 @@ export class OrdersService {
       }),
     ]);
     return {
-      items: rows.map((row) => toOrderSummary(row, settings.timezone)),
+      items: await this.withPayments(this.prisma, rows, settings, (row, payment) =>
+        toOrderSummary(row, settings.timezone, payment),
+      ),
       total,
       page: query.page,
       pageSize: query.pageSize,
@@ -165,7 +176,7 @@ export class OrdersService {
   async get(user: AuthenticatedUser, id: string): Promise<Order> {
     const traiteurId = requireTraiteurId(user);
     const settings = await this.settings(this.prisma, traiteurId);
-    return toOrder(await this.load(this.prisma, traiteurId, id), settings.timezone);
+    return this.present(this.prisma, await this.load(this.prisma, traiteurId, id), settings);
   }
 
   async availability(
@@ -282,11 +293,18 @@ export class OrdersService {
         },
       });
       if (input.lines.length > 0) {
-        await this.lines.addLines(
+        const { totals } = await this.lines.addLines(
           { kind: 'ORDER', id: order.id, traiteurId },
           input.lines.map(toDraft),
           tx,
         );
+        // Commande confirmée d'emblée : l'acompte est figé sur le total
+        if (input.status === 'CONFIRMED') {
+          await tx.order.update({
+            where: { id_traiteurId: { id: order.id, traiteurId } },
+            data: { depositAmount: plannedDeposit(totals.totalTtc, settings.depositPercentBps) },
+          });
+        }
       }
       await tx.orderStatusChange.create({
         data: {
@@ -318,7 +336,7 @@ export class OrdersService {
         tx,
       );
       if (forced) await this.recordForced(tx, user, order.id, forced, 'création', client);
-      return toOrder(await this.load(tx, traiteurId, order.id), settings.timezone);
+      return this.present(tx, await this.load(tx, traiteurId, order.id), settings);
     });
   }
 
@@ -368,7 +386,7 @@ export class OrdersService {
       mark('free', 'notes', input.notes !== current.notes);
       mark('internalNotes', 'internalNotes', input.internalNotes !== current.internalNotes);
 
-      if (changed.size === 0) return toOrder(current, settings.timezone);
+      if (changed.size === 0) return this.present(tx, current, settings);
 
       const denial = checkOrderEdit(
         current.status,
@@ -452,6 +470,14 @@ export class OrdersService {
         );
       }
       const after = await this.load(tx, traiteurId, id);
+      const paid = (await paymentTotals(tx, traiteurId, [id])).get(id)?.net ?? 0;
+      if (after.totalTtc < paid) {
+        throw appErrors.badRequest(
+          'TOTAL_BELOW_PAID',
+          'Le total de la commande ne peut pas descendre sous le montant déjà payé',
+          { paid, totalTtc: after.totalTtc },
+        );
+      }
       if (forced) changes.push('availabilityForced');
       await this.audit.record(
         {
@@ -486,7 +512,7 @@ export class OrdersService {
         tx,
       );
       if (forced) await this.recordForced(tx, user, id, forced, 'modification', client);
-      return toOrder(after, settings.timezone);
+      return this.present(tx, after, settings);
     });
   }
 
@@ -538,11 +564,26 @@ export class OrdersService {
       const now = new Date();
       const reason = input.reason?.trim() || null;
       const data: Prisma.OrderUpdateInput = { status: input.to };
-      if (input.to === 'CONFIRMED') data.confirmedAt = now;
+      if (input.to === 'CONFIRMED') {
+        data.confirmedAt = now;
+        // Acompte figé à la confirmation (le traiteur peut l'ajuster ensuite)
+        if (current.depositAmount === 0) {
+          data.depositAmount = plannedDeposit(current.totalTtc, settings.depositPercentBps);
+        }
+      }
       if (from === 'CONFIRMED' && input.to === 'PENDING') data.confirmedAt = null;
       if (input.to === 'CANCELLED') {
         data.cancelledAt = now;
         data.cancellationReason = reason;
+        data.cancellationFeeAmount = await this.settleCancellation(
+          tx,
+          user,
+          current,
+          input.refund,
+          permissions,
+          settings,
+          client,
+        );
       }
       await tx.order.update({ where: { id_traiteurId: { id, traiteurId } }, data });
       await tx.orderStatusChange.create({
@@ -582,11 +623,122 @@ export class OrdersService {
           version: updated.version,
         };
       }
-      return toOrder(updated, settings.timezone);
+      return this.present(tx, updated, settings);
     });
   }
 
   // ─────────────────────────── Interne ───────────────────────────
+
+  /**
+   * Annulation d'une commande payée : le traiteur choisit le montant remboursé, le reste du payé
+   * est conservé comme frais d'annulation. Retourne ces frais.
+   */
+  private async settleCancellation(
+    tx: Db,
+    user: AuthenticatedUser,
+    order: OrderRow,
+    refund: OrderTransitionInput['refund'],
+    permissions: ReadonlySet<string>,
+    settings: OrderSettings,
+    client: ClientInfo,
+  ): Promise<number> {
+    const paid = (await paymentTotals(tx, order.traiteurId, [order.id])).get(order.id)?.net ?? 0;
+    if (paid === 0) {
+      if (refund && refund.amount > 0) {
+        throw appErrors.badRequest('REFUND_EXCEEDS_PAID', 'Aucun paiement à rembourser');
+      }
+      return 0;
+    }
+    if (!refund) {
+      throw appErrors.badRequest(
+        'REFUND_REQUIRED',
+        'Commande payée : indiquez le montant remboursé (0 si rien n’est remboursé)',
+        { paid },
+      );
+    }
+    if (refund.amount > paid) {
+      throw appErrors.badRequest(
+        'REFUND_EXCEEDS_PAID',
+        'Le remboursement dépasse le montant payé',
+        {
+          paid,
+        },
+      );
+    }
+    if (refund.amount > 0) {
+      if (!permissions.has('payments.refund')) {
+        throw appErrors.forbidden('MISSING_PERMISSION', 'Permission insuffisante pour rembourser');
+      }
+      if (refund.paidOn > todayInTimeZone(settings.timezone)) {
+        throw appErrors.badRequest(
+          'PAYMENT_DATE_INVALID',
+          'La date ne peut pas être dans le futur',
+        );
+      }
+      const payment = await tx.payment.create({
+        data: {
+          traiteurId: order.traiteurId,
+          orderId: order.id,
+          amount: refund.amount,
+          type: 'REFUND',
+          method: refund.method,
+          status: 'SUCCEEDED',
+          reference: refund.reference,
+          paidAt: zonedToUtc(refund.paidOn, '12:00', settings.timezone),
+          recordedById: user.membershipId,
+          notes: 'Remboursement à l’annulation de la commande',
+        },
+      });
+      await this.audit.record(
+        {
+          traiteurId: order.traiteurId,
+          actor: user,
+          action: 'payment.refunded',
+          entityType: 'Payment',
+          entityId: payment.id,
+          after: {
+            orderId: order.id,
+            amount: refund.amount,
+            method: refund.method,
+            cancellation: true,
+          },
+          client,
+        },
+        tx,
+      );
+    }
+    return paid - refund.amount;
+  }
+
+  /** Commandes fermes impayées ou en retard (filtre de la liste). */
+  private async paymentFilterIds(
+    traiteurId: string,
+    filter: 'unpaid' | 'overdue',
+    settings: OrderSettings,
+  ): Promise<string[]> {
+    const candidates = await this.prisma.order.findMany({
+      where: { traiteurId, status: { in: [...FIRM_ORDER_STATUSES] } },
+      select: {
+        id: true,
+        status: true,
+        totalTtc: true,
+        depositAmount: true,
+        confirmedAt: true,
+        eventDate: true,
+      },
+    });
+    const totals = await paymentTotals(
+      this.prisma,
+      traiteurId,
+      candidates.map((row) => row.id),
+    );
+    return candidates
+      .filter((row) => {
+        const summary = paymentSummary(row, settings, totals.get(row.id));
+        return filter === 'overdue' ? summary.overdueAmount > 0 : summary.remaining > 0;
+      })
+      .map((row) => row.id);
+  }
 
   private listWhere(
     traiteurId: string,
@@ -625,6 +777,30 @@ export class OrdersService {
     };
   }
 
+  /** Commande complète avec son état de paiement. */
+  private async present(db: Db, row: OrderRow, settings: OrderSettings): Promise<Order> {
+    const [order] = await this.withPayments(db, [row], settings, (item, payment) =>
+      toOrder(item, settings.timezone, payment),
+    );
+    if (!order) throw new Error('Commande introuvable');
+    return order;
+  }
+
+  /** Associe à chaque commande son payé net, son reste à payer et son retard. */
+  private async withPayments<TRow extends OrderSummaryRow, TResult>(
+    db: Db,
+    rows: readonly TRow[],
+    settings: OrderSettings,
+    map: (row: TRow, payment: PaymentFigures) => TResult,
+  ): Promise<TResult[]> {
+    const totals = await paymentTotals(
+      db,
+      rows[0]?.traiteurId ?? '',
+      rows.map((row) => row.id),
+    );
+    return rows.map((row) => map(row, paymentSummary(row, settings, totals.get(row.id))));
+  }
+
   private async settings(db: Db, traiteurId: string): Promise<OrderSettings> {
     return db.traiteur.findUniqueOrThrow({
       where: { id: traiteurId },
@@ -633,6 +809,8 @@ export class OrdersService {
         maxEventsPerDay: true,
         priceEntryMode: true,
         isVatRegistered: true,
+        depositPercentBps: true,
+        balanceDueDays: true,
       },
     });
   }

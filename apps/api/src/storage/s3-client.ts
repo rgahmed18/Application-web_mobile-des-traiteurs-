@@ -11,6 +11,8 @@ import {
 export const PUBLIC_PREFIX = 'traiteurs/';
 /** Fichiers bruts envoyés par le navigateur, en attente de traitement. */
 export const UPLOAD_PREFIX = 'tmp/';
+/** Documents (PDF, pièces jointes) : jamais lisibles publiquement, téléchargés par URL signée. */
+export const PRIVATE_PREFIX = 'private/';
 /** Photos traitées : nom unique par version, donc mises en cache sans limite. */
 export const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
 

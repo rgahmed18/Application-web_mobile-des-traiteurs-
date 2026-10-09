@@ -15,3 +15,6 @@ export * from './orders/order-status';
 export * from './orders/order.schemas';
 export * from './orders/round-total';
 export * from './time/zoned';
+export * from './money/amount-words';
+export * from './payments/payment-schedule';
+export * from './payments/payment.schemas';
