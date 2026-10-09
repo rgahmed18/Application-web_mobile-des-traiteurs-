@@ -141,7 +141,11 @@
       "unpaid": "{count, plural, =0 {Aucune échéance en retard} one {# commande en retard} other {# commandes en retard}}"
     },
     "todayList": "Aujourd’hui",
-    "noEventToday": "Aucun événement aujourd’hui."
+    "noEventToday": "Aucun événement aujourd’hui.",
+    "quotesToConfirm": {
+      "title": "{count, plural, one {# devis accepté : date à confirmer} other {# devis acceptés : dates à confirmer}}",
+      "hint": "Le client a donné son accord alors que la date est bloquée ou complète. Ouvrez la commande pour la confirmer (en passant outre) ou l’annuler."
+    }
   },
   "errors": {
     "generic": "Une erreur est survenue. Réessayez dans un instant.",
@@ -196,7 +200,13 @@
       "PAYMENT_DATE_INVALID": "La date ne peut pas être dans le futur.",
       "PAYMENT_NOT_ALLOWED": "Commande annulée : aucun encaissement possible.",
       "PAYMENT_VOIDED": "Cet encaissement est déjà annulé.",
-      "LOGO_INVALID": "Image illisible (PNG, JPEG ou WebP attendu)."
+      "LOGO_INVALID": "Image illisible (PNG, JPEG ou WebP attendu).",
+      "QUOTE_NOT_DRAFT": "Ce devis a déjà été envoyé : préparez une nouvelle version.",
+      "QUOTE_NOT_OPEN": "Ce devis n’est plus en cours.",
+      "QUOTE_EXPIRED": "Ce devis a expiré.",
+      "QUOTE_ORDER_STATE": "Le devis n’est pas possible dans l’état actuel de la commande (brouillon, clôturée ou annulée).",
+      "QUOTE_VALIDITY_INVALID": "La date de validité est déjà dépassée.",
+      "ATTACHMENT_INVALID": "Pièce jointe invalide (PDF, JPEG, PNG ou WebP, 10 Mo au plus)."
     }
   },
   "validation": {
@@ -913,6 +923,174 @@
       "noLogo": "Aucun logo",
       "logoSaved": "Logo enregistré",
       "saved": "Paramètres enregistrés"
+    }
+  },
+  "quotes": {
+    "title": "Devis",
+    "empty": "Aucun devis pour cette commande. Préparez-en un à partir des lignes de la commande.",
+    "emptyNoLines": "Ajoutez des lignes à la commande pour préparer un devis.",
+    "notInPlan": "Les devis ne sont pas inclus dans votre offre.",
+    "status": {
+      "DRAFT": "Brouillon",
+      "SENT": "Envoyé",
+      "ACCEPTED": "Accepté",
+      "REJECTED": "Refusé",
+      "EXPIRED": "Expiré",
+      "SUPERSEDED": "Remplacé"
+    },
+    "locales": {
+      "fr": "Français",
+      "ar": "Arabe"
+    },
+    "sentOn": "Envoyé le {date}",
+    "notSent": "Non envoyé",
+    "validUntil": "valable jusqu’au {date}",
+    "linkViews": "{count, plural, =0 {lien pas encore ouvert} one {lien ouvert # fois} other {lien ouvert # fois}}",
+    "linkInactive": "lien désactivé",
+    "linkRevoked": "Lien désactivé : le client ne peut plus ouvrir ce devis.",
+    "rejected": "Refusé par le client",
+    "rejectedReason": "Refusé par le client : {reason}",
+    "superseded": {
+      "NEW_VERSION": "Remplacé par une version plus récente.",
+      "ORDER_CHANGED": "Remplacé : les lignes de la commande ont changé."
+    },
+    "acceptance": {
+      "online": "Accepté en ligne par {name} le {date}",
+      "manual": "Accord de {name} ({mode}) le {date}, enregistré par {by}"
+    },
+    "banners": {
+      "orderChanged": "Les lignes de la commande ont changé depuis l’envoi ou l’acceptation du devis : un nouveau devis est nécessaire.",
+      "datePending": "{name} a accepté le devis, mais la date est bloquée ou complète : confirmez la commande (ou annulez-la) pour lui répondre."
+    },
+    "prepared": {
+      "created": "Brouillon v{version} préparé",
+      "updated": "Brouillon v{version} mis à jour avec les lignes de la commande"
+    },
+    "actions": {
+      "prepare": "Préparer un devis",
+      "newVersion": "Nouvelle version",
+      "refresh": "Mettre à jour le brouillon",
+      "preview": "Aperçu PDF",
+      "pdf": "PDF",
+      "edit": "Modifier",
+      "send": "Envoyer",
+      "newLink": "Nouveau lien",
+      "revokeLink": "Désactiver le lien",
+      "recordAcceptance": "Enregistrer l’accord",
+      "attachment": "Pièce jointe"
+    },
+    "draft": {
+      "title": "Devis {reference} v{version}",
+      "validUntil": "Valable jusqu’au",
+      "locale": "Langue du devis",
+      "localeHint": "PDF et page du client",
+      "notes": "Remarques",
+      "notesHint": "Imprimées sur le devis",
+      "saved": "Brouillon enregistré"
+    },
+    "sendDialog": {
+      "title": "Envoyer ce devis ?",
+      "description": "Les lignes du devis sont figées et un lien sécurisé est créé pour le client. Les versions précédentes sont remplacées.",
+      "descriptionPending": "Les lignes du devis sont figées, un lien sécurisé est créé pour le client et la commande passe « Devis envoyé ».",
+      "confirm": "Envoyer",
+      "cancel": "Annuler",
+      "done": "Devis envoyé"
+    },
+    "link": {
+      "title": "Lien du devis",
+      "description": "Envoyez ce lien au client. Il expire le {date}.",
+      "url": "Lien",
+      "copy": "Copier",
+      "copied": "Lien copié",
+      "copyFailed": "Copie impossible : sélectionnez le lien",
+      "sms": "SMS",
+      "email": "E-mail",
+      "once": "Par sécurité, ce lien n’est affiché qu’une fois. Pour le renvoyer plus tard, créez un nouveau lien (l’ancien sera désactivé).",
+      "done": "Terminé"
+    },
+    "manual": {
+      "title": "Accord du client — {reference} v{version}",
+      "description": "Accord reçu par téléphone, devis papier signé… L’effet est le même qu’un accord en ligne : la commande est confirmée si la date est libre.",
+      "name": "Nom de la personne",
+      "mode": "Mode",
+      "modes": {
+        "PHONE": "téléphone",
+        "PAPER": "devis papier signé",
+        "OTHER": "autre"
+      },
+      "note": "Note",
+      "file": "Scan ou photo du devis signé (facultatif)",
+      "fileHint": "PDF, JPEG, PNG ou WebP, 10 Mo au plus. Stocké de façon privée.",
+      "fileTooLarge": "Fichier trop volumineux (10 Mo au plus)",
+      "done": "Accord enregistré : commande confirmée",
+      "donePending": "Accord enregistré — la date est bloquée ou complète, confirmez la commande vous-même"
+    }
+  },
+  "publicQuote": {
+    "notFoundTitle": "Lien invalide ou expiré",
+    "notFoundDescription": "Ce lien de devis n’est plus valable. Contactez votre traiteur pour en recevoir un nouveau.",
+    "from": "Devis proposé par",
+    "switchLanguage": "العربية",
+    "title": "Devis",
+    "status": {
+      "DRAFT": "Brouillon",
+      "SENT": "En attente de votre réponse",
+      "ACCEPTED": "Accepté",
+      "REJECTED": "Refusé",
+      "EXPIRED": "Expiré",
+      "SUPERSEDED": "Remplacé"
+    },
+    "greeting": "Bonjour {name}, voici le détail de votre devis.",
+    "eventTime": "de {start} à {end}{nextDay, select, yes { (lendemain)} other {}}",
+    "guests": "{count, plural, one {# invité} other {# invités}}",
+    "table": {
+      "label": "Désignation",
+      "quantity": "Qté",
+      "unitTtc": "P.U. TTC",
+      "unitHt": "P.U. HT",
+      "totalTtc": "Total TTC",
+      "totalHt": "Total HT",
+      "discount": "Remise : {amount}"
+    },
+    "totals": {
+      "ht": "Total HT",
+      "tax": "TVA {rate}",
+      "ttc": "Total TTC"
+    },
+    "amountInWords": "Soit {words} TTC.",
+    "deposit": "Acompte de {amount} à la confirmation.",
+    "balance": "Solde à régler avant le {date}.",
+    "validUntil": "Devis valable jusqu’au {date}.",
+    "terms": "Conditions",
+    "downloadPdf": "Télécharger le PDF",
+    "accept": "Accepter le devis",
+    "reject": "Refuser",
+    "cancel": "Retour",
+    "acceptForm": {
+      "name": "Votre nom complet",
+      "consent": "J’accepte ce devis d’un montant de {amount} et ses conditions.",
+      "trace": "Votre nom, la date et l’heure, votre adresse IP et votre navigateur sont enregistrés comme preuve de votre accord.",
+      "submit": "Confirmer mon accord"
+    },
+    "rejectForm": {
+      "reason": "Motif (facultatif)",
+      "submit": "Refuser le devis"
+    },
+    "outcome": {
+      "accepted": "Merci ! Votre accord est enregistré et votre réservation est confirmée. Votre traiteur va vous recontacter pour l’acompte.",
+      "acceptedPending": "Votre accord est enregistré, le traiteur vous confirmera la date.",
+      "acceptedBy": "Accord donné par {name}.",
+      "DRAFT": "Ce devis n’est pas encore disponible.",
+      "REJECTED": "Vous avez refusé ce devis. Votre traiteur en a été informé.",
+      "EXPIRED": "Ce devis a expiré. Contactez votre traiteur pour en recevoir un nouveau.",
+      "SUPERSEDED": "Ce devis a été remplacé par une version plus récente. Contactez votre traiteur pour recevoir le nouveau lien."
+    },
+    "errors": {
+      "expired": "Ce devis a expiré : il ne peut plus être accepté.",
+      "closed": "Ce devis n’est plus en attente de réponse.",
+      "validation": "Vérifiez votre nom et cochez la case d’acceptation.",
+      "tooMany": "Trop de tentatives : réessayez dans une minute.",
+      "generic": "Une erreur est survenue. Réessayez ou contactez votre traiteur."
     }
   }
 }

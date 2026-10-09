@@ -290,9 +290,13 @@ export class CalendarService {
       }),
     ]);
 
-    const [collected, unpaid] = await Promise.all([
+    const [collected, unpaid, quotesToConfirm] = await Promise.all([
       this.monthCollected(traiteurId, monthStart, monthEnd),
       this.unpaid(traiteurId, settings, now),
+      // Devis acceptés sur une date bloquée ou complète : le traiteur doit trancher
+      this.prisma.quote.count({
+        where: { traiteurId, status: 'ACCEPTED', availabilityPending: true },
+      }),
     ]);
 
     return {
@@ -300,6 +304,7 @@ export class CalendarService {
       todayOrders: todayRows.map((row) => toCalendarOrder(row, timeZone)),
       monthCollected: collected,
       unpaid,
+      quotesToConfirm,
       next7DaysCount,
       awaitingCount,
       toCloseCount,

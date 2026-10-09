@@ -39,6 +39,7 @@ import { clientName } from '@/features/clients/clients-api';
 import { CancelOrderDialog } from '@/features/payments/cancel-order-dialog';
 import { useOrderPayments } from '@/features/payments/payments-api';
 import { PaymentsCard } from '@/features/payments/payments-card';
+import { QuotesCard } from '@/features/quotes/quotes-card';
 import { useTimeZone } from '@/features/traiteur/use-time-zone';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatDate, formatDateTime, formatLocalDate } from '@/lib/format/date';
@@ -356,7 +357,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               <h1 className="text-2xl font-semibold sm:text-3xl" dir="ltr">
                 {data.reference}
               </h1>
-              <OrderStatusBadge status={data.status} className="text-base" />
+              <OrderStatusBadge status={data.status} className="text-base" testId="order-status" />
             </div>
             <p className="text-muted-foreground">
               {tEvent(data.eventType)} · {clientName(data.client)}
@@ -476,11 +477,15 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           </div>
 
           <div className="grid gap-4">
-            <ComingSoonCard
-              icon={FileTextIcon}
-              title={t('detail.quotes')}
-              hint={t('detail.quotesHint')}
-            />
+            {can('quotes.read') ? (
+              <QuotesCard order={data} timeZone={timeZone} />
+            ) : (
+              <ComingSoonCard
+                icon={FileTextIcon}
+                title={t('detail.quotes')}
+                hint={t('detail.quotesHint')}
+              />
+            )}
             {can('payments.read') ? (
               <PaymentsCard order={data} timeZone={timeZone} />
             ) : (

@@ -56,7 +56,13 @@ export type AppErrorCode =
   | 'PAYMENT_DATE_INVALID'
   | 'PAYMENT_NOT_ALLOWED'
   | 'PAYMENT_VOIDED'
-  | 'LOGO_INVALID';
+  | 'LOGO_INVALID'
+  | 'QUOTE_NOT_DRAFT'
+  | 'QUOTE_NOT_OPEN'
+  | 'QUOTE_EXPIRED'
+  | 'QUOTE_ORDER_STATE'
+  | 'QUOTE_VALIDITY_INVALID'
+  | 'ATTACHMENT_INVALID';
 
 export interface AppErrorBody {
   code: AppErrorCode;

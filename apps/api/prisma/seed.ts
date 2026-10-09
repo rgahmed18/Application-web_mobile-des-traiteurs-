@@ -888,14 +888,24 @@ async function seedDemoOrder(
         traiteurId: traiteur.id,
         orderId: created.id,
         reference: quoteNumber.reference,
-        status: 'ACCEPTED',
+        status: 'DRAFT',
         priceMode,
         validUntil: new Date('2026-11-01T00:00:00+01:00'),
-        sentAt: new Date(),
-        acceptedAt: new Date(),
       },
     });
+    // Lignes ajoutées au brouillon, puis devis envoyé et accepté (lignes alors figées)
     await addDocumentLines(tx, { kind: 'QUOTE', id: quote.id, traiteurId: traiteur.id }, drafts);
+    await tx.quote.update({
+      where: { id: quote.id },
+      data: {
+        status: 'ACCEPTED',
+        sentAt: new Date(),
+        acceptedAt: new Date(),
+        acceptanceMode: 'PAPER',
+        acceptedName: 'Salma Bennani',
+        acceptedByName: 'Karim Benjelloun',
+      },
+    });
 
     const invoiceNumber = await nextDocumentNumber(tx, {
       traiteurId: traiteur.id,

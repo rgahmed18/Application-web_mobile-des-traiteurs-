@@ -160,8 +160,8 @@ http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` 
   `orders.edit_confirmed`) : liste filtrée (statut, période, type, référence ou client),
   formulaire guidé (client recherché ou créé à la volée, événement, lieu, prestations — formules,
   plats, services, lignes libres — avec remises en montant ou en %, totaux HT / TVA par taux / TTC
-  en direct, bouton **Arrondir le total**), fiche avec historique et emplacements Devis, Paiements
-  et Personnel. Changer le nombre d'invités propose d'ajuster les lignes « par personne ».
+  en direct, bouton **Arrondir le total**), fiche avec historique, devis, paiements et
+  emplacement Personnel. Changer le nombre d'invités propose d'ajuster les lignes « par personne ».
 - **Calendrier** (`calendar.read`, `calendar.manage`) : vues mois, semaine et liste, commandes
   colorées par statut, charge du jour (`2/3`), dates bloquées hachurées. Un clic sur un jour ouvre
   ses commandes, le blocage de la date et « Nouvelle commande » pré-rempli. Capacité par jour
@@ -205,6 +205,36 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
   (reste à payer, en retard).
 - Paiement en ligne (CMI) : prévu (champs `provider` / `providerRef`), pas encore implémenté.
 
+### Devis
+
+- **Versions** : un devis est préparé depuis les lignes de la commande (`quotes.manage`). Ses
+  versions partagent la même référence (`DEV-2026-00012` v1, v2…) ; un brouillon se met à jour
+  avec les lignes actuelles, s'aperçoit en PDF (filigrane « BROUILLON ») et se règle (validité,
+  15 jours par défaut ; langue du client, français ou arabe ; remarques).
+- **Envoi** : lignes figées par la base (trigger `QuoteLine_frozen`), informations affichées
+  figées (`Quote.snapshot`), **PDF généré une fois et stocké** (empreinte SHA-256, version du
+  gabarit), versions précédentes « Remplacé ». La commande en attente passe « Devis envoyé ».
+- **Lien sécurisé** : jeton aléatoire de 256 bits, affiché une seule fois ; seule son empreinte
+  SHA-256 est conservée. Il expire à la fin du dernier jour de validité, peut être désactivé ou
+  remplacé. Partage depuis l'appareil du traiteur : WhatsApp (`wa.me`), SMS (`sms:`) ou e-mail
+  (`mailto:`), message pré-rédigé dans la langue du devis.
+- **Page publique** `/devis/<jeton>` (sans connexion) : détail, PDF, accord ou refus. En-têtes
+  `X-Robots-Tag: noindex` et `Referrer-Policy: no-referrer` (le jeton ne fuit vers aucun autre
+  site), `Cache-Control: no-store`, débit limité par IP. Jeton inconnu ou désactivé : 404.
+- **Accord en ligne** : nom saisi et case « J'accepte » ; heure, IP et navigateur enregistrés. La
+  commande est **confirmée** (acompte figé) si la date est libre. Si la date est bloquée ou
+  complète, l'accord est enregistré, la commande reste « Devis envoyé » et le client lit « Votre
+  accord est enregistré, le traiteur vous confirmera la date » ; une alerte apparaît sur le
+  tableau de bord jusqu'à la décision du traiteur.
+- **Accord manuel** (`orders.write`) : accord téléphonique, devis papier signé ou autre ; nom de
+  la personne, note, scan ou photo facultatif (PDF, JPEG, PNG, WebP, 10 Mo, stockage privé,
+  type vérifié sur le contenu). Même effet que l'accord en ligne, tracé dans le journal d'audit.
+- **Refus** (motif facultatif) ou **expiration** (vérifiée à chaque lecture et toutes les heures
+  par une tâche BullMQ) : la commande revient « En attente » s'il ne reste aucun devis en cours.
+- **Lignes de la commande modifiées après l'envoi ou l'accord** : le devis passe « Remplacé »,
+  son lien est désactivé, la fiche affiche « un nouveau devis est nécessaire » ; une commande
+  confirmée le reste.
+
 ### Documents PDF
 
 - Générés avec **Typst** (`@myriaddreamin/typst-ts-node-compiler`) à partir d'un gabarit unique
@@ -215,7 +245,7 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
   **SIL Open Font License 1.1** (texte complet : `apps/api/assets/fonts/OFL-IBM-Plex.txt`).
   Aucune police propriétaire n'est utilisée.
 - **Stockage** : préfixe privé `private/` du stockage S3 (jamais public), téléchargement par URL
-  signée valable 5 minutes. Les documents émis (reçus, et plus tard devis envoyés et factures)
+  signée valable 5 minutes. Les documents émis (reçus, devis envoyés, et plus tard factures)
   sont figés : empreinte SHA-256 et version du gabarit enregistrées, jamais régénérés.
 - **Montants en lettres** (`packages/shared/src/money/amount-words.ts`), en français et en arabe,
   testés sur les cas difficiles (0,50 ; 1 ; 2 ; 11 ; 21 ; 71 ; 80 ; 100 ; 1 000 ; 1 000 000…).
@@ -319,12 +349,13 @@ Organisation de l'API (`apps/api/src`) : un module par domaine.
 | `config/`    | Validation Zod des variables d'environnement                          |
 | `prisma/`    | Client Prisma (pilote PostgreSQL natif `adapter-pg`)                  |
 | `redis/`     | Connexion Redis (cache des permissions et des fonctionnalités)        |
-| `queue/`     | BullMQ (files `notifications` et `media`)                             |
+| `queue/`     | BullMQ (files `notifications`, `media` et `quotes`)                   |
 | `storage/`   | Stockage S3 (URL présignées, traitement des images avec sharp)        |
 | `catalog/`   | Catégories, plats, formules, services, photos (`/api/v1/catalog`)     |
 | `clients/`   | Clients du traiteur, adresses (`/api/v1/clients`)                     |
 | `orders/`    | Commandes, disponibilité, calendrier, tableau de bord                 |
 | `payments/`  | Encaissements, remboursements, reçus, échéancier                      |
+| `quotes/`    | Devis : versions, envoi, lien public, accords, expiration             |
 | `pdf/`       | Génération des documents PDF (Typst), libellés FR/AR                  |
 | `settings/`  | Paramètres du traiteur (documents et paiements)                       |
 | `auth/`      | Inscription, connexion, OTP SMS, JWT, refresh tokens                  |
@@ -579,7 +610,8 @@ pnpm format        # Prettier
 pnpm --filter @traiteur/api test:int
 
 # Parcours e2e du back-office (Playwright) : connexion ; plat avec photo et formule ;
-# client, commande de 3 lignes confirmée et retrouvée dans le calendrier.
+# client, commande de 3 lignes confirmée et retrouvée dans le calendrier ; devis envoyé par
+# lien sécurisé puis accepté en ligne.
 # Docker démarré et base seedée ; l'API et le web sont lancés s'ils ne tournent pas déjà.
 pnpm --filter @traiteur/web exec playwright install chromium   # une seule fois
 pnpm --filter @traiteur/web test:e2e
@@ -590,7 +622,9 @@ trou après un échec, l'isolation entre traiteurs imposée par la base, les con
 et l'immuabilité des factures, ainsi que l'API du catalogue (isolation entre traiteurs,
 permissions, prix HT/TTC, archivage, audit, photos) et celle des clients et commandes
 (isolation, création ou rattachement d'un client, machine à états, règles de modification,
-verrouillage optimiste sous écritures simultanées, disponibilité et capacité, tableau de bord).
+verrouillage optimiste sous écritures simultanées, disponibilité et capacité, tableau de bord),
+des paiements et des devis (versions, lien public et ses en-têtes, accord en ligne ou manuel,
+jour complet, refus, expiration, remplacement, isolation, offre).
 Par sécurité, ils refusent de s'exécuter sur une base dont le nom ne se termine pas par `_test`.
 
 **CI GitHub Actions** (`.github/workflows/ci.yml`), à chaque push sur `main` et chaque pull

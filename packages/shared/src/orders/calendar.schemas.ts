@@ -86,5 +86,7 @@ export const dashboardSchema = z.object({
   monthCollected: z.object({ amount: z.number().int(), count: z.number().int() }),
   /** « Impayés » : montants en retard sur l'échéancier des commandes confirmées. */
   unpaid: z.object({ amount: z.number().int(), count: z.number().int() }),
+  /** Devis acceptés sur une date bloquée ou complète : date à confirmer par le traiteur. */
+  quotesToConfirm: z.number().int(),
 });
 export type Dashboard = z.infer<typeof dashboardSchema>;

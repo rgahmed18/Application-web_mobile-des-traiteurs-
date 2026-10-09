@@ -36,6 +36,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { nextDocumentNumber } from '../sequences/document-sequence';
 import { type AvailabilitySettings, dayAvailability, hasConflict, lockDay } from './availability';
 import { paymentSummary, paymentTotals, type ScheduleSettings } from '../payments/payment-state';
+import { clearAvailabilityPending, supersedeQuotesOnOrderChange } from '../quotes/quote-lifecycle';
 import {
   orderInclude,
   type OrderRow,
@@ -479,6 +480,10 @@ export class OrdersService {
         );
       }
       if (forced) changes.push('availabilityForced');
+      // Devis envoyés ou acceptés : ils ne correspondent plus aux lignes, un nouveau est nécessaire
+      const supersededQuotes = linesChanged
+        ? await supersedeQuotesOnOrderChange(tx, traiteurId, id)
+        : [];
       await this.audit.record(
         {
           traiteurId,
@@ -499,6 +504,7 @@ export class OrdersService {
             changes,
             reason: input.reason,
             status: current.status,
+            supersededQuotes,
             eventDate: after.eventDate.toISOString(),
             eventEndDate: after.eventEndDate?.toISOString() ?? null,
             guestCount: after.guestCount,
@@ -586,6 +592,8 @@ export class OrdersService {
         );
       }
       await tx.order.update({ where: { id_traiteurId: { id, traiteurId } }, data });
+      // Décision du traiteur sur un devis accepté dont la date était à confirmer
+      if (from === 'QUOTED') await clearAvailabilityPending(tx, traiteurId, id);
       await tx.orderStatusChange.create({
         data: {
           traiteurId,

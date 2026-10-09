@@ -70,13 +70,16 @@ export const STATUS_STYLES: Record<OrderStatus, { badge: string; dot: string; ch
 export function OrderStatusBadge({
   status,
   className,
+  testId,
 }: {
   status: OrderStatus;
   className?: string;
+  testId?: string;
 }) {
   const t = useTranslations('orderStatus');
   return (
     <Badge
+      data-testid={testId}
       variant="outline"
       className={cn('text-sm font-medium', STATUS_STYLES[status].badge, className)}
     >

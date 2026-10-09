@@ -7,6 +7,7 @@ import {
   CalendarClockIcon,
   ClipboardCheckIcon,
   HourglassIcon,
+  TriangleAlertIcon,
   type LucideIcon,
   WalletIcon,
 } from 'lucide-react';
@@ -161,6 +162,21 @@ export function DashboardView() {
       />
       {canRead && (
         <>
+          {(data?.quotesToConfirm ?? 0) > 0 && (
+            <Link
+              href="/admin/orders?status=QUOTED&period=all"
+              className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+              data-testid="quotes-to-confirm"
+            >
+              <TriangleAlertIcon className="mt-0.5 size-5 shrink-0" aria-hidden />
+              <span>
+                <span className="block font-semibold">
+                  {t('quotesToConfirm.title', { count: data?.quotesToConfirm ?? 0 })}
+                </span>
+                <span className="block text-sm">{t('quotesToConfirm.hint')}</span>
+              </span>
+            </Link>
+          )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {cards.map((card) => (
               <StatCard key={card.key} card={card} />

@@ -18,6 +18,7 @@ import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
+import { QuotesModule } from './quotes/quotes.module';
 import { PdfModule } from './pdf/pdf.module';
 import { SettingsModule } from './settings/settings.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -52,6 +53,7 @@ import { StorageModule } from './storage/storage.module';
     ClientsModule,
     OrdersModule,
     PaymentsModule,
+    QuotesModule,
     SettingsModule,
   ],
   controllers: [HealthController],

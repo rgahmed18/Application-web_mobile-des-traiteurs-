@@ -60,6 +60,8 @@ export const envSchema = z
           .filter((origin) => origin.length > 0),
       ),
     SWAGGER_ENABLED: booleanString,
+    /** Adresse publique du site web : liens des devis envoyés aux clients (/devis/…). */
+    PUBLIC_WEB_URL: z.url().default('http://localhost:3001'),
     /** À activer derrière un reverse proxy (IP réelle du client pour la limitation de débit). */
     TRUST_PROXY: trustProxy,
 

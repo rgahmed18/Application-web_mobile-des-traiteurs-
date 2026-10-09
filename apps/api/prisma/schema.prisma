@@ -127,6 +127,20 @@ enum QuoteStatus {
   ACCEPTED
   REJECTED
   EXPIRED
+  SUPERSEDED // remplacé par une nouvelle version, ou commande modifiée après l'envoi
+}
+
+// Accord sur un devis : en ligne (lien sécurisé) ou enregistré par le traiteur
+enum AcceptanceMode {
+  ONLINE
+  PHONE
+  PAPER
+  OTHER
+}
+
+enum QuoteSupersededReason {
+  NEW_VERSION
+  ORDER_CHANGED
 }
 
 enum InvoiceType {
@@ -269,6 +283,7 @@ model Traiteur {
   orderStatusChanges OrderStatusChange[]
   quotes             Quote[]
   quoteLines         QuoteLine[]
+  quoteLinks         QuoteLink[]
   invoices           Invoice[]
   invoiceLines       InvoiceLine[]
   payments           Payment[]
@@ -729,18 +744,61 @@ model Quote {
   rejectedAt DateTime?
   pdfUrl     String?
   notes      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  locale     Locale      @default(fr) // langue du PDF et de la page publique
+
+  // Envoi : PDF figé et données affichées sur la page publique
+  pdfKey      String?
+  pdfSha256   String?
+  pdfTemplate String?
+  snapshot    Json? // client, événement, conditions, échéancier au moment de l'envoi
+
+  // Accord (en ligne ou enregistré par le traiteur)
+  acceptanceMode          AcceptanceMode?
+  acceptedName            String?
+  acceptedIp              String?
+  acceptedUserAgent       String?
+  acceptanceNote          String?
+  acceptanceAttachmentKey String? // scan ou photo du devis signé (stockage privé)
+  acceptedByName          String? // membre de l'équipe ayant enregistré l'accord
+  // Accepté alors que la date est bloquée ou complète : le traiteur doit confirmer la date
+  availabilityPending     Boolean         @default(false)
+
+  rejectionReason  String?
+  supersededReason QuoteSupersededReason?
+  supersededAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   traiteur Traiteur    @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   order    Order       @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
   lines    QuoteLine[]
+  links    QuoteLink[]
 
-  @@unique([traiteurId, reference])
+  // Les versions d'un même devis partagent sa référence (DEV-2026-00012 v1, v2…)
+  @@unique([traiteurId, reference, version])
   @@unique([orderId, version])
   @@unique([id, traiteurId])
   @@unique([id, traiteurId, priceMode]) // cible des lignes : même mode que le devis
   @@index([traiteurId, status])
+}
+
+// Lien public d'un devis : seul le hachage du jeton est conservé (jeton affiché une fois).
+model QuoteLink {
+  id           String    @id @default(uuid()) @db.Uuid
+  traiteurId   String    @db.Uuid
+  quoteId      String    @db.Uuid
+  tokenHash    String    @unique // SHA-256 du jeton (256 bits aléatoires)
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  lastViewedAt DateTime?
+  viewCount    Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  quote    Quote    @relation(fields: [quoteId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+
+  @@index([traiteurId, quoteId])
 }
 
 model QuoteLine {
