@@ -60,6 +60,8 @@ export const TRANSLATED_ERROR_CODES = [
   'QUOTE_ORDER_STATE',
   'QUOTE_VALIDITY_INVALID',
   'ATTACHMENT_INVALID',
+  'INVOICE_NOT_AVAILABLE',
+  'INVOICE_ALREADY_CREDITED',
 ] as const;
 export type TranslatedErrorCode = (typeof TRANSLATED_ERROR_CODES)[number];
 

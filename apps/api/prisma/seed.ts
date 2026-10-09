@@ -32,6 +32,7 @@ import {
 } from './lib/demo-orders';
 import { generateIllustration, PALETTES } from './lib/illustrations';
 import { connectScriptStorage, storeAndAttachImage } from './lib/media-script';
+import { issueInvoice } from '../src/invoices/invoice-issuer';
 import { nextDocumentNumber } from '../src/sequences/document-sequence';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -841,20 +842,6 @@ async function seedDemoOrder(
     amounts: computeDraftAmounts(priceMode, draft),
   }));
   const totals = computeDocumentTotals(lines.map(({ amounts }) => amounts));
-  const toInvoiceRow = ({ draft, amounts }: (typeof lines)[number], index: number) => ({
-    itemType: draft.itemType,
-    label: draft.label,
-    quantity: amounts.quantity,
-    unitPriceHt: amounts.unitPriceHt,
-    unitPriceTtc: amounts.unitPriceTtc,
-    discountHt: amounts.discountHt,
-    discountTtc: amounts.discountTtc,
-    taxRateBps: amounts.taxRateBps,
-    totalHt: amounts.totalHt,
-    taxAmount: amounts.taxAmount,
-    totalTtc: amounts.totalTtc,
-    sortOrder: index,
-  });
 
   const eventDate = new Date('2026-11-21T19:00:00+01:00');
   const depositAmount = Math.round(totals.totalTtc * 0.3);
@@ -907,43 +894,12 @@ async function seedDemoOrder(
       },
     });
 
-    const invoiceNumber = await nextDocumentNumber(tx, {
+    // Facture d'acompte émise comme dans l'application (numéro, instantanés, lignes par taux)
+    await issueInvoice(tx, {
       traiteurId: traiteur.id,
-      type: 'INVOICE',
-    });
-    await tx.invoice.create({
-      data: {
-        traiteurId: traiteur.id,
-        orderId: created.id,
-        type: 'INVOICE',
-        number: invoiceNumber.reference,
-        year: invoiceNumber.year,
-        sequenceNumber: invoiceNumber.value,
-        priceMode,
-        totalHt: totals.totalHt,
-        totalTax: totals.totalTax,
-        totalTtc: totals.totalTtc,
-        taxBreakdown: totals.taxBreakdown.map((entry) => ({ ...entry })),
-        dueDate: eventDate,
-        sellerSnapshot: {
-          legalName: traiteur.legalName,
-          ice: traiteur.ice,
-          rcNumber: traiteur.rcNumber,
-          taxId: traiteur.taxId,
-          patenteNumber: traiteur.patenteNumber,
-          cnssNumber: traiteur.cnssNumber,
-          address: traiteur.legalAddress,
-          bankName: traiteur.bankName,
-          rib: traiteur.rib,
-          isVatRegistered: traiteur.isVatRegistered,
-        },
-        buyerSnapshot: {
-          name: 'Salma Bennani',
-          phone: '+212600000005',
-          address: '45, boulevard Anfa, Casablanca',
-        },
-        lines: { create: lines.map(toInvoiceRow) },
-      },
+      orderId: created.id,
+      kind: 'DEPOSIT',
+      notes: null,
     });
 
     await tx.payment.create({

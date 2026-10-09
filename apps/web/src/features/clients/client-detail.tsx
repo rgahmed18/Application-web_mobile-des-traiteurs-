@@ -395,6 +395,20 @@ export function ClientDetail({ clientId }: { clientId: string }) {
               <dd dir="ltr" className="text-start">
                 {data.email ?? '—'}
               </dd>
+              {data.companyName && (
+                <>
+                  <dt className="text-muted-foreground">{t('fields.companyName')}</dt>
+                  <dd dir="auto">{data.companyName}</dd>
+                </>
+              )}
+              {data.companyIce && (
+                <>
+                  <dt className="text-muted-foreground">{t('fields.companyIce')}</dt>
+                  <dd dir="ltr" className="text-start">
+                    {data.companyIce}
+                  </dd>
+                </>
+              )}
               <dt className="text-muted-foreground">{t('fields.locale')}</dt>
               <dd>{t(`locales.${data.locale}`)}</dd>
               <dt className="text-muted-foreground">{t('fields.tags')}</dt>

@@ -29,6 +29,14 @@ const clientFieldsSchema = z.object({
   locale: localeSchema,
   tags: z.array(tagSchema).max(10),
   internalNotes: z.string().trim().max(2000).nullable(),
+  /** Client entreprise : raison sociale et ICE imprimés sur ses factures. */
+  companyName: z.string().trim().max(150).nullable().default(null),
+  companyIce: z
+    .string()
+    .trim()
+    .regex(/^\d{15}$/, 'ICE : 15 chiffres')
+    .nullable()
+    .default(null),
 });
 
 /**
@@ -84,6 +92,8 @@ export type ClientSummary = z.infer<typeof clientSummarySchema>;
 
 export const clientSchema = clientSummarySchema.extend({
   internalNotes: z.string().nullable(),
+  companyName: z.string().nullable(),
+  companyIce: z.string().nullable(),
   addresses: z.array(clientAddressSchema),
 });
 export type Client = z.infer<typeof clientSchema>;

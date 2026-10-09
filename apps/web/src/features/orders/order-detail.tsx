@@ -38,6 +38,7 @@ import { usePermission } from '@/features/auth/session-provider';
 import { clientName } from '@/features/clients/clients-api';
 import { CancelOrderDialog } from '@/features/payments/cancel-order-dialog';
 import { useOrderPayments } from '@/features/payments/payments-api';
+import { InvoicesCard } from '@/features/invoices/invoices-card';
 import { PaymentsCard } from '@/features/payments/payments-card';
 import { QuotesCard } from '@/features/quotes/quotes-card';
 import { useTimeZone } from '@/features/traiteur/use-time-zone';
@@ -495,6 +496,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 hint={t('detail.paymentsHint')}
               />
             )}
+            {can('invoices.read') && <InvoicesCard order={data} />}
             <ComingSoonCard
               icon={UserRoundCogIcon}
               title={t('detail.staff')}

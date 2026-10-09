@@ -4,6 +4,7 @@ import {
   ClipboardListIcon,
   LayoutDashboardIcon,
   type LucideIcon,
+  ReceiptTextIcon,
   SettingsIcon,
   UsersIcon,
   UtensilsIcon,
@@ -12,7 +13,8 @@ import {
 
 export interface NavItem {
   /** Clé de traduction dans l'espace « nav ». */
-  labelKey: 'dashboard' | 'catalog' | 'orders' | 'calendar' | 'clients' | 'staff' | 'settings';
+  labelKey:
+    'dashboard' | 'catalog' | 'orders' | 'calendar' | 'clients' | 'invoices' | 'staff' | 'settings';
   href: string;
   icon: LucideIcon;
   /** Permission nécessaire pour voir l'entrée (aucune = toujours visible). */
@@ -31,6 +33,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: 'calendar.read',
   },
   { labelKey: 'clients', href: '/admin/clients', icon: UsersIcon, permission: 'clients.read' },
+  {
+    labelKey: 'invoices',
+    href: '/admin/invoices',
+    icon: ReceiptTextIcon,
+    permission: 'invoices.read',
+  },
   { labelKey: 'staff', href: '/admin/staff', icon: UserRoundCogIcon, permission: 'staff.read' },
   {
     labelKey: 'settings',

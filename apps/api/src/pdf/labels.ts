@@ -109,10 +109,22 @@ const FR = {
     CORPORATE: "Événement d'entreprise",
     OTHER: 'Événement',
   },
+  issueDate: "Date d'émission",
+  atReception: 'À réception',
+  unitPrice: 'P.U.',
+  totalColumn: 'Total',
+  buyer: 'Facturé à',
+  rateSuffix: (rate: string) => ` (TVA ${rate})`,
+  refundLine: (number: string) => `Remboursement à l'annulation — facture ${number}`,
+  creditFor: (number: string, date: string) => `Avoir sur la facture ${number} du ${date}`,
+  alreadyPaid: 'Déjà réglé',
   page: 'Page',
 };
 
 type Labels = typeof FR;
+
+/** « 10 % » → « 10٪ » : collé au nombre, le signe reste à sa place dans un texte arabe. */
+const arabicPercent = (value: string) => value.replace(/\s*%/, '٪');
 
 const AR: Labels = {
   receipt: 'وصل أداء',
@@ -183,7 +195,7 @@ const AR: Labels = {
   creditReason: 'السبب',
   deductedDeposit: (number: string) => `تسبيق مفوتر (${number})`,
   depositLine: (percent: string, reference: string) =>
-    `تسبيق بنسبة ${percent} عن الطلب ${reference}`,
+    `تسبيق بنسبة ${arabicPercent(percent)} عن الطلب ${reference}`,
   cancellationFeeLine: (reference: string) => `مصاريف إلغاء الطلب ${reference}`,
   ice: 'ت.م.م',
   legal: {
@@ -212,6 +224,15 @@ const AR: Labels = {
     CORPORATE: 'مناسبة مهنية',
     OTHER: 'مناسبة',
   },
+  issueDate: 'تاريخ الإصدار',
+  atReception: 'عند التوصل',
+  unitPrice: 'ثمن الوحدة',
+  totalColumn: 'المجموع',
+  buyer: 'فاتورة باسم',
+  rateSuffix: (rate: string) => ` (الضريبة ${arabicPercent(rate)})`,
+  refundLine: (number: string) => `استرجاع عند الإلغاء — الفاتورة ${number}`,
+  creditFor: (number: string, date: string) => `إشعار دائن عن الفاتورة ${number} بتاريخ ${date}`,
+  alreadyPaid: 'المؤدى مسبقًا',
   page: 'الصفحة',
 };
 

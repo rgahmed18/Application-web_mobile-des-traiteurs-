@@ -18,6 +18,7 @@ import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
+import { InvoicesModule } from './invoices/invoices.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { PdfModule } from './pdf/pdf.module';
 import { SettingsModule } from './settings/settings.module';
@@ -54,6 +55,7 @@ import { StorageModule } from './storage/storage.module';
     OrdersModule,
     PaymentsModule,
     QuotesModule,
+    InvoicesModule,
     SettingsModule,
   ],
   controllers: [HealthController],

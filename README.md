@@ -235,6 +235,32 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
   son lien est désactivé, la fiche affiche « un nouveau devis est nécessaire » ; une commande
   confirmée le reste.
 
+### Factures et avoirs (back-office)
+
+- **Émission** depuis la fiche d'une commande confirmée (`invoices.issue`) : **facture totale**,
+  ou **facture d'acompte** (acompte de la commande, une ligne par taux de TVA au prorata du TTC
+  de chaque taux) puis **facture de solde** (lignes de la commande moins les acomptes facturés,
+  repris ligne à ligne : acompte + solde = commande, au centime près et par taux).
+- **Date d'émission** = date du jour, imposée par la base (trigger) : jamais antidatée. Numéro
+  continu par année. Échéance : à réception pour un acompte, J-7 de l'événement pour une facture
+  totale ou de solde (jamais avant le jour d'émission).
+- **Avoirs** (`invoices.credit_note`) : avoir total d'une facture, motif obligatoire imprimé.
+  À l'**annulation** d'une commande avec remboursement, les factures émises (acompte d'abord)
+  sont automatiquement soldées par un avoir du montant remboursé.
+- **Frais d'annulation** : le montant conservé et non encore facturé peut être facturé, au taux
+  de TVA réglé dans les Paramètres (`cancellationFeeTaxRateBps`, taux par défaut sinon).
+- **Numérotation des avoirs** (Paramètres, à faire valider par le comptable) : séquence propre
+  `AV-2026-00001` (par défaut) ou série partagée avec les factures (`FAC-…`, un seul compteur).
+- **Mentions** : vendeur complet (raison sociale, forme, capital, adresse, ICE, IF, RC et
+  tribunal, patente, CNSS, RIB), client et, pour une entreprise, sa raison sociale et son ICE
+  (fiche client), lignes HT, récapitulatif de TVA par taux, totaux, « Non assujetti à la TVA »
+  le cas échéant, conditions de paiement, pénalités de retard (loi 69-21), montant en lettres.
+- **PDF** généré une seule fois à l'émission, stocké en privé avec son empreinte SHA-256 et la
+  version du gabarit ; la base refuse de le remplacer.
+- **Page Factures** (`/admin/invoices`, `invoices.read`) : recherche (n°, commande, client,
+  ICE), période, type ; **export xlsx** (montants numériques, dates réelles) ou **CSV pour Excel**
+  (UTF-8 avec BOM, séparateur « ; », virgule décimale), avec base HT et TVA par taux.
+
 ### Documents PDF
 
 - Générés avec **Typst** (`@myriaddreamin/typst-ts-node-compiler`) à partir d'un gabarit unique
@@ -245,7 +271,7 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
   **SIL Open Font License 1.1** (texte complet : `apps/api/assets/fonts/OFL-IBM-Plex.txt`).
   Aucune police propriétaire n'est utilisée.
 - **Stockage** : préfixe privé `private/` du stockage S3 (jamais public), téléchargement par URL
-  signée valable 5 minutes. Les documents émis (reçus, devis envoyés, et plus tard factures)
+  signée valable 5 minutes. Les documents émis (reçus, devis envoyés, factures et avoirs)
   sont figés : empreinte SHA-256 et version du gabarit enregistrées, jamais régénérés.
 - **Montants en lettres** (`packages/shared/src/money/amount-words.ts`), en français et en arabe,
   testés sur les cas difficiles (0,50 ; 1 ; 2 ; 11 ; 21 ; 71 ; 80 ; 100 ; 1 000 ; 1 000 000…).
@@ -356,6 +382,7 @@ Organisation de l'API (`apps/api/src`) : un module par domaine.
 | `orders/`    | Commandes, disponibilité, calendrier, tableau de bord                 |
 | `payments/`  | Encaissements, remboursements, reçus, échéancier                      |
 | `quotes/`    | Devis : versions, envoi, lien public, accords, expiration             |
+| `invoices/`  | Factures et avoirs, PDF figé, export comptable (xlsx, CSV)            |
 | `pdf/`       | Génération des documents PDF (Typst), libellés FR/AR                  |
 | `settings/`  | Paramètres du traiteur (documents et paiements)                       |
 | `auth/`      | Inscription, connexion, OTP SMS, JWT, refresh tokens                  |
@@ -470,12 +497,14 @@ Elle **doit** être appelée dans la même transaction que la création du docum
 
 ### Factures et avoirs
 
-- **Immuables**, garanti par des triggers PostgreSQL : ni modification (sauf `pdfUrl`), ni
-  suppression, ni ajout de ligne après émission.
+- **Immuables**, garanti par des triggers PostgreSQL : ni modification, ni suppression, ni ajout
+  de ligne après émission ; seul le PDF figé (`pdfKey`, `pdfSha256`, `pdfTemplate`) est renseigné,
+  une seule fois. Date d'émission forcée à l'heure de la transaction.
 - Vérification différée en fin de transaction : au moins une ligne, totaux égaux à la somme des
   lignes.
 - Correction par **avoir** (`type = CREDIT_NOTE`, montants négatifs) qui référence
-  obligatoirement une facture.
+  obligatoirement une facture de la même commande et de même nature ; le total des avoirs d'une
+  facture ne dépasse jamais son montant (vérifié en fin de transaction).
 - Snapshot des informations légales du traiteur (ICE, RC, IF, RIB…) et du client sur chaque
   facture. Les lignes de facture n'ont aucun lien vers le catalogue.
 
@@ -611,7 +640,7 @@ pnpm --filter @traiteur/api test:int
 
 # Parcours e2e du back-office (Playwright) : connexion ; plat avec photo et formule ;
 # client, commande de 3 lignes confirmée et retrouvée dans le calendrier ; devis envoyé par
-# lien sécurisé puis accepté en ligne.
+# lien sécurisé, accepté en ligne, facture d'acompte et export CSV.
 # Docker démarré et base seedée ; l'API et le web sont lancés s'ils ne tournent pas déjà.
 pnpm --filter @traiteur/web exec playwright install chromium   # une seule fois
 pnpm --filter @traiteur/web test:e2e
@@ -624,7 +653,8 @@ permissions, prix HT/TTC, archivage, audit, photos) et celle des clients et comm
 (isolation, création ou rattachement d'un client, machine à états, règles de modification,
 verrouillage optimiste sous écritures simultanées, disponibilité et capacité, tableau de bord),
 des paiements et des devis (versions, lien public et ses en-têtes, accord en ligne ou manuel,
-jour complet, refus, expiration, remplacement, isolation, offre).
+jour complet, refus, expiration, remplacement, isolation, offre) et des factures (acompte
+puis solde, avoirs, numérotation partagée, annulation, frais, immuabilité, export).
 Par sécurité, ils refusent de s'exécuter sur une base dont le nom ne se termine pas par `_test`.
 
 **CI GitHub Actions** (`.github/workflows/ci.yml`), à chaque push sur `main` et chaque pull

@@ -36,6 +36,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { nextDocumentNumber } from '../sequences/document-sequence';
 import { type AvailabilitySettings, dayAvailability, hasConflict, lockDay } from './availability';
 import { paymentSummary, paymentTotals, type ScheduleSettings } from '../payments/payment-state';
+import { creditOnCancellation } from '../invoices/invoice-issuer';
 import { clearAvailabilityPending, supersedeQuotesOnOrderChange } from '../quotes/quote-lifecycle';
 import {
   orderInclude,
@@ -588,6 +589,7 @@ export class OrdersService {
           input.refund,
           permissions,
           settings,
+          reason,
           client,
         );
       }
@@ -648,6 +650,7 @@ export class OrdersService {
     refund: OrderTransitionInput['refund'],
     permissions: ReadonlySet<string>,
     settings: OrderSettings,
+    reason: string | null,
     client: ClientInfo,
   ): Promise<number> {
     const paid = (await paymentTotals(tx, order.traiteurId, [order.id])).get(order.id)?.net ?? 0;
@@ -714,6 +717,27 @@ export class OrdersService {
         },
         tx,
       );
+      // Factures déjà émises (acompte d'abord) : soldées par un avoir du montant remboursé
+      const creditNotes = await creditOnCancellation(tx, {
+        traiteurId: order.traiteurId,
+        orderId: order.id,
+        refund: refund.amount,
+        reason: reason ? `Annulation de la commande ${order.reference} : ${reason}` : null,
+      });
+      if (creditNotes.length > 0) {
+        await this.audit.record(
+          {
+            traiteurId: order.traiteurId,
+            actor: user,
+            action: 'invoice.credit_note_issued',
+            entityType: 'Order',
+            entityId: order.id,
+            after: { creditNotes, refund: refund.amount, cancellation: true },
+            client,
+          },
+          tx,
+        );
+      }
     }
     return paid - refund.amount;
   }

@@ -138,7 +138,7 @@ export function quoteDocument(data: QuoteDocumentData): DocumentModel {
         return [
           {
             main: auto(line.label),
-            sub: discount > 0 ? t.discountOf(money(discount * line.quantity, locale)) : null,
+            sub: discount > 0 ? t.discountOf(money(discount, locale)) : null,
           },
           ltr(line.quantity),
           amount(ttc ? line.unitPriceTtc : line.unitPriceHt),

@@ -47,6 +47,8 @@ const baseFields = {
   locale: localeSchema,
   tags: z.string(),
   internalNotes: z.string(),
+  companyName: z.string(),
+  companyIce: z.string(),
 };
 
 const toBase = (values: {
@@ -56,6 +58,8 @@ const toBase = (values: {
   locale: z.infer<typeof localeSchema>;
   tags: string;
   internalNotes: string;
+  companyName: string;
+  companyIce: string;
 }) => ({
   firstName: values.firstName,
   lastName: values.lastName,
@@ -63,7 +67,11 @@ const toBase = (values: {
   locale: values.locale,
   tags: toTags(values.tags),
   internalNotes: nullable(values.internalNotes),
+  companyName: nullable(values.companyName),
+  companyIce: nullable(values.companyIce.replace(/\s/g, '')),
 });
+
+const createTarget = clientCreateSchema.extend({ address: clientAddressInputSchema.nullable() });
 
 /** Création : téléphone et première adresse facultative, validés par le schéma partagé. */
 const createFormSchema = z
@@ -73,7 +81,7 @@ const createFormSchema = z
     addressLine: z.string(),
     city: z.string(),
   })
-  .transform((values) => ({
+  .transform((values): z.input<typeof createTarget> => ({
     ...toBase(values),
     phone: values.phone,
     address:
@@ -81,9 +89,12 @@ const createFormSchema = z
         ? null
         : { label: 'Domicile', address: values.addressLine, city: values.city, isDefault: true },
   }))
-  .pipe(clientCreateSchema.extend({ address: clientAddressInputSchema.nullable() }));
+  .pipe(createTarget);
 
-const updateFormSchema = z.object(baseFields).transform(toBase).pipe(clientUpdateSchema);
+const updateFormSchema = z
+  .object(baseFields)
+  .transform((values): z.input<typeof clientUpdateSchema> => toBase(values))
+  .pipe(clientUpdateSchema);
 
 interface ClientFormDialogProps {
   client?: Client;
@@ -158,6 +169,32 @@ function CommonFields({
           )}
         />
       </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          control={control}
+          name="companyName"
+          label={t('fields.companyName')}
+          description={t('fields.companyNameHint')}
+          render={(field, { invalid }) => (
+            <Input {...field} dir="auto" autoComplete="off" aria-invalid={invalid} />
+          )}
+        />
+        <FormField
+          control={control}
+          name="companyIce"
+          label={t('fields.companyIce')}
+          description={t('fields.companyIceHint')}
+          render={(field, { invalid }) => (
+            <Input
+              {...field}
+              dir="ltr"
+              inputMode="numeric"
+              autoComplete="off"
+              aria-invalid={invalid}
+            />
+          )}
+        />
+      </div>
       <FormField
         control={control}
         name="tags"
@@ -192,6 +229,8 @@ function CreateClientDialog({
     locale: 'fr',
     tags: '',
     internalNotes: '',
+    companyName: '',
+    companyIce: '',
     addressLine: '',
     city: '',
   });
@@ -278,6 +317,8 @@ function EditClientDialog({
     locale: client.locale,
     tags: client.tags.join(', '),
     internalNotes: client.internalNotes ?? '',
+    companyName: client.companyName ?? '',
+    companyIce: client.companyIce ?? '',
   });
 
   const onSubmit = form.handleSubmit(async (input) => {

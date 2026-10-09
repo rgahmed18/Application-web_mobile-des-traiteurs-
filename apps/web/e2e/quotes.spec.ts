@@ -8,7 +8,7 @@ function casablancaDay(offset: number): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(date);
 }
 
-test('devis préparé, envoyé par lien sécurisé puis accepté en ligne par le client', async ({
+test('devis envoyé par lien sécurisé, accepté en ligne, puis facture d’acompte et export', async ({
   page,
   browser,
 }) => {
@@ -91,4 +91,21 @@ test('devis préparé, envoyé par lien sécurisé puis accepté en ligne par le
     `Accepté en ligne par Salma ${lastName}`,
   );
   await expect(page.getByTestId('order-status')).toContainText('Confirmée');
+
+  // ─── Facture d'acompte (30 % de 10 000,00), datée du jour, numéro définitif ───
+  const invoices = page.getByTestId('invoices-card');
+  await invoices.getByRole('button', { name: 'Facturer l’acompte' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('3.000,00');
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Émettre la facture' }).click();
+  await expect(page.getByText(/Facture FAC-\d{4}-\d{5} émise/)).toBeVisible();
+  await expect(invoices.getByTestId('invoices-list')).toContainText('Facture d’acompte');
+  await expect(invoices.getByRole('button', { name: 'Facturer le solde' })).toBeVisible();
+
+  // ─── Page Factures : recherche et export CSV pour le comptable ───
+  await page.getByRole('link', { name: 'Factures' }).first().click();
+  await page.getByLabel('Recherche').fill(lastName);
+  await expect(page.getByTestId('invoice-list').getByRole('listitem')).toHaveCount(1);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export CSV' }).click();
+  expect((await download).suggestedFilename()).toMatch(/^factures_.*\.csv$/);
 });

@@ -62,7 +62,9 @@ export type AppErrorCode =
   | 'QUOTE_EXPIRED'
   | 'QUOTE_ORDER_STATE'
   | 'QUOTE_VALIDITY_INVALID'
-  | 'ATTACHMENT_INVALID';
+  | 'ATTACHMENT_INVALID'
+  | 'INVOICE_NOT_AVAILABLE'
+  | 'INVOICE_ALREADY_CREDITED';
 
 export interface AppErrorBody {
   code: AppErrorCode;

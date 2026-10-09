@@ -191,7 +191,7 @@ export function PublicQuoteView({
                       {line.label}
                       {line.discount > 0 && (
                         <span className="block text-xs text-muted-foreground">
-                          {t('table.discount', { amount: money(line.discount * line.quantity) })}
+                          {t('table.discount', { amount: money(line.discount) })}
                         </span>
                       )}
                     </td>

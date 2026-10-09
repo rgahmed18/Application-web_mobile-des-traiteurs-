@@ -63,6 +63,7 @@
     "orders": "Commandes",
     "calendar": "Calendrier",
     "clients": "Clients",
+    "invoices": "Factures",
     "staff": "Personnel",
     "settings": "Paramètres",
     "account": "Mon compte",
@@ -206,7 +207,9 @@
       "QUOTE_EXPIRED": "Ce devis a expiré.",
       "QUOTE_ORDER_STATE": "Le devis n’est pas possible dans l’état actuel de la commande (brouillon, clôturée ou annulée).",
       "QUOTE_VALIDITY_INVALID": "La date de validité est déjà dépassée.",
-      "ATTACHMENT_INVALID": "Pièce jointe invalide (PDF, JPEG, PNG ou WebP, 10 Mo au plus)."
+      "ATTACHMENT_INVALID": "Pièce jointe invalide (PDF, JPEG, PNG ou WebP, 10 Mo au plus).",
+      "INVOICE_NOT_AVAILABLE": "Cette facture ne peut pas être émise dans l’état actuel de la commande.",
+      "INVOICE_ALREADY_CREDITED": "Cette facture a déjà un avoir."
     }
   },
   "validation": {
@@ -471,7 +474,11 @@
       "address": "Adresse",
       "city": "Ville",
       "label": "Nom de l’adresse",
-      "isDefault": "Adresse par défaut"
+      "isDefault": "Adresse par défaut",
+      "companyName": "Société",
+      "companyNameHint": "Client entreprise : raison sociale imprimée sur ses factures",
+      "companyIce": "ICE de la société",
+      "companyIceHint": "15 chiffres"
     },
     "locales": {
       "fr": "Français",
@@ -1091,6 +1098,67 @@
       "validation": "Vérifiez votre nom et cochez la case d’acceptation.",
       "tooMany": "Trop de tentatives : réessayez dans une minute.",
       "generic": "Une erreur est survenue. Réessayez ou contactez votre traiteur."
+    }
+  },
+  "invoices": {
+    "title": "Factures",
+    "notInPlan": "Les factures ne sont pas incluses dans votre offre.",
+    "empty": "Aucune facture pour cette commande.",
+    "emptyNotConfirmed": "Les factures s’émettent une fois la commande confirmée.",
+    "creditNote": "Avoir",
+    "kinds": {
+      "TOTAL": "Facture",
+      "DEPOSIT": "Facture d’acompte",
+      "BALANCE": "Facture de solde",
+      "CANCELLATION_FEE": "Facture de frais d’annulation"
+    },
+    "issue": {
+      "TOTAL": "Facturer la commande",
+      "DEPOSIT": "Facturer l’acompte",
+      "BALANCE": "Facturer le solde",
+      "CANCELLATION_FEE": "Facturer les frais d’annulation"
+    },
+    "issuedOn": "Émise le {date}",
+    "creditFor": "sur {number}",
+    "credited": "Soldée par avoir",
+    "partlyCredited": "Avoir partiel",
+    "createCredit": "Émettre un avoir",
+    "invoicedTotal": "Net facturé (factures − avoirs) : {amount}",
+    "issueDialog": {
+      "description": "Montant : {amount} TTC. La facture est datée d’aujourd’hui et reçoit un numéro définitif : elle ne pourra plus être modifiée ni supprimée (une correction passe par un avoir).",
+      "confirm": "Émettre la facture",
+      "cancel": "Annuler",
+      "done": "Facture {number} émise"
+    },
+    "creditDialog": {
+      "title": "Avoir sur la facture {number}",
+      "description": "L’avoir annule la totalité de la facture ({amount}). Le motif est imprimé sur l’avoir.",
+      "reason": "Motif",
+      "confirm": "Émettre l’avoir",
+      "done": "Avoir {number} émis"
+    },
+    "listTitle": "Factures",
+    "listSubtitle": "Factures et avoirs émis, export pour votre comptable.",
+    "search": "Recherche",
+    "searchHint": "N°, commande, client ou ICE",
+    "from": "Du",
+    "to": "Au",
+    "type": "Type",
+    "types": {
+      "all": "Factures et avoirs",
+      "INVOICE": "Factures",
+      "CREDIT_NOTE": "Avoirs"
+    },
+    "columns": {
+      "date": "Émission",
+      "ht": "Total HT",
+      "ttc": "Total TTC"
+    },
+    "listEmpty": "Aucune facture sur cette période",
+    "listEmptyHint": "Les factures s’émettent depuis la fiche d’une commande confirmée.",
+    "export": {
+      "xlsx": "Export Excel (xlsx)",
+      "csv": "Export CSV"
     }
   }
 }

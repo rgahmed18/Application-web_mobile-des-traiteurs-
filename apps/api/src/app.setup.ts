@@ -21,7 +21,12 @@ export function configureApp(app: NestExpressApplication): void {
   // (X-Forwarded-For lu uniquement depuis les proxys de confiance ; désactivé par défaut).
   app.set('trust proxy', config.get('TRUST_PROXY', { infer: true }));
   app.use(helmet());
-  app.enableCors({ origin: config.get('CORS_ORIGINS', { infer: true }), credentials: true });
+  app.enableCors({
+    origin: config.get('CORS_ORIGINS', { infer: true }),
+    credentials: true,
+    // Nom du fichier d'un export (xlsx, CSV), lu par le back-office
+    exposedHeaders: ['Content-Disposition'],
+  });
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 

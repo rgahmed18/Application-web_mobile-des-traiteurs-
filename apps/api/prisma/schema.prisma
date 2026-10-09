@@ -148,6 +148,14 @@ enum InvoiceType {
   CREDIT_NOTE // avoir : montants négatifs, référence la facture d'origine
 }
 
+// Nature d'une facture (un avoir garde la nature de la facture qu'il corrige)
+enum InvoiceKind {
+  TOTAL // facture de la commande entière
+  DEPOSIT // facture d'acompte (une ligne par taux de TVA, au prorata)
+  BALANCE // facture de solde : lignes de la commande moins les acomptes facturés
+  CANCELLATION_FEE // frais d'annulation conservés
+}
+
 enum DocumentType {
   ORDER
   QUOTE
@@ -332,6 +340,9 @@ model Membership {
   lastName      String
   email         String?
   locale        Locale           @default(fr) // langue de communication avec ce client
+  // Client entreprise : raison sociale et ICE imprimés sur les factures
+  companyName   String?
+  companyIce    String?
   internalNotes String? // notes du traiteur sur ce client / employé
   tags          String[]
   createdAt     DateTime         @default(now())
@@ -840,12 +851,13 @@ model Invoice {
   traiteurId        String      @db.Uuid
   orderId           String      @db.Uuid
   type              InvoiceType @default(INVOICE)
-  number            String // ex. FAC-2026-00001 / AV-2026-00001
+  kind              InvoiceKind @default(TOTAL)
+  number            String // ex. FAC-2026-00001 / AV-2026-00001 (ou FAC-… si numérotation partagée)
   year              Int
   sequenceNumber    Int
   originalInvoiceId String?     @db.Uuid // obligatoire pour un avoir (CHECK)
   reason            String? // motif de l'avoir
-  issuedAt          DateTime    @default(now())
+  issuedAt          DateTime    @default(now()) // forcée à l'heure de la transaction (trigger)
   dueDate           DateTime?
   currency          String      @default("MAD") @db.Char(3)
   priceMode         PriceMode // règle de calcul figée, recopiée sur les lignes
@@ -860,7 +872,12 @@ model Invoice {
   sellerSnapshot    Json // raison sociale, ICE, RC, IF, adresse, RIB... du traiteur
   buyerSnapshot     Json // nom, téléphone, adresse (et ICE si entreprise) du client
   notes             String?
+  locale            Locale      @default(fr) // langue du PDF
   pdfUrl            String?
+  // PDF généré une seule fois à l'émission puis stocké en privé (renseignés une seule fois)
+  pdfKey            String?
+  pdfSha256         String?
+  pdfTemplate       String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 

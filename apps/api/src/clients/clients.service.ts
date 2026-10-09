@@ -62,6 +62,8 @@ function snapshot(row: {
   locale: string;
   tags: string[];
   internalNotes: string | null;
+  companyName: string | null;
+  companyIce: string | null;
 }): Prisma.InputJsonObject {
   return {
     firstName: row.firstName,
@@ -70,6 +72,8 @@ function snapshot(row: {
     locale: row.locale,
     tags: row.tags,
     internalNotes: row.internalNotes,
+    companyName: row.companyName,
+    companyIce: row.companyIce,
   };
 }
 
@@ -201,6 +205,8 @@ export class ClientsService {
           locale: input.locale,
           tags: input.tags,
           internalNotes: input.internalNotes,
+          companyName: input.companyName,
+          companyIce: input.companyIce,
           ...(input.address
             ? // traiteurId de l'adresse : déduit de la relation composite (membershipId, traiteurId)
               { addresses: { create: { ...input.address, isDefault: true } } }
@@ -241,6 +247,8 @@ export class ClientsService {
           locale: input.locale,
           tags: input.tags,
           internalNotes: input.internalNotes,
+          companyName: input.companyName,
+          companyIce: input.companyIce,
         },
       });
       await this.audit.record(
@@ -434,6 +442,8 @@ export class ClientsService {
     return {
       ...this.toSummary(row, stats.get(id) ?? EMPTY_STATS),
       internalNotes: row.internalNotes,
+      companyName: row.companyName,
+      companyIce: row.companyIce,
       addresses: row.addresses.map(toAddress),
     };
   }

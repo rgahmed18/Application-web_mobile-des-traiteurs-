@@ -124,3 +124,31 @@ export function uploadFile<TSchema extends z.ZodType>(
   form.append('file', file);
   return apiRequest(path, { method: 'POST', body: form, schema });
 }
+
+/**
+ * Téléchargement d'un fichier produit par l'API (export xlsx, CSV) : même gestion de session,
+ * puis enregistrement sous le nom proposé par l'API (Content-Disposition).
+ */
+export async function downloadFile(
+  path: string,
+  query: Record<string, QueryValue> = {},
+): Promise<void> {
+  const url = buildUrl(path, query);
+  let token = (await authHooks?.getAccessToken()) ?? null;
+  let response = await send(url, { method: 'GET' }, token);
+  if (response.status === 401 && authHooks) {
+    token = await authHooks.refreshAccessToken();
+    if (token) response = await send(url, { method: 'GET' }, token);
+  }
+  if (!response.ok) throw await toApiError(response);
+  const disposition = response.headers.get('content-disposition') ?? '';
+  const fileName = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'export';
+  const href = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
+}
