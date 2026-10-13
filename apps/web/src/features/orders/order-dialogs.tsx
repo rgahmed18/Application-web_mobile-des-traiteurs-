@@ -82,6 +82,9 @@ export function ForceAvailabilityDialog({
                 {t('forceBlocked', { date, reason: availability.blockedReason ?? 'none' })}
               </span>
             )}
+            {availability?.closed && !availability.blocked && (
+              <span>{t('forceClosed', { date })}</span>
+            )}
             {availability?.full && (
               <span>
                 {t('forceFull', {

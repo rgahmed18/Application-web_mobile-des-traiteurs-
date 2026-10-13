@@ -1,10 +1,6 @@
-import { RequirePermission } from '@/features/auth/auth-gates';
-import { SettingsView } from '@/features/settings/billing-settings-form';
+import { SettingsView } from '@/features/settings/settings-view';
 
+/** Paramètres du traiteur (settings.manage) ; l'onglet « Mon compte » est ouvert à tous. */
 export default function SettingsPage() {
-  return (
-    <RequirePermission permission="settings.manage">
-      <SettingsView />
-    </RequirePermission>
-  );
+  return <SettingsView />;
 }

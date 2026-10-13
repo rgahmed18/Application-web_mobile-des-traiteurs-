@@ -174,6 +174,7 @@ export function CalendarView() {
     date,
     blocked: false,
     blockedReason: null,
+    closed: false,
     firmCount: 0,
     pendingCount: 0,
   });
@@ -209,6 +210,7 @@ export function CalendarView() {
           'flex min-h-28 cursor-pointer flex-col gap-1 bg-card p-1.5 text-start outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           variant === 'week' && 'min-h-48 p-2',
           outside && 'bg-muted/30 text-muted-foreground',
+          day.closed && !day.blocked && 'bg-muted/50',
           day.blocked &&
             'bg-[repeating-linear-gradient(135deg,transparent,transparent_6px,var(--color-muted)_6px,var(--color-muted)_12px)]',
         )}
@@ -230,6 +232,9 @@ export function CalendarView() {
           <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
             {t('blocked')}
           </span>
+        )}
+        {day.closed && !day.blocked && (
+          <span className="text-xs font-medium text-muted-foreground">{t('closed')}</span>
         )}
         <div className="flex flex-col gap-1">
           {visible.map((order) => (
@@ -396,6 +401,9 @@ function ListView({
               {day && <LoadIndicator day={day} capacity={capacity} />}
               {day?.blocked && (
                 <span className="text-sm text-amber-700 dark:text-amber-400">{t('blocked')}</span>
+              )}
+              {day?.closed && !day.blocked && (
+                <span className="text-sm text-muted-foreground">{t('closed')}</span>
               )}
             </button>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">

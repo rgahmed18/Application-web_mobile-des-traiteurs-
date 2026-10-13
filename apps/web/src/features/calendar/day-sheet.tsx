@@ -76,6 +76,9 @@ export function DaySheet({ day, orders, capacity, onClose }: DaySheetProps) {
                   {day.blockedReason && ` — ${day.blockedReason}`}
                 </span>
               )}
+              {day?.closed && !day.blocked && (
+                <span className="text-muted-foreground">{t('closed')}</span>
+              )}
             </div>
           </SheetDescription>
         </SheetHeader>

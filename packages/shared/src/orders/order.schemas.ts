@@ -323,6 +323,8 @@ export const availabilitySchema = z.object({
   date: z.string(),
   blocked: z.boolean(),
   blockedReason: z.string().nullable(),
+  /** Jour de fermeture hebdomadaire du traiteur. */
+  closed: z.boolean(),
   /** Capacité du traiteur (null = pas de limite). */
   capacity: z.number().int().nullable(),
   /** Commandes fermes du jour (comptent dans la capacité). */

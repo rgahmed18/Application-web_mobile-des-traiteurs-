@@ -63,6 +63,7 @@ type QuoteRow = Prisma.QuoteGetPayload<{ include: typeof quoteInclude }>;
 const settingsSelect = {
   ...snapshotSettingsSelect,
   maxEventsPerDay: true,
+  closedWeekdays: true,
   quoteValidityDays: true,
 } satisfies Prisma.TraiteurSelect;
 type QuoteSettings = Prisma.TraiteurGetPayload<{ select: typeof settingsSelect }>;

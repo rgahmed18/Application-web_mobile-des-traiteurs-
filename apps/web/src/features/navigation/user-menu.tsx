@@ -1,6 +1,7 @@
 'use client';
 
-import { LogOutIcon } from 'lucide-react';
+import { LogOutIcon, UserRoundIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -50,6 +51,12 @@ export function UserMenu() {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="py-2.5 text-base">
+          <Link href="/admin/settings?tab=account">
+            <UserRoundIcon aria-hidden />
+            {t('nav.account')}
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem className="py-2.5 text-base" onSelect={() => void logout()}>
           <LogOutIcon aria-hidden />
           {t('nav.logout')}

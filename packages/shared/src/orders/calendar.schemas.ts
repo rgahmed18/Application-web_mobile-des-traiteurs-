@@ -36,6 +36,8 @@ export const calendarDaySchema = z.object({
   date: z.string(),
   blocked: z.boolean(),
   blockedReason: z.string().nullable(),
+  /** Jour de fermeture hebdomadaire. */
+  closed: z.boolean(),
   firmCount: z.number().int(),
   pendingCount: z.number().int(),
 });

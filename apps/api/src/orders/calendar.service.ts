@@ -11,6 +11,7 @@ import {
   daysBetween,
   FIRM_ORDER_STATUSES,
   isFirmStatus,
+  isoWeekday,
   OPEN_FIRM_ORDER_STATUSES,
   startOfMonth,
   startOfNextMonth,
@@ -55,7 +56,7 @@ export class CalendarService {
     }
     const traiteur = await this.prisma.traiteur.findUniqueOrThrow({
       where: { id: traiteurId },
-      select: { timezone: true, maxEventsPerDay: true },
+      select: { timezone: true, maxEventsPerDay: true, closedWeekdays: true },
     });
     const timeZone = traiteur.timezone;
     const start = zonedDayRange(query.from, timeZone).start;
@@ -85,6 +86,7 @@ export class CalendarService {
         date,
         blocked: blockedByDate.has(date),
         blockedReason: blockedByDate.get(date) ?? null,
+        closed: traiteur.closedWeekdays.includes(isoWeekday(date)),
         firmCount: ofDay.filter((order) => isFirmStatus(order.status)).length,
         pendingCount: ofDay.filter((order) =>
           (AWAITING_ORDER_STATUSES as readonly string[]).includes(order.status),

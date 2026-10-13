@@ -848,6 +848,7 @@ export class OrdersService {
       select: {
         timezone: true,
         maxEventsPerDay: true,
+        closedWeekdays: true,
         priceEntryMode: true,
         isVatRegistered: true,
         depositPercentBps: true,
@@ -919,7 +920,11 @@ export class OrdersService {
     if (!force) {
       throw appErrors.conflict(
         'AVAILABILITY_CONFLICT',
-        availability.blocked ? 'Cette date est bloquée' : 'La capacité de ce jour est atteinte',
+        availability.blocked
+          ? 'Cette date est bloquée'
+          : availability.closed
+            ? 'Jour de fermeture hebdomadaire'
+            : 'La capacité de ce jour est atteinte',
         { availability },
       );
     }

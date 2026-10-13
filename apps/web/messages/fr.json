@@ -710,7 +710,9 @@
       "forceBlocked": "Le {date} est bloqué{reason, select, none {} other { ({reason})}}.",
       "forceFull": "Le {date} compte déjà {firm} événement(s) confirmé(s) pour une capacité de {capacity}.",
       "forceHint": "Vous pouvez passer outre : votre décision sera tracée dans l’historique.",
-      "force": "Passer outre et enregistrer"
+      "force": "Passer outre et enregistrer",
+      "closed": "Fermé (jour de fermeture hebdomadaire)",
+      "forceClosed": "Le {date} est un jour de fermeture hebdomadaire."
     },
     "detail": {
       "event": "Événement",
@@ -829,7 +831,8 @@
     },
     "dayLoad": "Charge",
     "pendingCount": "{count, plural, one {# en attente} other {# en attente}}",
-    "preparationSheet": "Bon de préparation du jour"
+    "preparationSheet": "Bon de préparation du jour",
+    "closed": "Fermé"
   },
   "payments": {
     "title": "Paiements",
@@ -915,7 +918,7 @@
   },
   "settings": {
     "title": "Paramètres",
-    "subtitle": "Documents, paiements et mentions légales de votre établissement.",
+    "subtitle": "Entreprise, documents, disponibilités et prix de votre établissement.",
     "billing": {
       "title": "Documents et paiements",
       "schedule": "Échéancier",
@@ -957,7 +960,86 @@
       "hasLogo": "Logo en place",
       "noLogo": "Aucun logo",
       "logoSaved": "Logo enregistré",
-      "saved": "Paramètres enregistrés"
+      "saved": "Paramètres enregistrés",
+      "legalHint": "Logo et mentions imprimés sur vos devis, factures et reçus."
+    },
+    "tabs": {
+      "company": "Entreprise",
+      "billing": "Documents et paiements",
+      "availability": "Disponibilités",
+      "pricing": "Mode de prix",
+      "account": "Mon compte"
+    },
+    "company": {
+      "title": "Coordonnées",
+      "hint": "Nom commercial et contact présentés à vos clients.",
+      "name": "Nom commercial",
+      "city": "Ville",
+      "email": "Email",
+      "phone": "Téléphone",
+      "saved": "Coordonnées enregistrées"
+    },
+    "availability": {
+      "capacityTitle": "Capacité par jour",
+      "capacityHint": "Nombre d’événements confirmés que vous acceptez le même jour.",
+      "limited": "Limiter le nombre d’événements par jour",
+      "limitedHint": "Au-delà, une nouvelle commande confirmée demande votre accord explicite.",
+      "maxEventsPerDay": "Événements par jour au plus",
+      "closedTitle": "Fermeture hebdomadaire",
+      "closedHint": "Jours où vous ne prenez pas d’événement. Une commande sur un jour fermé demande votre accord explicite.",
+      "openEveryDay": "Ouvert tous les jours.",
+      "closedOn": "Fermé le : {days}.",
+      "missionsTitle": "Missions terminées",
+      "missionsHint": "Protège la vie privée de vos clients : l’équipe et les livreurs ne gardent que la date, la référence et la ville.",
+      "redact": "Masquer l’adresse et le contact après l’événement",
+      "redactHint": "Adresse, téléphone et nom du contact sur place disparaissent des missions terminées.",
+      "redactionDays": "Délai (jours après l’événement)",
+      "saved": "Disponibilités enregistrées"
+    },
+    "weekdays": {
+      "1": "Lundi",
+      "2": "Mardi",
+      "3": "Mercredi",
+      "4": "Jeudi",
+      "5": "Vendredi",
+      "6": "Samedi",
+      "7": "Dimanche"
+    },
+    "pricing": {
+      "title": "Saisie des prix",
+      "hint": "Choisissez si vous saisissez vos prix toutes taxes comprises ou hors taxes.",
+      "modes": {
+        "TTC": {
+          "label": "Prix TTC",
+          "hint": "Vous saisissez le prix payé par le client ; la TVA est calculée."
+        },
+        "HT": {
+          "label": "Prix HT",
+          "hint": "Vous saisissez le prix hors taxes ; la TVA s’ajoute."
+        }
+      },
+      "noVat": "Vous n’êtes pas assujetti à la TVA : HT et TTC sont identiques.",
+      "warning": "Ce choix s’applique aux nouveaux prix et aux nouveaux documents. Les commandes, devis, factures et reçus existants ne changent pas, et les prix de votre catalogue restent les mêmes.",
+      "apply": "Appliquer",
+      "cancel": "Annuler",
+      "confirmTitle": "Passer en saisie {mode} ?",
+      "confirm": "Oui, changer le mode",
+      "saved": "Mode de prix enregistré"
+    },
+    "account": {
+      "profileTitle": "Mon profil",
+      "phone": "Téléphone",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "locale": "Langue de l’interface",
+      "saved": "Profil enregistré",
+      "passwordTitle": "Mot de passe",
+      "passwordHint": "Après le changement, vous devrez vous reconnecter sur tous vos appareils.",
+      "currentPassword": "Mot de passe actuel",
+      "newPassword": "Nouveau mot de passe",
+      "confirmPassword": "Confirmez le mot de passe",
+      "changePassword": "Changer le mot de passe",
+      "passwordChanged": "Mot de passe changé : reconnectez-vous"
     }
   },
   "quotes": {

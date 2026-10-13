@@ -2,6 +2,7 @@ import {
   AWAITING_ORDER_STATUSES,
   type Availability,
   FIRM_ORDER_STATUSES,
+  isoWeekday,
   zonedDayRange,
 } from '@traiteur/shared';
 
@@ -12,10 +13,11 @@ type Db = Prisma.TransactionClient;
 export interface AvailabilitySettings {
   timezone: string;
   maxEventsPerDay: number | null;
+  closedWeekdays: number[];
 }
 
 /**
- * Disponibilité d'un jour du traiteur : date bloquée, commandes fermes (qui consomment la
+ * Disponibilité d'un jour du traiteur : date bloquée, fermeture hebdomadaire, commandes fermes (qui consomment la
  * capacité) et commandes en attente (indicatif). Un événement compte uniquement le jour de son
  * début, même s'il se termine après minuit.
  */
@@ -45,6 +47,7 @@ export async function dayAvailability(
     date,
     blocked: blocked !== null,
     blockedReason: blocked?.reason ?? null,
+    closed: settings.closedWeekdays.includes(isoWeekday(date)),
     capacity,
     firmCount,
     pendingCount,
@@ -60,7 +63,7 @@ export async function lockDay(tx: Db, traiteurId: string, date: string): Promise
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`availability:${traiteurId}:${date}`}))`;
 }
 
-/** Le jour pose-t-il problème (bloqué, ou plus de place pour une commande ferme de plus) ? */
+/** Le jour pose-t-il problème (bloqué, fermé, ou plus de place pour une commande ferme) ? */
 export function hasConflict(availability: Availability): boolean {
-  return availability.blocked || availability.full;
+  return availability.blocked || availability.closed || availability.full;
 }

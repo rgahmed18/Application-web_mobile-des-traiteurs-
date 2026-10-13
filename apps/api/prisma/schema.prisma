@@ -242,6 +242,8 @@ model Traiteur {
   currency             String           @default("MAD") @db.Char(3)
   timezone             String           @default("Africa/Casablanca")
   maxEventsPerDay      Int? // null = pas de limite
+  // Jours de fermeture hebdomadaire (ISO : 1 = lundi … 7 = dimanche)
+  closedWeekdays       Int[]            @default([])
   // Missions terminées depuis N jours : adresse et contact sur place masqués (null = jamais)
   missionRedactionDays Int?             @default(7)
 

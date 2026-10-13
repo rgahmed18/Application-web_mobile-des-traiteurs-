@@ -22,8 +22,9 @@ export function AvailabilityBanner({ date, orderId }: { date: string; orderId?: 
       </p>
     );
   }
-  const { blocked, blockedReason, full, firmCount, capacity, pendingCount } = availability.data;
-  const problem = blocked || full;
+  const { blocked, blockedReason, closed, full, firmCount, capacity, pendingCount } =
+    availability.data;
+  const problem = blocked || closed || full;
   const Icon = problem ? CalendarXIcon : CalendarCheckIcon;
   return (
     <div
@@ -41,6 +42,7 @@ export function AvailabilityBanner({ date, orderId }: { date: string; orderId?: 
         {blocked && (
           <p className="font-medium">{t('blocked', { reason: blockedReason ?? 'none' })}</p>
         )}
+        {closed && !blocked && <p className="font-medium">{t('closed')}</p>}
         {full ? (
           <p className="font-medium">{t('full', { firm: firmCount, capacity: capacity ?? 0 })}</p>
         ) : (

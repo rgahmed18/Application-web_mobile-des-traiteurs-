@@ -340,6 +340,27 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
 - **Montants en lettres** (`packages/shared/src/money/amount-words.ts`), en français et en arabe,
   testés sur les cas difficiles (0,50 ; 1 ; 2 ; 11 ; 21 ; 71 ; 80 ; 100 ; 1 000 ; 1 000 000…).
 
+### Paramètres
+
+Page **Paramètres** en onglets (onglet mémorisé dans l'URL), `settings.manage` sauf « Mon compte » :
+
+- **Entreprise** : nom commercial, email, téléphone, ville (`/settings/company`) ; logo et
+  mentions légales des documents (raison sociale, ICE, RC, IF, patente, CNSS, adresse du siège).
+- **Documents et paiements** : échéancier (acompte, solde), validité des devis, conditions,
+  TVA des frais d'annulation, numérotation des avoirs, banque, RIB, pied de facture.
+- **Disponibilités** (`/settings/availability`) : capacité par jour, **fermeture hebdomadaire**
+  (jours ISO, au moins un jour ouvert, garanti par la base) et délai de masquage des missions
+  terminées. Un jour fermé se traite comme une date bloquée : le calendrier l'affiche, une
+  commande ferme ou un accord de devis ce jour-là demande un accord explicite (tracé).
+- **Mode de prix** (`/settings/pricing`) : saisie HT ou TTC, avec confirmation. S'applique aux
+  nouveaux prix et documents ; commandes, devis, factures et reçus existants gardent le mode figé
+  à leur création, le catalogue stocke déjà HT et TTC.
+- **Mon compte** (`/me/account`, tout utilisateur, aussi depuis le menu de l'avatar) : prénom,
+  nom (repris sur sa fiche d'équipe), langue de l'interface ; nouveau mot de passe (l'actuel est
+  exigé) qui **ferme toutes les sessions** : reconnexion sur tous les appareils.
+
+Chaque modification est tracée dans le journal d'audit (avant / après).
+
 ### Cycle de vie d'une commande
 
 Machine à états unique (`packages/shared/src/orders/order-status.ts`), imposée par l'API et
@@ -434,28 +455,28 @@ docker/            Script d'initialisation PostgreSQL
 
 Organisation de l'API (`apps/api/src`) : un module par domaine.
 
-| Dossier        | Contenu                                                               |
-| -------------- | --------------------------------------------------------------------- |
-| `config/`      | Validation Zod des variables d'environnement                          |
-| `prisma/`      | Client Prisma (pilote PostgreSQL natif `adapter-pg`)                  |
-| `redis/`       | Connexion Redis (cache des permissions et des fonctionnalités)        |
-| `queue/`       | BullMQ (files `notifications`, `media` et `quotes`)                   |
-| `storage/`     | Stockage S3 (URL présignées, traitement des images avec sharp)        |
-| `catalog/`     | Catégories, plats, formules, services, photos (`/api/v1/catalog`)     |
-| `clients/`     | Clients du traiteur, adresses (`/api/v1/clients`)                     |
-| `orders/`      | Commandes, disponibilité, calendrier, tableau de bord                 |
-| `payments/`    | Encaissements, remboursements, reçus, échéancier                      |
-| `quotes/`      | Devis : versions, envoi, lien public, accords, expiration             |
-| `staff/`       | Personnel : invitations et activation, suspension, permissions        |
-| `assignments/` | Affectations, planning, missions, bons de préparation et de livraison |
-| `invoices/`    | Factures et avoirs, PDF figé, export comptable (xlsx, CSV)            |
-| `pdf/`         | Génération des documents PDF (Typst), libellés FR/AR                  |
-| `settings/`    | Paramètres du traiteur (documents et paiements)                       |
-| `auth/`        | Inscription, connexion, OTP SMS, JWT, refresh tokens                  |
-| `access/`      | Permissions, feature flags et les 5 guards globaux                    |
-| `sequences/`   | Numérotation continue des documents                                   |
-| `documents/`   | Lignes de commande et de devis (seul point d’écriture, totaux inclus) |
-| `audit/`       | Journal d'audit (authentification, catalogue)                         |
+| Dossier        | Contenu                                                                |
+| -------------- | ---------------------------------------------------------------------- |
+| `config/`      | Validation Zod des variables d'environnement                           |
+| `prisma/`      | Client Prisma (pilote PostgreSQL natif `adapter-pg`)                   |
+| `redis/`       | Connexion Redis (cache des permissions et des fonctionnalités)         |
+| `queue/`       | BullMQ (files `notifications`, `media` et `quotes`)                    |
+| `storage/`     | Stockage S3 (URL présignées, traitement des images avec sharp)         |
+| `catalog/`     | Catégories, plats, formules, services, photos (`/api/v1/catalog`)      |
+| `clients/`     | Clients du traiteur, adresses (`/api/v1/clients`)                      |
+| `orders/`      | Commandes, disponibilité, calendrier, tableau de bord                  |
+| `payments/`    | Encaissements, remboursements, reçus, échéancier                       |
+| `quotes/`      | Devis : versions, envoi, lien public, accords, expiration              |
+| `staff/`       | Personnel : invitations et activation, suspension, permissions         |
+| `assignments/` | Affectations, planning, missions, bons de préparation et de livraison  |
+| `invoices/`    | Factures et avoirs, PDF figé, export comptable (xlsx, CSV)             |
+| `pdf/`         | Génération des documents PDF (Typst), libellés FR/AR                   |
+| `settings/`    | Paramètres (entreprise, documents, disponibilités, prix) et Mon compte |
+| `auth/`        | Inscription, connexion, OTP SMS, JWT, refresh tokens                   |
+| `access/`      | Permissions, feature flags et les 5 guards globaux                     |
+| `sequences/`   | Numérotation continue des documents                                    |
+| `documents/`   | Lignes de commande et de devis (seul point d’écriture, totaux inclus)  |
+| `audit/`       | Journal d'audit (authentification, catalogue)                          |
 
 ## Choix d'architecture
 
@@ -720,7 +741,7 @@ pnpm --filter @traiteur/api test:int
 # client, commande de 3 lignes confirmée et retrouvée dans le calendrier ; devis envoyé par
 # lien sécurisé, accepté en ligne, facture d'acompte et export CSV ; livreur invité, activé,
 # affecté, qui ne voit que sa mission sans prix ; encaissement déclaré par le livreur, remis à la
-# caisse, reçu émis.
+# caisse, reçu émis ; paramètres (fermeture hebdomadaire, mode de prix, mon compte).
 # Docker démarré et base seedée ; l'API et le web sont lancés s'ils ne tournent pas déjà.
 pnpm --filter @traiteur/web exec playwright install chromium   # une seule fois
 pnpm --filter @traiteur/web test:e2e
