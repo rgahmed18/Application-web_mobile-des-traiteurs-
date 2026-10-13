@@ -77,7 +77,11 @@ export type AppErrorCode =
   | 'ASSIGNMENT_EXISTS'
   | 'ORDER_NOT_FIRM'
   | 'MEMBER_UNAVAILABLE'
-  | 'MISSION_NOT_ALLOWED';
+  | 'MISSION_NOT_ALLOWED'
+  | 'CASH_NOT_ALLOWED'
+  | 'CASH_DECLARED'
+  | 'CASH_NOT_PENDING'
+  | 'CHEQUE_PHOTO_INVALID';
 
 export interface AppErrorBody {
   code: AppErrorCode;

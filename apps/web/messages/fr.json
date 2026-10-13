@@ -65,6 +65,7 @@
     "calendar": "Calendrier",
     "clients": "Clients",
     "invoices": "Factures",
+    "cashDesk": "Caisse livreurs",
     "staff": "Personnel",
     "settings": "Paramètres",
     "account": "Mon compte",
@@ -228,7 +229,11 @@
       "ASSIGNMENT_EXISTS": "Ce membre a déjà ce rôle sur l’événement.",
       "ORDER_NOT_FIRM": "Le personnel s’affecte à une commande confirmée.",
       "MEMBER_UNAVAILABLE": "Ce membre est suspendu.",
-      "MISSION_NOT_ALLOWED": "Action impossible pour cette mission."
+      "MISSION_NOT_ALLOWED": "Action impossible pour cette mission.",
+      "CASH_NOT_ALLOWED": "Seul le chauffeur ou le superviseur encaisse à la livraison.",
+      "CASH_DECLARED": "Un encaissement a déjà été déclaré pour cette mission.",
+      "CASH_NOT_PENDING": "Cette déclaration a déjà été traitée.",
+      "CHEQUE_PHOTO_INVALID": "Photo illisible (JPEG, PNG ou WebP, 10 Mo au plus)."
     }
   },
   "validation": {
@@ -860,6 +865,8 @@
     "receipt": "Reçu",
     "voided": "Annulé",
     "voidedReason": "Annulé : {reason}",
+    "collectedBy": "Encaissé à la livraison par {name}",
+    "pendingRemittance": "En attente de remise",
     "recordedBy": "par {name}",
     "record": "Enregistrer un paiement",
     "refund": "Rembourser",
@@ -1182,6 +1189,37 @@
       "csv": "Export CSV"
     }
   },
+  "cashDesk": {
+    "title": "Caisse livreurs",
+    "subtitle": "Montants encaissés par les livreurs et pas encore remis. Ils comptent dans les encaissements une fois l’argent reçu.",
+    "empty": {
+      "title": "Rien à récupérer",
+      "description": "Les montants déclarés par les livreurs à la livraison apparaîtront ici jusqu’à leur remise."
+    },
+    "total": "Total à récupérer",
+    "call": "Appeler",
+    "cashTotal": "Espèces {amount}",
+    "chequesTotal": "Chèques {amount}",
+    "declaredAt": "Déclaré le {date}",
+    "differs": "Montant prévu : {amount}",
+    "photo": "Photo du chèque",
+    "remit": "Argent reçu",
+    "reject": "Refuser",
+    "remitDialog": {
+      "title": "Confirmer la remise",
+      "description": "Vous avez reçu {amount} pour la commande {reference} ? L’encaissement sera compté et son reçu numéroté.",
+      "cancel": "Annuler",
+      "confirm": "Oui, argent reçu"
+    },
+    "remitted": "Remise enregistrée, reçu émis",
+    "rejectDialog": {
+      "title": "Refuser la déclaration",
+      "description": "La déclaration est annulée et ne compte pas. Le livreur voit le motif et peut déclarer à nouveau.",
+      "reason": "Motif",
+      "confirm": "Refuser"
+    },
+    "rejected": "Déclaration refusée"
+  },
   "staff": {
     "title": "Personnel",
     "subtitle": "Votre équipe, ses accès et ses permissions.",
@@ -1333,6 +1371,7 @@
         "assignments_read_own": "Consulter ses missions",
         "assignments_update_own": "Confirmer ou terminer ses missions",
         "deliveries_update_status": "Mettre à jour le statut de livraison",
+        "deliveries_collect_cash": "Déclarer un encaissement à la livraison",
         "clients_read": "Consulter les fiches clients",
         "clients_write": "Créer et modifier les fiches clients",
         "conversations_read": "Consulter les conversations",
@@ -1500,6 +1539,37 @@
         "confirm": "Prévenir mon responsable",
         "done": "Votre responsable est prévenu"
       }
+    },
+    "cash": {
+      "label": "Montant à encaisser à la livraison",
+      "hint": "Le livreur le voit sur cette mission seulement et déclare ce qu’il a reçu.",
+      "locked": "Un encaissement a déjà été déclaré : le montant ne se modifie plus.",
+      "amount": "Montant TTC",
+      "method": "Mode",
+      "methods": {
+        "CASH": "Espèces",
+        "CHEQUE": "Chèque"
+      },
+      "toCollect": "À encaisser : {amount} ({method})",
+      "status": {
+        "PENDING": "Déclaré {amount}, en attente de remise",
+        "REMITTED": "{amount} remis",
+        "REJECTED": "Déclaration de {amount} refusée"
+      },
+      "missionTitle": "À encaisser à la livraison",
+      "declaredAt": "Déclaré le {date}",
+      "rejectedReason": "Motif : {reason}",
+      "pendingHint": "Remettez l’argent à votre responsable : il validera la remise.",
+      "declare": "Encaissé",
+      "notYet": "Vous pourrez déclarer l’encaissement le jour de la livraison.",
+      "dialogTitle": "Montant encaissé",
+      "dialogDescription": "Indiquez ce que le client vous a remis. Le montant restera en attente jusqu’à sa remise à votre responsable.",
+      "received": "Montant reçu",
+      "differs": "Montant prévu : {amount}",
+      "chequeNumber": "N° du chèque",
+      "photo": "Photo du chèque (facultative)",
+      "photoHint": "Prenez le chèque en photo, bien à plat et lisible.",
+      "declared": "Encaissement déclaré"
     }
   }
 }

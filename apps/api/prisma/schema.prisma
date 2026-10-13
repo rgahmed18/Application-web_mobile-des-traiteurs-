@@ -359,14 +359,15 @@ model Membership {
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   invitations StaffInvitation[]
 
-  addresses        ClientAddress[]
-  clientOrders     Order[]           @relation("OrderClient")
-  assignments      StaffAssignment[]
-  paymentsRecorded Payment[]         @relation("PaymentRecordedBy")
-  conversations    Conversation[]    @relation("ConversationClient")
-  messagesSent     Message[]
-  reviews          Review[]
-  refreshTokens    RefreshToken[]
+  addresses         ClientAddress[]
+  clientOrders      Order[]           @relation("OrderClient")
+  assignments       StaffAssignment[]
+  paymentsRecorded  Payment[]         @relation("PaymentRecordedBy")
+  paymentsCollected Payment[]         @relation("PaymentCollectedBy")
+  conversations     Conversation[]    @relation("ConversationClient")
+  messagesSent      Message[]
+  reviews           Review[]
+  refreshTokens     RefreshToken[]
 
   @@unique([userId, traiteurId]) // un seul rôle par utilisateur et par traiteur
   @@unique([id, traiteurId])
@@ -959,12 +960,21 @@ model Payment {
   voidReason       String?
   recordedById     String?       @db.Uuid // Membership de l'employé qui a saisi le paiement
   notes            String?
+  // Encaissement à la livraison : déclaré par le livreur (en attente de remise), puis validé
+  // par l'administrateur à la remise de l'argent (alors seulement compté, avec son reçu)
+  assignmentId     String?       @db.Uuid
+  collectedById    String?       @db.Uuid
+  collectedAt      DateTime?
+  chequePhotoKey   String? // photo du chèque (stockage privé), facultative
+  remittedAt       DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  traiteur   Traiteur    @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  order      Order       @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
-  recordedBy Membership? @relation("PaymentRecordedBy", fields: [recordedById, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  traiteur    Traiteur         @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  order       Order            @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+  recordedBy  Membership?      @relation("PaymentRecordedBy", fields: [recordedById, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  collectedBy Membership?      @relation("PaymentCollectedBy", fields: [collectedById, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  assignment  StaffAssignment? @relation(fields: [assignmentId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
   @@unique([traiteurId, receiptNumber])
   @@index([traiteurId, orderId])
@@ -986,6 +996,9 @@ model StaffAssignment {
   respondedAt   DateTime?
   declineReason String?
   doneAt        DateTime?
+  // Montant à encaisser à la livraison (centimes TTC) et mode attendu (espèces ou chèque)
+  cashToCollect Int?
+  cashMethod    PaymentMethod?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
@@ -993,6 +1006,9 @@ model StaffAssignment {
   order      Order      @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
   membership Membership @relation(fields: [membershipId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
 
+  payments Payment[]
+
+  @@unique([id, traiteurId])
   @@unique([orderId, membershipId, staffRole])
   @@index([traiteurId, membershipId, startAt])
 }

@@ -34,6 +34,7 @@ import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatLongDate, formatLocalDate } from '@/lib/format/date';
 
 import { useMission, useMissionAction, useMissions } from './assignments-api';
+import { MissionCashCard } from './mission-cash';
 import { ASSIGNMENT_STATUS_STYLES } from './personnel-card';
 
 /** Statut de la mission ; une commande annulée prime. */
@@ -299,6 +300,8 @@ export function MissionDetail({ id }: { id: string }) {
           </CardContent>
         </Card>
       )}
+
+      {data.cashCollection && <MissionCashCard missionId={id} cash={data.cashCollection} />}
 
       {data.declineReason && data.status === 'DECLINED' && (
         <p className="text-sm text-destructive">{ta('declined', { reason: data.declineReason })}</p>

@@ -93,6 +93,11 @@ export const paymentSchema = z.object({
   recordedBy: z.string().nullable(),
   notes: z.string().nullable(),
   createdAt: z.iso.datetime(),
+  /** Encaissé à la livraison : déclaré par le livreur, pas encore remis (ne compte pas). */
+  pendingRemittance: z.boolean(),
+  collectedBy: z.string().nullable(),
+  /** Jour de la remise à l'administrateur (encaissement à la livraison validé). */
+  remittedOn: z.string().nullable(),
 });
 export type Payment = z.infer<typeof paymentSchema>;
 

@@ -23,6 +23,7 @@ import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CASH_ROLES, latestDeclaration, toDeclaration } from './cash-declaration';
 import { staffAlerts } from './staff-alerts';
 
 type Db = Prisma.TransactionClient;
@@ -41,6 +42,7 @@ const assignmentInclude = {
       user: { select: { phone: true } },
     },
   },
+  payments: latestDeclaration,
 } satisfies Prisma.StaffAssignmentInclude;
 type AssignmentRow = Prisma.StaffAssignmentGetPayload<{ include: typeof assignmentInclude }>;
 
@@ -80,6 +82,7 @@ export class AssignmentsService {
     const traiteurId = requireTraiteurId(user);
     await this.prisma.$transaction(async (tx) => {
       const timeZone = await this.lockOrder(tx, traiteurId, orderId);
+      this.assertCash(input);
       const member = await tx.membership.findFirst({
         where: { id: input.membershipId, traiteurId, role: { in: [...STAFF_ROLES] } },
         select: { id: true, status: true, firstName: true, lastName: true },
@@ -108,6 +111,8 @@ export class AssignmentsService {
           startAt,
           endAt,
           notes: input.notes,
+          cashToCollect: input.cashToCollect,
+          cashMethod: input.cashMethod,
         },
       });
       await this.audit.record(
@@ -124,6 +129,8 @@ export class AssignmentsService {
             startAt: startAt.toISOString(),
             endAt: endAt.toISOString(),
             overlapForced: conflicts.length > 0,
+            cashToCollect: input.cashToCollect,
+            cashMethod: input.cashMethod,
           },
           client,
         },
@@ -144,6 +151,10 @@ export class AssignmentsService {
     const orderId = await this.prisma.$transaction(async (tx) => {
       const current = await this.findAssignment(tx, traiteurId, assignmentId);
       const timeZone = await this.lockOrder(tx, traiteurId, current.orderId);
+      this.assertCash(input);
+      const cashChanged =
+        current.cashToCollect !== input.cashToCollect || current.cashMethod !== input.cashMethod;
+      if (cashChanged) await this.assertNoDeclaration(tx, assignmentId);
       const startAt = toInstant(input.startsAt, timeZone);
       const endAt = toInstant(input.endsAt, timeZone);
       const conflicts = await this.conflicts(
@@ -166,6 +177,8 @@ export class AssignmentsService {
           startAt,
           endAt,
           notes: input.notes,
+          cashToCollect: input.cashToCollect,
+          cashMethod: input.cashMethod,
           // Mission modifiée : le membre doit la confirmer à nouveau
           ...(changed
             ? { status: 'ASSIGNED', respondedAt: null, declineReason: null, doneAt: null }
@@ -183,12 +196,16 @@ export class AssignmentsService {
             staffRole: current.staffRole,
             startAt: current.startAt.toISOString(),
             endAt: current.endAt.toISOString(),
+            cashToCollect: current.cashToCollect,
+            cashMethod: current.cashMethod,
           },
           after: {
             staffRole: input.staffRole,
             startAt: startAt.toISOString(),
             endAt: endAt.toISOString(),
             overlapForced: conflicts.length > 0,
+            cashToCollect: input.cashToCollect,
+            cashMethod: input.cashMethod,
           },
           client,
         },
@@ -207,6 +224,7 @@ export class AssignmentsService {
     const traiteurId = requireTraiteurId(user);
     const orderId = await this.prisma.$transaction(async (tx) => {
       const current = await this.findAssignment(tx, traiteurId, assignmentId);
+      await this.assertNoDeclaration(tx, assignmentId);
       await tx.staffAssignment.delete({ where: { id: assignmentId } });
       await this.audit.record(
         {
@@ -396,6 +414,9 @@ export class AssignmentsService {
       notes: row.notes,
       declineReason: row.declineReason,
       respondedAt: row.respondedAt?.toISOString() ?? null,
+      cashToCollect: row.cashToCollect,
+      cashMethod: row.cashMethod === 'CASH' || row.cashMethod === 'CHEQUE' ? row.cashMethod : null,
+      cashDeclaration: toDeclaration(row.payments[0]),
       conflicts,
     };
   }
@@ -441,6 +462,29 @@ export class AssignmentsService {
         'ASSIGNMENT_CONFLICT',
         'Ce membre est déjà affecté à un autre événement sur ce créneau',
         { conflicts, timeZone },
+      );
+    }
+  }
+
+  /** Un montant à encaisser ne se règle que pour le chauffeur ou le superviseur. */
+  private assertCash(input: { staffRole: string; cashToCollect: number | null }): void {
+    if (input.cashToCollect !== null && !CASH_ROLES.includes(input.staffRole)) {
+      throw appErrors.badRequest(
+        'CASH_NOT_ALLOWED',
+        'Seul le chauffeur ou le superviseur encaisse à la livraison',
+      );
+    }
+  }
+
+  /** Encaissement déjà déclaré (en attente ou remis) : montant figé, affectation conservée. */
+  private async assertNoDeclaration(tx: Db, assignmentId: string): Promise<void> {
+    const declared = await tx.payment.count({
+      where: { assignmentId, collectedAt: { not: null }, voidedAt: null },
+    });
+    if (declared > 0) {
+      throw appErrors.conflict(
+        'CASH_DECLARED',
+        'Un encaissement a déjà été déclaré pour cette affectation',
       );
     }
   }

@@ -255,6 +255,18 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
   enregistré comme **frais d'annulation**.
 - Tableau de bord : « Encaissé ce mois » et « Impayés » ; liste des commandes filtrable
   (reste à payer, en retard).
+- **Encaissement à la livraison (caisse livreurs)** : sur l'affectation d'un chauffeur ou d'un
+  superviseur, l'administrateur règle un montant à encaisser et son mode (espèces ou chèque). Le
+  livreur le voit sur cette mission seulement (seul montant jamais montré à l'équipe) et déclare
+  « Encaissé » (`deliveries.collect_cash`) : montant reçu, mode, n° et photo du chèque
+  facultative (réencodée en JPEG, métadonnées et position GPS supprimées, stockage privé). La
+  déclaration crée un paiement **en attente de remise** (`status = PENDING`) qui ne compte nulle
+  part. Page **Caisse livreurs** (`payments.record`) : montants déclarés non remis, par livreur ;
+  « Argent reçu » le fait compter et lui attribue son reçu `REC-…` ; « Refuser » (motif) l'annule
+  et le livreur peut déclarer à nouveau. Garanties de la base : une seule déclaration vivante par
+  affectation, et la remise (en attente → réussi, une fois) est la seule modification permise
+  d'un encaissement en plus de l'annulation ; une affectation avec un encaissement déclaré ne se
+  supprime pas et son montant ne change plus.
 - Paiement en ligne (CMI) : prévu (champs `provider` / `providerRef`), pas encore implémenté.
 
 ### Devis
@@ -707,7 +719,8 @@ pnpm --filter @traiteur/api test:int
 # Parcours e2e du back-office (Playwright) : connexion ; plat avec photo et formule ;
 # client, commande de 3 lignes confirmée et retrouvée dans le calendrier ; devis envoyé par
 # lien sécurisé, accepté en ligne, facture d'acompte et export CSV ; livreur invité, activé,
-# affecté, qui ne voit que sa mission sans prix.
+# affecté, qui ne voit que sa mission sans prix ; encaissement déclaré par le livreur, remis à la
+# caisse, reçu émis.
 # Docker démarré et base seedée ; l'API et le web sont lancés s'ils ne tournent pas déjà.
 pnpm --filter @traiteur/web exec playwright install chromium   # une seule fois
 pnpm --filter @traiteur/web test:e2e

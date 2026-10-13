@@ -31,6 +31,7 @@ type Db = Prisma.TransactionClient;
 
 const paymentInclude = {
   recordedBy: { select: { firstName: true, lastName: true } },
+  collectedBy: { select: { firstName: true, lastName: true } },
 } satisfies Prisma.PaymentInclude;
 type PaymentRow = Prisma.PaymentGetPayload<{ include: typeof paymentInclude }>;
 
@@ -48,10 +49,10 @@ const orderSelect = {
     select: { firstName: true, lastName: true, locale: true, user: { select: { phone: true } } },
   },
 } satisfies Prisma.OrderSelect;
-type OrderForPayment = Prisma.OrderGetPayload<{ select: typeof orderSelect }>;
+export type OrderForPayment = Prisma.OrderGetPayload<{ select: typeof orderSelect }>;
 
 /** Statuts où un encaissement est accepté (pas sur une commande annulée). */
-const PAYABLE = [
+export const PAYABLE = [
   'DRAFT',
   'PENDING',
   'QUOTED',
@@ -312,8 +313,8 @@ export class PaymentsService {
 
   // ─────────────────────────── Interne ───────────────────────────
 
-  /** Génère et stocke le reçu (une seule fois) ; retourne sa clé. */
-  private async storeReceipt(traiteurId: string, paymentId: string): Promise<string> {
+  /** Génère et stocke le reçu (une seule fois) ; retourne sa clé. Aussi utilisé par la caisse. */
+  async storeReceipt(traiteurId: string, paymentId: string): Promise<string> {
     const existing = await this.prisma.payment.findUniqueOrThrow({
       where: { id: paymentId },
       select: { receiptPdfKey: true, receiptNumber: true },
@@ -437,11 +438,17 @@ export class PaymentsService {
         : null,
       notes: row.notes,
       createdAt: row.createdAt.toISOString(),
+      pendingRemittance:
+        row.collectedAt !== null && row.status === 'PENDING' && row.voidedAt === null,
+      collectedBy: row.collectedBy
+        ? `${row.collectedBy.firstName} ${row.collectedBy.lastName}`.trim()
+        : null,
+      remittedOn: row.remittedAt ? utcToZoned(row.remittedAt, timeZone).date : null,
     };
   }
 
   /** Nature d'un encaissement selon l'échéancier au moment où il est saisi. */
-  private paymentType(
+  paymentType(
     order: OrderForPayment,
     settings: { timezone: string; depositPercentBps: number; balanceDueDays: number },
     paidBefore: number,
@@ -461,7 +468,7 @@ export class PaymentsService {
   }
 
   /** Verrouille la commande : les encaissements d'une même commande sont sérialisés. */
-  private async lockOrder(tx: Db, traiteurId: string, orderId: string): Promise<OrderForPayment> {
+  async lockOrder(tx: Db, traiteurId: string, orderId: string): Promise<OrderForPayment> {
     const locked = await tx.$queryRaw<{ id: string }[]>`
       SELECT "id" FROM "Order" WHERE "id" = ${orderId}::uuid AND "traiteurId" = ${traiteurId}::uuid
       FOR UPDATE`;
@@ -469,7 +476,7 @@ export class PaymentsService {
     return tx.order.findFirstOrThrow({ where: { id: orderId, traiteurId }, select: orderSelect });
   }
 
-  private settings(db: Db, traiteurId: string) {
+  settings(db: Db, traiteurId: string) {
     return db.traiteur.findUniqueOrThrow({ where: { id: traiteurId }, select: settingsSelect });
   }
 }

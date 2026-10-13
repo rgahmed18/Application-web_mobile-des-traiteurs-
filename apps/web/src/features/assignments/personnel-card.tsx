@@ -7,10 +7,12 @@ import {
   type AssignmentConflict,
   assignmentConflictSchema,
   type AssignmentRole,
+  COLLECTION_METHODS,
   type Order,
   serviceInfoSchema,
 } from '@traiteur/shared';
 import {
+  BanknoteIcon,
   ChefHatIcon,
   PencilIcon,
   PhoneIcon,
@@ -33,6 +35,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from '@/components/ui/input-group';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -40,13 +48,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { usePermission } from '@/features/auth/session-provider';
+import { amountToCents, centsToAmount } from '@/features/catalog/forms/form-values';
 import { openDocument } from '@/features/payments/payments-api';
 import { useStaff } from '@/features/staff/staff-api';
 import { isApiError } from '@/lib/api/errors';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatLocalDate } from '@/lib/format/date';
+import { currencyLabel, formatMoney } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 import { cn } from '@/lib/utils';
 
@@ -104,9 +115,20 @@ function defaultTimes(order: Order, role: AssignmentRole): { startsAt: string; e
 const moment = (value: { date: string; time: string }) =>
   `${formatLocalDate(value.date)} ${value.time}`;
 
+/** Rôles sur l'événement qui peuvent encaisser à la livraison. */
+const CASH_ROLES: readonly AssignmentRole[] = ['DRIVER', 'SUPERVISOR'];
+
+export const COLLECTION_STATUS_STYLES = {
+  PENDING: 'border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
+  REMITTED:
+    'border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
+  REJECTED: 'border-red-300 bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200',
+} as const;
+
 /** Personnel affecté à l'événement : rôles, horaires, réponses, chevauchements. */
 export function PersonnelCard({ order }: { order: Order }) {
   const t = useTranslations('assignments');
+  const locale = useLocale();
   const can = usePermission();
   const describeError = useErrorMessage();
   const staffing = useOrderStaffing(order.id);
@@ -221,6 +243,28 @@ export function PersonnelCard({ order }: { order: Order }) {
                     {t('declined', { reason: assignment.declineReason })}
                   </p>
                 )}
+                {assignment.cashToCollect !== null && assignment.cashMethod && (
+                  <p
+                    className="flex flex-wrap items-center gap-2 text-sm"
+                    data-testid="assignment-cash"
+                  >
+                    <BanknoteIcon className="size-4 text-muted-foreground" aria-hidden />
+                    {t('cash.toCollect', {
+                      amount: formatMoney(assignment.cashToCollect, locale),
+                      method: t(`cash.methods.${assignment.cashMethod}`),
+                    })}
+                    {assignment.cashDeclaration && (
+                      <Badge
+                        variant="outline"
+                        className={COLLECTION_STATUS_STYLES[assignment.cashDeclaration.status]}
+                      >
+                        {t(`cash.status.${assignment.cashDeclaration.status}`, {
+                          amount: formatMoney(assignment.cashDeclaration.amount, locale),
+                        })}
+                      </Badge>
+                    )}
+                  </p>
+                )}
                 {assignment.conflicts.length > 0 && (
                   <p className="flex items-center gap-1 text-sm text-amber-700 dark:text-amber-300">
                     <TriangleAlertIcon className="size-4" aria-hidden />
@@ -297,11 +341,21 @@ const assignmentFormSchema = z
     startsAt: z.string(),
     endsAt: z.string(),
     notes: z.string(),
+    collect: z.boolean(),
+    cashAmount: z.string(),
+    cashMethod: z.enum(COLLECTION_METHODS),
   })
   .refine((values) => values.endsAt > values.startsAt, {
     path: ['endsAt'],
     params: { i18n: 'endBeforeStart' },
-  });
+  })
+  .refine(
+    (values) =>
+      !values.collect ||
+      !CASH_ROLES.includes(values.staffRole) ||
+      amountToCents(values.cashAmount) > 0,
+    { path: ['cashAmount'], params: { i18n: 'invalidAmount' } },
+  );
 
 function AssignmentDialog({
   order,
@@ -328,16 +382,29 @@ function AssignmentDialog({
     startsAt: assignment ? `${assignment.start.date}T${assignment.start.time}` : defaults.startsAt,
     endsAt: assignment ? `${assignment.end.date}T${assignment.end.time}` : defaults.endsAt,
     notes: assignment?.notes ?? '',
+    collect: (assignment?.cashToCollect ?? null) !== null,
+    cashAmount: assignment?.cashToCollect ? centsToAmount(assignment.cashToCollect) : '',
+    cashMethod: assignment?.cashMethod ?? 'CASH',
   });
+  const staffRole = form.watch('staffRole');
+  const collect = form.watch('collect');
+  const canCollect = CASH_ROLES.includes(staffRole);
+  // Encaissement déjà déclaré par le livreur : montant figé
+  const cashLocked =
+    (assignment?.cashDeclaration ?? null) !== null &&
+    assignment?.cashDeclaration?.status !== 'REJECTED';
   const members = (staff.data ?? []).filter((member) => member.status !== 'SUSPENDED');
 
   const save = async (values: z.output<typeof assignmentFormSchema>, force: boolean) => {
+    const cash = values.collect && CASH_ROLES.includes(values.staffRole);
     const input = {
       staffRole: values.staffRole,
       startsAt: values.startsAt,
       endsAt: values.endsAt,
       notes: values.notes.trim() === '' ? null : values.notes.trim(),
       force,
+      cashToCollect: cash ? amountToCents(values.cashAmount) : null,
+      cashMethod: cash ? values.cashMethod : null,
     };
     try {
       if (assignment) await update.mutateAsync({ id: assignment.id, input });
@@ -444,6 +511,72 @@ function AssignmentDialog({
           <Textarea {...field} rows={2} dir="auto" aria-invalid={invalid} />
         )}
       />
+      {canCollect && (
+        <div className="flex flex-col gap-3 rounded-lg border p-3" data-testid="cash-fields">
+          <div className="flex items-start gap-3">
+            <Switch
+              id="assignment-collect"
+              checked={collect}
+              disabled={cashLocked}
+              onCheckedChange={(checked) => {
+                form.setValue('collect', checked, { shouldDirty: true });
+                // Proposé : le reste à payer de la commande
+                if (checked && form.getValues('cashAmount') === '' && order.remaining > 0) {
+                  form.setValue('cashAmount', centsToAmount(order.remaining));
+                }
+              }}
+            />
+            <label htmlFor="assignment-collect" className="flex flex-col gap-0.5 text-sm">
+              <span className="font-medium">{t('cash.label')}</span>
+              <span className="text-muted-foreground">
+                {cashLocked ? t('cash.locked') : t('cash.hint')}
+              </span>
+            </label>
+          </div>
+          {collect && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="cashAmount"
+                label={t('cash.amount')}
+                render={(field, { invalid }) => (
+                  <InputGroup>
+                    <InputGroupInput
+                      {...field}
+                      inputMode="decimal"
+                      dir="ltr"
+                      disabled={cashLocked}
+                      aria-invalid={invalid}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupText>{currencyLabel(locale)}</InputGroupText>
+                    </InputGroupAddon>
+                  </InputGroup>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cashMethod"
+                label={t('cash.method')}
+                render={(field) => (
+                  <Select value={field.value} onValueChange={field.onChange} disabled={cashLocked}>
+                    <SelectTrigger id={field.id} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLLECTION_METHODS.map((method) => (
+                        <SelectItem key={method} value={method}>
+                          {t(`cash.methods.${method}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+          )}
+        </div>
+      )}
       {conflicts && (
         <div
           className="flex flex-col gap-2 rounded-lg bg-amber-50 p-3 text-amber-900 dark:bg-amber-950 dark:text-amber-200"

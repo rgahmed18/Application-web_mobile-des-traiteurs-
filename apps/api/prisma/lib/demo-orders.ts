@@ -827,3 +827,41 @@ export async function seedDemoAssignments(
   }
   console.log(`✓ ${orders.length * 2} missions de démonstration (livreur et équipe)`);
 }
+
+/**
+ * Montant à encaisser à la livraison sur la première mission du livreur de démonstration : le
+ * reste à payer de la commande, en espèces (idempotent).
+ */
+export async function seedDemoCashToCollect(
+  prisma: PrismaClient,
+  traiteurId: string,
+  driverId: string,
+): Promise<void> {
+  const existing = await prisma.staffAssignment.count({
+    where: { traiteurId, membershipId: driverId, cashToCollect: { not: null } },
+  });
+  if (existing > 0) return;
+  const mission = await prisma.staffAssignment.findFirst({
+    where: {
+      traiteurId,
+      membershipId: driverId,
+      staffRole: 'DRIVER',
+      startAt: { gt: new Date() },
+      order: { internalNotes: { startsWith: MARKER } },
+    },
+    include: { order: { select: { id: true, totalTtc: true } } },
+    orderBy: { startAt: 'asc' },
+  });
+  if (!mission) return;
+  const paid = await prisma.payment.aggregate({
+    where: { traiteurId, orderId: mission.orderId, status: 'SUCCEEDED', voidedAt: null },
+    _sum: { amount: true },
+  });
+  const remaining = mission.order.totalTtc - (paid._sum.amount ?? 0);
+  if (remaining <= 0) return;
+  await prisma.staffAssignment.update({
+    where: { id: mission.id },
+    data: { cashToCollect: remaining, cashMethod: 'CASH' },
+  });
+  console.log('✓ Montant à encaisser à la livraison sur une mission du livreur');
+}

@@ -23,3 +23,4 @@ export * from './invoices/invoice.schemas';
 export * from './orders/line-label';
 export * from './staff/staff.schemas';
 export * from './staff/assignment.schemas';
+export * from './payments/cash-desk.schemas';

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import {
   type AssignmentInput,
   type AssignmentUpdateInput,
+  type CollectionMethod,
   type Mission,
   type MissionListQuery,
   missionSchema,
@@ -140,5 +141,30 @@ export function useMissionAction(id: string) {
       queryClient.setQueryData(assignmentKeys.mission(id), mission);
       await queryClient.invalidateQueries({ queryKey: ['missions', 'list'] });
     },
+  });
+}
+
+/** « Encaissé » : montant, mode, n° de chèque et photo facultative (multipart). */
+export function useMissionCollect(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      amount: number;
+      method: CollectionMethod;
+      reference: string | null;
+      photo: File | null;
+    }) => {
+      const form = new FormData();
+      form.append('amount', String(input.amount));
+      form.append('method', input.method);
+      if (input.reference) form.append('reference', input.reference);
+      if (input.photo) form.append('photo', input.photo);
+      return apiRequest(`/me/missions/${id}/collect`, {
+        method: 'POST',
+        body: form,
+        schema: missionSchema,
+      });
+    },
+    onSuccess: (mission) => queryClient.setQueryData(assignmentKeys.mission(id), mission),
   });
 }

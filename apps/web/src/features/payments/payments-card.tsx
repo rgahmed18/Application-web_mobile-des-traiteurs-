@@ -2,6 +2,7 @@
 
 import { type Order, todayInTimeZone } from '@traiteur/shared';
 import { BanIcon, FileTextIcon, PencilIcon, PlusIcon, Undo2Icon, WalletIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -168,6 +169,11 @@ export function PaymentsCard({ order, timeZone }: { order: Order; timeZone: stri
                         </span>
                       )}
                     </span>
+                    {payment.collectedBy && (
+                      <span className="block text-sm text-muted-foreground">
+                        {t('collectedBy', { name: payment.collectedBy })}
+                      </span>
+                    )}
                     {payment.voided && payment.voidReason && (
                       <span className="block text-sm text-destructive">
                         {t('voidedReason', { reason: payment.voidReason })}
@@ -175,13 +181,28 @@ export function PaymentsCard({ order, timeZone }: { order: Order; timeZone: stri
                     )}
                   </span>
                   <span
-                    className={cn('font-semibold tabular-nums', payment.voided && 'line-through')}
+                    className={cn(
+                      'font-semibold tabular-nums',
+                      payment.voided && 'line-through',
+                      payment.pendingRemittance && 'text-muted-foreground',
+                    )}
                     dir="ltr"
                   >
                     {payment.type === 'REFUND' ? '−' : ''}
                     {money(payment.amount)}
                   </span>
                   {payment.voided && <Badge variant="outline">{t('voided')}</Badge>}
+                  {payment.pendingRemittance && (
+                    <Badge
+                      asChild
+                      variant="outline"
+                      className="border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                    >
+                      <Link href="/admin/cash-desk" data-testid="payment-pending-remittance">
+                        {t('pendingRemittance')}
+                      </Link>
+                    </Badge>
+                  )}
                   {payment.receiptNumber && can('payments.read') && (
                     <Button
                       variant="ghost"
@@ -196,7 +217,7 @@ export function PaymentsCard({ order, timeZone }: { order: Order; timeZone: stri
                       <span dir="ltr">{payment.receiptNumber}</span>
                     </Button>
                   )}
-                  {can('payments.refund') && !payment.voided && (
+                  {can('payments.refund') && !payment.voided && !payment.pendingRemittance && (
                     <Button
                       variant="ghost"
                       size="icon"

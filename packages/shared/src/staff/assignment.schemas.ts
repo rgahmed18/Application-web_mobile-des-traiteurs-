@@ -24,6 +24,21 @@ export const STAFF_ALERTS = ['DECLINED', 'UNCONFIRMED'] as const;
 export const staffAlertSchema = z.enum(STAFF_ALERTS);
 export type StaffAlert = z.infer<typeof staffAlertSchema>;
 
+/** Modes d'encaissement à la livraison. */
+export const COLLECTION_METHODS = ['CASH', 'CHEQUE'] as const;
+export const collectionMethodSchema = z.enum(COLLECTION_METHODS);
+export type CollectionMethod = z.infer<typeof collectionMethodSchema>;
+
+/**
+ * Encaissement déclaré par le livreur : en attente de remise, remis (validé par l'administrateur,
+ * compté avec son reçu) ou refusé (motif).
+ */
+export const COLLECTION_STATUSES = ['PENDING', 'REMITTED', 'REJECTED'] as const;
+export const collectionStatusSchema = z.enum(COLLECTION_STATUSES);
+export type CollectionStatus = z.infer<typeof collectionStatusSchema>;
+
+const cashAmountSchema = z.number().int().min(1).max(10_000_000_000);
+
 /** Date et heure locales du traiteur : « 2026-10-24T17:30 ». */
 const localDateTimeSchema = z
   .string()
@@ -40,18 +55,28 @@ const assignmentFields = z.object({
   notes: z.string().trim().max(500).nullable().default(null),
   /** Passer outre un chevauchement avec une autre mission du membre (tracé). */
   force: z.boolean().default(false),
+  /** Montant TTC à encaisser à la livraison (chauffeur ou superviseur), avec son mode. */
+  cashToCollect: cashAmountSchema.nullable().default(null),
+  cashMethod: collectionMethodSchema.nullable().default(null),
 });
 
 const endsAfterStart = <T extends { startsAt: string; endsAt: string }>(value: T) =>
   value.endsAt > value.startsAt;
 const endsAfterStartIssue = { message: 'La fin doit être après le début', path: ['endsAt'] };
+const cashComplete = <T extends { cashToCollect: number | null; cashMethod: string | null }>(
+  value: T,
+) => (value.cashToCollect === null) === (value.cashMethod === null);
+const cashCompleteIssue = { message: 'Montant et mode vont ensemble', path: ['cashMethod'] };
 
 export const assignmentInputSchema = assignmentFields
   .extend({ membershipId: z.uuid() })
-  .refine(endsAfterStart, endsAfterStartIssue);
+  .refine(endsAfterStart, endsAfterStartIssue)
+  .refine(cashComplete, cashCompleteIssue);
 export type AssignmentInput = z.infer<typeof assignmentInputSchema>;
 
-export const assignmentUpdateSchema = assignmentFields.refine(endsAfterStart, endsAfterStartIssue);
+export const assignmentUpdateSchema = assignmentFields
+  .refine(endsAfterStart, endsAfterStartIssue)
+  .refine(cashComplete, cashCompleteIssue);
 export type AssignmentUpdateInput = z.infer<typeof assignmentUpdateSchema>;
 
 /** Informations de service de la commande, jamais montrées au client. */
@@ -76,6 +101,23 @@ export const DELIVERY_STEPS = ['OUT_FOR_DELIVERY', 'DELIVERED'] as const;
 export const missionDeliverySchema = z.object({ to: z.enum(DELIVERY_STEPS) });
 export type MissionDeliveryInput = z.infer<typeof missionDeliverySchema>;
 
+/**
+ * « Encaissé » : montant reçu du client et mode (formulaire multipart, la photo du chèque est
+ * facultative). Les champs arrivent en texte, d'où la conversion du montant.
+ */
+export const missionCollectSchema = z.object({
+  amount: z.coerce.number().pipe(cashAmountSchema),
+  method: collectionMethodSchema,
+  /** N° du chèque. */
+  reference: z
+    .string()
+    .trim()
+    .max(100)
+    .nullish()
+    .transform((value) => value || null),
+});
+export type MissionCollectInput = z.infer<typeof missionCollectSchema>;
+
 export const MISSION_SCOPES = ['upcoming', 'past'] as const;
 export const missionListQuerySchema = z.object({
   scope: z.enum(MISSION_SCOPES).default('upcoming'),
@@ -92,6 +134,19 @@ export const assignmentConflictSchema = z.object({
   end: moment,
 });
 export type AssignmentConflict = z.infer<typeof assignmentConflictSchema>;
+
+/** Encaissement déclaré pour une affectation. */
+export const cashDeclarationSchema = z.object({
+  paymentId: z.uuid(),
+  amount: z.number().int(),
+  method: collectionMethodSchema,
+  reference: z.string().nullable(),
+  collectedAt: z.iso.datetime(),
+  status: collectionStatusSchema,
+  rejectReason: z.string().nullable(),
+  hasPhoto: z.boolean(),
+});
+export type CashDeclaration = z.infer<typeof cashDeclarationSchema>;
 
 export const assignmentSchema = z.object({
   id: z.uuid(),
@@ -111,6 +166,10 @@ export const assignmentSchema = z.object({
   notes: z.string().nullable(),
   declineReason: z.string().nullable(),
   respondedAt: z.iso.datetime().nullable(),
+  cashToCollect: z.number().int().nullable(),
+  cashMethod: collectionMethodSchema.nullable(),
+  /** Dernière déclaration d'encaissement du livreur. */
+  cashDeclaration: cashDeclarationSchema.nullable(),
   /** Autres missions du membre qui chevauchent celle-ci. */
   conflicts: z.array(assignmentConflictSchema),
 });
@@ -217,5 +276,17 @@ export const missionSchema = missionSummarySchema.extend({
   canDecline: z.boolean(),
   canFinish: z.boolean(),
   documents: z.object({ deliveryNote: z.boolean(), preparationSheet: z.boolean() }),
+  /**
+   * Montant à encaisser à la livraison : présent seulement sur la mission concernée (chauffeur
+   * ou superviseur pour qui l'administrateur l'a réglé). Seul montant jamais montré à l'équipe.
+   */
+  cashCollection: z
+    .object({
+      amount: z.number().int(),
+      method: collectionMethodSchema,
+      declaration: cashDeclarationSchema.nullable(),
+      canDeclare: z.boolean(),
+    })
+    .nullable(),
 });
 export type Mission = z.infer<typeof missionSchema>;

@@ -4,6 +4,7 @@ import {
   type Download,
   findTransition,
   type Mission,
+  type MissionCollectInput,
   type MissionDeclineInput,
   type MissionDeliveryInput,
   type MissionListQuery,
@@ -23,8 +24,10 @@ import { readLineLabel } from '../documents/line-label';
 import type { Prisma } from '../generated/prisma/client';
 import { toSchedule } from '../orders/order-mapper';
 import { OrdersService } from '../orders/orders.service';
+import { CashDeskService, type PhotoFile } from '../payments/cash-desk.service';
 import type { DocLocale } from '../pdf/format';
 import { PrismaService } from '../prisma/prisma.service';
+import { CASH_ROLES, latestDeclaration, toDeclaration } from './cash-declaration';
 import { ServiceDocumentsService } from './service-documents.service';
 
 /**
@@ -73,12 +76,17 @@ const missionInclude = {
       },
     },
   },
+  payments: latestDeclaration,
 } satisfies Prisma.StaffAssignmentInclude;
 type MissionRow = Prisma.StaffAssignmentGetPayload<{ include: typeof missionInclude }>;
 
 const KITCHEN_ROLES = ['CHEF', 'COOK', 'SUPERVISOR'];
 const DELIVERY_ROLES = ['DRIVER', 'SUPERVISOR'];
 const PAST_LIMIT = 50;
+/** Commandes où le livreur peut déclarer un encaissement (pas annulée, ni en devis). */
+const COLLECTABLE = ['CONFIRMED', 'IN_PREPARATION', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'];
+/** Une déclaration est possible à partir de 12 h avant le début de la mission. */
+const COLLECT_WINDOW_MS = 12 * 3_600_000;
 
 @Injectable()
 export class MissionsService {
@@ -88,6 +96,7 @@ export class MissionsService {
     private readonly permissions: PermissionsService,
     private readonly orders: OrdersService,
     private readonly documents: ServiceDocumentsService,
+    private readonly cashDesk: CashDeskService,
   ) {}
 
   async list(user: AuthenticatedUser, query: MissionListQuery): Promise<MissionSummary[]> {
@@ -165,6 +174,27 @@ export class MissionsService {
       },
       client,
     );
+    return this.get(user, missionId);
+  }
+
+  /** « Encaissé » : paiement en attente de remise, validé plus tard par l'administrateur. */
+  async collect(
+    user: AuthenticatedUser,
+    missionId: string,
+    input: MissionCollectInput,
+    photo: PhotoFile | undefined,
+    client: ClientInfo,
+  ): Promise<Mission> {
+    const traiteurId = requireTraiteurId(user);
+    const [row, settings, permissions] = await Promise.all([
+      this.find(traiteurId, user, missionId),
+      this.settings(traiteurId),
+      this.permissions.getEffectivePermissions(traiteurId, user.role),
+    ]);
+    if (!this.cashCollection(row, settings, permissions)?.canDeclare) {
+      throw appErrors.badRequest('MISSION_NOT_ALLOWED', 'Aucun encaissement à déclarer maintenant');
+    }
+    await this.cashDesk.declare(user, { id: row.id, orderId: row.orderId }, input, photo, client);
     return this.get(user, missionId);
   }
 
@@ -324,6 +354,30 @@ export class MissionsService {
     return DELIVERY_STEPS.filter((to) => findTransition(row.order.status, to) !== null);
   }
 
+  /** Montant à encaisser : seulement sur la mission où l'administrateur l'a réglé. */
+  private cashCollection(
+    row: MissionRow,
+    settings: { missionRedactionDays: number | null },
+    permissions: ReadonlySet<string>,
+  ): Mission['cashCollection'] {
+    if (row.cashToCollect === null || !CASH_ROLES.includes(row.staffRole)) return null;
+    if (row.cashMethod !== 'CASH' && row.cashMethod !== 'CHEQUE') return null;
+    if (this.redacted(row, settings)) return null;
+    const declaration = toDeclaration(row.payments[0]);
+    const live = declaration !== null && declaration.status !== 'REJECTED';
+    return {
+      amount: row.cashToCollect,
+      method: row.cashMethod,
+      declaration,
+      canDeclare:
+        permissions.has('deliveries.collect_cash') &&
+        !live &&
+        row.status !== 'DECLINED' &&
+        COLLECTABLE.includes(row.order.status) &&
+        row.startAt.getTime() - COLLECT_WINDOW_MS <= Date.now(),
+    };
+  }
+
   private documentsFor(row: MissionRow, settings: { missionRedactionDays: number | null }) {
     const usable =
       row.status !== 'DECLINED' &&
@@ -394,6 +448,7 @@ export class MissionsService {
       deliverySteps: this.deliverySteps(row, permissions, settings),
       ...this.flags(row, settings),
       documents: this.documentsFor(row, settings),
+      cashCollection: this.cashCollection(row, settings, permissions),
     };
   }
 }

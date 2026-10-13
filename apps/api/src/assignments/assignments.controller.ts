@@ -9,8 +9,18 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   type AssignmentInput,
   assignmentInputSchema,
@@ -20,6 +30,8 @@ import {
   downloadSchema,
   localDateSchema,
   type Mission,
+  type MissionCollectInput,
+  missionCollectSchema,
   type MissionDeclineInput,
   missionDeclineSchema,
   type MissionDeliveryInput,
@@ -253,6 +265,38 @@ export class MissionsController {
     @Client() client: ClientInfo,
   ): Promise<Mission> {
     return this.missions.deliveryStep(user, id, body, client);
+  }
+
+  @Post(':id/collect')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('deliveries.collect_cash')
+  @UseInterceptors(FileInterceptor('photo', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary:
+      '« Encaissé » : montant reçu à la livraison (photo du chèque facultative), en attente de remise',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['amount', 'method'],
+      properties: {
+        amount: { type: 'integer', description: 'Centimes' },
+        method: { type: 'string', enum: ['CASH', 'CHEQUE'] },
+        reference: { type: 'string' },
+        photo: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiOkResponse({ schema: zodToOpenApi(missionSchema, 'output') })
+  collect(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Body(new ZodValidationPipe(missionCollectSchema)) body: MissionCollectInput,
+    @UploadedFile() photo: { buffer: Buffer; size: number } | undefined,
+    @Client() client: ClientInfo,
+  ): Promise<Mission> {
+    return this.missions.collect(user, id, body, photo, client);
   }
 
   @Get(':id/delivery-note')

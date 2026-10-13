@@ -30,6 +30,7 @@ import {
   type DemoCatalog,
   seedDemoClientsAndOrders,
   seedDemoAssignments,
+  seedDemoCashToCollect,
   seedDemoPayments,
 } from './lib/demo-orders';
 import { generateIllustration, PALETTES } from './lib/illustrations';
@@ -1038,6 +1039,7 @@ async function main(): Promise<void> {
   const teamId = memberships.get('team');
   if (!driverId || !teamId) throw new Error('Équipe de démonstration manquante');
   await seedDemoAssignments(prisma, traiteur.id, { driverId, teamId });
+  await seedDemoCashToCollect(prisma, traiteur.id, driverId);
 }
 
 main()

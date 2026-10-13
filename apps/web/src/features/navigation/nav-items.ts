@@ -10,6 +10,7 @@ import {
   UsersIcon,
   UtensilsIcon,
   UserRoundCogIcon,
+  WalletIcon,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -22,6 +23,7 @@ export interface NavItem {
     | 'calendar'
     | 'clients'
     | 'invoices'
+    | 'cashDesk'
     | 'staff'
     | 'settings';
   href: string;
@@ -54,6 +56,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     href: '/admin/invoices',
     icon: ReceiptTextIcon,
     permission: 'invoices.read',
+  },
+  {
+    labelKey: 'cashDesk',
+    href: '/admin/cash-desk',
+    icon: WalletIcon,
+    permission: 'payments.record',
   },
   { labelKey: 'staff', href: '/admin/staff', icon: UserRoundCogIcon, permission: 'staff.read' },
   {

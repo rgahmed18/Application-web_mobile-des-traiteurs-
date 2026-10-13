@@ -52,6 +52,7 @@ export const PERMISSIONS = [
   { key: 'staff.manage', module: 'staff', description: 'Gérer le personnel et les affectations', isTenantEditable: true, defaultRoles: [ADMIN] },
   { key: 'assignments.read_own', module: 'staff', description: 'Consulter ses missions', isTenantEditable: true, defaultRoles: [EMPLOYEE, TEAM, DRIVER] },
   { key: 'assignments.update_own', module: 'staff', description: 'Confirmer ou terminer ses missions', isTenantEditable: true, defaultRoles: [EMPLOYEE, TEAM, DRIVER] },
+  { key: 'deliveries.collect_cash', module: 'deliveries', description: 'Déclarer un encaissement à la livraison', isTenantEditable: true, defaultRoles: [DRIVER] },
   { key: 'deliveries.update_status', module: 'deliveries', description: 'Mettre à jour le statut de livraison', isTenantEditable: true, defaultRoles: [ADMIN, DRIVER] },
   // Clients
   { key: 'clients.read', module: 'clients', description: 'Consulter les fiches clients', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
