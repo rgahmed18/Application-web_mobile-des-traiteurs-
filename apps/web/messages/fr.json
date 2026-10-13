@@ -234,7 +234,9 @@
       "CASH_DECLARED": "Un encaissement a déjà été déclaré pour cette mission.",
       "CASH_NOT_PENDING": "Cette déclaration a déjà été traitée.",
       "CHEQUE_PHOTO_INVALID": "Photo illisible (JPEG, PNG ou WebP, 10 Mo au plus).",
-      "IMAGE_IN_USE": "Cette photo vient d’être utilisée ailleurs, réessayez."
+      "IMAGE_IN_USE": "Cette photo vient d’être utilisée ailleurs, réessayez.",
+      "SMS_UNAVAILABLE": "L’envoi de SMS est momentanément indisponible, réessayez dans quelques minutes.",
+      "PDF_TIMEOUT": "La génération du document a pris trop de temps, réessayez."
     }
   },
   "validation": {

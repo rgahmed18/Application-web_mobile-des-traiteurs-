@@ -38,6 +38,7 @@ export type AppErrorCode =
   | 'IMAGE_INVALID'
   | 'IMAGE_IN_USE'
   | 'PDF_TIMEOUT'
+  | 'SMS_UNAVAILABLE'
   | 'IMAGE_TOO_LARGE'
   | 'UPLOAD_NOT_FOUND'
   | 'CLIENT_EXISTS'

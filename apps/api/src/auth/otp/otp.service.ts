@@ -1,6 +1,6 @@
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { maskPhone, OTP_CODE_LENGTH, type OtpRequestResponse } from '@traiteur/shared';
 
@@ -156,7 +156,11 @@ export class OtpService {
         );
       } catch (error) {
         await this.prisma.otpCode.update({ where: { id: created.id }, data: { smsSentAt: null } });
-        throw error;
+        this.logger.error(`Code non envoyé à ${maskPhone(phone)} : ${String(error)}`);
+        throw new ServiceUnavailableException({
+          code: 'SMS_UNAVAILABLE',
+          message: "L'envoi de SMS est momentanément indisponible, réessayez dans quelques minutes",
+        });
       }
     }
 

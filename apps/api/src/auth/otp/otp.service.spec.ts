@@ -306,7 +306,11 @@ describe('OtpService', () => {
         send: () => Promise.reject(new Error('opérateur indisponible')),
       };
       const service = new OtpService(store as unknown as PrismaService, failing, config);
-      await expect(service.requestCode(PHONE, 'LOGIN')).rejects.toThrow('opérateur indisponible');
+      // Erreur claire pour l'utilisateur (503), sans le détail interne du fournisseur
+      await expect(service.requestCode(PHONE, 'LOGIN')).rejects.toMatchObject({
+        status: 503,
+        response: { code: 'SMS_UNAVAILABLE' },
+      });
       expect(store.rows[0]?.smsSentAt).toBeNull();
     });
   });

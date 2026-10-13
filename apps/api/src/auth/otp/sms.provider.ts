@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { maskPhone } from '@traiteur/shared';
 
-/** Fournisseur d'envoi de SMS (implémentation réelle à brancher : opérateur marocain, Twilio...). */
+/** Fournisseur d'envoi de SMS : console, agrégateur HTTP ou Twilio (voir sms/sms-factory.ts). */
 export interface SmsProvider {
   send(phone: string, message: string): Promise<void>;
 }

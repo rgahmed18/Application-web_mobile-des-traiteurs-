@@ -80,7 +80,51 @@ export const envSchema = z
     OTP_MAX_PER_HOUR: z.coerce.number().int().min(1).default(5),
     /** Demandes de code par adresse IP sur 24 h glissantes, tous numéros confondus. */
     OTP_MAX_PER_IP_PER_DAY: z.coerce.number().int().min(1).default(20),
-    SMS_PROVIDER: z.enum(['console']).default('console'),
+    /**
+     * Fournisseur SMS : console (simulé, développement), http (agrégateur local, configuré par
+     * SMS_HTTP_*), twilio. SMS_FALLBACK_PROVIDER est essayé si le principal échoue.
+     */
+    SMS_PROVIDER: z.enum(['console', 'http', 'twilio']).default('console'),
+    SMS_FALLBACK_PROVIDER: z.enum(['none', 'http', 'twilio']).default('none'),
+    /** Délai maximal d'un envoi, par fournisseur. */
+    SMS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
+    /** Nom d'expéditeur (11 caractères au plus, lettres et chiffres), à faire valider. */
+    SMS_SENDER: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9 ]{1,11}$/, '11 caractères au plus, lettres et chiffres')
+      .optional(),
+    /**
+     * Agrégateur HTTP générique. Gabarits {{to}}, {{message}}, {{sender}} dans l'URL et le
+     * corps (encodés selon l'endroit). Exemple GET :
+     * https://api.exemple.ma/send?key=XXX&to={{to}}&text={{message}}&from={{sender}}
+     */
+    SMS_HTTP_URL: z
+      .string()
+      .trim()
+      .regex(/^https?:\/\//, 'URL http(s) attendue')
+      .optional(),
+    SMS_HTTP_METHOD: z.enum(['GET', 'POST']).default('POST'),
+    /** Corps de la requête (POST), JSON ou formulaire selon SMS_HTTP_CONTENT_TYPE. */
+    SMS_HTTP_BODY: z.string().optional(),
+    SMS_HTTP_CONTENT_TYPE: z.enum(['json', 'form']).default('json'),
+    /** En-tête Authorization complet (ex. « Bearer xxx ») : secret, jamais journalisé. */
+    SMS_HTTP_AUTH_HEADER: z.string().optional(),
+    /** Format du numéro attendu : +212612345678, 212612345678 ou 0612345678. */
+    SMS_HTTP_PHONE_FORMAT: z.enum(['e164', 'international', 'national']).default('international'),
+    /** Expression que la réponse doit contenir pour être un succès (en plus d'un statut 2xx). */
+    SMS_HTTP_SUCCESS_PATTERN: z.string().optional(),
+    TWILIO_ACCOUNT_SID: z
+      .string()
+      .regex(/^AC[0-9a-fA-F]{32}$/, 'SID Twilio (AC…)')
+      .optional(),
+    TWILIO_AUTH_TOKEN: z.string().min(16).optional(),
+    /** Numéro ou nom d'expéditeur Twilio ; ou un service de messagerie (MG…). */
+    TWILIO_FROM: z.string().trim().min(1).optional(),
+    TWILIO_MESSAGING_SERVICE_SID: z
+      .string()
+      .regex(/^MG[0-9a-fA-F]{32}$/)
+      .optional(),
     /** Plafond global de SMS envoyés sur 24 h glissantes (protection contre le « SMS pumping »). */
     SMS_DAILY_GLOBAL_LIMIT: z.coerce.number().int().min(1).default(2000),
     /** Indicatifs pays autorisés à recevoir un SMS, sans « + » (ex. "212,33"). */
@@ -132,6 +176,37 @@ export const envSchema = z
         message: 'les documents privés doivent être dans un autre bucket que les photos publiques',
         path: ['S3_DOCUMENTS_BUCKET'],
       });
+    }
+    const providers = [env.SMS_PROVIDER, env.SMS_FALLBACK_PROVIDER];
+    if (env.SMS_FALLBACK_PROVIDER === env.SMS_PROVIDER) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMS_FALLBACK_PROVIDER'],
+        message: 'le fournisseur de secours doit différer du fournisseur principal',
+      });
+    }
+    if (providers.includes('http') && !env.SMS_HTTP_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMS_HTTP_URL'],
+        message: 'requis pour le fournisseur http',
+      });
+    }
+    if (providers.includes('twilio')) {
+      if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['TWILIO_ACCOUNT_SID'],
+          message: 'TWILIO_ACCOUNT_SID et TWILIO_AUTH_TOKEN requis pour Twilio',
+        });
+      }
+      if (!env.TWILIO_FROM && !env.TWILIO_MESSAGING_SERVICE_SID) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['TWILIO_FROM'],
+          message: 'TWILIO_FROM ou TWILIO_MESSAGING_SERVICE_SID requis pour Twilio',
+        });
+      }
     }
     if (env.NODE_ENV === 'production' && env.SMS_PROVIDER === 'console') {
       ctx.addIssue({
