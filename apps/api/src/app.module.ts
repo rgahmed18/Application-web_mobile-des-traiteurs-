@@ -14,6 +14,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { ClientsModule } from './clients/clients.module';
+import { DocumentRecoveryModule } from './document-recovery/document-recovery.module';
 import { DocumentsModule } from './documents/documents.module';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
@@ -56,6 +57,7 @@ import { StorageModule } from './storage/storage.module';
     ClientsModule,
     OrdersModule,
     PaymentsModule,
+    DocumentRecoveryModule,
     QuotesModule,
     InvoicesModule,
     SettingsModule,

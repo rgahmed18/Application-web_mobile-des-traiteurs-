@@ -11,5 +11,6 @@ import { QuotesService } from './quotes.service';
   imports: [BullModule.registerQueue({ name: QUOTES_QUEUE })],
   controllers: [QuotesController, PublicQuotesController],
   providers: [QuotesService, QuoteExpiryProcessor],
+  exports: [QuotesService],
 })
 export class QuotesModule {}

@@ -386,7 +386,7 @@ export class QuotesService {
     try {
       await this.storeSentPdf(traiteurId, quoteId);
     } catch (error) {
-      // Produit au premier téléchargement (données du devis figées)
+      // Repris au premier téléchargement ou par la reprise automatique (données figées)
       this.logger.warn(`PDF du devis ${quoteId} non généré : ${String(error)}`);
     }
     return { quote: await this.get(traiteurId, quoteId), link };
@@ -960,7 +960,7 @@ export class QuotesService {
   }
 
   /** PDF tel qu'envoyé au client : généré et stocké une seule fois, avec son empreinte. */
-  private async storeSentPdf(traiteurId: string, quoteId: string): Promise<string> {
+  async storeSentPdf(traiteurId: string, quoteId: string): Promise<string> {
     const quote = await this.prisma.quote.findUniqueOrThrow({
       where: { id: quoteId },
       select: { pdfKey: true, reference: true, version: true },

@@ -107,7 +107,7 @@ export class InvoicesService {
       );
       return invoiceId;
     });
-    await this.ensurePdf(traiteurId, id);
+    await this.pdfAfterCommit(traiteurId, id);
     return this.state(this.prisma, traiteurId, orderId);
   }
 
@@ -148,7 +148,7 @@ export class InvoicesService {
       );
       return result;
     });
-    await this.ensurePdf(traiteurId, created.id);
+    await this.pdfAfterCommit(traiteurId, created.id);
     return this.state(this.prisma, traiteurId, created.orderId);
   }
 
@@ -284,8 +284,23 @@ export class InvoicesService {
     };
   }
 
+  /**
+   * PDF juste après le commit (jamais sous verrou). La facture est émise quoi qu'il arrive :
+   * un échec du rendu ou du stockage est repris au premier téléchargement et, sinon, par la
+   * reprise automatique (DocumentRecoveryProcessor).
+   */
+  private async pdfAfterCommit(traiteurId: string, invoiceId: string): Promise<void> {
+    try {
+      await this.ensurePdf(traiteurId, invoiceId);
+    } catch (error) {
+      this.logger.warn(
+        `PDF de la facture ${invoiceId} différé (reprise automatique) : ${String(error)}`,
+      );
+    }
+  }
+
   /** PDF de la facture : généré une seule fois puis servi tel quel (jamais régénéré). */
-  private async ensurePdf(traiteurId: string, invoiceId: string): Promise<string> {
+  async ensurePdf(traiteurId: string, invoiceId: string): Promise<string> {
     const existing = await this.prisma.invoice.findFirstOrThrow({
       where: { id: invoiceId, traiteurId },
       select: { pdfKey: true, number: true },

@@ -126,11 +126,15 @@ export class DishesService {
 
   async create(user: AuthenticatedUser, input: DishInput, client: ClientInfo): Promise<Dish> {
     const traiteurId = requireTraiteurId(user);
+    const id = randomUUID();
+    // Copie éventuelle de la photo sur le stockage : avant la transaction, jamais pendant
+    const preparedImage = input.imageKey
+      ? await this.media.prepare(traiteurId, input.imageKey, id)
+      : null;
     try {
       return await this.prisma.$transaction(async (tx) => {
         const settings = await loadCatalogSettings(tx, traiteurId);
         await this.assertCategory(tx, traiteurId, input.categoryId);
-        const id = randomUUID();
         const slug = await uniqueSlug(input.name, 'plat', async (candidate) =>
           Boolean(
             await tx.dish.findUnique({
@@ -138,8 +142,8 @@ export class DishesService {
             }),
           ),
         );
-        const imageKey = input.imageKey
-          ? await this.media.attach(tx, traiteurId, input.imageKey, 'Dish', id)
+        const imageKey = preparedImage
+          ? await this.media.attach(tx, traiteurId, preparedImage, 'Dish', id)
           : null;
 
         const row = await tx.dish.create({
@@ -174,6 +178,10 @@ export class DishesService {
     client: ClientInfo,
   ): Promise<Dish> {
     const traiteurId = requireTraiteurId(user);
+    // Copie éventuelle de la photo sur le stockage : avant la transaction, jamais pendant
+    const preparedImage = input.imageKey
+      ? await this.media.prepare(traiteurId, input.imageKey, id)
+      : null;
     return this.prisma.$transaction(async (tx) => {
       const settings = await loadCatalogSettings(tx, traiteurId);
       const existing = await tx.dish.findFirst({ where: { id, traiteurId }, include: dishInclude });
@@ -181,10 +189,10 @@ export class DishesService {
       await this.assertCategory(tx, traiteurId, input.categoryId);
 
       let imageKey = existing.imageKey;
-      if (input.imageKey !== existing.imageKey) {
+      if (preparedImage !== existing.imageKey) {
         if (existing.imageKey) await this.media.detach(tx, traiteurId, existing.imageKey);
-        imageKey = input.imageKey
-          ? await this.media.attach(tx, traiteurId, input.imageKey, 'Dish', id)
+        imageKey = preparedImage
+          ? await this.media.attach(tx, traiteurId, preparedImage, 'Dish', id)
           : null;
       }
 

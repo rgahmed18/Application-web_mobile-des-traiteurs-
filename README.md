@@ -706,6 +706,25 @@ Dans tous les cas, `API_INTERNAL_URL` doit joindre l'API **directement** (résea
 Nginx local), jamais en repassant par Cloudflare, et `NEXT_PUBLIC_API_URL` passe par le même
 proxy que le site. Ne faites jamais confiance à une adresse qui n'est pas un proxy.
 
+### Opérations lentes et transactions
+
+Règle : **aucune opération lente (rendu PDF Typst, stockage S3, SMS) pendant qu'une transaction
+tient des verrous**. Le rendu Typst est en plus synchrone : il bloque tout le processus.
+
+- **Avant la transaction** : ce qui peut échouer sans conséquence. Photos (logo, chèque, pièce
+  jointe d'un accord manuel) réencodées et envoyées au stockage, puis référencées dans la
+  transaction ; en cas d'échec de celle-ci, le fichier est supprimé ou nettoyé par la tâche des
+  24 h. Copie d'une photo déjà utilisée (duplication d'un plat ou d'une formule) :
+  `MediaService.prepare`, la transaction n'écrit plus qu'en base (`attach`).
+- **Après le commit** : PDF figés (factures et avoirs, reçus, devis envoyés) et SMS (codes,
+  invitations). Le document est valide sans son PDF ; un échec du rendu ou du stockage ne fait
+  jamais échouer la requête. Reprise : au premier téléchargement, et sinon automatiquement par
+  la tâche BullMQ `documents` (toutes les 5 minutes, documents sans PDF depuis plus de 2
+  minutes, 25 par type et par passage, `DocumentRecoveryService`). Le rendu est déterministe et
+  la clé ne s'enregistre qu'une fois : une reprise concurrente donne le même fichier.
+- Un SMS en échec n'annule rien : le code OTP libère sa place dans le plafond d'envoi,
+  l'invitation reste copiable par l'administrateur.
+
 ### SQL hors Prisma
 
 Certaines garanties ne s'expriment pas dans le schéma Prisma et sont écrites à la main dans

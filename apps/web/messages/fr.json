@@ -233,7 +233,8 @@
       "CASH_NOT_ALLOWED": "Seul le chauffeur ou le superviseur encaisse à la livraison.",
       "CASH_DECLARED": "Un encaissement a déjà été déclaré pour cette mission.",
       "CASH_NOT_PENDING": "Cette déclaration a déjà été traitée.",
-      "CHEQUE_PHOTO_INVALID": "Photo illisible (JPEG, PNG ou WebP, 10 Mo au plus)."
+      "CHEQUE_PHOTO_INVALID": "Photo illisible (JPEG, PNG ou WebP, 10 Mo au plus).",
+      "IMAGE_IN_USE": "Cette photo vient d’être utilisée ailleurs, réessayez."
     }
   },
   "validation": {

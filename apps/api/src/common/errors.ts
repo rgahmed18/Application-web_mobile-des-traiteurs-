@@ -36,6 +36,7 @@ export type AppErrorCode =
   | 'DISH_IN_PACKAGE'
   | 'ITEM_ARCHIVED'
   | 'IMAGE_INVALID'
+  | 'IMAGE_IN_USE'
   | 'IMAGE_TOO_LARGE'
   | 'UPLOAD_NOT_FOUND'
   | 'CLIENT_EXISTS'

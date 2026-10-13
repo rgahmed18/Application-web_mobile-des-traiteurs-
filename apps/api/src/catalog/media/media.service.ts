@@ -86,10 +86,41 @@ export class MediaService {
   }
 
   /**
-   * Rattache une photo à un élément, dans la transaction qui l'enregistre. Une photo déjà
-   * utilisée par un autre élément (duplication) est copiée : chaque photo appartient à un seul
-   * élément, et remplacer celle d'un plat ne peut jamais effacer celle de sa copie.
-   * Retourne la clé à enregistrer sur l'élément.
+   * À appeler AVANT la transaction qui enregistre l'élément : une photo déjà utilisée par un
+   * autre élément (duplication) est copiée sur le stockage, car chaque photo appartient à un
+   * seul élément (remplacer celle d'un plat n'efface jamais celle de sa copie). Aucune copie de
+   * fichier ne se fait pendant que la transaction tient ses verrous. La copie est suivie (READY)
+   * avant d'écrire les fichiers : si la transaction échoue ensuite, le nettoyage des 24 h la
+   * supprime. Retourne la clé à passer à `attach`.
+   */
+  async prepare(traiteurId: string, imageKey: string, entityId: string): Promise<string> {
+    const media = await this.prisma.mediaUpload.findFirst({ where: { imageKey, traiteurId } });
+    if (!media || media.status === 'PENDING') {
+      throw appErrors.badRequest('IMAGE_INVALID', 'Photo inconnue');
+    }
+    if (media.status !== 'ATTACHED' || media.entityId === entityId) return imageKey;
+
+    const copyKey = newImageKey(traiteurId);
+    await this.prisma.mediaUpload.create({
+      data: {
+        traiteurId,
+        rawKey: `${UPLOAD_PREFIX}${traiteurId}/copy-${randomUUID()}`,
+        imageKey: copyKey,
+        status: 'READY',
+      },
+    });
+    const targets = variantKeys(copyKey);
+    await Promise.all(
+      variantKeys(imageKey).map((source, index) =>
+        this.storage.copy(source, targets[index] ?? source),
+      ),
+    );
+    return copyKey;
+  }
+
+  /**
+   * Rattache une photo préparée (`prepare`) à un élément, dans la transaction qui l'enregistre :
+   * écritures en base uniquement. Retourne la clé à enregistrer sur l'élément.
    */
   async attach(
     tx: Prisma.TransactionClient,
@@ -102,37 +133,19 @@ export class MediaService {
     if (!media || media.status === 'PENDING') {
       throw appErrors.badRequest('IMAGE_INVALID', 'Photo inconnue');
     }
-    if (media.status === 'ATTACHED' && media.entityId === entityId) return imageKey;
-
     if (media.status === 'ATTACHED') {
-      // La copie est enregistrée hors transaction (READY) avant de copier les fichiers : si la
-      // transaction échoue ensuite, le nettoyage des 24 h la supprime (aucun fichier sans suivi).
-      const copyKey = newImageKey(traiteurId);
-      const copy = await this.prisma.mediaUpload.create({
-        data: {
-          traiteurId,
-          rawKey: `${UPLOAD_PREFIX}${traiteurId}/copy-${randomUUID()}`,
-          imageKey: copyKey,
-          status: 'READY',
-        },
-      });
-      const targets = variantKeys(copyKey);
-      await Promise.all(
-        variantKeys(imageKey).map((source, index) =>
-          this.storage.copy(source, targets[index] ?? source),
-        ),
-      );
-      await tx.mediaUpload.update({
-        where: { id: copy.id },
-        data: { status: 'ATTACHED', entityType, entityId },
-      });
-      return copyKey;
+      if (media.entityId === entityId) return imageKey;
+      // Rattachée ailleurs entre la préparation et la transaction : nouvel essai nécessaire
+      throw appErrors.conflict('IMAGE_IN_USE', 'Photo utilisée entre-temps, réessayez');
     }
-
-    await tx.mediaUpload.update({
-      where: { id: media.id },
+    // Seule la transition READY/DETACHED → ATTACHED est écrite (pas de double rattachement)
+    const { count } = await tx.mediaUpload.updateMany({
+      where: { id: media.id, status: { not: 'ATTACHED' } },
       data: { status: 'ATTACHED', entityType, entityId, detachedAt: null },
     });
+    if (count === 0) {
+      throw appErrors.conflict('IMAGE_IN_USE', 'Photo utilisée entre-temps, réessayez');
+    }
     return imageKey;
   }
 
