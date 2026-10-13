@@ -209,7 +209,15 @@
       "QUOTE_VALIDITY_INVALID": "La date de validité est déjà dépassée.",
       "ATTACHMENT_INVALID": "Pièce jointe invalide (PDF, JPEG, PNG ou WebP, 10 Mo au plus).",
       "INVOICE_NOT_AVAILABLE": "Cette facture ne peut pas être émise dans l’état actuel de la commande.",
-      "INVOICE_ALREADY_CREDITED": "Cette facture a déjà un avoir."
+      "INVOICE_ALREADY_CREDITED": "Cette facture a déjà un avoir.",
+      "PHONE_IS_CLIENT": "Ce numéro appartient à un de vos clients.",
+      "MEMBER_EXISTS": "Ce numéro fait déjà partie de votre équipe.",
+      "LAST_ADMIN": "Il doit rester au moins un administrateur actif.",
+      "CANNOT_TARGET_SELF": "Action impossible sur votre propre compte.",
+      "ADMIN_REQUIRED": "Réservé aux administrateurs.",
+      "INVITATION_EXPIRED": "Ce lien d’activation a expiré.",
+      "MEMBER_NOT_INVITED": "Ce membre a déjà activé son accès.",
+      "PERMISSION_NOT_EDITABLE": "Cette permission n’est pas modifiable."
     }
   },
   "validation": {
@@ -1160,6 +1168,211 @@
     "export": {
       "xlsx": "Export Excel (xlsx)",
       "csv": "Export CSV"
+    }
+  },
+  "staff": {
+    "title": "Personnel",
+    "subtitle": "Votre équipe, ses accès et ses permissions.",
+    "tabs": {
+      "team": "Équipe",
+      "permissions": "Permissions"
+    },
+    "search": "Rechercher (nom, téléphone)",
+    "you": "(vous)",
+    "inviteButton": "Inviter un membre",
+    "empty": "Aucun membre",
+    "emptyHint": "Invitez vos employés, votre équipe de terrain et vos livreurs.",
+    "filters": {
+      "allRoles": "Tous les rôles",
+      "allStatuses": "Tous les statuts"
+    },
+    "fields": {
+      "phone": "Téléphone",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "role": "Rôle",
+      "status": "Statut",
+      "locale": "Langue"
+    },
+    "locales": {
+      "fr": "Français",
+      "ar": "Arabe"
+    },
+    "status": {
+      "ACTIVE": "Actif",
+      "INVITED": "Invité",
+      "SUSPENDED": "Suspendu"
+    },
+    "roles": {
+      "label": "Rôle",
+      "ADMIN_TRAITEUR": {
+        "label": "Administrateur",
+        "hint": "Accès complet : commandes, factures, paramètres et équipe."
+      },
+      "EMPLOYE": {
+        "label": "Employé (bureau)",
+        "hint": "Prend les commandes, prépare les devis, suit les clients et le calendrier. Ne voit pas les factures."
+      },
+      "EQUIPE": {
+        "label": "Équipe",
+        "hint": "Personnel de terrain (cuisine, service, extras) : voit seulement ses missions, sans aucun prix."
+      },
+      "LIVREUR": {
+        "label": "Livreur",
+        "hint": "Voit seulement ses livraisons, sans aucun prix ; met à jour le statut de livraison."
+      }
+    },
+    "invitation": {
+      "pending": "Invitation envoyée — lien valable jusqu’au {date}",
+      "expired": "Lien d’activation expiré : générez-en un nouveau",
+      "cancelled": "Invitation annulée"
+    },
+    "suspendedReason": "Suspendu : {reason}",
+    "reactivated": "Accès réactivé",
+    "actions": {
+      "call": "Appeler",
+      "edit": "Modifier",
+      "newLink": "Nouveau lien",
+      "cancelInvitation": "Annuler l’invitation",
+      "suspend": "Suspendre",
+      "reactivate": "Réactiver"
+    },
+    "invite": {
+      "title": "Inviter un membre",
+      "phoneHint": "Il reçoit un lien d’activation par SMS (Maroc) ; vous pourrez aussi le lui envoyer par WhatsApp.",
+      "localeHint": "Langue du message d’invitation et de son espace",
+      "done": "Invitation créée pour {name}"
+    },
+    "edit": {
+      "title": "Modifier — {name}",
+      "roleHint": "Le nouveau rôle prend effet immédiatement ; le membre devra se reconnecter.",
+      "selfRole": "Vous ne pouvez pas modifier votre propre rôle.",
+      "saved": "Membre enregistré"
+    },
+    "link": {
+      "title": "Lien d’activation pour {name}",
+      "smsSent": "Envoyé par SMS.",
+      "smsNotSent": "Aucun SMS envoyé (numéro étranger) : partagez le lien ci-dessous.",
+      "expires": "Valable jusqu’au {date}.",
+      "url": "Lien d’activation",
+      "copy": "Copier",
+      "copied": "Lien copié",
+      "copyFailed": "Copie impossible : sélectionnez le lien",
+      "once": "Par sécurité, ce lien n’est affiché qu’une fois. Si besoin, générez-en un nouveau (l’ancien sera désactivé).",
+      "done": "Terminé"
+    },
+    "suspendDialog": {
+      "title": "Suspendre {name} ?",
+      "description": "Son accès est coupé immédiatement et ses sessions sont fermées. Vous pourrez le réactiver plus tard.",
+      "reason": "Motif",
+      "confirm": "Suspendre",
+      "done": "Membre suspendu"
+    },
+    "permissions": {
+      "intro": "Ajustez ce que chaque rôle peut faire chez vous. Les permissions critiques (facturation, paramètres, abonnement) sont verrouillées.",
+      "permission": "Permission",
+      "save": "{count, plural, =0 {Enregistrer les modifications} one {Enregistrer (# modification)} other {Enregistrer (# modifications)}}",
+      "discard": "Annuler les modifications",
+      "saved": "Permissions enregistrées",
+      "reset": "Rétablir les valeurs par défaut",
+      "resetAll": "Tous les rôles",
+      "resetRole": "Rôle « {role} »",
+      "locked": "Non modifiable",
+      "modified": "Modifié par rapport à la valeur par défaut",
+      "legend": "Un point signale une case modifiée par rapport à la valeur par défaut. Le cadenas indique une permission non modifiable.",
+      "inconsistent": "{role} : « {permission} » est accordé sans « {needed} ».",
+      "modules": {
+        "catalog": "Catalogue",
+        "orders": "Commandes",
+        "calendar": "Calendrier",
+        "quotes": "Devis",
+        "invoices": "Factures",
+        "payments": "Paiements",
+        "staff": "Personnel et missions",
+        "deliveries": "Livraisons",
+        "clients": "Clients",
+        "conversations": "Messagerie",
+        "reviews": "Avis",
+        "settings": "Paramètres",
+        "billing": "Abonnement",
+        "audit": "Audit"
+      },
+      "keys": {
+        "catalog_read": "Consulter le catalogue",
+        "catalog_write": "Créer et modifier plats, formules et services",
+        "orders_read": "Consulter toutes les commandes",
+        "orders_create": "Créer une commande",
+        "orders_write": "Modifier les commandes et changer leur statut",
+        "orders_edit_confirmed": "Modifier une commande confirmée (avec motif)",
+        "orders_cancel": "Annuler une commande",
+        "calendar_read": "Consulter le calendrier",
+        "calendar_manage": "Bloquer des dates, fixer la capacité",
+        "quotes_read": "Consulter les devis",
+        "quotes_manage": "Créer et envoyer des devis",
+        "invoices_read": "Consulter les factures",
+        "invoices_issue": "Émettre une facture",
+        "invoices_credit_note": "Émettre un avoir",
+        "payments_read": "Consulter les paiements",
+        "payments_record": "Enregistrer un paiement",
+        "payments_refund": "Rembourser, annuler un encaissement",
+        "staff_read": "Consulter le personnel et le planning",
+        "staff_manage": "Gérer le personnel et les affectations",
+        "assignments_read_own": "Consulter ses missions",
+        "assignments_update_own": "Confirmer ou terminer ses missions",
+        "deliveries_update_status": "Mettre à jour le statut de livraison",
+        "clients_read": "Consulter les fiches clients",
+        "clients_write": "Créer et modifier les fiches clients",
+        "conversations_read": "Consulter les conversations",
+        "conversations_reply": "Répondre aux clients",
+        "reviews_moderate": "Publier et répondre aux avis",
+        "settings_manage": "Modifier les paramètres du traiteur",
+        "permissions_manage": "Ajuster les permissions des rôles",
+        "subscription_read": "Consulter l’abonnement",
+        "subscription_manage": "Changer d’offre",
+        "audit_read": "Consulter le journal d’audit",
+        "orders_read_own": "Consulter ses propres commandes",
+        "quotes_respond": "Accepter ou refuser un devis reçu",
+        "reviews_write_own": "Laisser un avis sur sa commande"
+      },
+      "resetDialog": {
+        "title": "Rétablir les valeurs par défaut ?",
+        "all": "Toutes vos personnalisations de permissions seront supprimées.",
+        "role": "Les personnalisations du rôle « {role} » seront supprimées.",
+        "cancel": "Annuler",
+        "confirm": "Rétablir",
+        "done": "Valeurs par défaut rétablies"
+      }
+    }
+  },
+  "invitation": {
+    "title": "Bienvenue {name} chez {traiteur}",
+    "role": "Votre rôle : {role}",
+    "newAccount": "Choisissez votre mot de passe pour activer votre accès. Votre identifiant sera votre téléphone :",
+    "existingAccount": "Vous avez déjà un compte : confirmez avec votre mot de passe actuel. Téléphone :",
+    "newPassword": "Nouveau mot de passe",
+    "currentPassword": "Mot de passe actuel",
+    "confirmPassword": "Confirmez le mot de passe",
+    "passwordHint": "Au moins 8 caractères, avec des lettres et des chiffres.",
+    "submit": "Activer mon accès",
+    "done": {
+      "title": "Accès activé",
+      "description": "Vous faites maintenant partie de l’équipe de {name}.",
+      "login": "Se connecter"
+    },
+    "expired": {
+      "title": "Lien expiré",
+      "description": "Ce lien d’activation a expiré. Demandez-en un nouveau à votre responsable."
+    },
+    "invalid": {
+      "title": "Lien invalide",
+      "description": "Ce lien d’activation n’est plus valable (déjà utilisé ou annulé)."
+    },
+    "errors": {
+      "wrongPassword": "Mot de passe incorrect.",
+      "weakPassword": "Mot de passe trop faible : au moins 8 caractères, avec des lettres et des chiffres.",
+      "mismatch": "Les deux mots de passe ne correspondent pas.",
+      "tooMany": "Trop de tentatives : réessayez dans une minute.",
+      "generic": "Une erreur est survenue. Réessayez."
     }
   }
 }

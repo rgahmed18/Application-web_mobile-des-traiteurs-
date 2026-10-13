@@ -22,6 +22,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { PdfModule } from './pdf/pdf.module';
 import { SettingsModule } from './settings/settings.module';
+import { StaffModule } from './staff/staff.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './queue/queue.module';
 import { RedisThrottlerStorage } from './redis/redis-throttler.storage';
@@ -57,6 +58,7 @@ import { StorageModule } from './storage/storage.module';
     QuotesModule,
     InvoicesModule,
     SettingsModule,
+    StaffModule,
   ],
   controllers: [HealthController],
   providers: [

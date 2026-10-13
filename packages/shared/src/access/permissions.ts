@@ -12,6 +12,7 @@ export interface PermissionDefinition {
 
 const ADMIN = 'ADMIN_TRAITEUR';
 const EMPLOYEE = 'EMPLOYE';
+const TEAM = 'EQUIPE';
 const DRIVER = 'LIVREUR';
 const CLIENT = 'CLIENT';
 
@@ -44,13 +45,13 @@ export const PERMISSIONS = [
   { key: 'invoices.credit_note', module: 'invoices', description: 'Émettre un avoir', isTenantEditable: false, defaultRoles: [ADMIN] },
   // Paiements
   { key: 'payments.read', module: 'payments', description: 'Consulter les paiements', isTenantEditable: true, defaultRoles: [ADMIN] },
-  { key: 'payments.record', module: 'payments', description: 'Enregistrer un paiement', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE, DRIVER] },
+  { key: 'payments.record', module: 'payments', description: 'Enregistrer un paiement', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
   { key: 'payments.refund', module: 'payments', description: 'Rembourser un paiement', isTenantEditable: false, defaultRoles: [ADMIN] },
   // Personnel et livraisons
   { key: 'staff.read', module: 'staff', description: 'Consulter le personnel', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
   { key: 'staff.manage', module: 'staff', description: 'Gérer le personnel et les affectations', isTenantEditable: true, defaultRoles: [ADMIN] },
-  { key: 'assignments.read_own', module: 'staff', description: 'Consulter ses missions', isTenantEditable: true, defaultRoles: [EMPLOYEE, DRIVER] },
-  { key: 'assignments.update_own', module: 'staff', description: 'Confirmer ou terminer ses missions', isTenantEditable: true, defaultRoles: [EMPLOYEE, DRIVER] },
+  { key: 'assignments.read_own', module: 'staff', description: 'Consulter ses missions', isTenantEditable: true, defaultRoles: [EMPLOYEE, TEAM, DRIVER] },
+  { key: 'assignments.update_own', module: 'staff', description: 'Confirmer ou terminer ses missions', isTenantEditable: true, defaultRoles: [EMPLOYEE, TEAM, DRIVER] },
   { key: 'deliveries.update_status', module: 'deliveries', description: 'Mettre à jour le statut de livraison', isTenantEditable: true, defaultRoles: [ADMIN, DRIVER] },
   // Clients
   { key: 'clients.read', module: 'clients', description: 'Consulter les fiches clients', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },

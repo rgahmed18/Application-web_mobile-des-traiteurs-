@@ -1,5 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
-
+export { hashLinkToken, newLinkToken } from '../common/link-token';
 import type { Prisma } from '../generated/prisma/client';
 
 type Db = Prisma.TransactionClient;
@@ -8,16 +7,6 @@ type Db = Prisma.TransactionClient;
  * Règles du cycle de vie des devis partagées avec le module commandes (sans dépendance de
  * module) : chaque fonction travaille dans la transaction de l'appelant.
  */
-
-/** Jeton d'un lien public : 256 bits aléatoires ; seule son empreinte SHA-256 est conservée. */
-export function newLinkToken(): { token: string; hash: string } {
-  const token = randomBytes(32).toString('base64url');
-  return { token, hash: hashLinkToken(token) };
-}
-
-export function hashLinkToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
 
 /** Révoque les liens encore actifs des devis donnés. */
 export async function revokeLinks(

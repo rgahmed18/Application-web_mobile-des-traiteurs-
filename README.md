@@ -185,6 +185,30 @@ automatiquement une minute avant son expiration. Les routes de session vérifien
 requête et transmettent l'IP du navigateur uniquement si elle provient d'un proxy de confiance
 (`WEB_TRUSTED_PROXY_HOPS`, voir [IP réelle des clients](#ip-réelle-des-clients)).
 
+### Personnel
+
+- **Rôles du personnel** : Administrateur (accès complet), Employé (bureau : commandes, devis,
+  clients, calendrier), Équipe (terrain : cuisine, service, extras ; ne voit que ses missions,
+  sans aucun prix) et Livreur (ses livraisons seulement, sans prix ; statut de livraison).
+- **Invitation** (`staff.manage`) : téléphone, nom, rôle et langue. Un lien d'activation est créé
+  (jeton de 256 bits dont seule l'empreinte est conservée, usage unique, valable 7 jours,
+  régénérable) : envoyé par SMS si le pays est autorisé (`SMS_ALLOWED_COUNTRY_CODES`), toujours
+  affiché une fois à l'administrateur (copie, WhatsApp) pour les numéros étrangers. Le numéro
+  d'un client du traiteur ou d'un membre existant est refusé.
+- **Activation** `/invitation/<jeton>` (publique, `noindex`, `no-referrer`, débit limité) : le
+  nouveau membre choisit son mot de passe ; un compte existant confirme avec son mot de passe
+  actuel (le lien ne remplace jamais un mot de passe).
+- **Suspension** (motif) : accès refusé dès la requête suivante (le membre est revérifié à
+  chaque requête), sessions et invitation révoquées ; réactivation (un membre qui ne s'est
+  jamais connecté redevient « invité » avec un nouveau lien). On n'agit pas sur soi-même, seul
+  un administrateur nomme, rétrograde ou suspend un administrateur, et le dernier administrateur
+  actif ne peut pas être retiré. Un changement de rôle impose une reconnexion.
+- **Permissions** (`permissions.manage`, onglet du Personnel) : grille rôles × permissions
+  groupée par module, quatre colonnes (Administrateur, Employé, Équipe, Livreur). Une case égale
+  à la valeur par défaut supprime la surcharge ; les permissions critiques sont verrouillées ;
+  « Rétablir les valeurs par défaut » pour un rôle ou tous. Les permissions des clients restent
+  hors de la grille.
+
 ### Paiements
 
 - **Échéancier** (`packages/shared/src/payments/payment-schedule.ts`, testé) : acompte = total TTC
@@ -382,6 +406,7 @@ Organisation de l'API (`apps/api/src`) : un module par domaine.
 | `orders/`    | Commandes, disponibilité, calendrier, tableau de bord                 |
 | `payments/`  | Encaissements, remboursements, reçus, échéancier                      |
 | `quotes/`    | Devis : versions, envoi, lien public, accords, expiration             |
+| `staff/`     | Personnel : invitations et activation, suspension, permissions        |
 | `invoices/`  | Factures et avoirs, PDF figé, export comptable (xlsx, CSV)            |
 | `pdf/`       | Génération des documents PDF (Typst), libellés FR/AR                  |
 | `settings/`  | Paramètres du traiteur (documents et paiements)                       |
@@ -427,7 +452,11 @@ Le `SUPER_ADMIN` passe les contrôles de rôle et de permission.
   les surcharges du traiteur sont ignorées.
 - Résultat mis en cache dans Redis (5 min). Si Redis est indisponible, lecture directe en base.
 - Le catalogue des clés est dans `packages/shared/src/access/permissions.ts`. Il sert au seed et
-  au typage ; à l'exécution, seuls les droits en base comptent.
+  au typage ; à l'exécution, seuls les droits en base comptent. Après une évolution de la matrice
+  par défaut (ex. rôle Équipe, livreur sans `payments.record`), relancer `pnpm db:seed` pour
+  l'appliquer : les surcharges des traiteurs sont conservées.
+- Les traiteurs ajustent leurs rôles depuis la grille des permissions (Personnel → Permissions) :
+  `GET/PUT /settings/permissions`, `POST /settings/permissions/reset`.
 
 ### Offres et feature flags
 

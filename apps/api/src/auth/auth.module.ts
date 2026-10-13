@@ -33,6 +33,6 @@ import { TokenService } from './token.service';
     // Seul fournisseur disponible pour l'instant ; un fournisseur réel sera choisi via SMS_PROVIDER.
     { provide: SMS_PROVIDER, useClass: ConsoleSmsProvider },
   ],
-  exports: [TokenService],
+  exports: [TokenService, PasswordService, SMS_PROVIDER],
 })
 export class AuthModule {}

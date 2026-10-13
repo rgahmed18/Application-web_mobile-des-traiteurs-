@@ -5,11 +5,11 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
-  // Devis consultés par lien sécurisé : jamais indexés, jeton jamais transmis dans un Referer
+  // Devis et invitations par lien sécurisé : jamais indexés, jeton jamais transmis (Referer)
   headers() {
     return Promise.resolve([
       {
-        source: '/devis/:path*',
+        source: '/:area(devis|invitation)/:path*',
         headers: [
           { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
           { key: 'Referrer-Policy', value: 'no-referrer' },

@@ -2,6 +2,7 @@
 
 import { loginSchema } from '@traiteur/shared';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -21,7 +22,9 @@ const formSchema = loginSchema.pick({ identifier: true, password: true });
 export function PasswordLoginForm({ onSuccess }: { onSuccess: () => void }) {
   const t = useTranslations('auth.login');
   const describeError = useErrorMessage();
-  const form = useZodForm(formSchema, { identifier: '', password: '' });
+  // Identifiant prérempli après l'activation d'un accès (lien d'invitation)
+  const prefilled = useSearchParams().get('identifier') ?? '';
+  const form = useZodForm(formSchema, { identifier: prefilled, password: '' });
 
   const onSubmit = form.handleSubmit(async ({ identifier, password }) => {
     try {

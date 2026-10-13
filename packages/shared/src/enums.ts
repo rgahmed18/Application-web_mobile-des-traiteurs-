@@ -3,14 +3,29 @@ import { z } from 'zod';
 // Miroir des enums Prisma utilisés par les clients (web, mobile).
 // Les valeurs doivent rester identiques à apps/api/prisma/schema.prisma.
 
-export const ROLES = ['CLIENT', 'ADMIN_TRAITEUR', 'EMPLOYE', 'LIVREUR', 'SUPER_ADMIN'] as const;
+export const ROLES = [
+  'CLIENT',
+  'ADMIN_TRAITEUR',
+  'EMPLOYE',
+  'EQUIPE',
+  'LIVREUR',
+  'SUPER_ADMIN',
+] as const;
 export const roleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof roleSchema>;
 
 /** Rôles qu'un Membership peut porter (SUPER_ADMIN est un attribut du User). */
-export const TENANT_ROLES = ['CLIENT', 'ADMIN_TRAITEUR', 'EMPLOYE', 'LIVREUR'] as const;
+export const TENANT_ROLES = ['CLIENT', 'ADMIN_TRAITEUR', 'EMPLOYE', 'EQUIPE', 'LIVREUR'] as const;
 export const tenantRoleSchema = z.enum(TENANT_ROLES);
 export type TenantRole = z.infer<typeof tenantRoleSchema>;
+
+/**
+ * Rôles du personnel : administrateur, bureau (commandes, devis, clients), équipe de terrain
+ * (cuisine, service, extras : ses missions seulement) et livreur.
+ */
+export const STAFF_ROLES = ['ADMIN_TRAITEUR', 'EMPLOYE', 'EQUIPE', 'LIVREUR'] as const;
+export const staffRoleSchema = z.enum(STAFF_ROLES);
+export type StaffMemberRole = z.infer<typeof staffRoleSchema>;
 
 export const SUBSCRIPTION_PLANS = ['BASIQUE', 'PRO', 'PREMIUM'] as const;
 export const subscriptionPlanSchema = z.enum(SUBSCRIPTION_PLANS);

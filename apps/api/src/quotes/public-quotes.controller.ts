@@ -26,7 +26,7 @@ import { Public } from '../auth/decorators';
 import { Client, type ClientInfo } from '../common/http/client-info';
 import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
-import { PublicDocumentHeaders } from './public-document.interceptor';
+import { PublicDocumentHeaders } from '../common/http/public-document.interceptor';
 import { QuotesService } from './quotes.service';
 
 const response = { schema: zodToOpenApi(publicQuoteSchema, 'output') };

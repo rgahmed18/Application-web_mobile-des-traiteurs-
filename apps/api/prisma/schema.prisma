@@ -32,7 +32,8 @@ datasource db {
 enum Role {
   CLIENT
   ADMIN_TRAITEUR
-  EMPLOYE
+  EMPLOYE // personnel de bureau : commandes, devis, clients
+  EQUIPE // personnel de terrain (cuisine, service, extras) : ses missions seulement
   LIVREUR
   SUPER_ADMIN // jamais porté par un Membership (contrainte CHECK), voir User.isSuperAdmin
 }
@@ -278,6 +279,7 @@ model Traiteur {
   refreshTokens      RefreshToken[]
   clientAddresses    ClientAddress[]
   rolePermissions    RolePermission[]
+  staffInvitations   StaffInvitation[]
   featureFlags       FeatureFlag[]
   blockedDates       BlockedDate[]
   documentSequences  DocumentSequence[]
@@ -329,27 +331,31 @@ model User {
 // Appartenance d'un utilisateur à un traiteur, avec son rôle.
 // Les données client propres au traiteur sont rattachées ici, jamais au User.
 model Membership {
-  id            String           @id @default(uuid()) @db.Uuid
-  traiteurId    String           @db.Uuid
-  userId        String           @db.Uuid
-  role          Role
-  status        MembershipStatus @default(ACTIVE)
+  id               String           @id @default(uuid()) @db.Uuid
+  traiteurId       String           @db.Uuid
+  userId           String           @db.Uuid
+  role             Role
+  status           MembershipStatus @default(ACTIVE)
   // Coordonnées telles que le traiteur les connaît : jamais partagées entre traiteurs ni
   // recopiées vers le compte global (User). Initialisées depuis le compte à sa création.
-  firstName     String
-  lastName      String
-  email         String?
-  locale        Locale           @default(fr) // langue de communication avec ce client
+  firstName        String
+  lastName         String
+  email            String?
+  locale           Locale           @default(fr) // langue de communication avec ce client
   // Client entreprise : raison sociale et ICE imprimés sur les factures
-  companyName   String?
-  companyIce    String?
-  internalNotes String? // notes du traiteur sur ce client / employé
-  tags          String[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  companyName      String?
+  companyIce       String?
+  internalNotes    String? // notes du traiteur sur ce client / employé
+  tags             String[]
+  // Suspension d'un membre du personnel (accès refusé immédiatement, sessions révoquées)
+  suspendedAt      DateTime?
+  suspensionReason String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  traiteur    Traiteur          @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitations StaffInvitation[]
 
   addresses        ClientAddress[]
   clientOrders     Order[]           @relation("OrderClient")
@@ -978,6 +984,25 @@ model StaffAssignment {
 
   @@unique([orderId, membershipId, staffRole])
   @@index([traiteurId, membershipId, startAt])
+}
+
+// Invitation d'un membre du personnel : lien d'activation (jeton de 256 bits dont seule
+// l'empreinte est conservée), à usage unique, valable 7 jours, régénérable.
+model StaffInvitation {
+  id           String    @id @default(uuid()) @db.Uuid
+  traiteurId   String    @db.Uuid
+  membershipId String    @db.Uuid
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  usedAt       DateTime?
+  revokedAt    DateTime?
+  smsSent      Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  traiteur   Traiteur   @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+
+  @@index([traiteurId, membershipId])
 }
 
 // ─────────────────────── Messagerie & avis ───────────────────────
