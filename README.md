@@ -767,19 +767,20 @@ request :
 
 ## Référence des commandes
 
-| Commande                                                  | Effet                                              |
-| --------------------------------------------------------- | -------------------------------------------------- |
-| `pnpm docker:up` / `pnpm docker:down`                     | Démarre / arrête PostgreSQL, Redis et RustFS       |
-| `pnpm db:migrate`                                         | Crée et applique les migrations (développement)    |
-| `pnpm db:seed`                                            | Charge les données de démonstration                |
-| `pnpm db:reset`                                           | Vide la base, réapplique les migrations et le seed |
-| `pnpm db:generate`                                        | Régénère le client Prisma                          |
-| `pnpm --filter @traiteur/api db:deploy`                   | Applique les migrations (production / CI)          |
-| `pnpm --filter @traiteur/api db:patch-set-null <fichier>` | Réécrit les SET NULL composites d'une migration    |
-| `pnpm --filter @traiteur/api db:check-drift`              | Vérifie que schéma et migrations concordent        |
-| `pnpm --filter @traiteur/api db:studio`                   | Interface graphique de la base                     |
-| `pnpm --filter @traiteur/api catalog:set-photo …`         | Remplace la photo d'un plat ou d'une formule       |
-| `pnpm --filter @traiteur/web test:e2e`                    | Parcours Playwright du back-office                 |
+| Commande                                                  | Effet                                                                          |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `pnpm docker:up` / `pnpm docker:down`                     | Démarre / arrête PostgreSQL, Redis et RustFS                                   |
+| `pnpm db:migrate`                                         | Crée et applique les migrations (développement)                                |
+| `pnpm db:seed`                                            | Charge les données de démonstration                                            |
+| `pnpm db:reset`                                           | Vide la base, réapplique les migrations et le seed                             |
+| `pnpm db:generate`                                        | Régénère le client Prisma                                                      |
+| `pnpm --filter @traiteur/api db:deploy`                   | Applique les migrations (production / CI)                                      |
+| `pnpm --filter @traiteur/api db:patch-set-null <fichier>` | Réécrit les SET NULL composites d'une migration                                |
+| `pnpm --filter @traiteur/api db:check-drift`              | Vérifie que schéma et migrations concordent                                    |
+| `pnpm --filter @traiteur/api db:studio`                   | Interface graphique de la base                                                 |
+| `pnpm --filter @traiteur/api catalog:set-photo …`         | Remplace la photo d'un plat ou d'une formule                                   |
+| `pnpm --filter @traiteur/web test:e2e`                    | Parcours Playwright du back-office                                             |
+| `pnpm clean`                                              | Vide `.turbo`, les `.next/cache`, `dist` et `*.tsbuildinfo` (serveurs arrêtés) |
 
 ## Dépannage
 
@@ -797,5 +798,9 @@ request :
   l'heure de Windows (Paramètres › Heure et langue › Synchroniser maintenant).
 - **Photo non affichée** : vérifiez que RustFS tourne (`docker compose ps`) et que
   `NEXT_PUBLIC_MEDIA_URL` (web) correspond à `S3_PUBLIC_URL` (API).
+- **Disque plein / cache Turborepo trop gros** : le cache local est limité dans `turbo.json`
+  (`cacheMaxSize` 1 Go, `cacheMaxAge` 7 jours, éviction au début de chaque `turbo run`) et
+  n'enregistre pas `.next/dev` (sortie du serveur de dev, plus d'1 Go). Pour tout vider :
+  arrêtez les serveurs de dev, `pnpm clean`, puis `pnpm build`.
 - **Client Prisma introuvable ou obsolète** : `pnpm db:generate` (Prisma 7 ne le régénère plus
   automatiquement après une migration).

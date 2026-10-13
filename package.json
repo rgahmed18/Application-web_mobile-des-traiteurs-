@@ -10,6 +10,7 @@
     "dev:api": "turbo run dev --filter=@traiteur/api",
     "dev:web": "turbo run dev --filter=@traiteur/web",
     "build": "turbo run build",
+    "clean": "node scripts/clean.mjs",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

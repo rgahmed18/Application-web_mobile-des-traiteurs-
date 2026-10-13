@@ -2,13 +2,15 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
   "envMode": "loose",
+  "cacheMaxSize": "1GB",
+  "cacheMaxAge": "7d",
   "tasks": {
     "db:generate": {
       "cache": false
     },
     "build": {
       "dependsOn": ["^build", "db:generate"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
     },
     "dev": {
       "dependsOn": ["^build", "db:generate"],
