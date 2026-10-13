@@ -77,9 +77,12 @@ utilisée par les tests d'intégration.
 
 Les photos du catalogue sont stockées dans **RustFS** (compatible S3), lancé par docker compose :
 API S3 sur le port **9000**, console web sur http://localhost:9001 (identifiants `traiteur` /
-`traiteur-secret`). L'API crée le bucket `traiteur-media`, sa lecture publique (photos traitées
-uniquement) et son CORS au démarrage (`S3_AUTO_SETUP=true`). En production : Cloudflare R2,
-voir les commentaires de `apps/api/.env.example`.
+`traiteur-secret`). Deux buckets, créés par l'API au démarrage (`S3_AUTO_SETUP=true`) :
+`traiteur-media` (photos traitées, lecture publique) et `traiteur-documents` (factures, reçus,
+devis, photos de chèques, envois bruts : jamais publics, URL signées). En production :
+Cloudflare R2, qui ne connaît pas les règles d'accès par préfixe, d'où deux buckets dont seul
+celui des photos a un domaine public. Base existante d'avant la séparation :
+`pnpm --filter @traiteur/api storage:split` déplace les documents dans le bon bucket.
 
 ## Lancer le projet
 
@@ -343,8 +346,9 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
 - **Polices embarquées** : IBM Plex Sans Arabic (`apps/api/assets/fonts`), sous licence
   **SIL Open Font License 1.1** (texte complet : `apps/api/assets/fonts/OFL-IBM-Plex.txt`).
   Aucune police propriétaire n'est utilisée.
-- **Stockage** : préfixe privé `private/` du stockage S3 (jamais public), téléchargement par URL
-  signée valable 5 minutes. Les documents émis (reçus, devis envoyés, factures et avoirs)
+- **Stockage** : bucket `documents` (privé, sans domaine public), téléchargement par URL signée
+  valable 5 minutes ; un test vérifie qu'aucun document n'est lisible par l'URL publique et que
+  le bucket public ne contient que des photos traitées (`storage-isolation.int-spec.ts`). Les documents émis (reçus, devis envoyés, factures et avoirs)
   sont figés : empreinte SHA-256 et version du gabarit enregistrées, jamais régénérés.
 - **Montants en lettres** (`packages/shared/src/money/amount-words.ts`), en français et en arabe,
   testés sur les cas difficiles (0,50 ; 1 ; 2 ; 11 ; 21 ; 71 ; 80 ; 100 ; 1 000 ; 1 000 000…).

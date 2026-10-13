@@ -227,9 +227,9 @@ describe('API des paiements (application complète)', () => {
     const pdf = Buffer.from(await (await fetch(url)).arrayBuffer());
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
 
-    // Le fichier stocké n'est jamais public (préfixe private/)
+    // Le fichier stocké n'est jamais public (bucket documents)
     const publicUrl = `${process.env.S3_PUBLIC_URL ?? ''}/${row.receiptPdfKey ?? ''}`;
-    expect((await fetch(publicUrl)).status).toBe(403);
+    expect((await fetch(publicUrl)).status).not.toBe(200);
   });
 
   it('le total payé ne dépasse jamais le total TTC ; pas de date future', async () => {

@@ -12,7 +12,15 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import type { Env } from '../config/env.schema';
-import { createS3Client, ensureMediaBucket, PRIVATE_PREFIX, putPublicObject } from './s3-client';
+import {
+  type BucketNames,
+  bucketForKey,
+  createS3Client,
+  ensureBuckets,
+  PRIVATE_PREFIX,
+  PUBLIC_PREFIX,
+  putPublicObject,
+} from './s3-client';
 
 export { PRIVATE_PREFIX, PUBLIC_PREFIX, UPLOAD_PREFIX } from './s3-client';
 
@@ -25,12 +33,16 @@ export interface PresignedUpload {
 /**
  * Accès au stockage S3 (RustFS en développement, Cloudflare R2 en production).
  * Les envois du navigateur passent par des URL pré-signées : le fichier ne transite pas par l'API.
+ *
+ * Deux buckets, choisis par le préfixe de la clé (bucketForKey) : `media` (S3_BUCKET, public)
+ * ne reçoit que les photos traitées (traiteurs/) ; `documents` (S3_DOCUMENTS_BUCKET, privé)
+ * reçoit les documents (private/) et les envois bruts (tmp/), lus par URL signée uniquement.
  */
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private readonly client: S3Client;
-  private readonly bucket: string;
+  private readonly buckets: BucketNames;
   private readonly endpoint: string;
   private readonly publicUrl: string;
   private readonly autoSetup: boolean;
@@ -39,7 +51,10 @@ export class StorageService implements OnModuleInit {
   private clockOffsetMs = 0;
 
   constructor(config: ConfigService<Env, true>) {
-    this.bucket = config.get('S3_BUCKET', { infer: true });
+    this.buckets = {
+      media: config.get('S3_BUCKET', { infer: true }),
+      documents: config.get('S3_DOCUMENTS_BUCKET', { infer: true }),
+    };
     this.endpoint = config.get('S3_ENDPOINT', { infer: true });
     this.publicUrl = config.get('S3_PUBLIC_URL', { infer: true }).replace(/\/+$/, '');
     this.autoSetup = config.get('S3_AUTO_SETUP', { infer: true });
@@ -47,7 +62,7 @@ export class StorageService implements OnModuleInit {
     this.client = createS3Client({
       endpoint: this.endpoint,
       region: config.get('S3_REGION', { infer: true }),
-      bucket: this.bucket,
+      bucket: this.buckets.media,
       forcePathStyle: config.get('S3_FORCE_PATH_STYLE', { infer: true }),
       accessKeyId: config.get('S3_ACCESS_KEY_ID', { infer: true }),
       secretAccessKey: config.get('S3_SECRET_ACCESS_KEY', { infer: true }),
@@ -59,9 +74,15 @@ export class StorageService implements OnModuleInit {
     if (this.autoSetup) await this.ensureBucket();
   }
 
-  /** URL publique d'un fichier traité. */
+  /** URL publique d'une photo traitée ; jamais pour un document ou un envoi brut. */
   publicFileUrl(key: string): string {
+    if (!key.startsWith(PUBLIC_PREFIX)) throw new Error(`Clé non publique : ${key}`);
     return `${this.publicUrl}/${key}`;
+  }
+
+  /** Bucket où vit une clé (photos traitées : media ; tout le reste : documents). */
+  bucketOf(key: string): string {
+    return bucketForKey(this.buckets, key);
   }
 
   /**
@@ -77,7 +98,7 @@ export class StorageService implements OnModuleInit {
     const url = await getSignedUrl(
       this.client,
       new PutObjectCommand({
-        Bucket: this.bucket,
+        Bucket: this.bucketOf(key),
         Key: key,
         ContentType: contentType,
         ContentLength: size,
@@ -94,7 +115,9 @@ export class StorageService implements OnModuleInit {
   /** Taille d'un fichier, ou null s'il n'existe pas. */
   async sizeOf(key: string): Promise<number | null> {
     try {
-      const head = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      const head = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucketOf(key), Key: key }),
+      );
       return head.ContentLength ?? 0;
     } catch (error) {
       if (error instanceof NotFound || (error as { name?: string }).name === 'NotFound')
@@ -105,21 +128,28 @@ export class StorageService implements OnModuleInit {
 
   async download(key: string): Promise<Buffer> {
     const response = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      new GetObjectCommand({ Bucket: this.bucketOf(key), Key: key }),
     );
     if (!response.Body) throw new Error(`Fichier vide : ${key}`);
     return Buffer.from(await response.Body.transformToByteArray());
   }
 
-  uploadPublic(key: string, body: Buffer, contentType: string): Promise<void> {
-    return putPublicObject(this.client, this.bucket, key, body, contentType);
+  /** Dépôt d'une photo traitée (préfixe traiteurs/, bucket public). */
+  async uploadPublic(key: string, body: Buffer, contentType: string): Promise<void> {
+    if (!key.startsWith(PUBLIC_PREFIX)) throw new Error(`Clé publique attendue : ${key}`);
+    await putPublicObject(this.client, this.buckets.media, key, body, contentType);
   }
 
   /** Dépôt d'un document privé (préfixe private/, jamais public). */
   async putPrivate(key: string, body: Buffer, contentType: string): Promise<void> {
     if (!key.startsWith(PRIVATE_PREFIX)) throw new Error(`Clé privée attendue : ${key}`);
     await this.client.send(
-      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }),
+      new PutObjectCommand({
+        Bucket: this.buckets.documents,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
     );
   }
 
@@ -129,7 +159,7 @@ export class StorageService implements OnModuleInit {
     return getSignedUrl(
       this.client,
       new GetObjectCommand({
-        Bucket: this.bucket,
+        Bucket: this.bucketOf(key),
         Key: key,
         ResponseContentDisposition: `inline; filename="${fileName.replace(/[^ -~]/g, '_')}"; filename*=UTF-8''${encoded}`,
       }),
@@ -140,8 +170,8 @@ export class StorageService implements OnModuleInit {
   async copy(sourceKey: string, targetKey: string): Promise<void> {
     await this.client.send(
       new CopyObjectCommand({
-        Bucket: this.bucket,
-        CopySource: `${this.bucket}/${sourceKey}`,
+        Bucket: this.bucketOf(targetKey),
+        CopySource: `${this.bucketOf(sourceKey)}/${sourceKey}`,
         Key: targetKey,
       }),
     );
@@ -149,15 +179,17 @@ export class StorageService implements OnModuleInit {
 
   /** Supprime des fichiers (sans erreur s'ils n'existent plus). */
   async remove(keys: readonly string[]): Promise<void> {
-    for (let start = 0; start < keys.length; start += 1000) {
-      const batch = keys.slice(start, start + 1000);
-      if (batch.length === 0) continue;
-      await this.client.send(
-        new DeleteObjectsCommand({
-          Bucket: this.bucket,
-          Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
-        }),
-      );
+    for (const bucket of [this.buckets.media, this.buckets.documents]) {
+      const own = keys.filter((key) => this.bucketOf(key) === bucket);
+      for (let start = 0; start < own.length; start += 1000) {
+        const batch = own.slice(start, start + 1000);
+        await this.client.send(
+          new DeleteObjectsCommand({
+            Bucket: bucket,
+            Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+          }),
+        );
+      }
     }
   }
 
@@ -185,10 +217,10 @@ export class StorageService implements OnModuleInit {
     }
   }
 
-  /** Développement / CI : bucket, lecture publique des photos traitées, CORS (voir s3-client.ts). */
+  /** Développement / CI : buckets media et documents, lecture publique, CORS (s3-client.ts). */
   private async ensureBucket(): Promise<void> {
-    if (await ensureMediaBucket(this.client, this.bucket, this.corsOrigins)) {
-      this.logger.log(`Bucket « ${this.bucket} » créé`);
+    for (const bucket of await ensureBuckets(this.client, this.buckets, this.corsOrigins)) {
+      this.logger.log(`Bucket « ${bucket} » créé`);
     }
   }
 }

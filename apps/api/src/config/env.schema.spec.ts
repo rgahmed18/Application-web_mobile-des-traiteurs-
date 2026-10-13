@@ -91,8 +91,15 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...validEnv, S3_ENDPOINT: undefined })).toThrow(/S3_ENDPOINT/);
     expect(validateEnv(validEnv)).toMatchObject({
       S3_BUCKET: 'traiteur-media',
+      S3_DOCUMENTS_BUCKET: 'traiteur-documents',
       S3_AUTO_SETUP: false,
     });
+  });
+
+  it('refuse un même bucket pour les photos publiques et les documents privés', () => {
+    expect(() =>
+      validateEnv({ ...validEnv, S3_BUCKET: 'commun', S3_DOCUMENTS_BUCKET: 'commun' }),
+    ).toThrow(/S3_DOCUMENTS_BUCKET/);
   });
 
   it('interdit le fournisseur SMS simulé en production', () => {

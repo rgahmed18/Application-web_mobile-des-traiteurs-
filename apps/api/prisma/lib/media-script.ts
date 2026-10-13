@@ -12,7 +12,7 @@ import { storeCatalogImage } from '../../src/catalog/media/image-store';
 import type { PrismaClient } from '../../src/generated/prisma/client';
 import {
   createS3Client,
-  ensureMediaBucket,
+  ensureBuckets,
   putPublicObject,
   UPLOAD_PREFIX,
 } from '../../src/storage/s3-client';
@@ -21,6 +21,7 @@ const scriptEnvSchema = z.object({
   S3_ENDPOINT: z.url(),
   S3_REGION: z.string().default('us-east-1'),
   S3_BUCKET: z.string().default('traiteur-media'),
+  S3_DOCUMENTS_BUCKET: z.string().default('traiteur-documents'),
   S3_ACCESS_KEY_ID: z.string().min(1),
   S3_SECRET_ACCESS_KEY: z.string().min(1),
   S3_FORCE_PATH_STYLE: z.enum(['true', 'false']).default('false'),
@@ -50,7 +51,11 @@ export async function connectScriptStorage(): Promise<ScriptStorage | null> {
     const origins = env.CORS_ORIGINS.split(',')
       .map((origin) => origin.trim())
       .filter(Boolean);
-    await ensureMediaBucket(client, env.S3_BUCKET, origins);
+    await ensureBuckets(
+      client,
+      { media: env.S3_BUCKET, documents: env.S3_DOCUMENTS_BUCKET },
+      origins,
+    );
   }
   return { client, bucket: env.S3_BUCKET };
 }

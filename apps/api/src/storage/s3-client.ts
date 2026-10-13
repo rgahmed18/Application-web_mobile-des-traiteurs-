@@ -53,26 +53,47 @@ export async function putPublicObject(
   );
 }
 
-/**
- * Développement / CI : crée le bucket, autorise la lecture publique des seules photos traitées
- * (préfixe traiteurs/) et le CORS nécessaire à l'envoi direct depuis le navigateur.
- * En production (R2), ces réglages se font dans le tableau de bord Cloudflare.
- */
-export async function ensureMediaBucket(
-  client: S3Client,
-  bucket: string,
-  corsOrigins: readonly string[],
-): Promise<boolean> {
-  let created = false;
+export interface BucketNames {
+  /** Photos traitées (préfixe traiteurs/), lisibles publiquement. */
+  media: string;
+  /** Documents privés (private/) et envois bruts (tmp/) : jamais publics, URL signées. */
+  documents: string;
+}
+
+/** Bucket d'une clé : seules les photos traitées vont dans le bucket public. */
+export function bucketForKey(buckets: BucketNames, key: string): string {
+  return key.startsWith(PUBLIC_PREFIX) ? buckets.media : buckets.documents;
+}
+
+async function ensureBucket(client: S3Client, bucket: string): Promise<boolean> {
   try {
     await client.send(new HeadBucketCommand({ Bucket: bucket }));
+    return false;
   } catch {
     await client.send(new CreateBucketCommand({ Bucket: bucket }));
-    created = true;
+    return true;
+  }
+}
+
+/**
+ * Développement / CI (S3_AUTO_SETUP) : crée les deux buckets. Bucket media : lecture publique
+ * des photos traitées. Bucket documents : aucune lecture publique ; CORS pour l'envoi direct
+ * depuis le navigateur (tmp/). En production (Cloudflare R2), même découpage, configuré dans le
+ * tableau de bord : seul le bucket media a un domaine public (R2 ne connaît pas les règles par
+ * préfixe, d'où deux buckets). Retourne les buckets créés.
+ */
+export async function ensureBuckets(
+  client: S3Client,
+  buckets: BucketNames,
+  corsOrigins: readonly string[],
+): Promise<string[]> {
+  const created: string[] = [];
+  for (const bucket of [buckets.media, buckets.documents]) {
+    if (await ensureBucket(client, bucket)) created.push(bucket);
   }
   await client.send(
     new PutBucketPolicyCommand({
-      Bucket: bucket,
+      Bucket: buckets.media,
       Policy: JSON.stringify({
         Version: '2012-10-17',
         Statement: [
@@ -80,7 +101,7 @@ export async function ensureMediaBucket(
             Effect: 'Allow',
             Principal: '*',
             Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${bucket}/${PUBLIC_PREFIX}*`],
+            Resource: [`arn:aws:s3:::${buckets.media}/${PUBLIC_PREFIX}*`],
           },
         ],
       }),
@@ -88,7 +109,7 @@ export async function ensureMediaBucket(
   );
   await client.send(
     new PutBucketCorsCommand({
-      Bucket: bucket,
+      Bucket: buckets.documents,
       CORSConfiguration: {
         CORSRules: [
           {
