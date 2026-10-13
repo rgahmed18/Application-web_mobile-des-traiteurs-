@@ -1,0 +1,221 @@
+import { z } from 'zod';
+
+import { phoneSchema } from '../auth/phone';
+import { eventTypeSchema, orderStatusSchema, staffRoleSchema } from '../enums';
+import { lineLabelSchema } from '../orders/line-label';
+import { localDateSchema } from '../time/zoned';
+
+/**
+ * Affectations du personnel aux événements (missions), planning de l'équipe et informations de
+ * service. Une mission ne contient jamais de prix, de total ni de note interne.
+ */
+
+/** Rôle tenu sur l'événement (indépendant du rôle d'accès du membre). */
+export const ASSIGNMENT_ROLES = ['CHEF', 'COOK', 'WAITER', 'SUPERVISOR', 'DRIVER'] as const;
+export const assignmentRoleSchema = z.enum(ASSIGNMENT_ROLES);
+export type AssignmentRole = z.infer<typeof assignmentRoleSchema>;
+
+export const ASSIGNMENT_STATUSES = ['ASSIGNED', 'CONFIRMED', 'DECLINED', 'DONE'] as const;
+export const assignmentStatusSchema = z.enum(ASSIGNMENT_STATUSES);
+export type AssignmentStatus = z.infer<typeof assignmentStatusSchema>;
+
+/** Alerte d'une commande : un membre ne peut pas venir, ou n'a pas confirmé 48 h avant. */
+export const STAFF_ALERTS = ['DECLINED', 'UNCONFIRMED'] as const;
+export const staffAlertSchema = z.enum(STAFF_ALERTS);
+export type StaffAlert = z.infer<typeof staffAlertSchema>;
+
+/** Date et heure locales du traiteur : « 2026-10-24T17:30 ». */
+const localDateTimeSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/, 'Date et heure invalides');
+
+const moment = z.object({ date: z.string(), time: z.string() });
+
+// ─────────────────────────── Saisies ───────────────────────────
+
+const assignmentFields = z.object({
+  staffRole: assignmentRoleSchema,
+  startsAt: localDateTimeSchema,
+  endsAt: localDateTimeSchema,
+  notes: z.string().trim().max(500).nullable().default(null),
+  /** Passer outre un chevauchement avec une autre mission du membre (tracé). */
+  force: z.boolean().default(false),
+});
+
+const endsAfterStart = <T extends { startsAt: string; endsAt: string }>(value: T) =>
+  value.endsAt > value.startsAt;
+const endsAfterStartIssue = { message: 'La fin doit être après le début', path: ['endsAt'] };
+
+export const assignmentInputSchema = assignmentFields
+  .extend({ membershipId: z.uuid() })
+  .refine(endsAfterStart, endsAfterStartIssue);
+export type AssignmentInput = z.infer<typeof assignmentInputSchema>;
+
+export const assignmentUpdateSchema = assignmentFields.refine(endsAfterStart, endsAfterStartIssue);
+export type AssignmentUpdateInput = z.infer<typeof assignmentUpdateSchema>;
+
+/** Informations de service de la commande, jamais montrées au client. */
+export const serviceInfoSchema = z.object({
+  onSiteContactName: z.string().trim().max(120).nullable(),
+  onSiteContactPhone: phoneSchema.nullable(),
+  serviceNotes: z.string().trim().max(2000).nullable(),
+  equipment: z.string().trim().max(2000).nullable(),
+});
+export type ServiceInfoInput = z.infer<typeof serviceInfoSchema>;
+
+export const planningQuerySchema = z.object({
+  /** Un jour de la semaine voulue (la semaine commence le lundi). */
+  week: localDateSchema,
+});
+export type PlanningQuery = z.infer<typeof planningQuerySchema>;
+
+export const missionDeclineSchema = z.object({ reason: z.string().trim().min(1).max(500) });
+export type MissionDeclineInput = z.infer<typeof missionDeclineSchema>;
+
+export const DELIVERY_STEPS = ['OUT_FOR_DELIVERY', 'DELIVERED'] as const;
+export const missionDeliverySchema = z.object({ to: z.enum(DELIVERY_STEPS) });
+export type MissionDeliveryInput = z.infer<typeof missionDeliverySchema>;
+
+export const MISSION_SCOPES = ['upcoming', 'past'] as const;
+export const missionListQuerySchema = z.object({
+  scope: z.enum(MISSION_SCOPES).default('upcoming'),
+});
+export type MissionListQuery = z.infer<typeof missionListQuerySchema>;
+
+// ─────────────────────────── Réponses (back-office) ───────────────────────────
+
+export const assignmentConflictSchema = z.object({
+  assignmentId: z.uuid(),
+  orderId: z.uuid(),
+  orderReference: z.string(),
+  start: moment,
+  end: moment,
+});
+export type AssignmentConflict = z.infer<typeof assignmentConflictSchema>;
+
+export const assignmentSchema = z.object({
+  id: z.uuid(),
+  orderId: z.uuid(),
+  member: z.object({
+    id: z.uuid(),
+    firstName: z.string(),
+    lastName: z.string(),
+    phone: z.string(),
+    role: staffRoleSchema,
+    status: z.enum(['ACTIVE', 'INVITED', 'SUSPENDED']),
+  }),
+  staffRole: assignmentRoleSchema,
+  status: assignmentStatusSchema,
+  start: moment,
+  end: moment,
+  notes: z.string().nullable(),
+  declineReason: z.string().nullable(),
+  respondedAt: z.iso.datetime().nullable(),
+  /** Autres missions du membre qui chevauchent celle-ci. */
+  conflicts: z.array(assignmentConflictSchema),
+});
+export type Assignment = z.infer<typeof assignmentSchema>;
+
+export const orderStaffingSchema = z.object({
+  assignments: z.array(assignmentSchema),
+  serviceInfo: serviceInfoSchema,
+  alert: staffAlertSchema.nullable(),
+});
+export type OrderStaffing = z.infer<typeof orderStaffingSchema>;
+
+export const planningSchema = z.object({
+  weekStart: z.string(),
+  days: z.array(z.string()),
+  members: z.array(
+    z.object({
+      id: z.uuid(),
+      firstName: z.string(),
+      lastName: z.string(),
+      role: staffRoleSchema,
+      missions: z.array(
+        z.object({
+          id: z.uuid(),
+          orderId: z.uuid(),
+          orderReference: z.string(),
+          eventType: eventTypeSchema,
+          city: z.string(),
+          staffRole: assignmentRoleSchema,
+          status: assignmentStatusSchema,
+          start: moment,
+          end: moment,
+          conflict: z.boolean(),
+        }),
+      ),
+    }),
+  ),
+});
+export type Planning = z.infer<typeof planningSchema>;
+
+// ─────────────────────────── Missions (équipe, livreur) ───────────────────────────
+
+export const missionSummarySchema = z.object({
+  id: z.uuid(),
+  orderReference: z.string(),
+  orderStatus: orderStatusSchema,
+  eventType: eventTypeSchema,
+  staffRole: assignmentRoleSchema,
+  status: assignmentStatusSchema,
+  start: moment,
+  end: moment,
+  eventDate: z.string(),
+  guestCount: z.number().int(),
+  /** Lieu affiché : nom de la salle, ou seulement la ville si la mission est masquée. */
+  place: z.string(),
+  city: z.string(),
+  /** Mission terminée depuis le délai réglé : adresse et contact masqués. */
+  redacted: z.boolean(),
+});
+export type MissionSummary = z.infer<typeof missionSummarySchema>;
+
+export const missionSchema = missionSummarySchema.extend({
+  event: z.object({
+    date: z.string(),
+    startTime: z.string(),
+    endTime: z.string().nullable(),
+    endsNextDay: z.boolean(),
+  }),
+  venue: z
+    .object({
+      name: z.string().nullable(),
+      address: z.string(),
+      city: z.string(),
+      mapsUrl: z.url(),
+      directionsUrl: z.url(),
+    })
+    .nullable(),
+  contact: z.object({ name: z.string(), phone: z.string() }).nullable(),
+  /** À livrer / à préparer : libellés et quantités, sans aucun prix. */
+  content: z.array(
+    z.object({
+      label: lineLabelSchema,
+      quantity: z.number().int(),
+      itemType: z.enum(['DISH', 'PACKAGE', 'EXTRA_SERVICE', 'CUSTOM']),
+    }),
+  ),
+  equipment: z.string().nullable(),
+  serviceNotes: z.string().nullable(),
+  missionNotes: z.string().nullable(),
+  clientNotes: z.string().nullable(),
+  team: z.array(
+    z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+      staffRole: assignmentRoleSchema,
+      phone: z.string().nullable(),
+      isSelf: z.boolean(),
+    }),
+  ),
+  declineReason: z.string().nullable(),
+  /** Étapes de livraison possibles maintenant (livreur affecté comme chauffeur). */
+  deliverySteps: z.array(z.enum(DELIVERY_STEPS)),
+  canConfirm: z.boolean(),
+  canDecline: z.boolean(),
+  canFinish: z.boolean(),
+  documents: z.object({ deliveryNote: z.boolean(), preparationSheet: z.boolean() }),
+});
+export type Mission = z.infer<typeof missionSchema>;

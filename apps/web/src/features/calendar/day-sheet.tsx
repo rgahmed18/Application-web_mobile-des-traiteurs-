@@ -1,7 +1,7 @@
 'use client';
 
 import type { CalendarDay, CalendarOrder } from '@traiteur/shared';
-import { BanIcon, PlusIcon, UnlockIcon } from 'lucide-react';
+import { BanIcon, ChefHatIcon, PlusIcon, UnlockIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -27,6 +27,7 @@ import {
 import { usePermission } from '@/features/auth/session-provider';
 import { OrderStatusBadge } from '@/features/orders/order-ui';
 import { useBlockDate, useUnblockDate } from '@/features/orders/orders-api';
+import { openDocument } from '@/features/payments/payments-api';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatLocalDate, formatLongDate } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
@@ -81,6 +82,19 @@ export function DaySheet({ day, orders, capacity, onClose }: DaySheetProps) {
 
         <div className="flex flex-col gap-3 px-4 pb-4">
           <div className="flex flex-wrap gap-2">
+            {can('orders.read') && (day?.firmCount ?? 0) > 0 && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  openDocument(`/calendar/preparation-sheet?date=${date}`).catch((error: unknown) =>
+                    toast.error(describeError(error)),
+                  )
+                }
+              >
+                <ChefHatIcon aria-hidden />
+                {t('preparationSheet')}
+              </Button>
+            )}
             {can('orders.create') && (
               <Button asChild>
                 <Link href={`/admin/orders/new?date=${date}`}>

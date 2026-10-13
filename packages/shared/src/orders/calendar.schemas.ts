@@ -88,5 +88,7 @@ export const dashboardSchema = z.object({
   unpaid: z.object({ amount: z.number().int(), count: z.number().int() }),
   /** Devis acceptés sur une date bloquée ou complète : date à confirmer par le traiteur. */
   quotesToConfirm: z.number().int(),
+  /** Missions refusées, ou non confirmées 48 h avant l'événement (commandes à venir). */
+  staffAlerts: z.object({ declined: z.number().int(), unconfirmed: z.number().int() }),
 });
 export type Dashboard = z.infer<typeof dashboardSchema>;

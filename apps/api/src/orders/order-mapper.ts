@@ -4,6 +4,7 @@ import {
   type Order,
   type OrderLine,
   type OrderSummary,
+  type StaffAlert,
   utcToZoned,
 } from '@traiteur/shared';
 
@@ -69,6 +70,8 @@ export interface PaymentFigures {
   paid: number;
   remaining: number;
   overdueAmount: number;
+  /** Alerte du personnel (refus, mission non confirmée à moins de 48 h). */
+  staffAlert: StaffAlert | null;
 }
 
 export function toOrderSummary(

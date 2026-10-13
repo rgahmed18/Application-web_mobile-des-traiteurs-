@@ -38,6 +38,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { nextDocumentNumber } from '../sequences/document-sequence';
 import { type AvailabilitySettings, dayAvailability, hasConflict, lockDay } from './availability';
 import { paymentSummary, paymentTotals, type ScheduleSettings } from '../payments/payment-state';
+import { staffAlerts } from '../assignments/staff-alerts';
 import { creditOnCancellation } from '../invoices/invoice-issuer';
 import { clearAvailabilityPending, supersedeQuotesOnOrderChange } from '../quotes/quote-lifecycle';
 import {
@@ -820,19 +821,25 @@ export class OrdersService {
     return order;
   }
 
-  /** Associe à chaque commande son payé net, son reste à payer et son retard. */
+  /** Associe à chaque commande son payé net, son reste à payer, son retard et l'alerte du personnel. */
   private async withPayments<TRow extends OrderSummaryRow, TResult>(
     db: Db,
     rows: readonly TRow[],
     settings: OrderSettings,
     map: (row: TRow, payment: PaymentFigures) => TResult,
   ): Promise<TResult[]> {
-    const totals = await paymentTotals(
-      db,
-      rows[0]?.traiteurId ?? '',
-      rows.map((row) => row.id),
+    const traiteurId = rows[0]?.traiteurId ?? '';
+    const ids = rows.map((row) => row.id);
+    const [totals, alerts] = await Promise.all([
+      paymentTotals(db, traiteurId, ids),
+      staffAlerts(db, traiteurId, ids),
+    ]);
+    return rows.map((row) =>
+      map(row, {
+        ...paymentSummary(row, settings, totals.get(row.id)),
+        staffAlert: alerts.get(row.id) ?? null,
+      }),
     );
-    return rows.map((row) => map(row, paymentSummary(row, settings, totals.get(row.id))));
   }
 
   private async settings(db: Db, traiteurId: string): Promise<OrderSettings> {

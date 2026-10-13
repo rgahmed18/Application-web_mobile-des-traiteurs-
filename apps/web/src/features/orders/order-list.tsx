@@ -75,6 +75,7 @@ function periodRange(
 }
 
 export function OrderList() {
+  const tAssign = useTranslations('assignments');
   const t = useTranslations('orders');
   const tStatus = useTranslations('orderStatus');
   const tEvent = useTranslations('eventType');
@@ -324,6 +325,11 @@ export function OrderList() {
                   {order.overdueAmount > 0 && (
                     <Badge variant="destructive" className="mt-0.5" data-testid="overdue-badge">
                       {t('filters.overdue')}
+                    </Badge>
+                  )}
+                  {order.staffAlert && (
+                    <Badge variant="destructive" className="mt-0.5" data-testid="staff-alert-badge">
+                      {tAssign(`alerts.${order.staffAlert}`)}
                     </Badge>
                   )}
                 </span>

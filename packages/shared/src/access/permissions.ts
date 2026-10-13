@@ -23,7 +23,7 @@ const CLIENT = 'CLIENT';
 // prettier-ignore
 export const PERMISSIONS = [
   // Catalogue
-  { key: 'catalog.read', module: 'catalog', description: 'Consulter le catalogue', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE, DRIVER, CLIENT] },
+  { key: 'catalog.read', module: 'catalog', description: 'Consulter le catalogue', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE, CLIENT] },
   { key: 'catalog.write', module: 'catalog', description: 'Créer et modifier plats, formules et services', isTenantEditable: true, defaultRoles: [ADMIN] },
   // Commandes
   { key: 'orders.read', module: 'orders', description: 'Consulter toutes les commandes', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },

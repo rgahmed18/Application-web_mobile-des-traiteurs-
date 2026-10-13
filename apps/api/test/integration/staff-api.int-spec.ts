@@ -261,7 +261,7 @@ describe('API du personnel (application complète)', () => {
         .expect(200)
     ).body as Member;
     expect(suspended.status).toBe('SUSPENDED');
-    const refused = await api(driver).get('/catalog/categories').expect(403);
+    const refused = await api(driver).get('/me/missions').expect(403);
     expect(refused.body).toMatchObject({ code: 'MEMBERSHIP_INACTIVE' });
     const openSessions = await prisma.refreshToken.count({
       where: { membershipId: driver.membershipId, revokedAt: null },
@@ -272,7 +272,7 @@ describe('API du personnel (application complète)', () => {
       await api(admin).post(`/staff/${driver.membershipId}/reactivate`).expect(200)
     ).body as { member: Member; link: unknown };
     expect(reactivated.member.status).toBe('ACTIVE');
-    await api(driver).get('/catalog/categories').expect(200);
+    await api(driver).get('/me/missions').expect(200);
   });
 
   it('garde-fous : pas sur soi-même ; un administrateur est nommé ou suspendu par un administrateur', async () => {

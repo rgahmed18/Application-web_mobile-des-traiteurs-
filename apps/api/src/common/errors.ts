@@ -72,7 +72,12 @@ export type AppErrorCode =
   | 'ADMIN_REQUIRED'
   | 'INVITATION_EXPIRED'
   | 'MEMBER_NOT_INVITED'
-  | 'PERMISSION_NOT_EDITABLE';
+  | 'PERMISSION_NOT_EDITABLE'
+  | 'ASSIGNMENT_CONFLICT'
+  | 'ASSIGNMENT_EXISTS'
+  | 'ORDER_NOT_FIRM'
+  | 'MEMBER_UNAVAILABLE'
+  | 'MISSION_NOT_ALLOWED';
 
 export interface AppErrorBody {
   code: AppErrorCode;

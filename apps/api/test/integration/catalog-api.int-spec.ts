@@ -251,8 +251,8 @@ describe('API du catalogue (application complète)', () => {
   });
 
   describe('permissions', () => {
-    it('le livreur consulte le catalogue mais ne peut pas le modifier', async () => {
-      await api(driverA).get('/catalog/dishes').expect(200);
+    it('le livreur n’a pas accès au catalogue (prix) ni à sa modification', async () => {
+      await api(driverA).get('/catalog/dishes').expect(403);
       const denied = await api(driverA).post('/catalog/dishes', dishBody());
       expect(denied.status).toBe(403);
       expect(denied.body).toMatchObject({ code: 'MISSING_PERMISSION' });

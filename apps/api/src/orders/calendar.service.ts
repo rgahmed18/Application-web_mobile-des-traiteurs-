@@ -25,6 +25,7 @@ import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
 import type { Prisma } from '../generated/prisma/client';
+import { staffAlertCounts } from '../assignments/staff-alerts';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   COUNTED_PAYMENT,
@@ -290,13 +291,15 @@ export class CalendarService {
       }),
     ]);
 
-    const [collected, unpaid, quotesToConfirm] = await Promise.all([
+    const [collected, unpaid, quotesToConfirm, staff] = await Promise.all([
       this.monthCollected(traiteurId, monthStart, monthEnd),
       this.unpaid(traiteurId, settings, now),
       // Devis acceptés sur une date bloquée ou complète : le traiteur doit trancher
       this.prisma.quote.count({
         where: { traiteurId, status: 'ACCEPTED', availabilityPending: true },
       }),
+      // Missions refusées, ou non confirmées à moins de 48 h de l'événement
+      staffAlertCounts(this.prisma, traiteurId, now),
     ]);
 
     return {
@@ -305,6 +308,7 @@ export class CalendarService {
       monthCollected: collected,
       unpaid,
       quotesToConfirm,
+      staffAlerts: staff,
       next7DaysCount,
       awaitingCount,
       toCloseCount,

@@ -59,6 +59,7 @@
   "nav": {
     "mainMenu": "Menu principal",
     "dashboard": "Tableau de bord",
+    "missions": "Mes missions",
     "catalog": "Catalogue",
     "orders": "Commandes",
     "calendar": "Calendrier",
@@ -146,6 +147,11 @@
     "quotesToConfirm": {
       "title": "{count, plural, one {# devis accepté : date à confirmer} other {# devis acceptés : dates à confirmer}}",
       "hint": "Le client a donné son accord alors que la date est bloquée ou complète. Ouvrez la commande pour la confirmer (en passant outre) ou l’annuler."
+    },
+    "staffAlerts": {
+      "declined": "{count, plural, one {# membre ne peut pas venir} other {# membres ne peuvent pas venir}}",
+      "unconfirmed": "{count, plural, one {# mission non confirmée à moins de 48 h} other {# missions non confirmées à moins de 48 h}}",
+      "hint": "Ouvrez le planning pour réaffecter ou relancer."
     }
   },
   "errors": {
@@ -217,7 +223,12 @@
       "ADMIN_REQUIRED": "Réservé aux administrateurs.",
       "INVITATION_EXPIRED": "Ce lien d’activation a expiré.",
       "MEMBER_NOT_INVITED": "Ce membre a déjà activé son accès.",
-      "PERMISSION_NOT_EDITABLE": "Cette permission n’est pas modifiable."
+      "PERMISSION_NOT_EDITABLE": "Cette permission n’est pas modifiable.",
+      "ASSIGNMENT_CONFLICT": "Ce membre est déjà affecté sur ce créneau.",
+      "ASSIGNMENT_EXISTS": "Ce membre a déjà ce rôle sur l’événement.",
+      "ORDER_NOT_FIRM": "Le personnel s’affecte à une commande confirmée.",
+      "MEMBER_UNAVAILABLE": "Ce membre est suspendu.",
+      "MISSION_NOT_ALLOWED": "Action impossible pour cette mission."
     }
   },
   "validation": {
@@ -812,7 +823,8 @@
       "saved": "Capacité enregistrée"
     },
     "dayLoad": "Charge",
-    "pendingCount": "{count, plural, one {# en attente} other {# en attente}}"
+    "pendingCount": "{count, plural, one {# en attente} other {# en attente}}",
+    "preparationSheet": "Bon de préparation du jour"
   },
   "payments": {
     "title": "Paiements",
@@ -1175,6 +1187,7 @@
     "subtitle": "Votre équipe, ses accès et ses permissions.",
     "tabs": {
       "team": "Équipe",
+      "planning": "Planning",
       "permissions": "Permissions"
     },
     "search": "Rechercher (nom, téléphone)",
@@ -1373,6 +1386,120 @@
       "mismatch": "Les deux mots de passe ne correspondent pas.",
       "tooMany": "Trop de tentatives : réessayez dans une minute.",
       "generic": "Une erreur est survenue. Réessayez."
+    }
+  },
+  "assignments": {
+    "title": "Personnel",
+    "empty": "Personne n’est encore affecté à cet événement.",
+    "assign": "Affecter",
+    "edit": "Modifier",
+    "remove": "Retirer",
+    "removed": "Affectation retirée",
+    "call": "Appeler",
+    "saved": "Affectation enregistrée",
+    "preparationSheet": "Bon de préparation",
+    "deliveryNote": "Bon de livraison",
+    "declined": "Ne peut pas venir : {reason}",
+    "overlaps": "Chevauche : {orders}",
+    "roles": {
+      "CHEF": "Chef",
+      "COOK": "Cuisinier",
+      "WAITER": "Serveur",
+      "SUPERVISOR": "Superviseur",
+      "DRIVER": "Chauffeur"
+    },
+    "status": {
+      "ASSIGNED": "À confirmer",
+      "CONFIRMED": "Confirmé",
+      "DECLINED": "Ne peut pas",
+      "DONE": "Terminé"
+    },
+    "alerts": {
+      "DECLINED": "Personnel : désistement",
+      "UNCONFIRMED": "Personnel non confirmé"
+    },
+    "dialog": {
+      "title": "Affecter un membre",
+      "editTitle": "Modifier l’affectation",
+      "member": "Membre",
+      "memberPlaceholder": "Choisir un membre",
+      "role": "Rôle sur l’événement",
+      "start": "Début",
+      "end": "Fin",
+      "notes": "Notes pour ce membre",
+      "notesHint": "Visibles uniquement par lui, dans sa mission."
+    },
+    "conflict": {
+      "title": "Ce membre est déjà affecté sur ce créneau :",
+      "force": "Affecter quand même"
+    },
+    "serviceInfo": {
+      "title": "Informations de service",
+      "contact": "Contact sur place",
+      "contactDefault": "le client (par défaut)",
+      "equipment": "Matériel",
+      "serviceNotes": "Notes de service",
+      "hint": "Visibles par l’équipe et le livreur, jamais par le client.",
+      "contactName": "Nom du contact sur place",
+      "contactPhone": "Téléphone du contact",
+      "saved": "Informations de service enregistrées"
+    },
+    "planning": {
+      "previous": "Semaine précédente",
+      "next": "Semaine suivante",
+      "thisWeek": "Cette semaine",
+      "week": "Du {from} au {to}",
+      "member": "Membre",
+      "empty": "Aucun membre dans l’équipe.",
+      "conflict": "Chevauchement"
+    },
+    "missions": {
+      "title": "Mes missions",
+      "subtitle": "Vos événements et livraisons, avec tout ce qu’il faut pour les réaliser.",
+      "upcoming": "À venir",
+      "past": "Terminées",
+      "empty": "Aucune mission",
+      "emptyHint": "Vos prochaines missions apparaîtront ici dès que votre responsable vous aura affecté.",
+      "guests": "{count, plural, one {# invité} other {# invités}}",
+      "cancelled": "Événement annulé",
+      "back": "← Mes missions",
+      "redacted": "Mission terminée : l’adresse et les coordonnées ne sont plus affichées.",
+      "mission": "Ma mission",
+      "event": "Événement",
+      "nextDay": "(lendemain)",
+      "openMaps": "Ouvrir dans Google Maps",
+      "directions": "Itinéraire",
+      "contact": "Contact sur place",
+      "call": "Appeler",
+      "content": "À préparer / à livrer",
+      "missionNotes": "Notes pour vous",
+      "equipment": "Matériel",
+      "serviceNotes": "Notes de service",
+      "clientNotes": "Demandes du client",
+      "team": "Équipe sur l’événement",
+      "you": "vous",
+      "confirm": "Confirmer ma présence",
+      "confirmed": "Présence confirmée",
+      "finish": "Mission terminée",
+      "finished": "Mission terminée, merci !",
+      "decline": "Je ne peux pas",
+      "steps": {
+        "OUT_FOR_DELIVERY": {
+          "label": "Parti en livraison",
+          "done": "Livraison en cours"
+        },
+        "DELIVERED": {
+          "label": "Livré",
+          "done": "Livraison enregistrée"
+        }
+      },
+      "declineDialog": {
+        "title": "Vous ne pouvez pas venir ?",
+        "description": "Votre responsable est prévenu immédiatement pour vous remplacer.",
+        "reason": "Motif",
+        "confirm": "Prévenir mon responsable",
+        "done": "Votre responsable est prévenu"
+      }
     }
   }
 }

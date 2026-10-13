@@ -1,6 +1,7 @@
 import type { PermissionKey } from '@traiteur/shared';
 import {
   CalendarDaysIcon,
+  ClipboardCheckIcon,
   ClipboardListIcon,
   LayoutDashboardIcon,
   type LucideIcon,
@@ -14,7 +15,15 @@ import {
 export interface NavItem {
   /** Clé de traduction dans l'espace « nav ». */
   labelKey:
-    'dashboard' | 'catalog' | 'orders' | 'calendar' | 'clients' | 'invoices' | 'staff' | 'settings';
+    | 'dashboard'
+    | 'missions'
+    | 'catalog'
+    | 'orders'
+    | 'calendar'
+    | 'clients'
+    | 'invoices'
+    | 'staff'
+    | 'settings';
   href: string;
   icon: LucideIcon;
   /** Permission nécessaire pour voir l'entrée (aucune = toujours visible). */
@@ -23,7 +32,14 @@ export interface NavItem {
 
 /** Menu du back-office, dans l'ordre d'affichage. */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { labelKey: 'dashboard', href: '/admin', icon: LayoutDashboardIcon },
+  // Personnel de terrain et livreurs (sans « Consulter toutes les commandes ») : leurs missions
+  { labelKey: 'dashboard', href: '/admin', icon: LayoutDashboardIcon, permission: 'orders.read' },
+  {
+    labelKey: 'missions',
+    href: '/admin/missions',
+    icon: ClipboardCheckIcon,
+    permission: 'assignments.read_own',
+  },
   { labelKey: 'catalog', href: '/admin/catalog', icon: UtensilsIcon, permission: 'catalog.read' },
   { labelKey: 'orders', href: '/admin/orders', icon: ClipboardListIcon, permission: 'orders.read' },
   {

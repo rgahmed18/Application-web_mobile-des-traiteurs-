@@ -8,11 +8,14 @@ import {
   ClipboardCheckIcon,
   HourglassIcon,
   TriangleAlertIcon,
+  UserRoundXIcon,
   type LucideIcon,
   WalletIcon,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
+import { useEffect } from 'react';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,8 +97,15 @@ export function DashboardView() {
   const t = useTranslations('dashboard');
   const tEvent = useTranslations('eventType');
   const locale = useLocale();
-  const { user } = useSession();
-  const canRead = usePermission()('orders.read');
+  const { user, status } = useSession();
+  const can = usePermission();
+  const canRead = can('orders.read');
+  const router = useRouter();
+  // Équipe de terrain et livreurs : leur page d'accueil est la liste de leurs missions
+  const fieldStaff = status === 'authenticated' && !canRead && can('assignments.read_own');
+  useEffect(() => {
+    if (fieldStaff) router.replace('/admin/missions');
+  }, [fieldStaff, router]);
   const dashboard = useDashboard(canRead);
   const data = dashboard.data;
 
@@ -162,6 +172,28 @@ export function DashboardView() {
       />
       {canRead && (
         <>
+          {data && data.staffAlerts.declined + data.staffAlerts.unconfirmed > 0 && (
+            <Link
+              href="/admin/staff?tab=planning"
+              className="flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-4 text-red-900 hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-100"
+              data-testid="staff-alerts"
+            >
+              <UserRoundXIcon className="mt-0.5 size-5 shrink-0" aria-hidden />
+              <span>
+                {data.staffAlerts.declined > 0 && (
+                  <span className="block font-semibold">
+                    {t('staffAlerts.declined', { count: data.staffAlerts.declined })}
+                  </span>
+                )}
+                {data.staffAlerts.unconfirmed > 0 && (
+                  <span className="block font-semibold">
+                    {t('staffAlerts.unconfirmed', { count: data.staffAlerts.unconfirmed })}
+                  </span>
+                )}
+                <span className="block text-sm">{t('staffAlerts.hint')}</span>
+              </span>
+            </Link>
+          )}
           {(data?.quotesToConfirm ?? 0) > 0 && (
             <Link
               href="/admin/orders?status=QUOTED&period=all"

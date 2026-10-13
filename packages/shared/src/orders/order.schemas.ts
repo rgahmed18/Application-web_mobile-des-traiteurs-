@@ -257,6 +257,8 @@ export const orderSummarySchema = z.object({
   paid: z.number().int(),
   remaining: z.number().int(),
   overdueAmount: z.number().int(),
+  /** Un membre ne peut pas venir, ou n'a pas confirmé 48 h avant l'événement. */
+  staffAlert: z.enum(['DECLINED', 'UNCONFIRMED']).nullable(),
   createdAt: z.iso.datetime(),
 });
 export type OrderSummary = z.infer<typeof orderSummarySchema>;

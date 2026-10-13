@@ -39,6 +39,7 @@ import { usePermission } from '@/features/auth/session-provider';
 import { clientName } from '@/features/clients/clients-api';
 import { CancelOrderDialog } from '@/features/payments/cancel-order-dialog';
 import { useOrderPayments } from '@/features/payments/payments-api';
+import { PersonnelCard } from '@/features/assignments/personnel-card';
 import { InvoicesCard } from '@/features/invoices/invoices-card';
 import { PaymentsCard } from '@/features/payments/payments-card';
 import { QuotesCard } from '@/features/quotes/quotes-card';
@@ -324,6 +325,7 @@ function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) 
 }
 
 export function OrderDetail({ orderId }: { orderId: string }) {
+  const tAssign = useTranslations('assignments');
   const t = useTranslations('orders');
   const tc = useTranslations('common');
   const tEvent = useTranslations('eventType');
@@ -360,6 +362,11 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 {data.reference}
               </h1>
               <OrderStatusBadge status={data.status} className="text-base" testId="order-status" />
+              {data.staffAlert && (
+                <Badge variant="destructive" data-testid="order-staff-alert">
+                  {tAssign(`alerts.${data.staffAlert}`)}
+                </Badge>
+              )}
             </div>
             <p className="text-muted-foreground">
               {tEvent(data.eventType)} · {clientName(data.client)}
@@ -498,11 +505,15 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               />
             )}
             {can('invoices.read') && <InvoicesCard order={data} />}
-            <ComingSoonCard
-              icon={UserRoundCogIcon}
-              title={t('detail.staff')}
-              hint={t('detail.staffHint')}
-            />
+            {can('staff.read') ? (
+              <PersonnelCard order={data} />
+            ) : (
+              <ComingSoonCard
+                icon={UserRoundCogIcon}
+                title={t('detail.staff')}
+                hint={t('detail.staffHint')}
+              />
+            )}
           </div>
         </div>
 

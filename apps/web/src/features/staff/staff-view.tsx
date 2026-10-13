@@ -5,15 +5,16 @@ import { useTranslations } from 'next-intl';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PlanningView } from '@/features/assignments/planning-view';
 import { usePermission } from '@/features/auth/session-provider';
 
 import { PermissionsGrid } from './permissions-grid';
 import { TeamList } from './team-list';
 
-const TABS = ['team', 'permissions'] as const;
+const TABS = ['team', 'planning', 'permissions'] as const;
 type Tab = (typeof TABS)[number];
 
-/** Personnel : équipe et grille des permissions (onglet mémorisé dans l'URL). */
+/** Personnel : équipe, planning et grille des permissions (onglet mémorisé dans l'URL). */
 export function StaffView() {
   const t = useTranslations('staff');
   const can = usePermission();
@@ -40,6 +41,9 @@ export function StaffView() {
         </TabsList>
         <TabsContent value="team" className="pt-4">
           <TeamList />
+        </TabsContent>
+        <TabsContent value="planning" className="pt-4">
+          <PlanningView />
         </TabsContent>
         {can('permissions.manage') && (
           <TabsContent value="permissions" className="pt-4">

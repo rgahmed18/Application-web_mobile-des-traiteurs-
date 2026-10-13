@@ -760,3 +760,70 @@ export async function seedDemoPayments(
   }
   console.log(`✓ ${count} paiements de démonstration (reçus REC-…, retards, remboursement)`);
 }
+
+/**
+ * Missions de démonstration : le livreur et un membre de l'équipe affectés aux prochaines
+ * commandes fermes (horaires autour de l'événement), contact sur place et matériel renseignés.
+ */
+export async function seedDemoAssignments(
+  prisma: PrismaClient,
+  traiteurId: string,
+  members: { driverId: string; teamId: string },
+): Promise<void> {
+  const orders = await prisma.order.findMany({
+    where: {
+      traiteurId,
+      internalNotes: { startsWith: MARKER },
+      status: { in: ['CONFIRMED', 'IN_PREPARATION'] },
+      eventDate: { gt: new Date() },
+    },
+    orderBy: { eventDate: 'asc' },
+    take: 4,
+  });
+  if (
+    await prisma.staffAssignment.count({
+      where: { traiteurId, orderId: { in: orders.map((order) => order.id) } },
+    })
+  ) {
+    console.log('✓ Missions de démonstration déjà présentes');
+    return;
+  }
+  const hour = 3_600_000;
+  for (const [index, order] of orders.entries()) {
+    const start = order.eventDate.getTime();
+    await prisma.staffAssignment.createMany({
+      data: [
+        {
+          traiteurId,
+          orderId: order.id,
+          membershipId: members.driverId,
+          staffRole: 'DRIVER',
+          startAt: new Date(start - 3 * hour),
+          endAt: new Date(start - hour / 2),
+          notes: 'Charger les chauffe-plats en dernier',
+          ...(index === 0 ? { status: 'CONFIRMED' as const, respondedAt: new Date() } : {}),
+        },
+        {
+          traiteurId,
+          orderId: order.id,
+          membershipId: members.teamId,
+          staffRole: 'COOK',
+          startAt: new Date(start - 8 * hour),
+          endAt: new Date(start + 2 * hour),
+        },
+      ],
+    });
+    if (index === 0) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          onSiteContactName: 'Hicham (gérant de la salle)',
+          onSiteContactPhone: '+212661000099',
+          serviceNotes: 'Accès par l’entrée de service, côté parking.',
+          equipment: '20 tables rondes, nappes blanches, 4 chauffe-plats',
+        },
+      });
+    }
+  }
+  console.log(`✓ ${orders.length * 2} missions de démonstration (livreur et équipe)`);
+}

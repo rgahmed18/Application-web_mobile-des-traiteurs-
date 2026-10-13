@@ -119,6 +119,7 @@ Mot de passe commun : **`Password123!`**
 | ADMIN_TRAITEUR | +212600000002 | admin@dar-diafa.ma              |
 | EMPLOYE        | +212600000003 | employe@dar-diafa.ma            |
 | LIVREUR        | +212600000004 | livreur@dar-diafa.ma            |
+| EQUIPE         | +212600000006 | equipe@dar-diafa.ma             |
 | CLIENT         | +212600000005 | client@exemple.ma               |
 
 Le seed est **idempotent** : il peut être relancé sans créer de doublons.
@@ -208,6 +209,33 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
   à la valeur par défaut supprime la surcharge ; les permissions critiques sont verrouillées ;
   « Rétablir les valeurs par défaut » pour un rôle ou tous. Les permissions des clients restent
   hors de la grille.
+
+### Affectations et missions
+
+- **Fiche commande → Personnel** (`staff.manage`) : affecter un membre avec un rôle sur
+  l'événement (chef, cuisinier, serveur, superviseur, chauffeur), des horaires (proposés selon
+  le rôle) et une note. Un chevauchement avec une autre mission du membre est refusé avec le
+  détail, sauf si le traiteur passe outre (tracé). Commande confirmée, en préparation ou en
+  livraison seulement. Informations de service (`orders.write`) : contact sur place (le client
+  par défaut), matériel, notes de service — jamais montrés au client.
+- **Planning** (Personnel → Planning) : semaine par personne, missions colorées par statut,
+  chevauchements signalés.
+- **Mes missions** (`assignments.read_own`, page d'accueil de l'équipe et des livreurs) :
+  uniquement ses missions, construites champ par champ sans aucun prix, total, paiement ni note
+  interne (vérifié par les tests sur toute la réponse). Date et horaires, lieu avec Google Maps
+  et itinéraire, contact sur place (appel, WhatsApp), contenu et quantités dans sa langue,
+  matériel, notes, équipe. Actions : confirmer, « Je ne peux pas » (motif), mission terminée ;
+  le chauffeur fait passer la commande « En livraison » puis « Livrée ».
+- **Alertes** : une mission refusée, ou non confirmée moins de 48 h avant son début, s'affiche
+  sur le tableau de bord et en badge sur la commande.
+- **Missions terminées** : après le délai réglé (`Traiteur.missionRedactionDays`, 7 jours par
+  défaut, sans masquage si vide), l'adresse, le contact sur place et les téléphones sont masqués
+  (il reste la date, la référence et la ville).
+- **Bons PDF** (Typst, sans prix) : bon de préparation par événement (fiche commande, mission
+  d'un cuisinier) ou par jour (calendrier), quantités totales par plat regroupées par catégorie,
+  formules décomposées en plats ; bon de livraison dans la langue du client (adresse, contact,
+  contenu, matériel, notes, signature du client à la réception). Générés à la demande.
+- Le livreur n'a plus accès au catalogue par défaut (prix) ; le traiteur peut le lui rendre.
 
 ### Paiements
 
@@ -394,27 +422,28 @@ docker/            Script d'initialisation PostgreSQL
 
 Organisation de l'API (`apps/api/src`) : un module par domaine.
 
-| Dossier      | Contenu                                                               |
-| ------------ | --------------------------------------------------------------------- |
-| `config/`    | Validation Zod des variables d'environnement                          |
-| `prisma/`    | Client Prisma (pilote PostgreSQL natif `adapter-pg`)                  |
-| `redis/`     | Connexion Redis (cache des permissions et des fonctionnalités)        |
-| `queue/`     | BullMQ (files `notifications`, `media` et `quotes`)                   |
-| `storage/`   | Stockage S3 (URL présignées, traitement des images avec sharp)        |
-| `catalog/`   | Catégories, plats, formules, services, photos (`/api/v1/catalog`)     |
-| `clients/`   | Clients du traiteur, adresses (`/api/v1/clients`)                     |
-| `orders/`    | Commandes, disponibilité, calendrier, tableau de bord                 |
-| `payments/`  | Encaissements, remboursements, reçus, échéancier                      |
-| `quotes/`    | Devis : versions, envoi, lien public, accords, expiration             |
-| `staff/`     | Personnel : invitations et activation, suspension, permissions        |
-| `invoices/`  | Factures et avoirs, PDF figé, export comptable (xlsx, CSV)            |
-| `pdf/`       | Génération des documents PDF (Typst), libellés FR/AR                  |
-| `settings/`  | Paramètres du traiteur (documents et paiements)                       |
-| `auth/`      | Inscription, connexion, OTP SMS, JWT, refresh tokens                  |
-| `access/`    | Permissions, feature flags et les 5 guards globaux                    |
-| `sequences/` | Numérotation continue des documents                                   |
-| `documents/` | Lignes de commande et de devis (seul point d’écriture, totaux inclus) |
-| `audit/`     | Journal d'audit (authentification, catalogue)                         |
+| Dossier        | Contenu                                                               |
+| -------------- | --------------------------------------------------------------------- |
+| `config/`      | Validation Zod des variables d'environnement                          |
+| `prisma/`      | Client Prisma (pilote PostgreSQL natif `adapter-pg`)                  |
+| `redis/`       | Connexion Redis (cache des permissions et des fonctionnalités)        |
+| `queue/`       | BullMQ (files `notifications`, `media` et `quotes`)                   |
+| `storage/`     | Stockage S3 (URL présignées, traitement des images avec sharp)        |
+| `catalog/`     | Catégories, plats, formules, services, photos (`/api/v1/catalog`)     |
+| `clients/`     | Clients du traiteur, adresses (`/api/v1/clients`)                     |
+| `orders/`      | Commandes, disponibilité, calendrier, tableau de bord                 |
+| `payments/`    | Encaissements, remboursements, reçus, échéancier                      |
+| `quotes/`      | Devis : versions, envoi, lien public, accords, expiration             |
+| `staff/`       | Personnel : invitations et activation, suspension, permissions        |
+| `assignments/` | Affectations, planning, missions, bons de préparation et de livraison |
+| `invoices/`    | Factures et avoirs, PDF figé, export comptable (xlsx, CSV)            |
+| `pdf/`         | Génération des documents PDF (Typst), libellés FR/AR                  |
+| `settings/`    | Paramètres du traiteur (documents et paiements)                       |
+| `auth/`        | Inscription, connexion, OTP SMS, JWT, refresh tokens                  |
+| `access/`      | Permissions, feature flags et les 5 guards globaux                    |
+| `sequences/`   | Numérotation continue des documents                                   |
+| `documents/`   | Lignes de commande et de devis (seul point d’écriture, totaux inclus) |
+| `audit/`       | Journal d'audit (authentification, catalogue)                         |
 
 ## Choix d'architecture
 
@@ -677,7 +706,8 @@ pnpm --filter @traiteur/api test:int
 
 # Parcours e2e du back-office (Playwright) : connexion ; plat avec photo et formule ;
 # client, commande de 3 lignes confirmée et retrouvée dans le calendrier ; devis envoyé par
-# lien sécurisé, accepté en ligne, facture d'acompte et export CSV.
+# lien sécurisé, accepté en ligne, facture d'acompte et export CSV ; livreur invité, activé,
+# affecté, qui ne voit que sa mission sans prix.
 # Docker démarré et base seedée ; l'API et le web sont lancés s'ils ne tournent pas déjà.
 pnpm --filter @traiteur/web exec playwright install chromium   # une seule fois
 pnpm --filter @traiteur/web test:e2e

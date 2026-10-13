@@ -229,19 +229,21 @@ enum MessageSenderType {
 // ─────────────────────── Tenant & identité ───────────────────────
 
 model Traiteur {
-  id              String           @id @default(uuid()) @db.Uuid
-  slug            String           @unique
-  name            String
-  email           String
-  phone           String
-  city            String?
-  logoUrl         String?
-  plan            SubscriptionPlan @default(BASIQUE)
-  status          TraiteurStatus   @default(TRIAL)
-  defaultLocale   Locale           @default(fr)
-  currency        String           @default("MAD") @db.Char(3)
-  timezone        String           @default("Africa/Casablanca")
-  maxEventsPerDay Int? // null = pas de limite
+  id                   String           @id @default(uuid()) @db.Uuid
+  slug                 String           @unique
+  name                 String
+  email                String
+  phone                String
+  city                 String?
+  logoUrl              String?
+  plan                 SubscriptionPlan @default(BASIQUE)
+  status               TraiteurStatus   @default(TRIAL)
+  defaultLocale        Locale           @default(fr)
+  currency             String           @default("MAD") @db.Char(3)
+  timezone             String           @default("Africa/Casablanca")
+  maxEventsPerDay      Int? // null = pas de limite
+  // Missions terminées depuis N jours : adresse et contact sur place masqués (null = jamais)
+  missionRedactionDays Int?             @default(7)
 
   // Fiscalité et informations légales (factures / devis)
   isVatRegistered   Boolean   @default(true)
@@ -653,6 +655,11 @@ model Order {
   priceMode             PriceMode // figé à la création (trigger), recopié sur les lignes
   notes                 String?
   internalNotes         String?
+  // Informations de service (équipe, livreur) : jamais montrées au client
+  onSiteContactName     String? // contact sur place (défaut : le client)
+  onSiteContactPhone    String?
+  serviceNotes          String? // notes de service pour l'équipe
+  equipment             String? // matériel à livrer (tables, nappes, chauffe-plats…)
   // Totaux en centimes = somme des lignes (vérifié en fin de transaction)
   totalHt               Int         @default(0)
   totalTax              Int         @default(0)
@@ -966,17 +973,21 @@ model Payment {
 }
 
 model StaffAssignment {
-  id           String           @id @default(uuid()) @db.Uuid
-  traiteurId   String           @db.Uuid
-  orderId      String           @db.Uuid
-  membershipId String           @db.Uuid
-  staffRole    StaffRole
-  status       AssignmentStatus @default(ASSIGNED)
-  startAt      DateTime
-  endAt        DateTime?
-  notes        String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id            String           @id @default(uuid()) @db.Uuid
+  traiteurId    String           @db.Uuid
+  orderId       String           @db.Uuid
+  membershipId  String           @db.Uuid
+  staffRole     StaffRole
+  status        AssignmentStatus @default(ASSIGNED)
+  startAt       DateTime
+  endAt         DateTime
+  notes         String? // notes de service propres à cette mission
+  // Réponse du membre : confirmation, refus (motif), mission terminée
+  respondedAt   DateTime?
+  declineReason String?
+  doneAt        DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   traiteur   Traiteur   @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   order      Order      @relation(fields: [orderId, traiteurId], references: [id, traiteurId], onDelete: Cascade)

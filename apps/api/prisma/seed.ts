@@ -29,6 +29,7 @@ import {
   type CatalogRef,
   type DemoCatalog,
   seedDemoClientsAndOrders,
+  seedDemoAssignments,
   seedDemoPayments,
 } from './lib/demo-orders';
 import { generateIllustration, PALETTES } from './lib/illustrations';
@@ -174,6 +175,14 @@ const DEMO_USERS = [
     firstName: 'Youssef',
     lastName: 'Amrani',
     role: 'LIVREUR',
+  },
+  {
+    key: 'team',
+    phone: '+212600000006',
+    email: 'equipe@dar-diafa.ma',
+    firstName: 'Rachid',
+    lastName: 'Ouali',
+    role: 'EQUIPE',
   },
   {
     key: 'client',
@@ -924,6 +933,7 @@ async function seedDemoOrder(
           membershipId: employeeId,
           staffRole: 'SUPERVISOR',
           startAt: new Date('2026-11-21T15:00:00+01:00'),
+          endAt: new Date('2026-11-22T01:00:00+01:00'),
         },
         {
           traiteurId: traiteur.id,
@@ -931,6 +941,7 @@ async function seedDemoOrder(
           membershipId: driverId,
           staffRole: 'DRIVER',
           startAt: new Date('2026-11-21T16:00:00+01:00'),
+          endAt: new Date('2026-11-21T19:30:00+01:00'),
         },
       ],
     });
@@ -1023,6 +1034,10 @@ async function main(): Promise<void> {
   const adminMembershipId = memberships.get('admin');
   if (!adminMembershipId) throw new Error('Gérant de démonstration manquant');
   await seedDemoPayments(prisma, traiteur, adminMembershipId);
+  const driverId = memberships.get('driver');
+  const teamId = memberships.get('team');
+  if (!driverId || !teamId) throw new Error('Équipe de démonstration manquante');
+  await seedDemoAssignments(prisma, traiteur.id, { driverId, teamId });
 }
 
 main()

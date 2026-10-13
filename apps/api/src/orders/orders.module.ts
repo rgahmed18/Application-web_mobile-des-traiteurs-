@@ -9,5 +9,6 @@ import { OrdersService } from './orders.service';
 @Module({
   controllers: [OrdersController, CalendarController, DashboardController],
   providers: [OrdersService, CalendarService],
+  exports: [OrdersService],
 })
 export class OrdersModule {}

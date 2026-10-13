@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './access/guards/jwt-auth.guard';
 import { PermissionsGuard } from './access/guards/permissions.guard';
 import { RolesGuard } from './access/guards/roles.guard';
 import { TenantGuard } from './access/guards/tenant.guard';
+import { AssignmentsModule } from './assignments/assignments.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
@@ -59,6 +60,7 @@ import { StorageModule } from './storage/storage.module';
     InvoicesModule,
     SettingsModule,
     StaffModule,
+    AssignmentsModule,
   ],
   controllers: [HealthController],
   providers: [
