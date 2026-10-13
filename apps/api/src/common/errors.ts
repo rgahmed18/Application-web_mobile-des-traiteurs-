@@ -37,6 +37,7 @@ export type AppErrorCode =
   | 'ITEM_ARCHIVED'
   | 'IMAGE_INVALID'
   | 'IMAGE_IN_USE'
+  | 'PDF_TIMEOUT'
   | 'IMAGE_TOO_LARGE'
   | 'UPLOAD_NOT_FOUND'
   | 'CLIENT_EXISTS'

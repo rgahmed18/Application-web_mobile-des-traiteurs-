@@ -23,7 +23,8 @@ export interface RecoveryReport {
  * Règle commune : un document est d'abord enregistré en base (transaction courte, aucune
  * opération lente sous verrou), puis son PDF est rendu (Typst) et envoyé au stockage APRÈS le
  * commit. Si cette seconde étape échoue (stockage indisponible, redémarrage…), le document
- * reste valide sans PDF : il est produit au premier téléchargement et, à défaut, ici. Le rendu
+ * reste valide sans PDF : il est produit au premier téléchargement et, à défaut, ici (tâche
+ * planifiée du processus worker, voir src/worker.ts). Le rendu
  * est déterministe et l'enregistrement de la clé ne se fait qu'une fois (`pdfKey` vide dans la
  * condition) : une reprise concurrente d'un téléchargement donne le même fichier.
  */

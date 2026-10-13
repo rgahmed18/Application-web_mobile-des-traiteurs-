@@ -84,10 +84,19 @@ voir les commentaires de `apps/api/.env.example`.
 ## Lancer le projet
 
 ```bash
-pnpm dev          # toutes les applications en parallèle (Turborepo)
-pnpm dev:api      # API seule
+pnpm dev          # toutes les applications en parallèle (Turborepo), API + worker compris
+pnpm dev:api      # API et worker seuls
 pnpm dev:web      # site web seul
 ```
+
+L'API et le **worker** sont deux processus du même code (`apps/api`) : l'API sert le HTTP et
+ne consomme aucune file ; le worker n'a pas de serveur HTTP et exécute les tâches BullMQ
+(reprise des PDF, nettoyage des photos, expiration des devis). En production :
+`pnpm --filter @traiteur/api start` et `pnpm --filter @traiteur/api start:worker` (un ou
+plusieurs workers ; BullMQ confie chaque tâche à un seul). Sans worker, l'API fonctionne mais
+les tâches planifiées attendent dans Redis.
+En développement, le worker tourne sur le `dist/` compilé par l'API (`scripts/dev-worker.mjs`,
+relancé par Node à chaque recompilation) : un seul compilateur TypeScript en mode watch.
 
 | Application       | URL / commande                                           |
 | ----------------- | -------------------------------------------------------- |
@@ -455,28 +464,30 @@ docker/            Script d'initialisation PostgreSQL
 
 Organisation de l'API (`apps/api/src`) : un module par domaine.
 
-| Dossier        | Contenu                                                                |
-| -------------- | ---------------------------------------------------------------------- |
-| `config/`      | Validation Zod des variables d'environnement                           |
-| `prisma/`      | Client Prisma (pilote PostgreSQL natif `adapter-pg`)                   |
-| `redis/`       | Connexion Redis (cache des permissions et des fonctionnalités)         |
-| `queue/`       | BullMQ (files `notifications`, `media` et `quotes`)                    |
-| `storage/`     | Stockage S3 (URL présignées, traitement des images avec sharp)         |
-| `catalog/`     | Catégories, plats, formules, services, photos (`/api/v1/catalog`)      |
-| `clients/`     | Clients du traiteur, adresses (`/api/v1/clients`)                      |
-| `orders/`      | Commandes, disponibilité, calendrier, tableau de bord                  |
-| `payments/`    | Encaissements, remboursements, reçus, échéancier                       |
-| `quotes/`      | Devis : versions, envoi, lien public, accords, expiration              |
-| `staff/`       | Personnel : invitations et activation, suspension, permissions         |
-| `assignments/` | Affectations, planning, missions, bons de préparation et de livraison  |
-| `invoices/`    | Factures et avoirs, PDF figé, export comptable (xlsx, CSV)             |
-| `pdf/`         | Génération des documents PDF (Typst), libellés FR/AR                   |
-| `settings/`    | Paramètres (entreprise, documents, disponibilités, prix) et Mon compte |
-| `auth/`        | Inscription, connexion, OTP SMS, JWT, refresh tokens                   |
-| `access/`      | Permissions, feature flags et les 5 guards globaux                     |
-| `sequences/`   | Numérotation continue des documents                                    |
-| `documents/`   | Lignes de commande et de devis (seul point d’écriture, totaux inclus)  |
-| `audit/`       | Journal d'audit (authentification, catalogue)                          |
+| Dossier        | Contenu                                                                 |
+| -------------- | ----------------------------------------------------------------------- |
+| `config/`      | Validation Zod des variables d'environnement                            |
+| `prisma/`      | Client Prisma (pilote PostgreSQL natif `adapter-pg`)                    |
+| `redis/`       | Connexion Redis (cache des permissions et des fonctionnalités)          |
+| `queue/`       | Connexion BullMQ (Redis)                                                |
+| `jobs/`        | Tâches BullMQ, chargées par le worker seul (`src/worker.ts`)            |
+| `pdf/`         | Rendu Typst dans un pool de threads (`PDF_WORKERS`, délai par document) |
+| `storage/`     | Stockage S3 (URL présignées, traitement des images avec sharp)          |
+| `catalog/`     | Catégories, plats, formules, services, photos (`/api/v1/catalog`)       |
+| `clients/`     | Clients du traiteur, adresses (`/api/v1/clients`)                       |
+| `orders/`      | Commandes, disponibilité, calendrier, tableau de bord                   |
+| `payments/`    | Encaissements, remboursements, reçus, échéancier                        |
+| `quotes/`      | Devis : versions, envoi, lien public, accords, expiration               |
+| `staff/`       | Personnel : invitations et activation, suspension, permissions          |
+| `assignments/` | Affectations, planning, missions, bons de préparation et de livraison   |
+| `invoices/`    | Factures et avoirs, PDF figé, export comptable (xlsx, CSV)              |
+| `pdf/`         | Génération des documents PDF (Typst), libellés FR/AR                    |
+| `settings/`    | Paramètres (entreprise, documents, disponibilités, prix) et Mon compte  |
+| `auth/`        | Inscription, connexion, OTP SMS, JWT, refresh tokens                    |
+| `access/`      | Permissions, feature flags et les 5 guards globaux                      |
+| `sequences/`   | Numérotation continue des documents                                     |
+| `documents/`   | Lignes de commande et de devis (seul point d’écriture, totaux inclus)   |
+| `audit/`       | Journal d'audit (authentification, catalogue)                           |
 
 ## Choix d'architecture
 
@@ -709,7 +720,16 @@ proxy que le site. Ne faites jamais confiance à une adresse qui n'est pas un pr
 ### Opérations lentes et transactions
 
 Règle : **aucune opération lente (rendu PDF Typst, stockage S3, SMS) pendant qu'une transaction
-tient des verrous**. Le rendu Typst est en plus synchrone : il bloque tout le processus.
+tient des verrous**.
+
+- **Rendu Typst hors du thread principal** : Typst est synchrone ; il tourne dans un pool de
+  `worker_threads` (`PDF_WORKERS`, 2 par défaut, chaque thread rend un document à la fois, file
+  d'attente au-delà). Un document qui dépasse `PDF_RENDER_TIMEOUT_MS` (20 s par défaut) est
+  interrompu (503 `PDF_TIMEOUT`, ou reprise automatique pour un document figé) et son thread
+  remplacé. Un test vérifie que l'API répond en quelques millisecondes pendant la génération
+  d'un lot de PDF lourds (`pdf-responsiveness.int-spec.ts`).
+- **Tâches de fond dans un processus séparé** (worker) : l'API reste réactive quoi qu'il arrive
+  aux traitements planifiés.
 
 - **Avant la transaction** : ce qui peut échouer sans conséquence. Photos (logo, chèque, pièce
   jointe d'un accord manuel) réencodées et envoyées au stockage, puis référencées dans la

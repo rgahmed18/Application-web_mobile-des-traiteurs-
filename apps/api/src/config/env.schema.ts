@@ -88,6 +88,11 @@ export const envSchema = z
       z.array(countryCode).min(1, 'au moins un indicatif est requis'),
     ),
 
+    /** Threads de rendu des PDF (Typst) : chacun rend un document à la fois. */
+    PDF_WORKERS: z.coerce.number().int().min(1).max(16).default(2),
+    /** Délai maximal de rendu d'un document, en millisecondes (thread arrêté au-delà). */
+    PDF_RENDER_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(20_000),
+
     /** Échecs de connexion consécutifs avant le premier verrouillage du compte. */
     LOGIN_MAX_FAILURES: z.coerce.number().int().min(1).max(50).default(5),
     /** Durées de verrouillage progressives en minutes ; la dernière s'applique ensuite. */

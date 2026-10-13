@@ -2,7 +2,10 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { type OnModuleInit } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 
-import { DocumentRecoveryService, type RecoveryReport } from './document-recovery.service';
+import {
+  DocumentRecoveryService,
+  type RecoveryReport,
+} from '../document-recovery/document-recovery.service';
 
 export const DOCUMENTS_QUEUE = 'documents';
 const RECOVERY_SCHEDULER_ID = 'documents-recovery';

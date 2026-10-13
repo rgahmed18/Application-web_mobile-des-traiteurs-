@@ -2,7 +2,7 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, type OnModuleInit } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 
-import { MediaService } from './media.service';
+import { MediaService } from '../catalog/media/media.service';
 
 export const MEDIA_QUEUE = 'media';
 const CLEANUP_SCHEDULER_ID = 'media-orphans-cleanup';
@@ -11,7 +11,7 @@ const EVERY_HOUR_MS = 60 * 60 * 1000;
 /**
  * Tâche planifiée (BullMQ, toutes les heures) : supprime du stockage les photos jamais
  * rattachées à un élément, ou remplacées, depuis plus de 24 h.
- * Le planificateur est partagé entre les instances de l'API : une seule exécution par heure.
+ * Le planificateur est partagé entre les processus worker : une seule exécution par heure.
  */
 @Processor(MEDIA_QUEUE)
 export class MediaCleanupProcessor extends WorkerHost implements OnModuleInit {

@@ -195,7 +195,7 @@ export class ServiceDocumentsService {
     build: (hasLogo: boolean) => Parameters<PdfService['render']>[0],
   ): Promise<Download> {
     const logo = await this.logo(seller);
-    const { pdf } = this.pdf.render(build(logo !== null), logo);
+    const { pdf } = await this.pdf.render(build(logo !== null), logo);
     const key = `${PRIVATE_PREFIX}traiteurs/${traiteurId}/service-documents/${name}.pdf`;
     await this.storage.putPrivate(key, pdf, 'application/pdf');
     return { url: await this.storage.signedDownloadUrl(key, fileName), fileName };

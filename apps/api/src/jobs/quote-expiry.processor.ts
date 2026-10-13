@@ -2,7 +2,7 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, type OnModuleInit } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 
-import { QuotesService } from './quotes.service';
+import { QuotesService } from '../quotes/quotes.service';
 
 export const QUOTES_QUEUE = 'quotes';
 const EXPIRY_SCHEDULER_ID = 'quotes-expiry';

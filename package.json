@@ -6,8 +6,8 @@
     "node": "^22.23.0 || >=24.0.0"
   },
   "scripts": {
-    "dev": "turbo run dev",
-    "dev:api": "turbo run dev --filter=@traiteur/api",
+    "dev": "turbo run dev dev:worker",
+    "dev:api": "turbo run dev dev:worker --filter=@traiteur/api",
     "dev:web": "turbo run dev --filter=@traiteur/web",
     "build": "turbo run build",
     "clean": "node scripts/clean.mjs",

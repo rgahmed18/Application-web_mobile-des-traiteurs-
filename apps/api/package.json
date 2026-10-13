@@ -6,7 +6,9 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
+    "dev:worker": "node scripts/dev-worker.mjs",
     "start": "node dist/main",
+    "start:worker": "node dist/worker",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
