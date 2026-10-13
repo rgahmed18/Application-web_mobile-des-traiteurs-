@@ -14,17 +14,13 @@ describe('variables publiques lues au démarrage', () => {
       serverPublicEnv({
         PUBLIC_API_URL: 'https://app.exemple.ma/api/v1',
         PUBLIC_MEDIA_URL: 'https://media.exemple.ma',
-      } as NodeJS.ProcessEnv),
+      }),
     ).toEqual({
       PUBLIC_API_URL: 'https://app.exemple.ma/api/v1',
       PUBLIC_MEDIA_URL: 'https://media.exemple.ma',
     });
-    expect(serverPublicEnv({} as NodeJS.ProcessEnv).PUBLIC_API_URL).toBe(
-      'http://localhost:3000/api/v1',
-    );
-    expect(() => serverPublicEnv({ PUBLIC_API_URL: 'pas une url' } as NodeJS.ProcessEnv)).toThrow(
-      /PUBLIC_API_URL/,
-    );
+    expect(serverPublicEnv({}).PUBLIC_API_URL).toBe('http://localhost:3000/api/v1');
+    expect(() => serverPublicEnv({ PUBLIC_API_URL: 'pas une url' })).toThrow(/PUBLIC_API_URL/);
   });
 
   it('script de la page : JSON échappé, impossible d’en sortir par une balise', () => {

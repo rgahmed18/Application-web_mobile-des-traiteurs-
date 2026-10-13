@@ -1,8 +1,9 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, type OnModuleInit } from '@nestjs/common';
-import type { Queue } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 
 import { MediaService } from '../catalog/media/media.service';
+import { reportJobFailure } from '../observability/sentry-exception.filter';
 
 export const MEDIA_QUEUE = 'media';
 const CLEANUP_SCHEDULER_ID = 'media-orphans-cleanup';
@@ -36,5 +37,11 @@ export class MediaCleanupProcessor extends WorkerHost implements OnModuleInit {
     const removed = await this.media.cleanupOrphans();
     this.logger.log(`Nettoyage des photos orphelines : ${removed} supprimée(s)`);
     return { removed };
+  }
+
+  /** Échec définitif (après les nouvelles tentatives) : envoyé à Sentry. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(MEDIA_QUEUE, job?.name ?? 'inconnue', error);
   }
 }

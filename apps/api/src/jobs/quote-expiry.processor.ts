@@ -1,8 +1,9 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, type OnModuleInit } from '@nestjs/common';
-import type { Queue } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 
 import { QuotesService } from '../quotes/quotes.service';
+import { reportJobFailure } from '../observability/sentry-exception.filter';
 
 export const QUOTES_QUEUE = 'quotes';
 const EXPIRY_SCHEDULER_ID = 'quotes-expiry';
@@ -35,5 +36,11 @@ export class QuoteExpiryProcessor extends WorkerHost implements OnModuleInit {
     const expired = await this.quotes.expireDue();
     if (expired > 0) this.logger.log(`Devis expirés : ${expired}`);
     return { expired };
+  }
+
+  /** Échec définitif (après les nouvelles tentatives) : envoyé à Sentry. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUOTES_QUEUE, job?.name ?? 'inconnue', error);
   }
 }

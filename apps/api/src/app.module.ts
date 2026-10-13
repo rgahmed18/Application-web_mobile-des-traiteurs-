@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import type { Redis } from 'ioredis';
 
@@ -22,6 +22,7 @@ import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { QuotesModule } from './quotes/quotes.module';
+import { SentryExceptionFilter } from './observability/sentry-exception.filter';
 import { PdfModule } from './pdf/pdf.module';
 import { SettingsModule } from './settings/settings.module';
 import { StaffModule } from './staff/staff.module';
@@ -68,6 +69,8 @@ import { StorageModule } from './storage/storage.module';
   providers: [
     // Guards globaux, exécutés dans cet ordre sur toutes les routes (sauf @Public) :
     // authentification → isolation traiteur → rôle → permissions → fonctionnalité de l'offre
+    // Erreurs inattendues (5xx) envoyées à Sentry, données personnelles filtrées
+    { provide: APP_FILTER, useClass: SentryExceptionFilter },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

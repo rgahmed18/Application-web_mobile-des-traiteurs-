@@ -132,6 +132,15 @@ export const envSchema = z
       z.array(countryCode).min(1, 'au moins un indicatif est requis'),
     ),
 
+    /**
+     * Suivi des erreurs (Sentry) : actif seulement si SENTRY_DSN est renseigné. Aucune donnée
+     * personnelle ni secret envoyé (src/observability). Lues aussi avant le démarrage de Nest.
+     */
+    SENTRY_DSN: z.url().optional(),
+    SENTRY_ENVIRONMENT: z.enum(['development', 'staging', 'production']).optional(),
+    SENTRY_RELEASE: z.string().max(100).optional(),
+    SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+
     /** Threads de rendu des PDF (Typst) : chacun rend un document à la fois. */
     PDF_WORKERS: z.coerce.number().int().min(1).max(16).default(2),
     /** Délai maximal de rendu d'un document, en millisecondes (thread arrêté au-delà). */

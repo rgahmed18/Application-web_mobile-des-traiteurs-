@@ -1,11 +1,12 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { type OnModuleInit } from '@nestjs/common';
-import type { Queue } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 
 import {
   DocumentRecoveryService,
   type RecoveryReport,
 } from '../document-recovery/document-recovery.service';
+import { reportJobFailure } from '../observability/sentry-exception.filter';
 
 export const DOCUMENTS_QUEUE = 'documents';
 const RECOVERY_SCHEDULER_ID = 'documents-recovery';
@@ -34,5 +35,11 @@ export class DocumentRecoveryProcessor extends WorkerHost implements OnModuleIni
 
   process(): Promise<RecoveryReport> {
     return this.recovery.recover();
+  }
+
+  /** Échec définitif (après les nouvelles tentatives) : envoyé à Sentry. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(DOCUMENTS_QUEUE, job?.name ?? 'inconnue', error);
   }
 }

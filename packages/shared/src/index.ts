@@ -25,3 +25,4 @@ export * from './staff/staff.schemas';
 export * from './staff/assignment.schemas';
 export * from './payments/cash-desk.schemas';
 export * from './settings/settings.schemas';
+export * from './observability/scrub';

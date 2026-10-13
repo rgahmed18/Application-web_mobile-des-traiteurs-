@@ -12,6 +12,9 @@ export const publicEnvSchema = z.object({
   PUBLIC_API_URL: z.url().default('http://localhost:3000/api/v1'),
   /** Base publique des photos (bucket media / CDN), ex. http://localhost:9000/traiteur-media */
   PUBLIC_MEDIA_URL: z.url().default('http://localhost:9000/traiteur-media'),
+  /** Suivi des erreurs du navigateur (DSN Sentry, public par nature) ; vide : désactivé. */
+  PUBLIC_SENTRY_DSN: z.url().optional(),
+  PUBLIC_SENTRY_ENVIRONMENT: z.enum(['development', 'staging', 'production']).optional(),
 });
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 
@@ -22,10 +25,14 @@ declare global {
 }
 
 /** Côté serveur : variables lues dans l'environnement du processus (au démarrage). */
-export function serverPublicEnv(source: NodeJS.ProcessEnv = process.env): PublicEnv {
+export function serverPublicEnv(
+  source: Record<string, string | undefined> = process.env,
+): PublicEnv {
   const result = publicEnvSchema.safeParse({
     PUBLIC_API_URL: source.PUBLIC_API_URL,
     PUBLIC_MEDIA_URL: source.PUBLIC_MEDIA_URL,
+    PUBLIC_SENTRY_DSN: source.PUBLIC_SENTRY_DSN || undefined,
+    PUBLIC_SENTRY_ENVIRONMENT: source.PUBLIC_SENTRY_ENVIRONMENT || undefined,
   });
   if (!result.success) {
     const details = result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);

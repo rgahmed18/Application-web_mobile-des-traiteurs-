@@ -749,6 +749,24 @@ tient des verrous**.
 - Un SMS en échec n'annule rien : le code OTP libère sa place dans le plafond d'envoi,
   l'invitation reste copiable par l'administrateur.
 
+### Suivi des erreurs (Sentry)
+
+Actif seulement si `SENTRY_DSN` est renseigné (API, worker, serveur Next) et `PUBLIC_SENTRY_DSN`
+(navigateur). **Aucune donnée personnelle ni secret n'est envoyé** :
+
+- collecte du SDK entièrement désactivée (`dataCollection`, qui remplace `sendDefaultPii` en
+  v11 : utilisateur, cookies, en-têtes, corps, paramètres d'URL, données SQL, arguments des
+  tâches, variables locales, extraits de code source) ;
+- filtre partagé `packages/shared/src/observability/scrub.ts` sur chaque événement, span et fil
+  d'Ariane : champs sensibles masqués par leur nom (mot de passe, jeton, téléphone, e-mail, nom,
+  adresse…), e-mails, téléphones et jetons masqués dans tous les textes ;
+- pas de Session Replay ni de traces de performance ; seules les erreurs 5xx et les exceptions
+  inattendues sont envoyées (pas les erreurs métier 4xx), ainsi que les tâches BullMQ en échec.
+
+Tests : `scrub.spec.ts` (shared), `sentry-options.spec.ts` (web) et `sentry-privacy.int-spec.ts`
+(API : requête chargée de données personnelles et de secrets, chaîne complète du SDK, rien de
+personnel dans ce qui partirait).
+
 ### SQL hors Prisma
 
 Certaines garanties ne s'expriment pas dans le schéma Prisma et sont écrites à la main dans
