@@ -77,8 +77,8 @@ jobs:
       S3_PUBLIC_URL: http://localhost:9000/traiteur-media
       S3_AUTO_SETUP: 'true'
       # Back-office (parcours Playwright)
-      NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
-      NEXT_PUBLIC_MEDIA_URL: http://localhost:9000/traiteur-media
+      PUBLIC_API_URL: http://localhost:3000/api/v1
+      PUBLIC_MEDIA_URL: http://localhost:9000/traiteur-media
       API_INTERNAL_URL: http://localhost:3000/api/v1
       TRAITEUR_SLUG: dar-diafa
     steps:

@@ -32,7 +32,7 @@ type Step = 'view' | 'accept' | 'reject';
 /** Appel public (sans session) : réponse validée, code d'erreur stable sinon. */
 async function respond(token: string, action: 'accept' | 'reject', body: object) {
   const response = await fetch(
-    `${publicEnv.NEXT_PUBLIC_API_URL}/public/quotes/${encodeURIComponent(token)}/${action}`,
+    `${publicEnv().PUBLIC_API_URL}/public/quotes/${encodeURIComponent(token)}/${action}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -72,7 +72,7 @@ export function PublicQuoteView({
   const [error, setError] = useState<string | null>(null);
   const money = (cents: number) => formatMoney(cents, locale);
   const ttc = quote.priceMode === 'TTC';
-  const pdfUrl = `${publicEnv.NEXT_PUBLIC_API_URL}/public/quotes/${encodeURIComponent(token)}/pdf`;
+  const pdfUrl = `${publicEnv().PUBLIC_API_URL}/public/quotes/${encodeURIComponent(token)}/pdf`;
 
   const submit = async (action: 'accept' | 'reject') => {
     setPending(true);

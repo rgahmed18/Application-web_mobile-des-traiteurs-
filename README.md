@@ -718,7 +718,7 @@ vient pas de Cloudflare (pare-feu ou `allow` / `deny`) : sinon un client qui joi
 directement choisit l'adresse placée en deuxième position.
 
 Dans tous les cas, `API_INTERNAL_URL` doit joindre l'API **directement** (réseau interne ou
-Nginx local), jamais en repassant par Cloudflare, et `NEXT_PUBLIC_API_URL` passe par le même
+Nginx local), jamais en repassant par Cloudflare, et `PUBLIC_API_URL` passe par le même
 proxy que le site. Ne faites jamais confiance à une adresse qui n'est pas un proxy.
 
 ### Opérations lentes et transactions
@@ -840,7 +840,7 @@ request :
   compense un décalage avec le stockage (avertissement dans ses logs), mais resynchronisez
   l'heure de Windows (Paramètres › Heure et langue › Synchroniser maintenant).
 - **Photo non affichée** : vérifiez que RustFS tourne (`docker compose ps`) et que
-  `NEXT_PUBLIC_MEDIA_URL` (web) correspond à `S3_PUBLIC_URL` (API).
+  `PUBLIC_MEDIA_URL` (web) correspond à `S3_PUBLIC_URL` (API).
 - **Disque plein / cache Turborepo trop gros** : le cache local est limité dans `turbo.json`
   (`cacheMaxSize` 1 Go, `cacheMaxAge` 7 jours, éviction au début de chaque `turbo run`) et
   n'enregistre pas `.next/dev` (sortie du serveur de dev, plus d'1 Go). Pour tout vider :

@@ -37,7 +37,7 @@ export function ActivationForm({
     setError(null);
     try {
       const response = await fetch(
-        `${publicEnv.NEXT_PUBLIC_API_URL}/public/invitations/${encodeURIComponent(token)}/accept`,
+        `${publicEnv().PUBLIC_API_URL}/public/invitations/${encodeURIComponent(token)}/accept`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },

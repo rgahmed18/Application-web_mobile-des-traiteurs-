@@ -4,6 +4,8 @@ import { Geist, IBM_Plex_Sans_Arabic } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
 
+import { publicEnvScript, serverPublicEnv } from '@/lib/env/public';
+
 import './globals.css';
 import { Providers } from './providers';
 
@@ -34,6 +36,10 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
       dir={dir}
       className={`${latinFont.variable} ${arabicFont.variable} h-full antialiased`}
     >
+      <head>
+        {/* Adresses de l'API et des photos, lues au démarrage du serveur (pas au build) */}
+        <script dangerouslySetInnerHTML={{ __html: publicEnvScript(serverPublicEnv()) }} />
+      </head>
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider>
           <Providers dir={dir}>{children}</Providers>
