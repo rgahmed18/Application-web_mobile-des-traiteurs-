@@ -8,8 +8,10 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
 import type { AppConfigService } from './config/app-config.module';
+import { assertTimeZoneData } from './common/time-zone-check';
 
 async function bootstrap(): Promise<void> {
+  assertTimeZoneData();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   configureApp(app);
   app.enableShutdownHooks();

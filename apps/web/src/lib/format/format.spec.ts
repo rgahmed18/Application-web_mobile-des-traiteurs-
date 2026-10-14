@@ -54,14 +54,15 @@ describe('parseAmountToCents', () => {
 
 describe('formatDate', () => {
   it('formate en JJ/MM/AAAA dans le fuseau du traiteur', () => {
-    expect(formatDate('2026-11-21T19:00:00+01:00')).toBe('21/11/2026');
-    expect(formatDateTime('2026-11-21T19:00:00+01:00')).toBe('21/11/2026 19:00');
+    // Casablanca : UTC+0 depuis le 20 septembre 2026
+    expect(formatDate('2026-11-21T19:00:00Z')).toBe('21/11/2026');
+    expect(formatDateTime('2026-11-21T19:00:00Z')).toBe('21/11/2026 19:00');
   });
 
   it('utilise le fuseau du traiteur et non celui du navigateur', () => {
-    // 23h30 UTC le 31/12 = 00h30 le 01/01 à Casablanca (UTC+1)
-    const instant = '2026-12-31T23:30:00Z';
-    expect(formatDate(instant, 'Africa/Casablanca')).toBe('01/01/2027');
-    expect(formatDate(instant, 'UTC')).toBe('31/12/2026');
+    // 23h30 UTC le 30/06 = 00h30 le 01/07 à Casablanca (UTC+1 avant le 20 septembre 2026)
+    const instant = '2026-06-30T23:30:00Z';
+    expect(formatDate(instant, 'Africa/Casablanca')).toBe('01/07/2026');
+    expect(formatDate(instant, 'UTC')).toBe('30/06/2026');
   });
 });

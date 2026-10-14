@@ -4,6 +4,7 @@ import {
   addDays,
   daysBetween,
   isoWeekday,
+  hasCurrentMoroccoTimeZoneData,
   isValidLocalDate,
   startOfMonth,
   startOfNextMonth,
@@ -17,14 +18,28 @@ import {
 const CASABLANCA = 'Africa/Casablanca';
 
 describe('fuseau du traiteur', () => {
-  it('convertit une heure locale de Casablanca (UTC+1 hors ramadan) en UTC', () => {
+  it('base des fuseaux à jour : le Maroc est à UTC+0 depuis le 20 septembre 2026', () => {
+    // Échec ici : tzdata antérieure à 2026c (mettre à jour Node : 24.21 ou plus récent)
+    expect(hasCurrentMoroccoTimeZoneData()).toBe(true);
+  });
+
+  it('convertit une heure locale de Casablanca en UTC (UTC+0 depuis le 20/09/2026)', () => {
     expect(zonedToUtc('2026-10-17', '19:30', CASABLANCA).toISOString()).toBe(
-      '2026-10-17T18:30:00.000Z',
+      '2026-10-17T19:30:00.000Z',
     );
-    expect(utcToZoned(new Date('2026-10-17T18:30:00Z'), CASABLANCA)).toEqual({
+    expect(utcToZoned(new Date('2026-10-17T19:30:00Z'), CASABLANCA)).toEqual({
       date: '2026-10-17',
       time: '19:30',
     });
+  });
+
+  it('avant le 20 septembre 2026 : UTC+1 hors ramadan', () => {
+    expect(zonedToUtc('2026-06-10', '19:30', CASABLANCA).toISOString()).toBe(
+      '2026-06-10T18:30:00.000Z',
+    );
+    // Changement d'heure le 20/09/2026 à 03:00 (UTC+1) → 02:00 (UTC+0)
+    expect(utcToZoned(new Date('2026-09-20T00:30:00Z'), CASABLANCA).time).toBe('01:30');
+    expect(utcToZoned(new Date('2026-09-20T02:30:00Z'), CASABLANCA).time).toBe('02:30');
   });
 
   it('applique le changement d’heure du ramadan (UTC+0)', () => {
@@ -45,14 +60,17 @@ describe('fuseau du traiteur', () => {
   });
 
   it('donne les bornes UTC d’un jour civil', () => {
-    const { start, end } = zonedDayRange('2026-10-17', CASABLANCA);
-    expect(start.toISOString()).toBe('2026-10-16T23:00:00.000Z');
-    expect(end.toISOString()).toBe('2026-10-17T23:00:00.000Z');
+    const before = zonedDayRange('2026-06-17', CASABLANCA);
+    expect(before.start.toISOString()).toBe('2026-06-16T23:00:00.000Z');
+    expect(before.end.toISOString()).toBe('2026-06-17T23:00:00.000Z');
+    const after = zonedDayRange('2026-10-17', CASABLANCA);
+    expect(after.start.toISOString()).toBe('2026-10-17T00:00:00.000Z');
+    expect(after.end.toISOString()).toBe('2026-10-18T00:00:00.000Z');
   });
 
   it('un événement à 00:30 appartient au jour civil local, pas au jour UTC', () => {
-    expect(utcToZoned(new Date('2026-10-16T23:30:00Z'), CASABLANCA).date).toBe('2026-10-17');
-    expect(todayInTimeZone(CASABLANCA, new Date('2026-10-16T23:30:00Z'))).toBe('2026-10-17');
+    expect(utcToZoned(new Date('2026-06-16T23:30:00Z'), CASABLANCA).date).toBe('2026-06-17');
+    expect(todayInTimeZone(CASABLANCA, new Date('2026-06-16T23:30:00Z'))).toBe('2026-06-17');
   });
 });
 

@@ -307,7 +307,8 @@ describe('API clients, commandes et calendrier (application complète)', () => {
         }
       ).items.find((item) => item.id === client.id);
       expect(row?.lastOrderAt?.slice(0, 10)).toBe(pastStart);
-      expect(row?.nextOrderAt).toBe('2027-05-15T18:00:00.000Z');
+      // 19:00 à Casablanca (UTC+0 depuis le 20 septembre 2026)
+      expect(row?.nextOrderAt).toBe('2027-05-15T19:00:00.000Z');
     });
 
     it('isolation : B ne voit ni ne modifie les clients de A', async () => {

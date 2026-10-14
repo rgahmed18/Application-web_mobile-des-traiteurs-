@@ -32,12 +32,12 @@ Langues : français et arabe (RTL), anglais facultatif. Devise par défaut : MAD
 
 ## Prérequis
 
-| Outil          | Version                | Remarque                                              |
-| -------------- | ---------------------- | ----------------------------------------------------- |
-| Node.js        | **24 LTS** (ou 22.23+) | Node 22.13 et antérieurs font planter le CLI NestJS   |
-| pnpm           | 10.x                   | `npm i -g pnpm@10`                                    |
-| Docker Desktop | récent                 | PostgreSQL 17, Redis 7, stockage S3 (RustFS)          |
-| Expo Go        | facultatif             | Pour ouvrir les applications mobiles sur un téléphone |
+| Outil          | Version          | Remarque                                                    |
+| -------------- | ---------------- | ----------------------------------------------------------- |
+| Node.js        | **24.21+** (LTS) | Base des fuseaux 2026c : Maroc à UTC+0 depuis le 20/09/2026 |
+| pnpm           | 10.x             | `npm i -g pnpm@10`                                          |
+| Docker Desktop | récent           | PostgreSQL 17, Redis 7, stockage S3 (RustFS)                |
+| Expo Go        | facultatif       | Pour ouvrir les applications mobiles sur un téléphone       |
 
 ## Installation
 
@@ -883,5 +883,10 @@ Ne construisez pas les images sur le poste de développement : elles occupent pl
   (`cacheMaxSize` 1 Go, `cacheMaxAge` 7 jours, éviction au début de chaque `turbo run`) et
   n'enregistre pas `.next/dev` (sortie du serveur de dev, plus d'1 Go). Pour tout vider :
   arrêtez les serveurs de dev, `pnpm clean`, puis `pnpm build`.
+- **Heures de Casablanca décalées d'une heure / tests de fuseau en échec** (« base des fuseaux
+  à jour » en rouge) : le Maroc est passé à UTC+0 permanent le 20 septembre 2026 (IANA
+  2026c). Node antérieur à 24.21 (`node -p process.versions.tz` < `2026c`) l'ignore :
+  `winget upgrade OpenJS.NodeJS.LTS` puis rouvrez le terminal. En production, l'API et le
+  worker refusent de démarrer avec une base obsolète (les images Docker sont à jour).
 - **Client Prisma introuvable ou obsolète** : `pnpm db:generate` (Prisma 7 ne le régénère plus
   automatiquement après une migration).

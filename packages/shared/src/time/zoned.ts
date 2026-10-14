@@ -182,3 +182,16 @@ export function todayInTimeZone(timeZone: string, now: Date = new Date()): strin
 export function minutesBetween(start: Date, end: Date): number {
   return Math.round((end.getTime() - start.getTime()) / MINUTE_MS);
 }
+
+/**
+ * La base des fuseaux horaires (tzdata) du moteur JavaScript connaît-elle le passage du Maroc
+ * à UTC+0 permanent (20 septembre 2026, IANA 2026c) ? Une base plus ancienne décale toutes les
+ * heures de Casablanca d'une heure (événements, factures, échéances) : Node, le navigateur ou
+ * le système doivent être mis à jour (Node 24.21 ou plus récent).
+ */
+export function hasCurrentMoroccoTimeZoneData(): boolean {
+  return (
+    zonedToUtc('2026-10-17', '12:00', 'Africa/Casablanca').toISOString() ===
+    '2026-10-17T12:00:00.000Z'
+  );
+}
