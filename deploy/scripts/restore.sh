@@ -14,7 +14,7 @@
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
-MODE=test
+MODE="test"
 TARGET=latest
 IDENTITY=""
 LOCAL_FILE=""
@@ -55,7 +55,9 @@ if [ -n "$LOCAL_FILE" ]; then
   SOURCE="$LOCAL_FILE"
 else
   if [ "$TARGET" = latest ]; then
-    TARGET="$(rclone lsf --recursive --files-only "$BACKUP_PREFIX" | grep '\.dump\.age$' | sort | tail -n 1)"
+    # Dernière sauvegarde, hors sauvegardes de sécurité prises juste avant une restauration
+    # (elles reflètent une base possiblement détruite ; accessibles par leur nom)
+    TARGET="$(rclone lsf --recursive --files-only "$BACKUP_PREFIX" | grep '\.dump\.age$'       | grep -v -- '-avant-restauration\.dump\.age$' | sort | tail -n 1)"
     [ -n "$TARGET" ] || fail "Aucune sauvegarde dans $BACKUP_PREFIX"
   fi
   log "Téléchargement de $TARGET…"
@@ -69,7 +71,7 @@ age -d -i "$IDENTITY" -o "$DUMP" "$SOURCE"
 # Contrôles : migrations appliquées, tables principales lisibles
 summary() {
   local container="$1" user="$2"
-  docker exec "$container" psql -U "$user" -d traiteur -tA -F ' ' -c "
+  docker exec "$container" psql -v ON_ERROR_STOP=1 -U "$user" -d traiteur -tA -F ' ' -c "
     SELECT
       (SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL) AS migrations,
       (SELECT count(*) FROM \"Traiteur\") AS traiteurs,
@@ -82,12 +84,21 @@ if [ "$MODE" = test ]; then
   log "Restauration dans une base jetable (conteneur isolé, sans réseau)…"
   docker run -d --rm --name "$CHECK_CONTAINER" --network none \
     -e POSTGRES_PASSWORD=verification -e POSTGRES_DB=traiteur postgres:17-alpine >/dev/null
-  for _ in $(seq 1 60); do
-    docker exec "$CHECK_CONTAINER" pg_isready -U postgres -d traiteur >/dev/null 2>&1 && break
+  # Prêt seulement en TCP : pendant l'initialisation, l'image démarre un serveur temporaire
+  # (socket local uniquement) puis l'arrête ; restaurer à ce moment-là échouerait
+  READY=0
+  for _ in $(seq 1 90); do
+    if docker exec "$CHECK_CONTAINER" pg_isready -h 127.0.0.1 -U postgres -d traiteur >/dev/null 2>&1; then
+      READY=1
+      break
+    fi
     sleep 1
   done
+  [ "$READY" -eq 1 ] || fail "La base jetable n'a pas démarré"
+
   docker exec -i "$CHECK_CONTAINER" pg_restore -U postgres -d traiteur --no-owner --exit-on-error < "$DUMP"
-  read -r MIGRATIONS TRAITEURS ORDERS INVOICES PAYMENTS <<< "$(summary "$CHECK_CONTAINER" postgres)"
+  SUMMARY="$(summary "$CHECK_CONTAINER" postgres 2>/dev/null)"     || fail "Sauvegarde inutilisable : aucune base de l'application dedans (tables absentes)"
+  read -r MIGRATIONS TRAITEURS ORDERS INVOICES PAYMENTS <<< "$SUMMARY"
   log "Sauvegarde restaurée : $MIGRATIONS migrations, $TRAITEURS traiteur(s), $ORDERS commande(s), $INVOICES facture(s), $PAYMENTS paiement(s)"
   if docker inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1; then
     LIVE_MIGRATIONS="$(summary "$POSTGRES_CONTAINER" traiteur | cut -d' ' -f1)"

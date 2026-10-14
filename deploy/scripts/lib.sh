@@ -17,6 +17,8 @@ env_get() {
 
 # rclone configuré par variables d'environnement (aucun fichier de configuration à protéger)
 use_backup_storage() {
+  # Aucun fichier de configuration rclone : tout passe par ces variables
+  export RCLONE_CONFIG=/dev/null
   export RCLONE_CONFIG_BACKUP_TYPE=s3
   export RCLONE_CONFIG_BACKUP_PROVIDER="${BACKUP_S3_PROVIDER:-Cloudflare}"
   RCLONE_CONFIG_BACKUP_ENDPOINT="${BACKUP_S3_ENDPOINT:-$(env_get S3_ENDPOINT)}"
@@ -25,8 +27,10 @@ use_backup_storage() {
   export RCLONE_CONFIG_BACKUP_ENDPOINT RCLONE_CONFIG_BACKUP_ACCESS_KEY_ID RCLONE_CONFIG_BACKUP_SECRET_ACCESS_KEY
   # Jeton limité aux objets du bucket : ne pas tenter de le créer
   export RCLONE_CONFIG_BACKUP_NO_CHECK_BUCKET=true
-  export RCLONE_CONFIG_BACKUP_REGION=auto
+  export RCLONE_CONFIG_BACKUP_REGION="${BACKUP_S3_REGION:-auto}"
   BACKUP_BUCKET="$(env_get BACKUP_S3_BUCKET)"
+  # Utilisé par les scripts qui sourcent ce fichier
+  # shellcheck disable=SC2034
   BACKUP_PREFIX="backup:$BACKUP_BUCKET/$(env_get ENVIRONMENT)"
   [ -n "$BACKUP_BUCKET" ] || fail "BACKUP_S3_BUCKET manquant dans $ENV_FILE"
 }

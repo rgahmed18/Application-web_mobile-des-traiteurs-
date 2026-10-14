@@ -136,3 +136,16 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report
           retention-days: 7
+
+  deploy-scripts:
+    name: Scripts serveur (ShellCheck, sauvegarde et restauration réelles)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: ShellCheck
+        run: shellcheck -S warning deploy/scripts/*.sh deploy/tests/*.sh
+
+      - name: Sauvegarde chiffrée, restaurations (clé machine, clé de secours, réelle)
+        run: bash deploy/tests/backup-restore.sh
