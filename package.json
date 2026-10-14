@@ -6,9 +6,11 @@
     "node": ">=24.21.0"
   },
   "scripts": {
-    "dev": "turbo run dev dev:worker",
+    "dev": "turbo run dev dev:worker --filter=@traiteur/api --filter=@traiteur/web",
     "dev:api": "turbo run dev dev:worker --filter=@traiteur/api",
     "dev:web": "turbo run dev --filter=@traiteur/web",
+    "dev:mobile-client": "turbo run build --filter=@traiteur/mobile-client^... && pnpm --filter @traiteur/mobile-client dev",
+    "dev:mobile-staff": "turbo run build --filter=@traiteur/mobile-staff^... && pnpm --filter @traiteur/mobile-staff dev",
     "build": "turbo run build",
     "clean": "node scripts/clean.mjs",
     "lint": "turbo run lint",

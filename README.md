@@ -88,10 +88,18 @@ celui des photos a un domaine public. Base existante d'avant la séparation :
 ## Lancer le projet
 
 ```bash
-pnpm dev          # toutes les applications en parallèle (Turborepo), API + worker compris
-pnpm dev:api      # API et worker seuls
-pnpm dev:web      # site web seul
+pnpm dev                 # API, worker et back-office web (Turborepo)
+pnpm dev:api             # API et worker seuls
+pnpm dev:web             # back-office web seul
+pnpm dev:mobile-client   # application mobile client (Expo), dans son propre terminal
+pnpm dev:mobile-staff    # application mobile équipe et livreurs (Expo), dans son propre terminal
 ```
+
+Les applications Expo ne sont **pas** lancées par `pnpm dev` : elles ont besoin du terminal
+pour elles seules (QR code, raccourcis clavier) et, lancées en parallèle sous Windows, se le
+disputent et font tout planter. Ouvrez un terminal par application mobile, `pnpm dev` tournant
+dans un autre. Chaque commande construit d'abord les paquets partagés dont l'application
+dépend.
 
 L'API et le **worker** sont deux processus du même code (`apps/api`) : l'API sert le HTTP et
 ne consomme aucune file ; le worker n'a pas de serveur HTTP et exécute les tâches BullMQ
@@ -102,15 +110,15 @@ les tâches planifiées attendent dans Redis.
 En développement, le worker tourne sur le `dist/` compilé par l'API (`scripts/dev-worker.mjs`,
 relancé par Node à chaque recompilation) : un seul compilateur TypeScript en mode watch.
 
-| Application       | URL / commande                                           |
-| ----------------- | -------------------------------------------------------- |
-| API               | http://localhost:3000/api/v1                             |
-| Swagger (doc API) | http://localhost:3000/docs                               |
-| Back-office       | http://localhost:3001/admin                              |
-| Console RustFS    | http://localhost:9001                                    |
-| Mobile client     | `pnpm --filter @traiteur/mobile-client dev` puis Expo Go |
-| Mobile équipe     | `pnpm --filter @traiteur/mobile-staff dev` puis Expo Go  |
-| Prisma Studio     | `pnpm --filter @traiteur/api db:studio`                  |
+| Application       | URL / commande                          |
+| ----------------- | --------------------------------------- |
+| API               | http://localhost:3000/api/v1            |
+| Swagger (doc API) | http://localhost:3000/docs              |
+| Back-office       | http://localhost:3001/admin             |
+| Console RustFS    | http://localhost:9001                   |
+| Mobile client     | `pnpm dev:mobile-client` puis Expo Go   |
+| Mobile équipe     | `pnpm dev:mobile-staff` puis Expo Go    |
+| Prisma Studio     | `pnpm --filter @traiteur/api db:studio` |
 
 Depuis un téléphone physique, remplacez `localhost` par l'adresse IP locale de votre PC dans
 `EXPO_PUBLIC_API_URL`.
