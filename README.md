@@ -25,7 +25,8 @@ Langues : français et arabe (RTL), anglais facultatif. Devise par défaut : MAD
 8. [Choix d'architecture](#choix-darchitecture)
 9. [Tests et qualité](#tests-et-qualité)
 10. [Référence des commandes](#référence-des-commandes)
-11. [Dépannage](#dépannage)
+11. [Mise en production](#mise-en-production)
+12. [Dépannage](#dépannage)
 
 ---
 
@@ -842,6 +843,25 @@ request :
 | `pnpm --filter @traiteur/api catalog:set-photo …`         | Remplace la photo d'un plat ou d'une formule                                   |
 | `pnpm --filter @traiteur/web test:e2e`                    | Parcours Playwright du back-office                                             |
 | `pnpm clean`                                              | Vide `.turbo`, les `.next/cache`, `dist` et `*.tsbuildinfo` (serveurs arrêtés) |
+
+## Mise en production
+
+Guide pas à pas : **[docs/deploiement.md](docs/deploiement.md)** (domaine, Cloudflare R2,
+serveurs Hetzner, GitHub Actions, alertes, sauvegardes, création du traiteur pilote, checklist
+avant la mise en production, retour en arrière, restauration).
+
+| Élément                                                                | Emplacement                                                                                                                                                                            |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Images Docker (construites uniquement par GitHub Actions)              | `docker/api.Dockerfile` (API, worker, migrations, commandes), `docker/web.Dockerfile`                                                                                                  |
+| Services d'un serveur                                                  | `deploy/docker-compose.prod.yml`, `deploy/Caddyfile`                                                                                                                                   |
+| Configuration d'un serveur (modèle, avec la commande de chaque secret) | `deploy/env.example`                                                                                                                                                                   |
+| Scripts serveur                                                        | `deploy/scripts/` : `bootstrap-server.sh`, `deploy.sh`, `backup.sh`, `restore.sh`, `verify-backup.sh`, `check-backup-lock.sh`, `ci-deploy.sh`, `compose.sh`                            |
+| Déploiement                                                            | `.github/workflows/deploy.yml` : staging après chaque CI réussie sur `main`, production sur étiquette `v*` avec approbation ; démarrage réel des images vérifié avant tout déploiement |
+| Test réel des sauvegardes                                              | `deploy/tests/backup-restore.sh` (aussi en CI)                                                                                                                                         |
+| Création d'un traiteur                                                 | `node dist/cli/create-traiteur.js` (dans l'image API)                                                                                                                                  |
+
+Ne construisez pas les images sur le poste de développement : elles occupent plusieurs Go
+(le disque virtuel de Docker Desktop ne rend pas l'espace tout seul).
 
 ## Dépannage
 
