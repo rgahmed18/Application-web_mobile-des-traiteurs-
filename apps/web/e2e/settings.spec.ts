@@ -1,6 +1,6 @@
 import { expect, request as apiRequest, test } from '@playwright/test';
 
-import { login, MANAGER } from './helpers';
+import { apiLogin, login } from './helpers';
 
 const API = process.env.E2E_API_URL ?? 'http://localhost:3000/api/v1';
 
@@ -24,11 +24,7 @@ test('paramètres : fermeture hebdomadaire, avertissement du mode de prix et mon
 }) => {
   test.setTimeout(180_000);
   const api = await apiRequest.newContext();
-  const session = await api.post(`${API}/auth/login`, {
-    data: { traiteurSlug: 'dar-diafa', identifier: MANAGER.phone, password: MANAGER.password },
-  });
-  const { accessToken } = (await session.json()) as { accessToken: string };
-  const headers = { Authorization: `Bearer ${accessToken}` };
+  const headers = await apiLogin(api);
   const initial = (await (await api.get(`${API}/settings/availability`, { headers })).json()) as {
     closedWeekdays: number[];
   };

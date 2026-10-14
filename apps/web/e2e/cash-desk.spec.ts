@@ -1,6 +1,6 @@
 import { expect, request as apiRequest, test } from '@playwright/test';
 
-import { login, MANAGER, uniqueSuffix } from './helpers';
+import { apiLogin, login, uniqueSuffix } from './helpers';
 
 const API = process.env.E2E_API_URL ?? 'http://localhost:3000/api/v1';
 /** Livreur du traiteur de démonstration (prisma/seed.ts). */
@@ -19,11 +19,7 @@ test('encaissement à la livraison : déclaré par le livreur, remis à la caiss
 
   // ─── Commande du jour et affectation du livreur avec 1 500 MAD à encaisser (API) ───
   const api = await apiRequest.newContext();
-  const session = await api.post(`${API}/auth/login`, {
-    data: { traiteurSlug: 'dar-diafa', identifier: MANAGER.phone, password: MANAGER.password },
-  });
-  const { accessToken } = (await session.json()) as { accessToken: string };
-  const headers = { Authorization: `Bearer ${accessToken}` };
+  const headers = await apiLogin(api);
   const client = await api.post(`${API}/clients`, {
     headers,
     data: {

@@ -1,6 +1,6 @@
 import { expect, request as apiRequest, test } from '@playwright/test';
 
-import { login, MANAGER, uniqueSuffix } from './helpers';
+import { apiLogin, login, uniqueSuffix } from './helpers';
 
 const API = process.env.E2E_API_URL ?? 'http://localhost:3000/api/v1';
 
@@ -21,11 +21,7 @@ test('livreur invité, activé, affecté : il ne voit que sa mission, sans aucun
 
   // ─── Commande confirmée créée par l'API (le parcours de commande a son propre test) ───
   const api = await apiRequest.newContext();
-  const session = await api.post(`${API}/auth/login`, {
-    data: { traiteurSlug: 'dar-diafa', identifier: MANAGER.phone, password: MANAGER.password },
-  });
-  const { accessToken } = (await session.json()) as { accessToken: string };
-  const headers = { Authorization: `Bearer ${accessToken}` };
+  const headers = await apiLogin(api);
   const client = await api.post(`${API}/clients`, {
     headers,
     data: {
