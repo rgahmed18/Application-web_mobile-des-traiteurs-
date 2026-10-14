@@ -1,0 +1,21 @@
+# Contexte des images Docker (docker/*.Dockerfile) : uniquement le code source.
+**/node_modules
+**/dist
+**/dist-seed
+**/.next
+**/.turbo
+**/coverage
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.github
+.turbo
+docs
+apps/mobile-client
+apps/mobile-staff
+packages/mobile-ui
+**/*.log

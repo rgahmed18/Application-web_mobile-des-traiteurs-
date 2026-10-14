@@ -42,7 +42,12 @@ async function workspaces() {
 
 const targets = [join(root, '.turbo')];
 for (const dir of await workspaces()) {
-  targets.push(join(dir, '.next', 'cache'), join(dir, 'dist'), join(dir, '.turbo'));
+  targets.push(
+    join(dir, '.next', 'cache'),
+    join(dir, 'dist'),
+    join(dir, 'dist-seed'),
+    join(dir, '.turbo'),
+  );
   for (const entry of await readdir(dir)) {
     if (entry.endsWith('.tsbuildinfo')) targets.push(join(dir, entry));
   }

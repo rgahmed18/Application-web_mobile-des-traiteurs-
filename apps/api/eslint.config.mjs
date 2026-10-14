@@ -11,8 +11,9 @@ const LINES_MESSAGE =
 export default [
   ...createNestConfig(import.meta.dirname),
   {
-    // Fichiers volontairement fautifs, vérifiés par src/documents/document-lines.lint.spec.ts
-    ignores: ['test/lint-fixtures/**'],
+    // Fichiers volontairement fautifs (vérifiés par src/documents/document-lines.lint.spec.ts)
+    // et seed compilé pour l'image Docker
+    ignores: ['test/lint-fixtures/**', 'dist-seed/**'],
   },
   {
     // Lignes de commande et de devis : un seul module autorisé à les écrire.

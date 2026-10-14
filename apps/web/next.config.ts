@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
@@ -5,6 +7,12 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
+  // Image Docker : serveur autonome (.next/standalone), dépendances tracées depuis la racine du
+  // monorepo (paquet partagé). Activé seulement au build de l'image (NEXT_OUTPUT=standalone) :
+  // sous Windows, la copie autonome peut exiger des droits de création de liens symboliques.
+  ...(process.env.NEXT_OUTPUT === 'standalone'
+    ? { output: 'standalone' as const, outputFileTracingRoot: path.join(__dirname, '../../') }
+    : {}),
   // Devis et invitations par lien sécurisé : jamais indexés, jeton jamais transmis (Referer)
   headers() {
     return Promise.resolve([
