@@ -1,0 +1,13 @@
+[Unit]
+Description=Sauvegarde chiffrée de PostgreSQL vers Cloudflare R2
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+ExecStart=/opt/traiteur/scripts/backup.sh
+# Ne pas gêner le service : priorité basse pour le processeur et les disques
+Nice=10
+IOSchedulingClass=idle

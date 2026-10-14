@@ -1,0 +1,10 @@
+[Unit]
+Description=Vérification hebdomadaire de la dernière sauvegarde (dimanche 04:00)
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00
+RandomizedDelaySec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

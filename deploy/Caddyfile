@@ -1,0 +1,39 @@
+# Reverse proxy et HTTPS automatique (Let's Encrypt). APP_HOST : app.<domaine> en production,
+# staging.<domaine> en staging. Les photos sont servies directement par Cloudflare R2
+# (media.<domaine>), pas par ce serveur.
+{
+	email {$ACME_EMAIL}
+	# Pas de journal d'accès : il contiendrait les IP et les URL (dont les jetons des liens de
+	# devis et d'invitation). Les erreurs de Caddy restent dans le journal du conteneur.
+}
+
+{$APP_HOST} {
+	encode zstd gzip
+
+	request_body {
+		max_size 25MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Staging : jamais indexé par les moteurs de recherche (ROBOTS=noindex dans son .env)
+		X-Robots-Tag "{$ROBOTS:all}"
+		-Server
+	}
+
+	# Routes de session du back-office (Next), avant l'API
+	handle /api/session/* {
+		reverse_proxy web:3001
+	}
+
+	# API : Caddy transmet l'IP réelle du navigateur (X-Forwarded-For) et l'en-tête Host
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		reverse_proxy web:3001
+	}
+}

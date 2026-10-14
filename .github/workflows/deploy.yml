@@ -1,0 +1,175 @@
+name: Déploiement
+
+# Staging : automatiquement, après une CI réussie sur main (images construites, puis déployées).
+# Production : uniquement par une étiquette de version (git tag v1.2.3 && git push --tags),
+#   avec approbation manuelle (environnement GitHub « production »). L'image n'est PAS
+#   reconstruite : c'est exactement celle testée en staging (sha du commit), ré-étiquetée.
+# Retour en arrière : « Run workflow » (manuel), environnement + version précédente.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environnement
+        type: choice
+        options: [staging, production]
+        required: true
+      version:
+        description: Version à (re)déployer (sha-1a2b3c4 ou v1.2.3)
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ─────────────── Images (après une CI réussie sur main) ───────────────
+  build:
+    name: Images Docker
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - id: meta
+        name: Étiquette (sha-<commit>) et registre
+        run: |
+          echo "tag=sha-${HEAD_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "image=$REGISTRY/${OWNER,,}" >> "$GITHUB_OUTPUT"
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          OWNER: ${{ github.repository_owner }}
+        shell: bash
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image API (API, worker, migrations)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/api.Dockerfile
+          push: true
+          build-args: RELEASE=${{ steps.meta.outputs.tag }}
+          tags: ${{ steps.meta.outputs.image }}/traiteur-api:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Image web (back-office)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web.Dockerfile
+          push: true
+          build-args: RELEASE=${{ steps.meta.outputs.tag }}
+          tags: ${{ steps.meta.outputs.image }}/traiteur-web:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  staging:
+    name: Staging
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency: deploy-staging
+    timeout-minutes: 20
+    steps:
+      - name: Déploiement
+        run: |
+          TAG='${{ needs.build.outputs.tag }}'
+          install -m 600 /dev/null key
+          printf '%s\n' "$SSH_PRIVATE_KEY" > key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > known_hosts
+          # La clé est restreinte sur le serveur à ci-deploy.sh : elle ne peut que déployer
+          ssh -i key -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes \
+            "deploy@$SSH_HOST" "deploy $TAG"
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+
+  # ─────────────── Production (étiquette de version, approbation manuelle) ───────────────
+  production:
+    name: Production
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: deploy-production
+    timeout-minutes: 20
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ré-étiquetage de l'image testée en staging (sans reconstruction)
+        run: |
+          OWNER="${OWNER,,}"
+          SOURCE="sha-${GITHUB_SHA::7}"
+          for image in traiteur-api traiteur-web; do
+            if ! docker buildx imagetools inspect "$REGISTRY/$OWNER/$image:$SOURCE" >/dev/null; then
+              echo "::error::$image:$SOURCE introuvable : la version doit d'abord passer par main et le staging."
+              exit 1
+            fi
+            docker buildx imagetools create -t "$REGISTRY/$OWNER/$image:$GITHUB_REF_NAME" \
+              "$REGISTRY/$OWNER/$image:$SOURCE"
+          done
+        env:
+          OWNER: ${{ github.repository_owner }}
+        shell: bash
+
+      - name: Déploiement
+        run: |
+          install -m 600 /dev/null key
+          printf '%s\n' "$SSH_PRIVATE_KEY" > key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > known_hosts
+          ssh -i key -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes \
+            "deploy@$SSH_HOST" "deploy $GITHUB_REF_NAME"
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+
+  # ─────────────── Redéploiement manuel (retour en arrière) ───────────────
+  manual:
+    name: Redéploiement manuel
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency: deploy-${{ inputs.environment }}
+    timeout-minutes: 20
+    steps:
+      - name: Déploiement
+        run: |
+          [[ "$VERSION" =~ ^(sha-[0-9a-f]{7,40}|v[0-9]+\.[0-9]+\.[0-9]+)$ ]] || {
+            echo "::error::Version invalide : $VERSION"; exit 1; }
+          install -m 600 /dev/null key
+          printf '%s\n' "$SSH_PRIVATE_KEY" > key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > known_hosts
+          ssh -i key -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes \
+            "deploy@$SSH_HOST" "deploy $VERSION"
+        env:
+          VERSION: ${{ inputs.version }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        shell: bash

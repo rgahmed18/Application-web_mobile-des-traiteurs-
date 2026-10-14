@@ -1,0 +1,213 @@
+# Déploiement d'un environnement (staging ou production) sur un serveur : un fichier .env par
+# serveur (voir deploy/env.example), jamais dans le dépôt. Lancé par deploy/scripts/deploy.sh.
+#
+#   Internet ──443──▶ caddy ──▶ web (back-office)      app.<domaine>/
+#                          └──▶ api                    app.<domaine>/api/
+#                     worker (tâches BullMQ), postgres, redis : réseau interne uniquement
+#                     dozzle (journaux) : 127.0.0.1 du serveur, par tunnel SSH seulement
+#
+# Chaque service ne reçoit que les variables dont il a besoin (le web ne voit ni la base ni les
+# clés de stockage). PostgreSQL et Redis ne publient aucun port.
+name: traiteur
+
+x-logging:
+  &logging # Journal système (journald) : conservation réglée par le serveur (30 jours, 2 Go au plus)
+  driver: journald
+  options:
+    tag: 'traiteur/{{.Name}}'
+
+x-api-environment: &api-environment
+  NODE_ENV: production
+  PORT: '3000'
+  PUBLIC_WEB_URL: https://${APP_HOST}
+  CORS_ORIGINS: https://${APP_HOST}
+  # Caddy et le serveur Next (qui relaie l'IP du navigateur) sont sur ce sous-réseau interne
+  TRUST_PROXY: ${DOCKER_SUBNET:-172.30.0.0/24}
+  SWAGGER_ENABLED: 'false'
+  DATABASE_URL: postgresql://traiteur:${POSTGRES_PASSWORD}@postgres:5432/traiteur
+  REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+  OTP_SECRET: ${OTP_SECRET}
+  S3_ENDPOINT: ${S3_ENDPOINT}
+  S3_REGION: auto
+  S3_BUCKET: ${S3_MEDIA_BUCKET}
+  S3_DOCUMENTS_BUCKET: ${S3_DOCUMENTS_BUCKET}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+  S3_FORCE_PATH_STYLE: 'false'
+  S3_PUBLIC_URL: https://${MEDIA_HOST}
+  S3_AUTO_SETUP: 'false'
+  SMS_PROVIDER: ${SMS_PROVIDER}
+  SMS_FALLBACK_PROVIDER: ${SMS_FALLBACK_PROVIDER:-none}
+  SMS_SENDER: ${SMS_SENDER:-}
+  SMS_HTTP_URL: ${SMS_HTTP_URL:-}
+  SMS_HTTP_METHOD: ${SMS_HTTP_METHOD:-POST}
+  SMS_HTTP_BODY: ${SMS_HTTP_BODY:-}
+  SMS_HTTP_CONTENT_TYPE: ${SMS_HTTP_CONTENT_TYPE:-json}
+  SMS_HTTP_AUTH_HEADER: ${SMS_HTTP_AUTH_HEADER:-}
+  SMS_HTTP_PHONE_FORMAT: ${SMS_HTTP_PHONE_FORMAT:-international}
+  SMS_HTTP_SUCCESS_PATTERN: ${SMS_HTTP_SUCCESS_PATTERN:-}
+  TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+  TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+  TWILIO_FROM: ${TWILIO_FROM:-}
+  TWILIO_MESSAGING_SERVICE_SID: ${TWILIO_MESSAGING_SERVICE_SID:-}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${ENVIRONMENT}
+  PDF_WORKERS: ${PDF_WORKERS:-2}
+  # Seed de démonstration : autorisé en staging seulement (jamais en production)
+  ALLOW_DEMO_SEED: ${ALLOW_DEMO_SEED:-false}
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      APP_HOST: ${APP_HOST}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [api, web]
+    networks: [internal]
+    logging: *logging
+
+  api:
+    image: ${IMAGE_REGISTRY}/traiteur-api:${IMAGE_TAG}
+    restart: unless-stopped
+    init: true
+    environment: *api-environment
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    mem_limit: ${API_MEMORY:-1536m}
+    networks: [internal]
+    logging: *logging
+
+  worker:
+    image: ${IMAGE_REGISTRY}/traiteur-api:${IMAGE_TAG}
+    restart: unless-stopped
+    init: true
+    command: ['node', 'dist/worker.js']
+    environment:
+      <<: *api-environment
+      PDF_WORKERS: '1'
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    # Pas de serveur HTTP : le contrôle de santé de l'image ne s'applique pas
+    healthcheck:
+      disable: true
+    mem_limit: ${WORKER_MEMORY:-768m}
+    networks: [internal]
+    logging: *logging
+
+  # Migrations Prisma puis matrice des permissions : lancé par deploy.sh avant le redémarrage
+  migrate:
+    image: ${IMAGE_REGISTRY}/traiteur-api:${IMAGE_TAG}
+    profiles: [tools]
+    command:
+      - sh
+      - -c
+      - node node_modules/prisma/build/index.js migrate deploy && node dist/cli/sync-permissions.js
+    environment: *api-environment
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [internal]
+    logging: *logging
+
+  web:
+    image: ${IMAGE_REGISTRY}/traiteur-web:${IMAGE_TAG}
+    restart: unless-stopped
+    init: true
+    environment:
+      PUBLIC_API_URL: https://${APP_HOST}/api/v1
+      PUBLIC_MEDIA_URL: https://${MEDIA_HOST}
+      PUBLIC_SENTRY_DSN: ${SENTRY_DSN:-}
+      PUBLIC_SENTRY_ENVIRONMENT: ${ENVIRONMENT}
+      API_INTERNAL_URL: http://api:3000/api/v1
+      TRAITEUR_SLUG: ${TRAITEUR_SLUG}
+      # Un seul proxy de confiance devant Next : Caddy
+      WEB_TRUSTED_PROXY_HOPS: '1'
+      REFRESH_COOKIE_SECURE: 'true'
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT}
+    depends_on: [api]
+    mem_limit: ${WEB_MEMORY:-768m}
+    networks: [internal]
+    logging: *logging
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: traiteur
+      POSTGRES_DB: traiteur
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    shm_size: 256m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U traiteur -d traiteur']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: ${POSTGRES_MEMORY:-2g}
+    networks: [internal]
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # noeviction : BullMQ exige qu'aucune tâche ne soit évincée de la mémoire
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      - --appendonly
+      - 'yes'
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    mem_limit: ${REDIS_MEMORY:-512m}
+    networks: [internal]
+    logging: *logging
+
+  # Journaux de tous les conteneurs. JAMAIS exposé sur Internet : écoute sur 127.0.0.1 du
+  # serveur seulement, accessible par tunnel SSH (voir docs/deploiement.md).
+  dozzle:
+    image: amir20/dozzle:v8.14
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:9999:8080'
+    environment:
+      DOZZLE_NO_ANALYTICS: 'true'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [internal]
+    logging: *logging
+
+networks:
+  internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.30.0.0/24}
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:

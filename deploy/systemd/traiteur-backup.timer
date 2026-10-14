@@ -1,0 +1,11 @@
+[Unit]
+Description=Sauvegarde quotidienne de PostgreSQL (02:30)
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=10m
+# Rattrapée au démarrage si le serveur était éteint à l'heure prévue
+Persistent=true
+
+[Install]
+WantedBy=timers.target
