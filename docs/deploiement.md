@@ -53,8 +53,9 @@ production ensuite.
   vers le staging.
 - **Déploiement** : chaque modification poussée sur `main` est testée, transformée en images
   Docker par GitHub Actions, puis installée automatiquement sur le staging. La production ne
-  reçoit une version que lorsque vous créez une étiquette (`v1.0.0`) **et** l'approuvez dans
-  GitHub. C'est exactement la même image que celle testée en staging.
+  reçoit une version que lorsque **vous** créez une étiquette (`v1.0.0`), avec en plus une
+  approbation dans GitHub si votre offre le permet (8.3). C'est exactement la même image que
+  celle testée en staging.
 - **Coût mensuel estimé** : environ 15 à 16 € (CX33 ~9 €, CX23 ~5 €, domaine ~1 €/mois ;
   Cloudflare R2, Sentry, UptimeRobot, healthchecks.io et GitHub Actions restent gratuits au
   volume d'un pilote), plus les SMS (~0,35 à 0,50 MAD l'unité chez un agrégateur marocain).
@@ -68,7 +69,7 @@ production ensuite.
 | 3   | Clé de secours des sauvegardes        | Votre ordinateur                                          | Déchiffrer les sauvegardes si le serveur disparaît |
 | 4   | Compte Hetzner + **2FA**              | hetzner.com                                               | Serveurs                                           |
 | 5   | Clé SSH personnelle                   | Votre ordinateur                                          | Connexion aux serveurs                             |
-| 6   | Environnements GitHub + **2FA**       | github.com, votre dépôt                                   | Déploiement                                        |
+| 6   | Secrets GitHub + **2FA**              | github.com, votre dépôt                                   | Déploiement                                        |
 | 7   | Sentry, UptimeRobot, healthchecks.io  | Sites respectifs (gratuits)                               | Erreurs et alertes                                 |
 | 8   | Fournisseur SMS (essais puis contrat) | Agrégateur marocain + Twilio                              | Codes de connexion, invitations                    |
 
@@ -338,9 +339,12 @@ BACKUP_AGE_RECIPIENTS=age1…secours… age1…machine…
 
 ### 7.3 Accès aux images (GitHub Container Registry)
 
-Les images sont privées. GitHub › **Settings** (de votre compte) › **Developer settings** ›
-**Personal access tokens** › **Tokens (classic)** › **Generate new token** : nom
-`ghcr-staging`, expiration 1 an, **une seule** case : `read:packages`. Puis sur le serveur :
+Les images peuvent être privées (c'est le cas si le dépôt l'est, voir 8.3) : le serveur doit
+alors s'identifier pour les télécharger. GitHub › **Settings** (de votre compte) ›
+**Developer settings** › **Personal access tokens** › **Tokens (classic)** › **Generate new
+token** : nom `ghcr-staging`, expiration 1 an, **une seule** case : `read:packages`. (Un jeton
+« classique » est nécessaire : le registre d'images n'accepte pas les jetons à granularité
+fine.) Puis sur le serveur :
 
 ```bash
 docker login ghcr.io -u VOTRE_COMPTE
@@ -375,21 +379,35 @@ Empreinte du serveur, à faire **depuis votre PC** :
 ssh-keyscan -t ed25519 IP_STAGING
 ```
 
-### 8.2 Environnements et secrets
+### 8.2 Secrets et variables du dépôt
 
-Dépôt GitHub › **Settings** › **Environments** › **New environment** `staging` :
+Dépôt GitHub › **Settings** › **Secrets and variables** › **Actions** › onglet **Secrets** ›
+**New repository secret** (secrets **du dépôt**, préfixés par l'environnement : ils
+fonctionnent que le dépôt soit public ou privé, sur toutes les offres GitHub) :
 
-| Secret            | Valeur                                                              |
-| ----------------- | ------------------------------------------------------------------- |
-| `SSH_HOST`        | `IP_STAGING`                                                        |
-| `SSH_PRIVATE_KEY` | contenu **complet** du fichier `github-deploy-staging` (clé privée) |
-| `SSH_KNOWN_HOSTS` | la ligne affichée par `ssh-keyscan`                                 |
+| Secret                    | Valeur                                                              |
+| ------------------------- | ------------------------------------------------------------------- |
+| `STAGING_SSH_HOST`        | `IP_STAGING`                                                        |
+| `STAGING_SSH_PRIVATE_KEY` | contenu **complet** du fichier `github-deploy-staging` (clé privée) |
+| `STAGING_SSH_KNOWN_HOSTS` | la ligne affichée par `ssh-keyscan`                                 |
 
-Puis **Settings** › **Secrets and variables** › **Actions** › onglet **Variables** ›
-**New repository variable** : `DEPLOY_STAGING` = `true`.
+Puis onglet **Variables** › **New repository variable** : `DEPLOY_STAGING` = `true`.
 
 Supprimez ensuite les fichiers `github-deploy-staging*` de votre PC (la clé privée est dans
 GitHub, et vous pouvez toujours en créer une nouvelle).
+
+### 8.3 Dépôt privé : ce qui change
+
+Le dépôt peut passer en privé (**Settings** › **General** › **Danger Zone** › **Change
+visibility**). Tout continue de fonctionner, avec ces réglages :
+
+| Élément                             | À faire / à savoir                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CI (GitHub Actions)**             | Rien à configurer. L'offre gratuite inclut **2 000 minutes par mois** pour les dépôts privés. Mesuré : environ **16 minutes par push sur `main`** (9 de CI, 7 de construction des images), soit une centaine de pushes par mois. Regroupez vos commits avant de pousser ; **Settings** (de votre compte) › **Billing and plans** : laissez la limite de dépenses à 0 € (au-delà du quota, les workflows s'arrêtent au lieu d'être facturés).                                                                   |
+| **Images (GHCR)**                   | Stockage et transfert des images **gratuits**, même privées (GitHub prévient un mois avant tout changement). Après le passage en privé, vérifiez la visibilité de chaque image : votre profil GitHub › **Packages** › `traiteur-api` puis `traiteur-web` › **Package settings** › **Change visibility** › **Private**. Dans **Manage Actions access**, le dépôt doit avoir le rôle **Write** (il l'a, s'il a publié l'image).                                                                                  |
+| **Téléchargement par les serveurs** | Obligatoire : le jeton `read:packages` et `docker login ghcr.io` de l'étape 7.3, sur chaque serveur.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **Secrets du déploiement**          | Rien à changer : les secrets `STAGING_SSH_*` et `PRODUCTION_SSH_*` sont des secrets **du dépôt** (les « environnements » GitHub et leurs secrets ne sont pas disponibles pour un dépôt privé sur l'offre gratuite).                                                                                                                                                                                                                                                                                            |
+| **Approbation de la production**    | L'approbation obligatoire (« Required reviewers ») n'existe pour un dépôt privé qu'avec GitHub Enterprise. Sans elle, la garde manuelle est **l'étiquette de version** : la production ne reçoit une version que lorsque **vous** poussez `vX.Y.Z` (personne d'autre ne doit avoir les droits d'écriture sur le dépôt). Avec un dépôt public (ou Enterprise), vous pouvez ajouter l'approbation : environnement `production` avec **Required reviewers** = vous, puis variable `PRODUCTION_APPROVAL` = `true`. |
 
 ## 9. Premier déploiement du staging
 
@@ -493,7 +511,7 @@ Mêmes étapes que le staging, avec ces différences :
 | 7.2   | Clé de secours **de production**                                                                                                                                                                                                                                                                                     |
 | 7.3   | Jeton `ghcr-prod` distinct                                                                                                                                                                                                                                                                                           |
 | 8.1   | Clé `github-deploy-prod`, ajoutée sur le serveur de production                                                                                                                                                                                                                                                       |
-| 8.2   | Environnement **`production`** : mêmes trois secrets avec les valeurs de production, et **Required reviewers** = vous (approbation obligatoire) ; variable `DEPLOY_PRODUCTION` = `true`                                                                                                                              |
+| 8.2   | Secrets du dépôt `PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_PRIVATE_KEY`, `PRODUCTION_SSH_KNOWN_HOSTS` (valeurs de production) ; variable `DEPLOY_PRODUCTION` = `true` ; approbation obligatoire en plus si votre offre le permet (8.3)                                                                                  |
 | 9     | **Pas de seed de démonstration** (il est d'ailleurs refusé)                                                                                                                                                                                                                                                          |
 
 **Fournisseur SMS** (production) : après vos essais, renseignez `SMS_HTTP_*` selon la
@@ -509,8 +527,9 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-GitHub › **Actions** › **Déploiement** › le job « Production » attend votre approbation ›
-**Review deployments** › **Approve**. La version testée en staging est installée.
+GitHub › **Actions** › **Déploiement** : le job « Production » installe la version testée en
+staging. Si vous avez activé l'approbation (8.3), il attend d'abord votre accord : **Review
+deployments** › **Approve**.
 
 ## 13. Créer le traiteur pilote
 
@@ -611,7 +630,8 @@ foreach ($p in 22,80,443,3000,3001,5432,6379,9999) {
 ## 15. Mettre à jour, revenir en arrière
 
 **Mise à jour** : poussez sur `main` → le staging se met à jour tout seul. Testez-le, puis
-créez une nouvelle étiquette (`v1.0.1`, `v1.1.0`…) et approuvez-la (étape 12).
+créez une nouvelle étiquette (`v1.0.1`, `v1.1.0`…), approuvée si l'approbation est activée
+(étape 12).
 
 Chaque déploiement :
 
