@@ -41,6 +41,14 @@ import { nextDocumentNumber } from '../src/sequences/document-sequence';
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error('DATABASE_URL est requis');
 
+// Données de démonstration (comptes au mot de passe connu) : jamais en production. Le staging,
+// qui tourne en NODE_ENV=production, les autorise explicitement (ALLOW_DEMO_SEED=true).
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SEED !== 'true') {
+  throw new Error(
+    'Seed de démonstration refusé en production (ALLOW_DEMO_SEED=true uniquement en staging).',
+  );
+}
+
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: DATABASE_URL }) });
 
 export const DEMO_PASSWORD = 'Password123!';
