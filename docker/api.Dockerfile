@@ -9,11 +9,16 @@ ARG NODE_VERSION=24
 
 FROM node:${NODE_VERSION}-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true
+# openssl : Prisma choisit ses moteurs (migrations) selon la version d'OpenSSL détectée à
+# l'installation ; sans lui, il prendrait ceux d'openssl 1.1, absents de Debian bookworm
+RUN apt-get update  && apt-get install -y --no-install-recommends openssl ca-certificates  && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /repo
 
 # ── Build : dépendances complètes, compilation, puis copie de production (pnpm deploy) ──
 FROM base AS build
+# Valeur factice : prisma.config.ts l'exige même pour générer le client (aucune connexion)
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY packages/shared/package.json packages/shared/
