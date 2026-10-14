@@ -2,10 +2,11 @@ import { getYearInTimeZone } from './document-sequence';
 
 describe('getYearInTimeZone', () => {
   it('retourne l’année dans le fuseau du traiteur', () => {
-    // 31/12/2026 à 23h30 à Casablanca (UTC+1) = 31/12/2026 22h30 UTC
-    expect(getYearInTimeZone(new Date('2026-12-31T22:30:00Z'), 'Africa/Casablanca')).toBe(2026);
-    // 01/01/2027 à 00h30 à Casablanca = 31/12/2026 23h30 UTC
-    expect(getYearInTimeZone(new Date('2026-12-31T23:30:00Z'), 'Africa/Casablanca')).toBe(2027);
+    // Casablanca : UTC+0 depuis le 20 septembre 2026
+    expect(getYearInTimeZone(new Date('2026-12-31T23:30:00Z'), 'Africa/Casablanca')).toBe(2026);
+    expect(getYearInTimeZone(new Date('2027-01-01T00:30:00Z'), 'Africa/Casablanca')).toBe(2027);
+    // Avant le changement (UTC+1) : 01/01/2026 à 00h30 à Casablanca = 31/12/2025 23h30 UTC
+    expect(getYearInTimeZone(new Date('2025-12-31T23:30:00Z'), 'Africa/Casablanca')).toBe(2026);
   });
 
   it('dépend du fuseau', () => {

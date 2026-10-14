@@ -862,7 +862,7 @@ async function seedDemoOrder(
   }));
   const totals = computeDocumentTotals(lines.map(({ amounts }) => amounts));
 
-  const eventDate = new Date('2026-11-21T19:00:00+01:00');
+  const eventDate = new Date('2026-11-21T19:00:00Z');
   const depositAmount = Math.round(totals.totalTtc * 0.3);
 
   const order = await prisma.$transaction(async (tx) => {
@@ -896,7 +896,7 @@ async function seedDemoOrder(
         reference: quoteNumber.reference,
         status: 'DRAFT',
         priceMode,
-        validUntil: new Date('2026-11-01T00:00:00+01:00'),
+        validUntil: new Date('2026-11-01T00:00:00Z'),
       },
     });
     // Lignes ajoutées au brouillon, puis devis envoyé et accepté (lignes alors figées)
@@ -941,16 +941,16 @@ async function seedDemoOrder(
           orderId: created.id,
           membershipId: employeeId,
           staffRole: 'SUPERVISOR',
-          startAt: new Date('2026-11-21T15:00:00+01:00'),
-          endAt: new Date('2026-11-22T01:00:00+01:00'),
+          startAt: new Date('2026-11-21T15:00:00Z'),
+          endAt: new Date('2026-11-22T01:00:00Z'),
         },
         {
           traiteurId: traiteur.id,
           orderId: created.id,
           membershipId: driverId,
           staffRole: 'DRIVER',
-          startAt: new Date('2026-11-21T16:00:00+01:00'),
-          endAt: new Date('2026-11-21T19:30:00+01:00'),
+          startAt: new Date('2026-11-21T16:00:00Z'),
+          endAt: new Date('2026-11-21T19:30:00Z'),
         },
       ],
     });

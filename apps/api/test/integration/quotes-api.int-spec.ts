@@ -460,7 +460,7 @@ describe('API des devis (application complète)', () => {
   it('expiration : devis échu → « Expiré », commande « En attente », accord en ligne refusé', async () => {
     const { order, quote, token } = await sentQuote(69);
     // Validité dépassée (hier)
-    const yesterday = new Date(`${casablancaDay(-1)}T00:00:00+01:00`);
+    const yesterday = new Date(`${casablancaDay(-1)}T00:00:00Z`); // minuit à Casablanca (UTC+0)
     await prisma.quote.update({ where: { id: quote.id }, data: { validUntil: yesterday } });
     await prisma.quoteLink.updateMany({
       where: { quoteId: quote.id },
