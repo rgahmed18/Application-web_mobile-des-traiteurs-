@@ -119,23 +119,24 @@ async function seedTraiteur() {
     skipDuplicates: true,
   });
 
-  // Exemple de surcharge : ce traiteur autorise ses employés à gérer le catalogue.
-  const catalogManage = await prisma.permission.findUniqueOrThrow({
-    where: { key: 'catalog.write' },
+  // Exemple de surcharge : ce traiteur autorise ses employés à bloquer des dates et fixer la
+  // capacité (le catalogue, lui, reste réservé à l'administrateur : permission verrouillée).
+  const calendarManage = await prisma.permission.findUniqueOrThrow({
+    where: { key: 'calendar.manage' },
   });
   await prisma.rolePermission.upsert({
     where: {
       traiteurId_role_permissionId: {
         traiteurId: traiteur.id,
         role: 'EMPLOYE',
-        permissionId: catalogManage.id,
+        permissionId: calendarManage.id,
       },
     },
     update: { granted: true },
     create: {
       traiteurId: traiteur.id,
       role: 'EMPLOYE',
-      permissionId: catalogManage.id,
+      permissionId: calendarManage.id,
       granted: true,
     },
   });

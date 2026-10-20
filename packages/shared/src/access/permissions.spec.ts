@@ -14,6 +14,11 @@ describe('catalogue PERMISSIONS', () => {
       expect.arrayContaining(['invoices.issue', 'invoices.credit_note', 'subscription.manage']),
     );
   });
+
+  it('réserve l’écriture du catalogue à l’administrateur, sans dérogation possible', () => {
+    const write = PERMISSIONS.find((p) => p.key === 'catalog.write');
+    expect(write).toMatchObject({ isTenantEditable: false, defaultRoles: ['ADMIN_TRAITEUR'] });
+  });
 });
 
 describe('resolveEffectivePermissions', () => {

@@ -11,8 +11,11 @@ export interface PermissionSyncResult {
  * Aligne la base sur le catalogue des permissions (packages/shared) :
  *   - crée ou met à jour chaque permission ;
  *   - supprime les permissions retirées du catalogue (et leurs droits) ;
- *   - aligne la matrice par défaut (RolePermission avec traiteurId = null).
- * Les surcharges des traiteurs sont conservées. Utilisé par le seed et les tests.
+ *   - aligne la matrice par défaut (RolePermission avec traiteurId = null) ;
+ *   - supprime les surcharges des traiteurs sur les permissions non modifiables (déjà ignorées
+ *     au calcul des droits) : une permission verrouillée après coup ne garde aucune dérogation.
+ * Les autres surcharges des traiteurs sont conservées. Utilisé au déploiement, par le seed et
+ * les tests.
  */
 export async function syncPermissionCatalog(prisma: PrismaClient): Promise<PermissionSyncResult> {
   for (const definition of PERMISSIONS) {
@@ -56,5 +59,8 @@ export async function syncPermissionCatalog(prisma: PrismaClient): Promise<Permi
       where: { id: { in: obsolete.map((row) => row.id) } },
     });
   }
+  await prisma.rolePermission.deleteMany({
+    where: { traiteurId: { not: null }, permission: { isTenantEditable: false } },
+  });
   return { permissions: PERMISSIONS.length, defaultGrants: desired.length };
 }

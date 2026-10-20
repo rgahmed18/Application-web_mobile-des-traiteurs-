@@ -188,7 +188,9 @@ http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` 
   colorées par statut, charge du jour (`2/3`), dates bloquées hachurées. Un clic sur un jour ouvre
   ses commandes, le blocage de la date et « Nouvelle commande » pré-rempli. Capacité par jour
   réglable depuis le calendrier.
-- **Catalogue** (`catalog.read` pour consulter, `catalog.write` pour modifier) :
+- **Catalogue** (`catalog.read` pour consulter, `catalog.write` pour créer, modifier, archiver
+  ou supprimer — réservé à l'administrateur du traiteur et au super-admin, verrouillé dans la
+  grille des permissions ; chaque modification du super-admin est tracée avec son rôle) :
   - plats : recherche, filtres catégorie et disponibilité, pagination, photo, allergènes, prix
     saisi en HT ou TTC selon le traiteur avec l'autre montant affiché en direct ;
   - formules : composition (plats et quantités par personne), invités min / max, prix par
@@ -534,13 +536,14 @@ Le `SUPER_ADMIN` passe les contrôles de rôle et de permission.
 - **Matrice par défaut** : `RolePermission` avec `traiteurId = null`, gérée par le SUPER_ADMIN.
 - **Surcharges du traiteur** : `RolePermission` avec `traiteurId` renseigné, prioritaires, qui
   peuvent accorder (`granted = true`) ou retirer (`granted = false`) un droit.
-- **Permissions critiques** (`isTenantEditable = false` : facturation, abonnement, audit…) :
-  les surcharges du traiteur sont ignorées.
+- **Permissions critiques** (`isTenantEditable = false` : facturation, abonnement, audit,
+  écriture du catalogue…) : les surcharges du traiteur sont ignorées, et supprimées par la
+  synchronisation des permissions (`sync-permissions`, à chaque déploiement).
 - Résultat mis en cache dans Redis (5 min). Si Redis est indisponible, lecture directe en base.
 - Le catalogue des clés est dans `packages/shared/src/access/permissions.ts`. Il sert au seed et
   au typage ; à l'exécution, seuls les droits en base comptent. Après une évolution de la matrice
   par défaut (ex. rôle Équipe, livreur sans `payments.record`), relancer `pnpm db:seed` pour
-  l'appliquer : les surcharges des traiteurs sont conservées.
+  l'appliquer : les surcharges des traiteurs sont conservées (sauf sur les permissions critiques).
 - Les traiteurs ajustent leurs rôles depuis la grille des permissions (Personnel → Permissions) :
   `GET/PUT /settings/permissions`, `POST /settings/permissions/reset`.
 

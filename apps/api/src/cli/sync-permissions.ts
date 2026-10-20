@@ -1,7 +1,8 @@
 /**
  * Catalogue des permissions et matrice par défaut des rôles (RolePermission sans traiteur).
  * Exécuté à chaque déploiement, juste après les migrations : en production il n'y a pas de seed.
- * Idempotent ; les surcharges propres à chaque traiteur ne sont jamais modifiées.
+ * Idempotent ; les surcharges des traiteurs sont conservées, sauf sur une permission non
+ * modifiable (supprimées). Le cache des droits (Redis, 5 min) se met à jour de lui-même.
  *
  *   node dist/cli/sync-permissions.js
  */
