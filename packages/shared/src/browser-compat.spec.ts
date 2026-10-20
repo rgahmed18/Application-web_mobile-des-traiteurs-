@@ -18,7 +18,7 @@ function sources(dir: string): string[] {
 
 describe('compatibilité navigateurs du paquet partagé', () => {
   it("n'utilise aucune assertion arrière (?<= / (?<! dans les expressions régulières (Safari < 16.4)", () => {
-    const offenders = sources(join(import.meta.dirname)).filter((file) =>
+    const offenders = sources(__dirname).filter((file) =>
       /\(\?<[=!]/.test(readFileSync(file, 'utf8')),
     );
     expect(offenders).toEqual([]);
