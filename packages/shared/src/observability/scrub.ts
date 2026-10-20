@@ -44,15 +44,17 @@ const TEXT_PATTERNS: [RegExp, string][] = [
     /([?&](?:token|key|apikey|api_key|password|code|secret|signature|to|phone|mobile|msisdn|recipient|dest|X-Amz-[A-Za-z]+)=)[^&#\s"]+/gi,
     '$1[masqué]',
   ],
+  // Pas d'assertion arrière (lookbehind) : Safari < 16.4 refuse de lire tout le fichier qui en
+  // contient (back-office). Le caractère qui précède est capturé ($1) et remis tel quel.
   // Jeton opaque isolé de 43 caractères base64url (newLinkToken)
-  [/(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/g, '[jeton]'],
+  [/(^|[^A-Za-z0-9_-])[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/g, '$1[jeton]'],
   // Adresses e-mail
   [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[e-mail]'],
   // Téléphones : +212…, 00212…, 06…/07…/05…, numéros internationaux
   [/(?:\+|00)\d[\d\s.-]{7,16}\d/g, '[téléphone]'],
-  [/(?<!\d)0[5-7](?:[\s.-]?\d){8}(?!\d)/g, '[téléphone]'],
+  [/(^|\D)0[5-7](?:[\s.-]?\d){8}(?!\d)/g, '$1[téléphone]'],
   // Numéro marocain sans « + » (212612345678), format de nombreux agrégateurs SMS
-  [/(?<!\d)212[5-7]\d{8}(?!\d)/g, '[téléphone]'],
+  [/(^|\D)212[5-7]\d{8}(?!\d)/g, '$1[téléphone]'],
 ];
 
 /** Masque e-mails, téléphones et jetons dans un texte. */

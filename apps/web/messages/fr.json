@@ -3,6 +3,10 @@
     "title": "Back-office traiteur",
     "description": "Gérez votre catalogue, vos commandes et votre équipe."
   },
+  "unsupportedBrowser": {
+    "title": "Navigateur trop ancien",
+    "body": "Ce service nécessite un navigateur plus récent. Mettez à jour Chrome, Safari, Firefox ou Samsung Internet, puis rouvrez cette page."
+  },
   "common": {
     "appName": "Gestion Traiteurs",
     "save": "Enregistrer",

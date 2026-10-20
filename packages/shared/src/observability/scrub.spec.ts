@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest';
 
 import { REDACTED, scrubBreadcrumb, scrubEvent, scrubSpan, scrubText } from './scrub';
 
+describe('scrubText : limites des motifs (sans assertion arrière)', () => {
+  it('garde le caractère qui précède un téléphone ou un jeton masqué', () => {
+    expect(scrubText('tel:0612345678, ref 212612345678.')).toBe(
+      'tel:[téléphone], ref [téléphone].',
+    );
+    const token = 'A'.repeat(43);
+    expect(scrubText(`lien=${token} et (${token})`)).toBe('lien=[jeton] et ([jeton])');
+    expect(scrubText(token)).toBe('[jeton]');
+  });
+
+  it('ne masque pas un nombre plus long ni un jeton plus long', () => {
+    expect(scrubText('commande 90612345678')).toBe('commande 90612345678');
+    expect(scrubText('B'.repeat(44))).toBe('B'.repeat(44));
+  });
+});
+
 const PERSONAL = [
   '+212612345678',
   '0612345678',

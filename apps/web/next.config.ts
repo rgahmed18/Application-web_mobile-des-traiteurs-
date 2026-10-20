@@ -30,8 +30,10 @@ const nextConfig: NextConfig = {
   // pré-rendu partiel, chaque page est rendue à la demande.
   turbopack: {
     rules: {
+      // Chargeurs exécutés du dernier au premier : Tailwind, puis la compatibilité avec les
+      // anciens navigateurs (legacy-css-loader.cjs)
       '*.css': {
-        loaders: ['@tailwindcss/turbopack'],
+        loaders: [path.join(__dirname, 'legacy-css-loader.cjs'), '@tailwindcss/turbopack'],
         as: '*.css',
       },
     },
