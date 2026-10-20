@@ -23,6 +23,7 @@ export type ValidationMessageKey =
   | 'discountTooHigh'
   | 'endBeforeStart'
   | 'linesRequired'
+  | 'duplicateAssignment'
   | 'invalidTime'
   | 'invalidDate'
   | 'invalid';
@@ -47,6 +48,7 @@ const CUSTOM_KEYS = new Set<ValidationMessageKey>([
   'discountTooHigh',
   'endBeforeStart',
   'linesRequired',
+  'duplicateAssignment',
 ]);
 
 /** Champs saisis comme des montants (« 250,50 ») : message d'erreur avec un exemple. */

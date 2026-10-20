@@ -22,6 +22,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  type AssignmentBatchInput,
+  assignmentBatchSchema,
   type AssignmentInput,
   assignmentInputSchema,
   type AssignmentUpdateInput,
@@ -100,6 +102,23 @@ export class AssignmentsController {
     @Client() client: ClientInfo,
   ): Promise<OrderStaffing> {
     return this.assignments.create(user, orderId, body, client);
+  }
+
+  @Post('orders/:orderId/assignments/batch')
+  @RequirePermissions('staff.manage')
+  @ApiOperation({
+    summary:
+      'Affecte plusieurs membres en une transaction (409 ASSIGNMENT_BATCH_CONFLICT : problème de chaque ligne ; chevauchement levé par « force » sur la ligne)',
+  })
+  @ApiBody({ schema: zodToOpenApi(assignmentBatchSchema) })
+  @ApiOkResponse(staffingResponse)
+  createBatch(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId', uuidParam) orderId: string,
+    @Body(new ZodValidationPipe(assignmentBatchSchema)) body: AssignmentBatchInput,
+    @Client() client: ClientInfo,
+  ): Promise<OrderStaffing> {
+    return this.assignments.createBatch(user, orderId, body, client);
   }
 
   @Put('assignments/:id')

@@ -98,12 +98,18 @@ test('livreur invité, activé, affecté : il ne voit que sa mission, sans aucun
   const personnel = page.getByTestId('personnel-card');
   await personnel.getByRole('button', { name: 'Affecter' }).click();
   const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Affecter des membres' })).toBeVisible();
+  // Lignes ajoutables et supprimables
+  await dialog.getByRole('button', { name: 'Ajouter une ligne' }).click();
+  await expect(dialog.getByTestId('assignment-line')).toHaveCount(2);
+  await dialog.getByRole('button', { name: 'Retirer la ligne 2' }).click();
+  await expect(dialog.getByTestId('assignment-line')).toHaveCount(1);
   await dialog.getByLabel('Membre', { exact: true }).click();
   await page.getByRole('option', { name: new RegExp(`Livreur ${suffix}`) }).click();
   await dialog.getByLabel('Rôle sur l’événement').click();
   await page.getByRole('option', { name: 'Chauffeur' }).click();
   await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await expect(page.getByText('Affectation enregistrée')).toBeVisible();
+  await expect(page.getByText('1 membre affecté')).toBeVisible();
   await expect(personnel.getByTestId('assignments-list')).toContainText(`Livreur ${suffix}`);
 
   // ─── Connexion du livreur : sa mission seulement, aucun prix ───

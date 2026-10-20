@@ -231,6 +231,7 @@
       "PERMISSION_NOT_EDITABLE": "Cette permission n’est pas modifiable.",
       "ASSIGNMENT_CONFLICT": "Ce membre est déjà affecté sur ce créneau.",
       "ASSIGNMENT_EXISTS": "Ce membre a déjà ce rôle sur l’événement.",
+      "ASSIGNMENT_BATCH_CONFLICT": "Certaines lignes ne peuvent pas être enregistrées : voir chaque ligne.",
       "ORDER_NOT_FIRM": "Le personnel s’affecte à une commande confirmée.",
       "MEMBER_UNAVAILABLE": "Ce membre est suspendu.",
       "MISSION_NOT_ALLOWED": "Action impossible pour cette mission.",
@@ -261,6 +262,7 @@
     "invalidAmount": "Montant invalide (ex. 250 ou 250,50).",
     "discountTooHigh": "La remise dépasse le montant de la ligne.",
     "endBeforeStart": "La fin doit être après le début (cochez « le lendemain » si besoin).",
+    "duplicateAssignment": "Ce membre a déjà ce rôle dans la liste.",
     "linesRequired": "Ajoutez au moins une prestation.",
     "invalidTime": "Heure invalide (HH:MM).",
     "invalidDate": "Date invalide."
@@ -1556,6 +1558,26 @@
       "end": "Fin",
       "notes": "Notes pour ce membre",
       "notesHint": "Visibles uniquement par lui, dans sa mission."
+    },
+    "batch": {
+      "title": "Affecter des membres",
+      "hint": "Horaires pré-remplis depuis l’événement selon le rôle, modifiables ligne par ligne.",
+      "line": "Ligne {number}",
+      "addLine": "Ajouter une ligne",
+      "removeLine": "Retirer la ligne {number}",
+      "copyTimes": "Copier ces horaires sur toutes les lignes",
+      "copied": "Horaires copiés sur toutes les lignes.",
+      "saved": "{count, plural, one {# membre affecté} other {# membres affectés}}",
+      "problemsTitle": "Corrigez les lignes signalées, ou passez outre un chevauchement, puis enregistrez à nouveau.",
+      "otherLines": "{count, plural, one {ligne {lines} de cette liste} other {lignes {lines} de cette liste}}",
+      "force": "Passer outre pour cette ligne",
+      "problems": {
+        "OVERLAP": "Chevauchement avec :",
+        "ASSIGNMENT_EXISTS": "Ce membre a déjà ce rôle sur l’événement.",
+        "MEMBER_NOT_FOUND": "Membre introuvable.",
+        "MEMBER_UNAVAILABLE": "Ce membre est suspendu.",
+        "CASH_NOT_ALLOWED": "Seul le chauffeur ou le superviseur encaisse à la livraison."
+      }
     },
     "conflict": {
       "title": "Ce membre est déjà affecté sur ce créneau :",

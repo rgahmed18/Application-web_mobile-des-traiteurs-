@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import {
-  type AssignmentInput,
+  type AssignmentBatchInput,
   type AssignmentUpdateInput,
   type CollectionMethod,
   type Mission,
@@ -55,9 +55,10 @@ function useStaffingMutation<TVariables>(
   });
 }
 
-export function useCreateAssignment(orderId: string) {
-  return useStaffingMutation(orderId, (input: AssignmentInput) =>
-    apiRequest(`/orders/${orderId}/assignments`, {
+/** Plusieurs membres en une transaction (409 ASSIGNMENT_BATCH_CONFLICT : problème par ligne). */
+export function useCreateAssignments(orderId: string) {
+  return useStaffingMutation(orderId, (input: AssignmentBatchInput) =>
+    apiRequest(`/orders/${orderId}/assignments/batch`, {
       method: 'POST',
       body: input,
       schema: orderStaffingSchema,

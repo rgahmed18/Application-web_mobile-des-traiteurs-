@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import {
   addDays,
   type Assignment,
+  type AssignmentBatchInput,
   type AssignmentConflict,
   type AssignmentInput,
+  type AssignmentLineProblem,
   type AssignmentUpdateInput,
   type OrderStaffing,
   type Planning,
@@ -136,6 +138,125 @@ export class AssignmentsService {
         },
         tx,
       );
+    });
+    return this.staffing(this.prisma, traiteurId, orderId);
+  }
+
+  /**
+   * Plusieurs membres en une seule transaction. Toutes les lignes sont contrôlées avant toute
+   * écriture : membre, rôle déjà tenu sur l'événement, encaissement, chevauchements (missions
+   * enregistrées du membre et autres lignes du lot pour le même membre). Un chevauchement se lève
+   * ligne par ligne (« force », tracé) ; sinon 409 ASSIGNMENT_BATCH_CONFLICT avec le problème de
+   * chaque ligne, et rien n'est enregistré.
+   */
+  async createBatch(
+    user: AuthenticatedUser,
+    orderId: string,
+    input: AssignmentBatchInput,
+    client: ClientInfo,
+  ): Promise<OrderStaffing> {
+    const traiteurId = requireTraiteurId(user);
+    await this.prisma.$transaction(async (tx) => {
+      const timeZone = await this.lockOrder(tx, traiteurId, orderId);
+      const memberIds = [...new Set(input.lines.map((line) => line.membershipId))];
+      const members = await tx.membership.findMany({
+        where: { id: { in: memberIds }, traiteurId, role: { in: [...STAFF_ROLES] } },
+        select: { id: true, status: true },
+      });
+      const memberById = new Map(members.map((member) => [member.id, member]));
+      const held = new Set(
+        (
+          await tx.staffAssignment.findMany({
+            where: { orderId, membershipId: { in: memberIds } },
+            select: { membershipId: true, staffRole: true },
+          })
+        ).map((row) => `${row.membershipId}:${row.staffRole}`),
+      );
+      const lines = input.lines.map((line) => ({
+        ...line,
+        startAt: toInstant(line.startsAt, timeZone),
+        endAt: toInstant(line.endsAt, timeZone),
+      }));
+
+      const problems: AssignmentLineProblem[] = [];
+      const overlapping: boolean[] = [];
+      for (const [index, line] of lines.entries()) {
+        const reject = (code: AssignmentLineProblem['code']) =>
+          problems.push({ index, code, conflicts: [], lines: [] });
+        const member = memberById.get(line.membershipId);
+        if (!member) reject('MEMBER_NOT_FOUND');
+        else if (member.status === 'SUSPENDED') reject('MEMBER_UNAVAILABLE');
+        else if (held.has(`${line.membershipId}:${line.staffRole}`)) reject('ASSIGNMENT_EXISTS');
+        else if (line.cashToCollect !== null && !CASH_ROLES.includes(line.staffRole)) {
+          reject('CASH_NOT_ALLOWED');
+        } else {
+          const conflicts = await this.conflicts(
+            tx,
+            traiteurId,
+            line.membershipId,
+            line.startAt,
+            line.endAt,
+            null,
+          );
+          const siblings = lines.flatMap((other, otherIndex) =>
+            otherIndex !== index &&
+            other.membershipId === line.membershipId &&
+            other.startAt < line.endAt &&
+            other.endAt > line.startAt
+              ? [otherIndex]
+              : [],
+          );
+          overlapping[index] = conflicts.length > 0 || siblings.length > 0;
+          if (overlapping[index] && !line.force) {
+            problems.push({ index, code: 'OVERLAP', conflicts, lines: siblings });
+          }
+        }
+      }
+      if (problems.length > 0) {
+        throw appErrors.conflict(
+          'ASSIGNMENT_BATCH_CONFLICT',
+          'Certaines lignes ne peuvent pas être enregistrées',
+          { problems, timeZone },
+        );
+      }
+
+      for (const [index, line] of lines.entries()) {
+        const created = await tx.staffAssignment.create({
+          data: {
+            traiteurId,
+            orderId,
+            membershipId: line.membershipId,
+            staffRole: line.staffRole,
+            startAt: line.startAt,
+            endAt: line.endAt,
+            notes: line.notes,
+            cashToCollect: line.cashToCollect,
+            cashMethod: line.cashMethod,
+          },
+        });
+        await this.audit.record(
+          {
+            traiteurId,
+            actor: user,
+            action: 'assignment.created',
+            entityType: 'StaffAssignment',
+            entityId: created.id,
+            after: {
+              orderId,
+              memberId: line.membershipId,
+              staffRole: line.staffRole,
+              startAt: line.startAt.toISOString(),
+              endAt: line.endAt.toISOString(),
+              overlapForced: overlapping[index] ?? false,
+              cashToCollect: line.cashToCollect,
+              cashMethod: line.cashMethod,
+              batch: { index, size: lines.length },
+            },
+            client,
+          },
+          tx,
+        );
+      }
     });
     return this.staffing(this.prisma, traiteurId, orderId);
   }

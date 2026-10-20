@@ -79,6 +79,33 @@ export const assignmentUpdateSchema = assignmentFields
   .refine(cashComplete, cashCompleteIssue);
 export type AssignmentUpdateInput = z.infer<typeof assignmentUpdateSchema>;
 
+/** Lignes affectées au plus en une seule opération. */
+export const MAX_ASSIGNMENT_BATCH = 30;
+
+/**
+ * Plusieurs membres affectés en une opération (une seule transaction) : chaque ligne a son rôle,
+ * ses horaires, ses notes, son encaissement et son propre « passer outre ». Un membre ne figure
+ * qu'une fois par rôle (il peut avoir deux rôles différents).
+ */
+export const assignmentBatchSchema = z
+  .object({ lines: z.array(assignmentInputSchema).min(1).max(MAX_ASSIGNMENT_BATCH) })
+  .superRefine((value, ctx) => {
+    const seen = new Set<string>();
+    value.lines.forEach((line, index) => {
+      const key = `${line.membershipId}:${line.staffRole}`;
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['lines', index, 'staffRole'],
+          message: 'Ce membre a déjà ce rôle dans la liste',
+          params: { i18n: 'duplicateAssignment' },
+        });
+      }
+      seen.add(key);
+    });
+  });
+export type AssignmentBatchInput = z.infer<typeof assignmentBatchSchema>;
+
 /** Informations de service de la commande, jamais montrées au client. */
 export const serviceInfoSchema = z.object({
   onSiteContactName: z.string().trim().max(120).nullable(),
@@ -134,6 +161,31 @@ export const assignmentConflictSchema = z.object({
   end: moment,
 });
 export type AssignmentConflict = z.infer<typeof assignmentConflictSchema>;
+
+/**
+ * Problème d'une ligne d'affectation par lot (réponse 409 ASSIGNMENT_BATCH_CONFLICT).
+ * Seul OVERLAP se lève ligne par ligne avec « force » ; les autres imposent de corriger la ligne.
+ */
+export const ASSIGNMENT_LINE_PROBLEMS = [
+  'OVERLAP',
+  'ASSIGNMENT_EXISTS',
+  'MEMBER_NOT_FOUND',
+  'MEMBER_UNAVAILABLE',
+  'CASH_NOT_ALLOWED',
+] as const;
+export const assignmentLineProblemSchema = z.object({
+  /** Position de la ligne dans le lot envoyé. */
+  index: z.number().int().min(0),
+  code: z.enum(ASSIGNMENT_LINE_PROBLEMS),
+  /** OVERLAP : missions déjà enregistrées du membre qui chevauchent la ligne. */
+  conflicts: z.array(assignmentConflictSchema),
+  /** OVERLAP : autres lignes du lot, pour le même membre, qui chevauchent celle-ci. */
+  lines: z.array(z.number().int().min(0)),
+});
+export type AssignmentLineProblem = z.infer<typeof assignmentLineProblemSchema>;
+export const assignmentBatchConflictSchema = z.object({
+  problems: z.array(assignmentLineProblemSchema),
+});
 
 /** Encaissement déclaré pour une affectation. */
 export const cashDeclarationSchema = z.object({

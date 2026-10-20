@@ -1,12 +1,10 @@
 'use client';
 
 import {
-  addDays,
   ASSIGNMENT_ROLES,
   type Assignment,
   type AssignmentConflict,
   assignmentConflictSchema,
-  type AssignmentRole,
   COLLECTION_METHODS,
   type Order,
   serviceInfoSchema,
@@ -56,13 +54,13 @@ import { openDocument } from '@/features/payments/payments-api';
 import { useStaff } from '@/features/staff/staff-api';
 import { isApiError } from '@/lib/api/errors';
 import { useErrorMessage } from '@/lib/api/use-error-message';
-import { formatLocalDate } from '@/lib/format/date';
 import { currencyLabel, formatMoney } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 import { cn } from '@/lib/utils';
 
+import { CASH_ROLES, formatMoment } from './assignment-times';
+import { BatchAssignmentDialog } from './batch-assignment-dialog';
 import {
-  useCreateAssignment,
   useOrderStaffing,
   useRemoveAssignment,
   useUpdateAssignment,
@@ -76,47 +74,6 @@ export const ASSIGNMENT_STATUS_STYLES: Record<Assignment['status'], string> = {
   DECLINED: 'border-red-300 bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200',
   DONE: 'border-slate-300 bg-slate-50 text-slate-700 dark:bg-slate-900 dark:text-slate-200',
 };
-
-/** « 2026-10-24 » + « 20:00 » − 2 h → « 2026-10-24T18:00 » (heures locales du traiteur). */
-function shift(date: string, time: string, hours: number): string {
-  const [h = 0, m = 0] = time.split(':').map(Number);
-  let total = h * 60 + m + hours * 60;
-  let day = date;
-  while (total < 0) {
-    total += 24 * 60;
-    day = addDays(day, -1);
-  }
-  while (total >= 24 * 60) {
-    total -= 24 * 60;
-    day = addDays(day, 1);
-  }
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${day}T${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
-}
-
-/** Horaires proposés : chauffeur avant l'événement, équipe sur toute sa durée. */
-function defaultTimes(order: Order, role: AssignmentRole): { startsAt: string; endsAt: string } {
-  const endDate = order.endsNextDay ? addDays(order.eventDate, 1) : order.eventDate;
-  const eventEnd = order.endTime
-    ? `${endDate}T${order.endTime}`
-    : shift(order.eventDate, order.startTime, 5);
-  if (role === 'DRIVER') {
-    return {
-      startsAt: shift(order.eventDate, order.startTime, -3),
-      endsAt: shift(order.eventDate, order.startTime, -0.5),
-    };
-  }
-  return {
-    startsAt: shift(order.eventDate, order.startTime, role === 'WAITER' ? -1 : -6),
-    endsAt: eventEnd,
-  };
-}
-
-const moment = (value: { date: string; time: string }) =>
-  `${formatLocalDate(value.date)} ${value.time}`;
-
-/** Rôles sur l'événement qui peuvent encaisser à la livraison. */
-const CASH_ROLES: readonly AssignmentRole[] = ['DRIVER', 'SUPERVISOR'];
 
 export const COLLECTION_STATUS_STYLES = {
   PENDING: 'border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
@@ -199,7 +156,7 @@ export function PersonnelCard({ order }: { order: Order }) {
                     {t(`roles.${assignment.staffRole}`)}
                   </span>
                   <span className="text-sm tabular-nums" dir="ltr">
-                    {moment(assignment.start)} → {assignment.end.time}
+                    {formatMoment(assignment.start)} → {assignment.end.time}
                   </span>
                   <Badge variant="outline" className={ASSIGNMENT_STATUS_STYLES[assignment.status]}>
                     {t(`status.${assignment.status}`)}
@@ -320,12 +277,11 @@ export function PersonnelCard({ order }: { order: Order }) {
         </div>
       </CardContent>
 
-      {editing && (
-        <AssignmentDialog
-          order={order}
-          assignment={editing === 'new' ? null : editing}
-          onClose={() => setEditing(null)}
-        />
+      {editing === 'new' && (
+        <BatchAssignmentDialog order={order} onClose={() => setEditing(null)} />
+      )}
+      {editing && editing !== 'new' && (
+        <AssignmentDialog order={order} assignment={editing} onClose={() => setEditing(null)} />
       )}
       {editingInfo && (
         <ServiceInfoDialog orderId={order.id} info={info} onClose={() => setEditingInfo(false)} />
@@ -357,13 +313,14 @@ const assignmentFormSchema = z
     { path: ['cashAmount'], params: { i18n: 'invalidAmount' } },
   );
 
+/** Modification d'une affectation (la création passe par BatchAssignmentDialog). */
 function AssignmentDialog({
   order,
   assignment,
   onClose,
 }: {
   order: Order;
-  assignment: Assignment | null;
+  assignment: Assignment;
   onClose: () => void;
 }) {
   const t = useTranslations('assignments');
@@ -371,28 +328,24 @@ function AssignmentDialog({
   const locale = useLocale();
   const describeError = useErrorMessage();
   const staff = useStaff({});
-  const create = useCreateAssignment(order.id);
   const update = useUpdateAssignment(order.id);
   const [conflicts, setConflicts] = useState<AssignmentConflict[] | null>(null);
-  const initialRole: AssignmentRole = assignment?.staffRole ?? 'WAITER';
-  const defaults = defaultTimes(order, initialRole);
   const form = useZodForm(assignmentFormSchema, {
-    membershipId: assignment?.member.id ?? '',
-    staffRole: initialRole,
-    startsAt: assignment ? `${assignment.start.date}T${assignment.start.time}` : defaults.startsAt,
-    endsAt: assignment ? `${assignment.end.date}T${assignment.end.time}` : defaults.endsAt,
-    notes: assignment?.notes ?? '',
-    collect: (assignment?.cashToCollect ?? null) !== null,
-    cashAmount: assignment?.cashToCollect ? centsToAmount(assignment.cashToCollect) : '',
-    cashMethod: assignment?.cashMethod ?? 'CASH',
+    membershipId: assignment.member.id,
+    staffRole: assignment.staffRole,
+    startsAt: `${assignment.start.date}T${assignment.start.time}`,
+    endsAt: `${assignment.end.date}T${assignment.end.time}`,
+    notes: assignment.notes ?? '',
+    collect: assignment.cashToCollect !== null,
+    cashAmount: assignment.cashToCollect ? centsToAmount(assignment.cashToCollect) : '',
+    cashMethod: assignment.cashMethod ?? 'CASH',
   });
   const staffRole = form.watch('staffRole');
   const collect = form.watch('collect');
   const canCollect = CASH_ROLES.includes(staffRole);
   // Encaissement déjà déclaré par le livreur : montant figé
   const cashLocked =
-    (assignment?.cashDeclaration ?? null) !== null &&
-    assignment?.cashDeclaration?.status !== 'REJECTED';
+    assignment.cashDeclaration !== null && assignment.cashDeclaration.status !== 'REJECTED';
   const members = (staff.data ?? []).filter((member) => member.status !== 'SUSPENDED');
 
   const save = async (values: z.output<typeof assignmentFormSchema>, force: boolean) => {
@@ -407,8 +360,7 @@ function AssignmentDialog({
       cashMethod: cash ? values.cashMethod : null,
     };
     try {
-      if (assignment) await update.mutateAsync({ id: assignment.id, input });
-      else await create.mutateAsync({ ...input, membershipId: values.membershipId });
+      await update.mutateAsync({ id: assignment.id, input });
       toast.success(t('saved'));
       onClose();
     } catch (error) {
@@ -425,7 +377,7 @@ function AssignmentDialog({
     <FormDialog
       open
       onClose={onClose}
-      title={assignment ? t('dialog.editTitle') : t('dialog.title')}
+      title={t('dialog.editTitle')}
       dirty={form.formState.isDirty}
       submitting={form.formState.isSubmitting}
       onSubmit={form.handleSubmit((values) => save(values, false))}
@@ -436,11 +388,7 @@ function AssignmentDialog({
           name="membershipId"
           label={t('dialog.member')}
           render={(field, { invalid }) => (
-            <Select
-              value={field.value}
-              onValueChange={field.onChange}
-              disabled={assignment !== null}
-            >
+            <Select value={field.value} onValueChange={field.onChange} disabled>
               <SelectTrigger id={field.id} className="w-full" aria-invalid={invalid}>
                 <SelectValue placeholder={t('dialog.memberPlaceholder')} />
               </SelectTrigger>
@@ -459,17 +407,7 @@ function AssignmentDialog({
           name="staffRole"
           label={t('dialog.role')}
           render={(field) => (
-            <Select
-              value={field.value}
-              onValueChange={(value) => {
-                field.onChange(value);
-                if (!assignment && !form.formState.dirtyFields.startsAt) {
-                  const times = defaultTimes(order, value as AssignmentRole);
-                  form.setValue('startsAt', times.startsAt);
-                  form.setValue('endsAt', times.endsAt);
-                }
-              }}
-            >
+            <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger id={field.id} className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -594,7 +532,7 @@ function AssignmentDialog({
                 dir="ltr"
                 className={cn(locale === 'ar' && 'text-end')}
               >
-                {conflict.orderReference} — {moment(conflict.start)} → {conflict.end.time}
+                {conflict.orderReference} — {formatMoment(conflict.start)} → {conflict.end.time}
               </li>
             ))}
           </ul>

@@ -62,4 +62,11 @@ describe('translateIssue', () => {
     });
     expect(firstIssue(schema, 'a')).toEqual({ key: 'passwordsMismatch' });
   });
+
+  it('traduit le doublon d’un membre et d’un rôle dans une affectation par lot', () => {
+    const schema = z.string().superRefine((_value, ctx) => {
+      ctx.addIssue({ code: 'custom', message: 'x', params: { i18n: 'duplicateAssignment' } });
+    });
+    expect(firstIssue(schema, 'a')).toEqual({ key: 'duplicateAssignment' });
+  });
 });

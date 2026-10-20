@@ -264,6 +264,92 @@ describe('API des affectations et missions (application complète)', () => {
     expect(row?.missions.every((mission) => mission.conflict)).toBe(true);
   });
 
+  it('affectation par lot : une transaction, problème par ligne, chevauchement levé ligne par ligne', async () => {
+    const day = casablancaDay(40);
+    const busy = await createOrder(40);
+    await assign(busy.id, otherDriver, 'DRIVER', `${day}T15:00`, `${day}T18:00`).expect(201);
+    const order = await createOrder(40);
+    const line = (
+      member: Actor,
+      staffRole: string,
+      startsAt: string,
+      endsAt: string,
+      extra: Record<string, unknown> = {},
+    ) => ({ membershipId: member.membershipId, staffRole, startsAt, endsAt, ...extra });
+    const batch = (lines: object[]) =>
+      api(admin).post(`/orders/${order.id}/assignments/batch`, { lines });
+
+    // Même membre, même rôle, deux fois dans le lot : refusé dès la validation
+    await batch([
+      line(cook, 'COOK', `${day}T14:00`, `${day}T23:00`),
+      line(cook, 'COOK', `${day}T14:00`, `${day}T23:00`),
+    ]).expect(400);
+
+    const lines = [
+      line(cook, 'COOK', `${day}T14:00`, `${day}T23:00`),
+      // Même membre, autre rôle, horaires qui chevauchent la ligne 0
+      line(cook, 'WAITER', `${day}T20:00`, `${day}T23:30`),
+      // Mission déjà enregistrée sur une autre commande
+      line(otherDriver, 'DRIVER', `${day}T17:00`, `${day}T19:30`),
+      // Encaissement réservé au chauffeur ou au superviseur
+      line(driver, 'COOK', `${day}T14:00`, `${day}T18:00`, {
+        cashToCollect: 100_000,
+        cashMethod: 'CASH',
+      }),
+    ];
+    const rejected = await batch(lines).expect(409);
+    expect(rejected.body).toMatchObject({
+      code: 'ASSIGNMENT_BATCH_CONFLICT',
+      problems: [
+        { index: 0, code: 'OVERLAP', conflicts: [], lines: [1] },
+        { index: 1, code: 'OVERLAP', conflicts: [], lines: [0] },
+        {
+          index: 2,
+          code: 'OVERLAP',
+          conflicts: [expect.objectContaining({ orderReference: busy.reference })],
+          lines: [],
+        },
+        { index: 3, code: 'CASH_NOT_ALLOWED' },
+      ],
+    });
+    // Rien n'est enregistré tant qu'une ligne pose problème
+    expect(await prisma.staffAssignment.count({ where: { orderId: order.id } })).toBe(0);
+
+    // Chevauchements levés ligne par ligne, ligne 3 corrigée (chauffeur)
+    const accepted = lines.map((item, index) => (index < 3 ? { ...item, force: true } : item));
+    accepted[3] = line(driver, 'DRIVER', `${day}T14:00`, `${day}T18:00`, {
+      cashToCollect: 100_000,
+      cashMethod: 'CASH',
+    });
+    const staffing = (await batch(accepted).expect(201)).body as Staffing;
+    expect(staffing.assignments).toHaveLength(4);
+    const audits = await prisma.auditLog.findMany({
+      where: {
+        action: 'assignment.created',
+        entityId: { in: staffing.assignments.map((assignment) => assignment.id) },
+      },
+    });
+    expect(audits).toHaveLength(4);
+    expect(
+      audits.filter((entry) => (entry.after as { overlapForced: boolean }).overlapForced),
+    ).toHaveLength(3);
+
+    // Rôle déjà tenu sur l'événement : à corriger, pas de « passer outre »
+    const again = await batch([
+      line(cook, 'COOK', `${day}T14:00`, `${day}T23:00`, { force: true }),
+    ]).expect(409);
+    expect(again.body).toMatchObject({
+      problems: [{ index: 0, code: 'ASSIGNMENT_EXISTS' }],
+    });
+
+    // Réservé à staff.manage
+    await api(driver)
+      .post(`/orders/${order.id}/assignments/batch`, {
+        lines: [line(driver, 'DRIVER', `${day}T10:00`, `${day}T11:00`)],
+      })
+      .expect(403);
+  });
+
   it('le livreur ne voit que ses missions, sans prix ni note interne ; jamais les commandes', async () => {
     const day = casablancaDay(31);
     const order = await createOrder(31);

@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 import { UnsavedChangesGuard } from './unsaved-changes-guard';
 
@@ -33,6 +34,8 @@ interface FormDialogProps {
   submitting: boolean;
   disabled?: boolean;
   onSubmit: FormEventHandler<HTMLFormElement>;
+  /** Fenêtre large (saisie en plusieurs lignes). */
+  wide?: boolean;
   children: ReactNode;
 }
 
@@ -45,6 +48,7 @@ export function FormDialog({
   submitting,
   disabled,
   onSubmit,
+  wide = false,
   children,
 }: FormDialogProps) {
   const t = useTranslations('catalog.unsaved');
@@ -56,7 +60,12 @@ export function FormDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(next) => !next && requestClose()}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+        <DialogContent
+          className={cn(
+            'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl',
+            wide && 'lg:max-w-5xl',
+          )}
+        >
           <UnsavedChangesGuard when={open && dirty} />
           <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
             <DialogHeader>
