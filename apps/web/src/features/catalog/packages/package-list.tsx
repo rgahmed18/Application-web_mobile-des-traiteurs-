@@ -23,7 +23,7 @@ import { usePermission } from '@/features/auth/session-provider';
 import { formatMoney } from '@/lib/format/money';
 import { EmptyState, PaginationBar } from '@/components/layout/list-states';
 
-import { useCatalogSettings, usePackages } from '../catalog-api';
+import { useCatalogList, useCatalogSettings, usePackages } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
 import { ItemThumb, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
@@ -45,6 +45,10 @@ export function PackageList() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState(ALL);
   const [archived, setArchived] = useState(false);
+  const [eventType, setEventType] = useState(ALL);
+  const [range, setRange] = useState(ALL);
+  const eventTypes = useCatalogList('event-types');
+  const ranges = useCatalogList('ranges');
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search.trim());
 
@@ -52,6 +56,8 @@ export function PackageList() {
     search: debouncedSearch || undefined,
     status: status === ALL ? undefined : (status as 'active' | 'inactive'),
     archived: archived || undefined,
+    eventType: eventType === ALL ? undefined : eventType,
+    rangeId: range === ALL ? undefined : range,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -95,7 +101,7 @@ export function PackageList() {
         }
       />
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] md:items-end">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto] lg:items-end">
         <InputGroup>
           <InputGroupAddon>
             <SearchIcon aria-hidden />
@@ -116,6 +122,32 @@ export function PackageList() {
             <SelectItem value={ALL}>{t('filters.allStatuses')}</SelectItem>
             <SelectItem value="active">{t('status.active')}</SelectItem>
             <SelectItem value="inactive">{t('status.inactive')}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={eventType} onValueChange={resetPage(setEventType)}>
+          <SelectTrigger className="w-full" aria-label={t('packages.eventTypes')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t('packages.forAllEvents')}</SelectItem>
+            {(eventTypes.data ?? []).map((item) => (
+              <SelectItem key={item.code} value={item.code}>
+                {localized(item.name)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={range} onValueChange={resetPage(setRange)}>
+          <SelectTrigger className="w-full" aria-label={t('packages.range')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t('packages.allRanges')}</SelectItem>
+            {(ranges.data ?? []).map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {localized(item.name)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Field orientation="horizontal" className="h-11 md:justify-end">
@@ -173,6 +205,12 @@ export function PackageList() {
                     )}
                     <span className="block truncate text-sm text-muted-foreground">
                       {t('packages.dishCount', { count: pkg.dishes.length })} · {guests(pkg)}
+                    </span>
+                    <span className="block truncate text-sm text-muted-foreground">
+                      {pkg.range && `${localized(pkg.range.name)} · `}
+                      {pkg.eventTypes.length === 0
+                        ? t('packages.forAllEvents')
+                        : pkg.eventTypes.map((type) => localized(type.name)).join(', ')}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">

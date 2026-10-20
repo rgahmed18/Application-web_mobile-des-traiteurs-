@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import {
+  type CatalogListRef,
   type CatalogSettings,
   computeCatalogPrices,
   type Package,
@@ -32,8 +33,14 @@ import {
 } from '../catalog-common';
 import { MediaService } from '../media/media.service';
 
+const listRefSelect = { id: true, code: true, name: true, archivedAt: true } as const;
+
 const packageInclude = {
   _count: { select: { orderItems: true, quoteLines: true } },
+  range: { select: listRefSelect },
+  eventTypes: {
+    include: { eventType: { select: { ...listRefSelect, sortOrder: true } } },
+  },
   dishes: {
     orderBy: { sortOrder: 'asc' },
     include: {
@@ -53,6 +60,20 @@ const packageInclude = {
   },
 } satisfies Prisma.PackageInclude;
 type PackageRow = Prisma.PackageGetPayload<{ include: typeof packageInclude }>;
+
+function toListRef(row: {
+  id: string;
+  code: string;
+  name: Prisma.JsonValue;
+  archivedAt: Date | null;
+}): CatalogListRef {
+  return {
+    id: row.id,
+    code: row.code,
+    name: toLocalized(row.name),
+    archived: row.archivedAt !== null,
+  };
+}
 
 function toPackage(row: PackageRow, settings: CatalogSettings): Package {
   return {
@@ -84,6 +105,11 @@ function toPackage(row: PackageRow, settings: CatalogSettings): Package {
         archivedAt: toIso(line.dish.archivedAt),
       },
     })),
+    range: row.range ? toListRef(row.range) : null,
+    eventTypes: row.eventTypes
+      .map((link) => link.eventType)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(toListRef),
     inUse: row._count.orderItems + row._count.quoteLines > 0,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
@@ -105,6 +131,20 @@ export class PackagesService {
       traiteurId,
       archivedAt: query.archived ? { not: null } : null,
       ...(query.status ? { isActive: query.status === 'active' } : {}),
+      ...(query.rangeId ? { rangeId: query.rangeId } : {}),
+      // Menus de ce type d'événement, ou proposés à tous les événements (aucun type relié)
+      ...(query.eventType
+        ? {
+            AND: [
+              {
+                OR: [
+                  { eventTypes: { some: { eventType: { code: query.eventType } } } },
+                  { eventTypes: { none: {} } },
+                ],
+              },
+            ],
+          }
+        : {}),
       ...(search
         ? {
             OR: [
@@ -155,6 +195,7 @@ export class PackagesService {
       return await this.prisma.$transaction(async (tx) => {
         const settings = await loadCatalogSettings(tx, traiteurId);
         await this.assertDishes(tx, traiteurId, input, new Set());
+        await this.assertLists(tx, traiteurId, input, null);
         const slug = await uniqueSlug(input.name, 'formule', async (candidate) =>
           Boolean(
             await tx.package.findUnique({
@@ -169,6 +210,7 @@ export class PackagesService {
           data: { id, traiteurId, slug, ...this.toData(input, settings), imageKey },
         });
         await this.replaceComposition(tx, traiteurId, id, input);
+        await this.replaceEventTypes(tx, traiteurId, id, input);
 
         const result = toPackage(
           await tx.package.findUniqueOrThrow({ where: { id }, include: packageInclude }),
@@ -219,6 +261,7 @@ export class PackagesService {
         input,
         new Set(existing.dishes.map((line) => line.dishId)),
       );
+      await this.assertLists(tx, traiteurId, input, existing);
 
       let imageKey = existing.imageKey;
       if (preparedImage !== existing.imageKey) {
@@ -232,6 +275,7 @@ export class PackagesService {
         data: { ...this.toData(input, settings), imageKey },
       });
       await this.replaceComposition(tx, traiteurId, id, input);
+      await this.replaceEventTypes(tx, traiteurId, id, input);
 
       const result = toPackage(
         await tx.package.findUniqueOrThrow({ where: { id }, include: packageInclude }),
@@ -340,7 +384,55 @@ export class PackagesService {
       minGuests: input.minGuests,
       maxGuests: input.maxGuests,
       isActive: input.isActive,
+      rangeId: input.rangeId,
     };
+  }
+
+  /**
+   * Gamme et types d'événement du traiteur. Un élément archivé ou désactivé ne s'ajoute pas ;
+   * celui déjà porté par le menu peut rester.
+   */
+  private async assertLists(
+    tx: Prisma.TransactionClient,
+    traiteurId: string,
+    input: PackageInput,
+    existing: PackageRow | null,
+  ): Promise<void> {
+    const unavailable = (row: { isActive: boolean; archivedAt: Date | null }) =>
+      !row.isActive || row.archivedAt !== null;
+    if (input.rangeId) {
+      const range = await tx.catalogRange.findFirst({
+        where: { id: input.rangeId, traiteurId },
+        select: { isActive: true, archivedAt: true },
+      });
+      if (!range) notFound();
+      if (unavailable(range) && existing?.rangeId !== input.rangeId) {
+        throw appErrors.badRequest('ITEM_ARCHIVED', 'Cette gamme n’est plus proposée');
+      }
+    }
+    if (input.eventTypeIds.length > 0) {
+      const types = await tx.eventType.findMany({
+        where: { id: { in: input.eventTypeIds }, traiteurId },
+        select: { id: true, isActive: true, archivedAt: true },
+      });
+      if (types.length !== input.eventTypeIds.length) notFound();
+      const kept = new Set(existing?.eventTypes.map((link) => link.eventTypeId) ?? []);
+      if (types.some((type) => unavailable(type) && !kept.has(type.id))) {
+        throw appErrors.badRequest('ITEM_ARCHIVED', 'Ce type d’événement n’est plus proposé');
+      }
+    }
+  }
+
+  private async replaceEventTypes(
+    tx: Prisma.TransactionClient,
+    traiteurId: string,
+    packageId: string,
+    input: PackageInput,
+  ): Promise<void> {
+    await tx.packageEventType.deleteMany({ where: { packageId, traiteurId } });
+    await tx.packageEventType.createMany({
+      data: input.eventTypeIds.map((eventTypeId) => ({ traiteurId, packageId, eventTypeId })),
+    });
   }
 
   /** Les plats de la composition appartiennent au traiteur ; pas d'ajout de plat archivé. */

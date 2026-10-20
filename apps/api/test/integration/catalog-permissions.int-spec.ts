@@ -119,6 +119,8 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
     imageKey: null,
     isActive: true,
     dishes: [{ dishId, quantity: 1 }],
+    rangeId: null,
+    eventTypeIds: [],
   });
   const serviceBody = () => ({
     name: { fr: `Service ${suffix()}` },

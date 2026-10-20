@@ -27,6 +27,9 @@ export const packageFormSchema = z
     imageKey: z.string().nullable(),
     isActive: z.boolean(),
     dishes: z.array(z.object({ dishId: z.string(), quantity: z.string() })),
+    /** Gamme choisie ('' : aucune). */
+    rangeId: z.string(),
+    eventTypeIds: z.array(z.string()),
   })
   .transform((values) => ({
     name: toLocalizedText(values.name),
@@ -41,6 +44,8 @@ export const packageFormSchema = z
       dishId: line.dishId,
       quantity: toInteger(line.quantity),
     })),
+    rangeId: values.rangeId === '' ? null : values.rangeId,
+    eventTypeIds: values.eventTypeIds,
   }))
   .pipe(packageInputSchema);
 
@@ -56,6 +61,8 @@ export const EMPTY_PACKAGE_FORM: PackageFormValues = {
   imageKey: null,
   isActive: true,
   dishes: [],
+  rangeId: '',
+  eventTypeIds: [],
 };
 
 export function packageToFormValues(
@@ -79,6 +86,8 @@ export function packageToFormValues(
     isActive: pkg.isActive,
     // La copie reprend toute la composition
     dishes: pkg.dishes.map((line) => ({ dishId: line.dishId, quantity: String(line.quantity) })),
+    rangeId: pkg.range?.id ?? '',
+    eventTypeIds: pkg.eventTypes.map((type) => type.id),
   };
 }
 

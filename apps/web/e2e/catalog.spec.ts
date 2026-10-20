@@ -39,10 +39,13 @@ test('création d’un plat avec photo puis d’une formule qui le contient', as
   // Miniature servie par le stockage (variante WebP 400 px)
   await expect(dishRow.getByRole('img')).toHaveAttribute('src', /-400\.webp$/);
 
-  // ─── Formule composée de ce plat ───
-  await page.getByRole('link', { name: 'Formules' }).click();
-  await page.getByRole('link', { name: 'Nouvelle formule' }).first().click();
+  // ─── Menu composé de ce plat, pour les mariages, en gamme Premium ───
+  await page.getByRole('link', { name: 'Menus et formules' }).click();
+  await page.getByRole('link', { name: 'Nouveau menu' }).first().click();
   await page.getByLabel('Nom (français)').fill(packageName);
+  await page.getByLabel('Gamme').click();
+  await page.getByRole('option', { name: 'Premium' }).click();
+  await page.getByTestId('event-types').getByLabel('Mariage').check();
 
   await page.getByRole('button', { name: 'Ajouter un plat' }).click();
   await page.getByPlaceholder('Chercher un plat…').fill(suffix);
@@ -57,7 +60,7 @@ test('création d’un plat avec photo puis d’une formule qui le contient', as
   await page.getByLabel('Nombre d’invités — Maximum').fill('150');
 
   await page.getByRole('button', { name: 'Enregistrer' }).click();
-  await expect(page.getByText('Formule créée')).toBeVisible();
+  await expect(page.getByText('Menu créé')).toBeVisible();
   await page.getByRole('searchbox', { name: 'Rechercher par nom' }).fill(suffix);
   const packageRow = page
     .getByTestId('package-list')
@@ -65,6 +68,7 @@ test('création d’un plat avec photo puis d’une formule qui le contient', as
     .filter({ hasText: packageName });
   await expect(packageRow).toContainText('1 plat');
   await expect(packageRow).toContainText('20 à 150 invités');
+  await expect(packageRow).toContainText('Premium · Mariage');
 });
 
 test('listes du catalogue : nouveau type d’événement proposé dans les commandes, puis archivé', async ({

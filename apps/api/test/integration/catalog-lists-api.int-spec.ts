@@ -304,6 +304,114 @@ describe('API des listes du catalogue (application complète)', () => {
     await api(admin).get('/catalog/lists/inconnue').expect(400);
   });
 
+  it('menus et formules : gamme et types d’événement, filtres, éléments utilisés protégés', async () => {
+    const types = await items(admin, 'event-types');
+    const ranges = await items(admin, 'ranges');
+    const typeId = (code: string) => types.find((item) => item.code === code)?.id ?? '';
+    const rangeId = (code: string) => ranges.find((item) => item.code === code)?.id ?? '';
+    const dish = (
+      await api(admin)
+        .post('/catalog/dishes', {
+          name: { fr: `Pastilla ${randomUUID().slice(0, 6)}` },
+          description: null,
+          categoryId: null,
+          price: 25_000,
+          taxRateBps: null,
+          unit: 'PER_PERSON',
+          minQuantity: 1,
+          allergens: [],
+          imageKey: null,
+          isAvailable: true,
+        })
+        .expect(201)
+    ).body as { id: string };
+    const menu = (overrides: Record<string, unknown>) => ({
+      name: { fr: `Menu ${randomUUID().slice(0, 6)}` },
+      description: null,
+      pricePerPerson: 30_000,
+      taxRateBps: null,
+      minGuests: 10,
+      maxGuests: null,
+      imageKey: null,
+      isActive: true,
+      dishes: [{ dishId: dish.id, quantity: 1 }],
+      rangeId: null,
+      eventTypeIds: [],
+      ...overrides,
+    });
+
+    const thesis = (
+      await api(admin)
+        .post(
+          '/catalog/packages',
+          menu({
+            rangeId: rangeId('PREMIUM'),
+            eventTypeIds: [typeId('THESIS'), typeId('WEDDING')],
+          }),
+        )
+        .expect(201)
+    ).body as {
+      id: string;
+      range: { code: string; name: { fr: string } } | null;
+      eventTypes: { code: string }[];
+    };
+    expect(thesis.range).toMatchObject({ code: 'PREMIUM', name: { fr: 'Premium' } });
+    // Dans l'ordre de la liste du traiteur (inversé par le test précédent)
+    expect(thesis.eventTypes.map((item) => item.code).sort()).toEqual(['THESIS', 'WEDDING']);
+    const forAll = (await api(admin).post('/catalog/packages', menu({})).expect(201)).body as {
+      id: string;
+    };
+
+    // Filtre : menus du type demandé, plus ceux proposés à tous les événements
+    const ids = async (query: string) =>
+      (
+        (await api(admin).get(`/catalog/packages?${query}`).expect(200)).body as {
+          items: { id: string }[];
+        }
+      ).items.map((item) => item.id);
+    expect(await ids('eventType=THESIS')).toEqual(expect.arrayContaining([thesis.id, forAll.id]));
+    expect(await ids('eventType=BIRTHDAY')).not.toContain(thesis.id);
+    expect(await ids(`rangeId=${rangeId('PREMIUM')}`)).toEqual([thesis.id]);
+
+    // Utilisés par un menu : ni le type ni la gamme ne se suppriment
+    await api(admin)
+      .delete(`/catalog/lists/event-types/${typeId('THESIS')}`)
+      .expect(409);
+    await api(admin)
+      .delete(`/catalog/lists/ranges/${rangeId('PREMIUM')}`)
+      .expect(409);
+    expect((await items(admin, 'ranges')).find((item) => item.code === 'PREMIUM')?.usageCount).toBe(
+      1,
+    );
+
+    // Gamme archivée : refusée à l'ajout, conservée par le menu qui la porte déjà
+    await api(admin)
+      .post(`/catalog/lists/ranges/${rangeId('PREMIUM')}/archive`)
+      .expect(200);
+    expect(
+      (
+        await api(admin)
+          .post('/catalog/packages', menu({ rangeId: rangeId('PREMIUM') }))
+          .expect(400)
+      ).body,
+    ).toMatchObject({ code: 'ITEM_ARCHIVED' });
+    await api(admin)
+      .put(
+        `/catalog/packages/${thesis.id}`,
+        menu({ rangeId: rangeId('PREMIUM'), eventTypeIds: [typeId('THESIS')] }),
+      )
+      .expect(200);
+    await api(admin)
+      .post(`/catalog/lists/ranges/${rangeId('PREMIUM')}/restore`)
+      .expect(200);
+
+    // Gamme ou type d'un autre traiteur : introuvable
+    const foreignRange = (await items(otherAdmin, 'ranges'))[0]?.id ?? '';
+    await api(admin)
+      .post('/catalog/packages', menu({ rangeId: foreignRange }))
+      .expect(404);
+  });
+
   it('isolation : un traiteur ne voit ni ne modifie les listes d’un autre', async () => {
     const mine = await items(admin, 'event-types');
     const target = mine[0];

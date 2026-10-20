@@ -272,10 +272,10 @@
   },
   "catalog": {
     "title": "Catalogue",
-    "subtitle": "Vos plats, formules et services, tels que vos clients les verront.",
+    "subtitle": "Vos plats, menus, formules et services, tels que vos clients les verront.",
     "tabs": {
       "dishes": "Plats",
-      "packages": "Formules",
+      "packages": "Menus et formules",
       "categories": "Catégories",
       "services": "Services",
       "lists": "Listes"
@@ -421,11 +421,11 @@
       "saved": "Plat enregistré"
     },
     "packages": {
-      "new": "Nouvelle formule",
-      "editTitle": "Modifier la formule",
-      "newTitle": "Nouvelle formule",
-      "empty": "Aucune formule pour le moment",
-      "emptyHint": "Une formule regroupe plusieurs plats à un prix par personne.",
+      "new": "Nouveau menu",
+      "editTitle": "Modifier le menu",
+      "newTitle": "Nouveau menu ou formule",
+      "empty": "Aucun menu ni formule pour le moment",
+      "emptyHint": "Un menu (ou formule) regroupe plusieurs plats à un prix par personne, pour un ou plusieurs types d’événement.",
       "guests": "Nombre d’invités",
       "minGuests": "Minimum",
       "maxGuests": "Maximum",
@@ -446,9 +446,16 @@
       "dishCount": "{count, plural, =0 {Aucun plat} one {# plat} other {# plats}}",
       "archivedDish": "archivé",
       "sectionGeneral": "Informations",
+      "sectionAudience": "Événements et gamme",
+      "range": "Gamme",
+      "noRange": "Aucune gamme",
+      "allRanges": "Toutes les gammes",
+      "eventTypes": "Types d’événement",
+      "eventTypesHint": "Le menu est proposé pour les événements cochés ; aucun coché : pour tous les événements.",
+      "forAllEvents": "Tous les événements",
       "sectionPrice": "Prix et invités",
-      "created": "Formule créée",
-      "saved": "Formule enregistrée"
+      "created": "Menu créé",
+      "saved": "Menu enregistré"
     },
     "categories": {
       "new": "Nouvelle catégorie",
@@ -649,7 +656,7 @@
       },
       "lines": {
         "add": "Ajouter",
-        "addPackage": "Formule",
+        "addPackage": "Menu ou formule",
         "addDish": "Plat",
         "addService": "Service",
         "addCustom": "Ligne libre",
@@ -673,7 +680,7 @@
         "empty": "Aucune prestation. Ajoutez une formule, un plat, un service ou une ligne libre.",
         "lineTotal": "Total ligne",
         "types": {
-          "PACKAGE": "Formule",
+          "PACKAGE": "Menu ou formule",
           "DISH": "Plat",
           "EXTRA_SERVICE": "Service",
           "CUSTOM": "Ligne libre"

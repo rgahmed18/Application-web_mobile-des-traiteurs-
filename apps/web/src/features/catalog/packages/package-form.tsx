@@ -19,6 +19,7 @@ import { FormActions, FormHeader, FormSection } from '../components/form-layout'
 import { ImageUploadField } from '../forms/image-upload-field';
 import { LocalizedTextFields } from '../forms/localized-text-fields';
 import { PriceFields } from '../forms/price-fields';
+import { AudienceFields } from './audience-fields';
 import { UnsavedChangesGuard } from '@/components/forms/unsaved-changes-guard';
 import {
   CompositionEditor,
@@ -106,6 +107,10 @@ export function PackageForm({ settings, pkg, mode }: PackageFormProps) {
             />
           )}
         />
+      </FormSection>
+
+      <FormSection title={t('packages.sectionAudience')}>
+        <AudienceFields control={form.control} pkg={pkg} />
       </FormSection>
 
       <FormSection title={t('packages.composition')}>

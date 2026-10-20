@@ -102,6 +102,10 @@ export const packageInputSchema = z
     imageKey: imageKeySchema.nullable(),
     isActive: z.boolean(),
     dishes: z.array(packageDishInputSchema).min(1).max(100),
+    /** Gamme (liste du traiteur), facultative. */
+    rangeId: z.uuid().nullable(),
+    /** Types d'événement auxquels le menu est proposé (aucun : tous les événements). */
+    eventTypeIds: z.array(z.uuid()).max(30),
   })
   .superRefine((value, ctx) => {
     if (value.maxGuests !== null && value.maxGuests < value.minGuests) {
@@ -124,6 +128,13 @@ export const packageInputSchema = z
       }
       seen.add(dish.dishId);
     });
+    if (new Set(value.eventTypeIds).size !== value.eventTypeIds.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['eventTypeIds'],
+        message: 'Type d’événement en double',
+      });
+    }
   });
 export type PackageInput = z.infer<typeof packageInputSchema>;
 
@@ -158,6 +169,12 @@ export type DishListQuery = z.infer<typeof dishListQuerySchema>;
 export const packageListQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
   status: z.enum(['active', 'inactive']).optional(),
+  /** Menus proposés pour ce type d'événement (code) : ceux qui lui sont reliés ou sans type. */
+  eventType: z
+    .string()
+    .regex(/^[A-Z][A-Z0-9_]{0,39}$/)
+    .optional(),
+  rangeId: z.uuid().optional(),
   archived: booleanQuery,
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
@@ -167,6 +184,15 @@ export type PackageListQuery = z.infer<typeof packageListQuerySchema>;
 export const archivedQuerySchema = z.object({ archived: booleanQuery });
 
 // ─────────────────────────── Réponses ───────────────────────────
+
+/** Élément d'une liste du catalogue (gamme, type d'événement) porté par un article. */
+export const catalogListRefSchema = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  name: localizedTextSchema,
+  archived: z.boolean(),
+});
+export type CatalogListRef = z.infer<typeof catalogListRefSchema>;
 
 const timestampsSchema = {
   createdAt: z.iso.datetime(),
@@ -250,6 +276,8 @@ export const packageSchema = z.object({
   isActive: z.boolean(),
   archivedAt: z.iso.datetime().nullable(),
   dishes: z.array(packageDishSchema),
+  range: catalogListRefSchema.nullable(),
+  eventTypes: z.array(catalogListRefSchema),
   ...usageSchema,
   ...timestampsSchema,
 });

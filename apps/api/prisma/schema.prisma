@@ -284,6 +284,7 @@ model Traiteur {
   packageDishes      PackageDish[]
   extraServices      ExtraService[]
   eventTypes         EventType[]
+  packageEventTypes  PackageEventType[]
   catalogRanges      CatalogRange[]
   orders             Order[]
   orderItems         OrderItem[]
@@ -574,19 +575,23 @@ model Package {
   minGuests         Int       @default(1)
   maxGuests         Int?
   imageKey          String? // photo traitée (MediaUpload)
+  rangeId           String?   @db.Uuid // gamme (CatalogRange), facultative
   isActive          Boolean   @default(true)
   archivedAt        DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  traiteur   Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  traiteur   Traiteur           @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   dishes     PackageDish[]
   orderItems OrderItem[]
   quoteLines QuoteLine[]
+  range      CatalogRange?      @relation(fields: [rangeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
+  eventTypes PackageEventType[]
 
   @@unique([traiteurId, slug])
   @@unique([id, traiteurId])
   @@index([traiteurId, isActive])
+  @@index([traiteurId, rangeId])
 }
 
 model PackageDish {
@@ -605,6 +610,22 @@ model PackageDish {
 
   @@unique([packageId, dishId])
   @@index([traiteurId])
+}
+
+// Types d'événement d'un menu ou d'une formule (pour proposer au client les menus de son
+// événement). Un type relié ne peut pas être supprimé (seulement archivé).
+model PackageEventType {
+  traiteurId  String   @db.Uuid
+  packageId   String   @db.Uuid
+  eventTypeId String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  traiteur  Traiteur  @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  package   Package   @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  eventType EventType @relation(fields: [eventTypeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([packageId, eventTypeId])
+  @@index([traiteurId, eventTypeId])
 }
 
 model ExtraService {
@@ -643,8 +664,9 @@ model EventType {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  traiteur Traiteur           @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   orders   Order[]
+  packages PackageEventType[]
 
   @@unique([traiteurId, code])
   @@unique([id, traiteurId])
@@ -665,7 +687,8 @@ model CatalogRange {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  traiteur Traiteur  @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  packages Package[]
 
   @@unique([traiteurId, code])
   @@unique([id, traiteurId])

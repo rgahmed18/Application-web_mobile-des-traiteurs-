@@ -127,14 +127,21 @@ const EVENT_TYPES: ListRepository = {
   delete: async (db, traiteurId, id) => {
     await db.eventType.delete({ where: { id_traiteurId: { id, traiteurId } } });
   },
+  // Commandes et menus reliés
   usage: async (db, traiteurId, rows) => {
-    const counts = await db.order.groupBy({
-      by: ['eventType'],
-      where: { traiteurId },
-      _count: { _all: true },
-    });
-    const byCode = new Map(counts.map((row) => [row.eventType, row._count._all]));
-    return new Map(rows.map((row) => [row.id, byCode.get(row.code) ?? 0]));
+    const [orders, packages] = await Promise.all([
+      db.order.groupBy({ by: ['eventType'], where: { traiteurId }, _count: { _all: true } }),
+      db.packageEventType.groupBy({
+        by: ['eventTypeId'],
+        where: { traiteurId },
+        _count: { _all: true },
+      }),
+    ]);
+    const byCode = new Map(orders.map((row) => [row.eventType, row._count._all]));
+    const byId = new Map(packages.map((row) => [row.eventTypeId, row._count._all]));
+    return new Map(
+      rows.map((row) => [row.id, (byCode.get(row.code) ?? 0) + (byId.get(row.id) ?? 0)]),
+    );
   },
 };
 
@@ -185,8 +192,16 @@ const RANGES: ListRepository = {
   delete: async (db, traiteurId, id) => {
     await db.catalogRange.delete({ where: { id_traiteurId: { id, traiteurId } } });
   },
-  // Les gammes seront portées par les menus, le matériel et les buffets (étapes suivantes)
-  usage: (_db, _traiteurId, rows) => Promise.resolve(new Map(rows.map((row) => [row.id, 0]))),
+  // Menus et formules (puis matériel et buffets)
+  usage: async (db, traiteurId, rows) => {
+    const packages = await db.package.groupBy({
+      by: ['rangeId'],
+      where: { traiteurId, rangeId: { not: null } },
+      _count: { _all: true },
+    });
+    const byId = new Map(packages.map((row) => [row.rangeId, row._count._all]));
+    return new Map(rows.map((row) => [row.id, byId.get(row.id) ?? 0]));
+  },
 };
 
 const REPOSITORIES: Record<CatalogList, ListRepository> = {

@@ -12,6 +12,8 @@ describe('packageFormSchema', () => {
     minGuests: '50',
     maxGuests: '300',
     dishes: [{ dishId, quantity: '2' }],
+    rangeId: '',
+    eventTypeIds: [],
   };
 
   it('convertit la saisie (montant, invités, composition)', () => {

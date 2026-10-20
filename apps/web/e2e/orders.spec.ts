@@ -60,7 +60,7 @@ test('client, commande de 3 lignes confirmée, puis retrouvée dans le calendrie
 
   // 1. Formule (par personne : 80)
   await page.getByRole('button', { name: 'Ajouter' }).click();
-  await page.getByRole('menuitem', { name: 'Formule' }).click();
+  await page.getByRole('menuitem', { name: 'Menu ou formule' }).click();
   await page.getByRole('option', { name: /Formule Fiançailles/ }).click();
   // 2. Plat du catalogue
   await page.getByRole('button', { name: 'Ajouter' }).click();

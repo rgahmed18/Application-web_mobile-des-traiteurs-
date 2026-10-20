@@ -73,6 +73,8 @@ describe('packageInputSchema', () => {
     imageKey: null,
     isActive: true,
     dishes: [{ dishId, quantity: 1 }],
+    rangeId: null,
+    eventTypeIds: [],
   };
 
   it('accepte une formule valide', () => {
@@ -103,5 +105,33 @@ describe('imageVariantPath', () => {
     expect(imageVariantPath('traiteurs/a/catalog/b', 'thumb')).toBe(
       'traiteurs/a/catalog/b-400.webp',
     );
+  });
+});
+
+describe('packageInputSchema : gamme et types d’événement', () => {
+  const base = {
+    name: { fr: 'Menu mariage' },
+    description: null,
+    pricePerPerson: 30_000,
+    taxRateBps: null,
+    minGuests: 10,
+    maxGuests: null,
+    imageKey: null,
+    isActive: true,
+    dishes: [{ dishId: '0b8a2c8e-4f6d-4a39-9c39-6a1f0f0e0a01', quantity: 1 }],
+    rangeId: '0b8a2c8e-4f6d-4a39-9c39-6a1f0f0e0a02',
+    eventTypeIds: ['0b8a2c8e-4f6d-4a39-9c39-6a1f0f0e0a03'],
+  };
+
+  it('accepte une gamme et des types d’événement', () => {
+    expect(packageInputSchema.safeParse(base).success).toBe(true);
+  });
+
+  it('refuse un type d’événement en double', () => {
+    const result = packageInputSchema.safeParse({
+      ...base,
+      eventTypeIds: [base.eventTypeIds[0], base.eventTypeIds[0]],
+    });
+    expect(result.error?.issues[0]?.path).toEqual(['eventTypeIds']);
   });
 });

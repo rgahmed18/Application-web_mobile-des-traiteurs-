@@ -217,6 +217,8 @@ describe('API du catalogue (application complète)', () => {
           imageKey: null,
           isActive: true,
           dishes: [{ dishId: dish.id, quantity: 1 }],
+          rangeId: null,
+          eventTypeIds: [],
         })
         .expect(404);
 
@@ -291,6 +293,8 @@ describe('API du catalogue (application complète)', () => {
           imageKey: null,
           isActive: true,
           dishes: [{ dishId: inPackage.id, quantity: 2 }],
+          rangeId: null,
+          eventTypeIds: [],
         })
         .expect(201);
       expect((await api(adminA).delete(`/catalog/dishes/${inPackage.id}`)).body).toMatchObject({
