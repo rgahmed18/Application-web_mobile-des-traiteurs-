@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { eventTypeSchema } from '../enums';
+import { localizedTextSchema } from '../i18n/localized-text';
 import { localDateSchema } from '../time/zoned';
 
 // ─────────────────────────── Énumérations ───────────────────────────
@@ -141,6 +142,8 @@ export const publicQuoteSchema = z.object({
   clientName: z.string(),
   event: z.object({
     type: eventTypeSchema,
+    /** Nom du type, figé à l'émission du devis. */
+    typeName: localizedTextSchema,
     date: z.string(),
     startTime: z.string(),
     endTime: z.string().nullable(),

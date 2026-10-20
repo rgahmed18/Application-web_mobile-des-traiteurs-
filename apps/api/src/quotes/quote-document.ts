@@ -1,4 +1,5 @@
 import {
+  getLocalizedText,
   amountToWords,
   computeDocumentTotals,
   type LineLabel,
@@ -121,7 +122,7 @@ export function quoteDocument(data: QuoteDocumentData): DocumentModel {
       {
         title: t.event,
         lines: [
-          `${t.eventTypes[event.type]} — ${t.guests(event.guestCount)}`,
+          `${getLocalizedText(event.typeName, locale)} — ${t.guests(event.guestCount)}`,
           `${localDate(event.date)} ${time}`,
           venue,
         ],

@@ -34,39 +34,56 @@ import { useErrorMessage } from '@/lib/api/use-error-message';
 
 import { type CatalogResource, type LifecycleAction, useLifecycleAction } from '../catalog-api';
 
-interface ItemActionsProps {
-  resource: CatalogResource;
-  id: string;
+interface ItemActionsMenuProps {
   name: string;
   archived: boolean;
   /** Utilisé dans une commande ou un devis : seule l'archive est proposée. */
   inUse: boolean;
   onEdit: () => void;
   onDuplicate?: () => void;
+  /** Archive, restauration ou suppression de l'élément. */
+  perform: (action: LifecycleAction) => Promise<unknown>;
+  pending: boolean;
+}
+
+interface ItemActionsProps extends Omit<ItemActionsMenuProps, 'perform' | 'pending'> {
+  resource: CatalogResource;
+  id: string;
+}
+
+/** Actions d'un plat, d'une formule ou d'un service (voir ItemActionsMenu). */
+export function ItemActions({ resource, id, ...props }: ItemActionsProps) {
+  const lifecycle = useLifecycleAction(resource);
+  return (
+    <ItemActionsMenu
+      {...props}
+      perform={(action) => lifecycle.mutateAsync({ id, action })}
+      pending={lifecycle.isPending}
+    />
+  );
 }
 
 /**
  * Actions d'un élément du catalogue. La suppression définitive n'est proposée que pour un
  * élément jamais utilisé ; sinon, l'élément s'archive (et se restaure).
  */
-export function ItemActions({
-  resource,
-  id,
+export function ItemActionsMenu({
   name,
   archived,
   inUse,
   onEdit,
   onDuplicate,
-}: ItemActionsProps) {
+  perform,
+  pending,
+}: ItemActionsMenuProps) {
   const t = useTranslations('catalog');
   const tc = useTranslations('common');
   const describeError = useErrorMessage();
-  const lifecycle = useLifecycleAction(resource);
   const [confirming, setConfirming] = useState<'archive' | 'delete' | null>(null);
 
   async function run(action: LifecycleAction) {
     try {
-      await lifecycle.mutateAsync({ id, action });
+      await perform(action);
       toast.success(
         tc(
           action === 'archive'
@@ -149,7 +166,7 @@ export function ItemActions({
             <AlertDialogAction
               size="lg"
               variant={confirming === 'delete' ? 'destructive' : 'default'}
-              disabled={lifecycle.isPending}
+              disabled={pending}
               onClick={(event) => {
                 event.preventDefault();
                 if (confirming) void run(confirming);

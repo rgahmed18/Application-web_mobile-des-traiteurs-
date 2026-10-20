@@ -31,6 +31,7 @@ import { openDocument } from '@/features/payments/payments-api';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatLocalDate, formatLongDate } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
+import { useLocalized } from '@/features/catalog/use-localized';
 
 import { LoadIndicator } from './load-indicator';
 
@@ -45,7 +46,7 @@ interface DaySheetProps {
 export function DaySheet({ day, orders, capacity, onClose }: DaySheetProps) {
   const t = useTranslations('calendar');
   const tc = useTranslations('common');
-  const tEvent = useTranslations('eventType');
+  const localized = useLocalized();
   const locale = useLocale();
   const can = usePermission();
   const describeError = useErrorMessage();
@@ -149,7 +150,7 @@ export function DaySheet({ day, orders, capacity, onClose }: DaySheetProps) {
                     </span>
                     <span className="font-medium">{order.clientName}</span>
                     <span className="text-sm text-muted-foreground">
-                      {tEvent(order.eventType)} · {order.guestCount} · {order.city} ·{' '}
+                      {localized(order.eventTypeName)} · {order.guestCount} · {order.city} ·{' '}
                       <span dir="ltr">{formatMoney(order.totalTtc, locale)}</span>
                     </span>
                     <span className="text-xs text-muted-foreground" dir="ltr">

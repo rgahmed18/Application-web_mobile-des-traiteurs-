@@ -151,7 +151,7 @@ describe('Réactivité de l’API pendant la génération de PDF', () => {
       seller,
       hasLogo: false,
       reference: 'CMD-2026-99999',
-      eventType: 'WEDDING',
+      eventTypeName: { fr: 'Mariage', ar: 'عرس' },
       date: casablancaDay(60),
       startTime: '20:00',
       deliveryTime: '17:00',

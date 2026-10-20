@@ -2,8 +2,6 @@
 
 import {
   addDays,
-  EVENT_TYPES,
-  type EventType,
   ORDER_STATUSES,
   type OrderListQuery,
   type OrderStatus,
@@ -37,6 +35,8 @@ import { clientName } from '@/features/clients/clients-api';
 import { useTimeZone } from '@/features/traiteur/use-time-zone';
 import { formatLocalDate } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
+import { useCatalogList } from '@/features/catalog/catalog-api';
+import { useLocalized } from '@/features/catalog/use-localized';
 
 import { OrderStatusBadge } from './order-ui';
 import { useOrders } from './orders-api';
@@ -78,12 +78,15 @@ export function OrderList() {
   const tAssign = useTranslations('assignments');
   const t = useTranslations('orders');
   const tStatus = useTranslations('orderStatus');
-  const tEvent = useTranslations('eventType');
+  const localized = useLocalized();
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const canCreate = usePermission()('orders.create');
+  const can = usePermission();
+  const canCreate = can('orders.create');
+  // Types du traiteur, archivés compris (commandes passées) ; lecture du catalogue requise
+  const eventTypes = useCatalogList('event-types', can('catalog.read'));
   const timeZone = useTimeZone();
   const today = todayInTimeZone(timeZone);
 
@@ -102,7 +105,7 @@ export function OrderList() {
         ? 'upcoming'
         : 'all',
   );
-  const [eventType, setEventType] = useState<EventType | typeof ALL>(ALL);
+  const [eventType, setEventType] = useState<string>(ALL);
   // Paiement : ?payment=overdue depuis la carte « Impayés » du tableau de bord
   const initialPayment = params.get('payment');
   const [payment, setPayment] = useState<PaymentFilter>(
@@ -197,18 +200,15 @@ export function OrderList() {
             ))}
           </SelectContent>
         </Select>
-        <Select
-          value={eventType}
-          onValueChange={(value) => reset(setEventType)(value as EventType)}
-        >
+        <Select value={eventType} onValueChange={(value) => reset(setEventType)(value)}>
           <SelectTrigger className="w-full" aria-label={t('filters.eventType')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>{t('filters.allTypes')}</SelectItem>
-            {EVENT_TYPES.map((value) => (
-              <SelectItem key={value} value={value}>
-                {tEvent(value)}
+            {(eventTypes.data ?? []).map((item) => (
+              <SelectItem key={item.code} value={item.code}>
+                {localized(item.name)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -304,7 +304,7 @@ export function OrderList() {
                 <span className="min-w-0">
                   <span className="block truncate font-medium">{clientName(order.client)}</span>
                   <span className="block text-sm text-muted-foreground">
-                    {tEvent(order.eventType)} · {t('guests', { count: order.guestCount })}
+                    {localized(order.eventTypeName)} · {t('guests', { count: order.guestCount })}
                   </span>
                 </span>
                 <span className="text-sm">

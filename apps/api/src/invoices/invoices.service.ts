@@ -13,6 +13,7 @@ import {
 } from '@traiteur/shared';
 
 import { AuditService } from '../audit/audit.service';
+import { toLocalized } from '../catalog/catalog-common';
 import type { AuthenticatedUser } from '../auth/auth-user';
 import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
@@ -323,7 +324,13 @@ export class InvoicesService {
       where: { id: invoiceId, traiteurId },
       include: {
         ...invoiceInclude,
-        order: { select: { reference: true, eventType: true, eventDate: true } },
+        order: {
+          select: {
+            reference: true,
+            eventTypeRef: { select: { name: true } },
+            eventDate: true,
+          },
+        },
       },
     });
     // Instantané du vendeur figé à l'émission (données antérieures : fiche actuelle)
@@ -352,7 +359,7 @@ export class InvoicesService {
         dueDate: invoice.dueDate ? utcToZoned(invoice.dueDate, timeZone).date : null,
         orderReference: invoice.order.reference,
         event: {
-          type: invoice.order.eventType,
+          typeName: toLocalized(invoice.order.eventTypeRef.name),
           date: utcToZoned(invoice.order.eventDate, timeZone).date,
         },
         original: invoice.originalInvoice

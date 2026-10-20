@@ -8,6 +8,7 @@ import {
   utcToZoned,
 } from '@traiteur/shared';
 
+import { toLocalized } from '../catalog/catalog-common';
 import { readLineLabel } from '../documents/line-label';
 import type { Prisma } from '../generated/prisma/client';
 
@@ -15,6 +16,7 @@ export const orderSummaryInclude = {
   client: {
     select: { id: true, firstName: true, lastName: true, user: { select: { phone: true } } },
   },
+  eventTypeRef: { select: { name: true } },
 } satisfies Prisma.OrderInclude;
 export type OrderSummaryRow = Prisma.OrderGetPayload<{ include: typeof orderSummaryInclude }>;
 
@@ -84,6 +86,7 @@ export function toOrderSummary(
     reference: row.reference,
     status: row.status,
     eventType: row.eventType,
+    eventTypeName: toLocalized(row.eventTypeRef.name),
     ...toSchedule(row, timeZone),
     eventStart: row.eventDate.toISOString(),
     client: {
@@ -129,6 +132,7 @@ export function toCalendarOrder(row: OrderSummaryRow, timeZone: string): Calenda
     reference: row.reference,
     status: row.status,
     eventType: row.eventType,
+    eventTypeName: toLocalized(row.eventTypeRef.name),
     date: schedule.eventDate,
     startTime: schedule.startTime,
     endTime: schedule.endTime,

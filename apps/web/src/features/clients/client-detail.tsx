@@ -43,6 +43,7 @@ import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatDate, formatLocalDate } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { useLocalized } from '@/features/catalog/use-localized';
 
 import { ClientFormDialog } from './client-form-dialog';
 import { clientName, useClient, useRemoveAddress, useSaveAddress } from './clients-api';
@@ -234,6 +235,7 @@ function Addresses({ client, canWrite }: { client: Client; canWrite: boolean }) 
 function OrderHistory({ clientId }: { clientId: string }) {
   const t = useTranslations();
   const locale = useLocale();
+  const localized = useLocalized();
   const canRead = usePermission()('orders.read');
   const orders = useOrders(
     { clientId, sort: 'eventDate', direction: 'desc', pageSize: 50 },
@@ -263,7 +265,7 @@ function OrderHistory({ clientId }: { clientId: string }) {
                     {order.reference}
                   </span>
                   <span className="text-muted-foreground">
-                    {t(`eventType.${order.eventType}`)} ·{' '}
+                    {localized(order.eventTypeName)} ·{' '}
                     <span dir="ltr">{formatLocalDate(order.eventDate)}</span>
                   </span>
                   <span className="ms-auto font-medium tabular-nums" dir="ltr">

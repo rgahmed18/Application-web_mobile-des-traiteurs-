@@ -94,15 +94,6 @@ enum PricingUnit {
   PER_UNIT
 }
 
-enum EventType {
-  WEDDING
-  ENGAGEMENT
-  BIRTHDAY
-  AQIQA
-  CORPORATE
-  OTHER
-}
-
 enum OrderStatus {
   DRAFT
   PENDING
@@ -292,6 +283,8 @@ model Traiteur {
   packages           Package[]
   packageDishes      PackageDish[]
   extraServices      ExtraService[]
+  eventTypes         EventType[]
+  catalogRanges      CatalogRange[]
   orders             Order[]
   orderItems         OrderItem[]
   orderStatusChanges OrderStatusChange[]
@@ -636,6 +629,49 @@ model ExtraService {
   @@index([traiteurId, isActive])
 }
 
+// Types d'événement du traiteur (liste gérable, traduite) : mariage, soutenance… Le code est
+// stable (référencé par les commandes) ; nom, ordre et activation sont modifiables. Les types par
+// défaut sont créés pour chaque traiteur par la base (trigger "Traiteur_default_lists").
+model EventType {
+  id         String    @id @default(uuid()) @db.Uuid
+  traiteurId String    @db.Uuid
+  code       String // ex. WEDDING, THESIS ; jamais modifié
+  name       Json // LocalizedText
+  sortOrder  Int       @default(0)
+  isActive   Boolean   @default(true)
+  archivedAt DateTime? // retiré des nouvelles commandes (conservé pour l'historique)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  orders   Order[]
+
+  @@unique([traiteurId, code])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, sortOrder])
+}
+
+// Gammes du catalogue (liste gérable, traduite) : Standard, Premium, Luxe… Portées par les
+// menus et formules, le matériel et les buffets. Créées par défaut comme les types d'événement.
+model CatalogRange {
+  id          String    @id @default(uuid()) @db.Uuid
+  traiteurId  String    @db.Uuid
+  code        String // ex. STANDARD ; jamais modifié
+  name        Json // LocalizedText
+  description Json? // LocalizedText
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+
+  @@unique([traiteurId, code])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, sortOrder])
+}
+
 // ─────────────────────────── Commandes ───────────────────────────
 
 model Order {
@@ -643,7 +679,7 @@ model Order {
   traiteurId            String      @db.Uuid
   reference             String // ex. CMD-2026-00001 (DocumentSequence)
   clientId              String      @db.Uuid // Membership du client
-  eventType             EventType
+  eventType             String // code d'un type d'événement du traiteur (EventType.code)
   eventDate             DateTime
   eventEndDate          DateTime?
   guestCount            Int
@@ -678,6 +714,7 @@ model Order {
 
   traiteur         Traiteur            @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   client           Membership          @relation("OrderClient", fields: [clientId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+  eventTypeRef     EventType           @relation(fields: [traiteurId, eventType], references: [traiteurId, code], onDelete: NoAction, onUpdate: NoAction)
   items            OrderItem[]
   quotes           Quote[]
   invoices         Invoice[]

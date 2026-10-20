@@ -567,6 +567,7 @@ export class QuotesService {
       clientName: snapshot.client.name,
       event: {
         type: snapshot.event.type,
+        typeName: snapshot.event.typeName,
         date: snapshot.event.date,
         startTime: snapshot.event.startTime,
         endTime: snapshot.event.endTime,

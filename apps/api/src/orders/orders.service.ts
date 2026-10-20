@@ -263,6 +263,7 @@ export class OrdersService {
       });
       if (!clientRow) throw appErrors.notFound('NOT_FOUND', 'Client introuvable');
       await this.assertLines(tx, traiteurId, settings, input.lines, new Set());
+      await this.assertEventType(tx, traiteurId, input.eventType);
       const { eventDate, eventEndDate } = toInstants(input, settings.timezone);
 
       const forced = await this.checkAvailability(
@@ -374,6 +375,10 @@ export class OrdersService {
           (eventEndDate?.getTime() ?? null) !== (current.eventEndDate?.getTime() ?? null),
       );
       mark('framed', 'eventType', input.eventType !== current.eventType);
+      // Un type archivé reste sur les commandes qui l'ont déjà ; on ne le choisit plus
+      if (input.eventType !== current.eventType) {
+        await this.assertEventType(tx, traiteurId, input.eventType);
+      }
       mark(
         'framed',
         'venue',
@@ -646,6 +651,20 @@ export class OrdersService {
    * Annulation d'une commande payée : le traiteur choisit le montant remboursé, le reste du payé
    * est conservé comme frais d'annulation. Retourne ces frais.
    */
+  /** Type d'événement de la liste du traiteur, actif et non archivé. */
+  private async assertEventType(tx: Db, traiteurId: string, code: string): Promise<void> {
+    const eventType = await tx.eventType.findUnique({
+      where: { traiteurId_code: { traiteurId, code } },
+      select: { isActive: true, archivedAt: true },
+    });
+    if (!eventType || !eventType.isActive || eventType.archivedAt) {
+      throw appErrors.badRequest(
+        'EVENT_TYPE_UNAVAILABLE',
+        'Type d’événement inconnu, désactivé ou archivé',
+      );
+    }
+  }
+
   private async settleCancellation(
     tx: Db,
     user: AuthenticatedUser,

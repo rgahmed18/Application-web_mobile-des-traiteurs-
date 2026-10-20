@@ -32,6 +32,7 @@ import { ReasonDialog } from '@/features/orders/order-dialogs';
 import { openDocument } from '@/features/payments/payments-api';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatLongDate, formatLocalDate } from '@/lib/format/date';
+import { useLocalized } from '@/features/catalog/use-localized';
 
 import { useMission, useMissionAction, useMissions } from './assignments-api';
 import { MissionCashCard } from './mission-cash';
@@ -54,7 +55,7 @@ function MissionBadge({ mission }: { mission: Pick<MissionSummary, 'status' | 'o
 export function MissionsList() {
   const t = useTranslations('assignments.missions');
   const ta = useTranslations('assignments');
-  const tEvent = useTranslations('eventType');
+  const localized = useLocalized();
   const locale = useLocale();
   const [scope, setScope] = useState<'upcoming' | 'past'>('upcoming');
   const missions = useMissions(scope);
@@ -95,7 +96,7 @@ export function MissionsList() {
                     </span>
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {ta(`roles.${mission.staffRole}`)} · {tEvent(mission.eventType)} ·{' '}
+                    {ta(`roles.${mission.staffRole}`)} · {localized(mission.eventTypeName)} ·{' '}
                     {t('guests', { count: mission.guestCount })}
                   </p>
                   <p className="truncate text-sm" dir="auto">
@@ -125,7 +126,7 @@ export function MissionsList() {
 export function MissionDetail({ id }: { id: string }) {
   const t = useTranslations('assignments.missions');
   const ta = useTranslations('assignments');
-  const tEvent = useTranslations('eventType');
+  const localized = useLocalized();
   const locale = useLocale();
   const describeError = useErrorMessage();
   const mission = useMission(id);
@@ -148,7 +149,7 @@ export function MissionDetail({ id }: { id: string }) {
       </Button>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-semibold">
-          {ta(`roles.${data.staffRole}`)} — {tEvent(data.eventType)}
+          {ta(`roles.${data.staffRole}`)} — {localized(data.eventTypeName)}
         </h1>
         <MissionBadge mission={data} />
       </div>

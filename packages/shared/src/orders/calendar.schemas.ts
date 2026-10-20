@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { booleanQuery } from '../catalog/catalog.schemas';
 import { eventTypeSchema, orderStatusSchema } from '../enums';
+import { localizedTextSchema } from '../i18n/localized-text';
 import { localDateSchema } from '../time/zoned';
 
 // ─────────────────────────── Calendrier ───────────────────────────
@@ -21,6 +22,8 @@ export const calendarOrderSchema = z.object({
   reference: z.string(),
   status: orderStatusSchema,
   eventType: eventTypeSchema,
+  /** Nom du type d'événement dans la liste du traiteur. */
+  eventTypeName: localizedTextSchema,
   date: z.string(),
   startTime: z.string(),
   endTime: z.string().nullable(),

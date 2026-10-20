@@ -66,3 +66,39 @@ test('création d’un plat avec photo puis d’une formule qui le contient', as
   await expect(packageRow).toContainText('1 plat');
   await expect(packageRow).toContainText('20 à 150 invités');
 });
+
+test('listes du catalogue : nouveau type d’événement proposé dans les commandes, puis archivé', async ({
+  page,
+}) => {
+  const suffix = uniqueSuffix();
+  const name = `Henné e2e ${suffix}`;
+  await login(page);
+
+  await page.goto('/admin/catalog/lists');
+  const types = page.getByTestId('catalog-list-event-types');
+  await expect(types.getByText('Soutenance', { exact: true })).toBeVisible();
+  await types.getByRole('button', { name: 'Ajouter' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Nom (français)').fill(name);
+  await dialog.getByLabel('Nom (arabe)').fill(`حناء ${suffix}`);
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Élément enregistré.')).toBeVisible();
+  const row = types.getByTestId('catalog-list-item').filter({ hasText: name });
+  await expect(row).toContainText('Jamais utilisé');
+
+  // Proposé à la création d'une commande
+  await page.goto('/admin/orders/new');
+  await page.getByLabel('Type d’événement').click();
+  await expect(page.getByRole('option', { name })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // Archivé : plus proposé
+  await page.goto('/admin/catalog/lists');
+  await row.getByRole('button', { name: new RegExp(`Plus d’actions pour .*${suffix}`) }).click();
+  await page.getByRole('menuitem', { name: 'Archiver' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Archiver' }).click();
+  await expect(row).toContainText('Archivé');
+  await page.goto('/admin/orders/new');
+  await page.getByLabel('Type d’événement').click();
+  await expect(page.getByRole('option', { name })).toHaveCount(0);
+});

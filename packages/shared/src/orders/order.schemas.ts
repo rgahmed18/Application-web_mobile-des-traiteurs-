@@ -8,6 +8,7 @@ import {
   orderStatusSchema,
   type OrderStatus,
 } from '../enums';
+import { localizedTextSchema } from '../i18n/localized-text';
 import { MAX_TAX_RATE_BPS, PRICE_MODES } from '../money/money';
 import { cancellationRefundSchema } from '../payments/payment.schemas';
 import { localDateSchema, localTimeSchema } from '../time/zoned';
@@ -241,6 +242,8 @@ export const orderSummarySchema = z.object({
   reference: z.string(),
   status: orderStatusSchema,
   eventType: eventTypeSchema,
+  /** Nom du type d'événement dans la liste du traiteur. */
+  eventTypeName: localizedTextSchema,
   /** Jour et heures dans le fuseau du traiteur. */
   eventDate: z.string(),
   startTime: z.string(),

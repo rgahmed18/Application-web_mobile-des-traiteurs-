@@ -197,6 +197,9 @@ http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` 
     personne et valeur indicative des plats au détail calculée en direct ;
   - catégories : ordre par glisser-déposer (souris, doigt ou clavier : Espace puis flèches) ;
   - services : prix et unité de tarification ;
+  - listes (`/catalog/lists/event-types`, `/catalog/lists/ranges`) : types d’événement (dont la
+    soutenance) et gammes du traiteur, traduits, créés par défaut pour chaque traiteur ; code
+    stable référencé par les commandes, ordre par glisser-déposer, archivage d’un élément utilisé ;
   - bouton **Dupliquer** (plats et formules, composition comprise) ;
   - un élément déjà utilisé dans une commande ou un devis ne peut pas être supprimé, seulement
     archivé ; chaque modification est inscrite au journal d'audit ;

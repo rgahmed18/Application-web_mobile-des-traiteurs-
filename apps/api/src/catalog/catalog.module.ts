@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 
 import { CatalogController } from './catalog.controller';
 import { CategoriesController } from './categories/categories.controller';
+import { CatalogListsController } from './lists/catalog-lists.controller';
+import { CatalogListsService } from './lists/catalog-lists.service';
 import { CategoriesService } from './categories/categories.service';
 import { DishesController } from './dishes/dishes.controller';
 import { DishesService } from './dishes/dishes.service';
@@ -16,12 +18,14 @@ import { PackagesService } from './packages/packages.service';
   controllers: [
     CatalogController,
     CategoriesController,
+    CatalogListsController,
     DishesController,
     PackagesController,
     ExtraServicesController,
   ],
   providers: [
     CategoriesService,
+    CatalogListsService,
     DishesService,
     PackagesService,
     ExtraServicesService,

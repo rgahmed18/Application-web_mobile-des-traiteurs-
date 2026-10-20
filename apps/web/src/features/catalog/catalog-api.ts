@@ -10,6 +10,10 @@ import {
 import {
   type CatalogSettings,
   catalogSettingsSchema,
+  type CatalogList,
+  type CatalogListItem,
+  type CatalogListItemInput,
+  catalogListItemSchema,
   type Category,
   type CategoryInput,
   categorySchema,
@@ -43,6 +47,7 @@ export const catalogKeys = {
   packages: (query: Partial<PackageListQuery>) => ['catalog', 'packages', query] as const,
   package: (id: string) => ['catalog', 'package', id] as const,
   services: (archived: boolean) => ['catalog', 'services', archived] as const,
+  list: (list: CatalogList) => ['catalog', 'lists', list] as const,
 };
 
 function toQuery(values: object): Record<string, QueryValue> {
@@ -114,6 +119,20 @@ export function useExtraServices(archived: boolean): UseQueryResult<ExtraService
         schema: z.array(extraServiceSchema),
         signal,
       }),
+  });
+}
+
+/** Liste gérable (types d'événement, gammes), archivés compris, dans l'ordre d'affichage. */
+export function useCatalogList(
+  list: CatalogList,
+  enabled = true,
+): UseQueryResult<CatalogListItem[]> {
+  return useQuery({
+    queryKey: catalogKeys.list(list),
+    queryFn: ({ signal }) =>
+      apiRequest(`/catalog/lists/${list}`, { schema: z.array(catalogListItemSchema), signal }),
+    staleTime: 60_000,
+    enabled,
   });
 }
 
@@ -208,4 +227,59 @@ export function useLifecycleAction(resource: CatalogResource) {
       ? apiRequest(`/catalog/${resource}/${id}`, { method: 'DELETE', schema: z.void() })
       : apiRequest(`/catalog/${resource}/${id}/${action}`, { method: 'POST', schema: z.unknown() }),
   );
+}
+
+export function useSaveCatalogListItem(list: CatalogList) {
+  return useCatalogMutation(({ id, input }: { id: string | null; input: CatalogListItemInput }) =>
+    apiRequest(id ? `/catalog/lists/${list}/${id}` : `/catalog/lists/${list}`, {
+      method: id ? 'PATCH' : 'POST',
+      body: input,
+      schema: catalogListItemSchema,
+    }),
+  );
+}
+
+export function useArchiveCatalogListItem(list: CatalogList) {
+  return useCatalogMutation(({ id, archived }: { id: string; archived: boolean }) =>
+    apiRequest(`/catalog/lists/${list}/${id}/${archived ? 'archive' : 'restore'}`, {
+      method: 'POST',
+      schema: catalogListItemSchema,
+    }),
+  );
+}
+
+export function useDeleteCatalogListItem(list: CatalogList) {
+  return useCatalogMutation((id: string) =>
+    apiRequest(`/catalog/lists/${list}/${id}`, { method: 'DELETE', schema: z.void() }),
+  );
+}
+
+/** Nouvel ordre, appliqué immédiatement à l'écran puis confirmé par l'API. */
+export function useReorderCatalogList(list: CatalogList) {
+  const queryClient = useQueryClient();
+  const key = catalogKeys.list(list);
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      apiRequest(`/catalog/lists/${list}/order`, {
+        method: 'PUT',
+        body: { ids },
+        schema: z.array(catalogListItemSchema),
+      }),
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<CatalogListItem[]>(key);
+      if (previous) {
+        const byId = new Map(previous.map((item) => [item.id, item]));
+        queryClient.setQueryData(
+          key,
+          ids.flatMap((id) => byId.get(id) ?? []),
+        );
+      }
+      return { previous };
+    },
+    onError: (_error, _ids, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
 }

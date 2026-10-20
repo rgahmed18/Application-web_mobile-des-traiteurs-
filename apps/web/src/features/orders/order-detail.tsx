@@ -47,6 +47,7 @@ import { useTimeZone } from '@/features/traiteur/use-time-zone';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatDate, formatDateTime, formatLocalDate } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
+import { useLocalized } from '@/features/catalog/use-localized';
 
 import {
   availabilityConflict,
@@ -328,7 +329,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   const tAssign = useTranslations('assignments');
   const t = useTranslations('orders');
   const tc = useTranslations('common');
-  const tEvent = useTranslations('eventType');
+  const localized = useLocalized();
   const locale = useLocale();
   const can = usePermission();
   const timeZone = useTimeZone();
@@ -369,7 +370,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               )}
             </div>
             <p className="text-muted-foreground">
-              {tEvent(data.eventType)} · {clientName(data.client)}
+              {localized(data.eventTypeName)} · {clientName(data.client)}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

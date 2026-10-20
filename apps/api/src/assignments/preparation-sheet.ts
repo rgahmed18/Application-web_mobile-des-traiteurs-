@@ -24,7 +24,8 @@ export interface PrepItem {
 
 export interface PrepOrder {
   reference: string;
-  eventType: 'WEDDING' | 'ENGAGEMENT' | 'BIRTHDAY' | 'AQIQA' | 'CORPORATE' | 'OTHER';
+  /** Nom du type d'événement (liste du traiteur). */
+  eventTypeName: LocalizedText;
   date: string;
   startTime: string;
   guestCount: number;
@@ -154,7 +155,7 @@ export function preparationDocument(data: {
     return [auto(shown), auto(getLocalizedText(item.label, locale)), quantity(item)];
   });
   const describe = (order: PrepOrder) =>
-    `${ltr(order.reference)} — ${ltr(order.startTime)} — ${t.eventTypes[order.eventType]} — ${t.guests(order.guestCount)} — ${auto(order.city)}`;
+    `${ltr(order.reference)} — ${ltr(order.startTime)} — ${getLocalizedText(order.eventTypeName, locale)} — ${t.guests(order.guestCount)} — ${auto(order.city)}`;
   const single = data.scope === 'event' ? data.orders[0] : undefined;
 
   return {
@@ -173,7 +174,7 @@ export function preparationDocument(data: {
           {
             title: t.event,
             lines: [
-              `${t.eventTypes[single.eventType]} — ${t.guests(single.guestCount)}`,
+              `${getLocalizedText(single.eventTypeName, locale)} — ${t.guests(single.guestCount)}`,
               `${localDate(single.date)} ${ltr(single.startTime)}`,
               auto(single.city),
             ],

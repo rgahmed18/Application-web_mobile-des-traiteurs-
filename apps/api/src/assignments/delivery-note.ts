@@ -1,4 +1,9 @@
-import { type LineLabel, lineLabelText } from '@traiteur/shared';
+import {
+  getLocalizedText,
+  type LineLabel,
+  lineLabelText,
+  type LocalizedText,
+} from '@traiteur/shared';
 
 import { auto, type DocumentModel, joinAddress, ltr } from '../pdf/document-model';
 import { type DocLocale, localDate } from '../pdf/format';
@@ -15,7 +20,8 @@ export interface DeliveryNoteData {
   seller: Seller;
   hasLogo: boolean;
   reference: string;
-  eventType: 'WEDDING' | 'ENGAGEMENT' | 'BIRTHDAY' | 'AQIQA' | 'CORPORATE' | 'OTHER';
+  /** Nom du type d'événement (liste du traiteur). */
+  eventTypeName: LocalizedText;
   date: string;
   startTime: string;
   /** Heure de livraison prévue (mission du chauffeur), sinon début de l'événement. */
@@ -70,7 +76,7 @@ export function deliveryNoteDocument(data: DeliveryNoteData): DocumentModel {
         title: t.deliverTo,
         lines: [
           auto(joinAddress([data.venue.name, data.venue.address, data.venue.city])),
-          `${t.eventTypes[data.eventType]} — ${t.guests(data.guestCount)} — ${ltr(data.startTime)}`,
+          `${getLocalizedText(data.eventTypeName, data.locale)} — ${t.guests(data.guestCount)} — ${ltr(data.startTime)}`,
         ],
       },
       {

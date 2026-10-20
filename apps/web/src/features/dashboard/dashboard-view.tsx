@@ -24,6 +24,7 @@ import { usePermission, useSession } from '@/features/auth/session-provider';
 import { OrderStatusBadge } from '@/features/orders/order-ui';
 import { useDashboard } from '@/features/orders/orders-api';
 import { formatMoney } from '@/lib/format/money';
+import { useLocalized } from '@/features/catalog/use-localized';
 
 type CardKey =
   | 'todayEvents'
@@ -95,7 +96,7 @@ function StatCard({ card }: { card: DashboardCard }) {
 /** Tableau de bord : activité du jour et des prochains jours, dans le fuseau du traiteur. */
 export function DashboardView() {
   const t = useTranslations('dashboard');
-  const tEvent = useTranslations('eventType');
+  const localized = useLocalized();
   const locale = useLocale();
   const { user, status } = useSession();
   const can = usePermission();
@@ -237,7 +238,7 @@ export function DashboardView() {
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium">{order.clientName}</span>
                           <span className="block text-sm text-muted-foreground">
-                            {tEvent(order.eventType)} · {order.city}
+                            {localized(order.eventTypeName)} · {order.city}
                           </span>
                         </span>
                         <OrderStatusBadge status={order.status} />

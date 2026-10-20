@@ -3,7 +3,6 @@
 import {
   type Availability,
   type CatalogSettings,
-  EVENT_TYPES,
   type Order,
   orderEditPolicy,
   type OrderEditPolicy,
@@ -12,7 +11,7 @@ import { InfoIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
@@ -35,6 +34,8 @@ import { FormHeader, FormSection } from '@/features/catalog/components/form-layo
 import { useClient } from '@/features/clients/clients-api';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { useCatalogList } from '@/features/catalog/catalog-api';
+import { useLocalized } from '@/features/catalog/use-localized';
 
 import {
   availabilityConflict,
@@ -88,11 +89,12 @@ export function OrderForm({
   const locale = useLocale();
   const tc = useTranslations('common');
   const tf = useTranslations('orders.form');
-  const tEvent = useTranslations('eventType');
   const tStatus = useTranslations('orderStatus');
   const router = useRouter();
   const can = usePermission();
   const describeError = useErrorMessage();
+  const localized = useLocalized();
+  const eventTypes = useCatalogList('event-types', can('catalog.read'));
   const createOrder = useCreateOrder();
   const updateOrder = useUpdateOrder();
 
@@ -128,6 +130,22 @@ export function OrderForm({
     lines: GuestLineChange[];
   } | null>(null);
   const guestsRef = useRef<number | null>(order?.guestCount ?? null);
+
+  // Types proposés : actifs et non archivés, plus le type actuel de la commande (même archivé)
+  const eventTypeOptions = useMemo(
+    () =>
+      (eventTypes.data ?? []).filter(
+        (type) => (type.isActive && !type.archived) || type.code === order?.eventType,
+      ),
+    [eventTypes.data, order?.eventType],
+  );
+  // Nouvelle commande : premier type disponible si le type par défaut n'est plus proposé
+  useEffect(() => {
+    const current = form.getValues('eventType');
+    const first = eventTypeOptions[0];
+    if (order || !first || eventTypeOptions.some((type) => type.code === current)) return;
+    form.setValue('eventType', first.code);
+  }, [eventTypeOptions, form, order]);
 
   // Nouvelle commande : le lieu reprend l'adresse par défaut du client choisi (si vide)
   const prefilledFor = useRef<string | null>(null);
@@ -284,9 +302,9 @@ export function OrderForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {EVENT_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {tEvent(type)}
+                    {eventTypeOptions.map((type) => (
+                      <SelectItem key={type.code} value={type.code}>
+                        {localized(type.name)}
                       </SelectItem>
                     ))}
                   </SelectContent>

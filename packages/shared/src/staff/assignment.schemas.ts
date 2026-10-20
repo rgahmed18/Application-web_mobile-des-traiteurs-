@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { phoneSchema } from '../auth/phone';
 import { eventTypeSchema, orderStatusSchema, staffRoleSchema } from '../enums';
+import { localizedTextSchema } from '../i18n/localized-text';
 import { lineLabelSchema } from '../orders/line-label';
 import { localDateSchema } from '../time/zoned';
 
@@ -249,6 +250,7 @@ export const planningSchema = z.object({
           orderId: z.uuid(),
           orderReference: z.string(),
           eventType: eventTypeSchema,
+          eventTypeName: localizedTextSchema,
           city: z.string(),
           staffRole: assignmentRoleSchema,
           status: assignmentStatusSchema,
@@ -269,6 +271,8 @@ export const missionSummarySchema = z.object({
   orderReference: z.string(),
   orderStatus: orderStatusSchema,
   eventType: eventTypeSchema,
+  /** Nom du type d'événement dans la liste du traiteur. */
+  eventTypeName: localizedTextSchema,
   staffRole: assignmentRoleSchema,
   status: assignmentStatusSchema,
   start: moment,

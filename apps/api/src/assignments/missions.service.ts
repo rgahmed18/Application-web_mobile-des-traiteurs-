@@ -16,6 +16,7 @@ import {
 
 import { PermissionsService } from '../access/permissions.service';
 import { AuditService } from '../audit/audit.service';
+import { toLocalized } from '../catalog/catalog-common';
 import type { AuthenticatedUser } from '../auth/auth-user';
 import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
@@ -45,6 +46,7 @@ const missionInclude = {
       status: true,
       version: true,
       eventType: true,
+      eventTypeRef: { select: { name: true } },
       eventDate: true,
       eventEndDate: true,
       guestCount: true,
@@ -318,6 +320,7 @@ export class MissionsService {
       orderReference: row.order.reference,
       orderStatus: row.order.status,
       eventType: row.order.eventType,
+      eventTypeName: toLocalized(row.order.eventTypeRef.name),
       staffRole: row.staffRole,
       status: row.status,
       start: { date: start.date, time: start.time },

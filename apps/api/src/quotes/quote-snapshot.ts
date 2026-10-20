@@ -1,9 +1,30 @@
-import { addDays, computePaymentSchedule, eventTypeSchema, plannedDeposit } from '@traiteur/shared';
+import {
+  addDays,
+  computePaymentSchedule,
+  eventTypeSchema,
+  type LocalizedText,
+  localizedTextSchema,
+  plannedDeposit,
+} from '@traiteur/shared';
 import { z } from 'zod';
 
 import type { Prisma } from '../generated/prisma/client';
+import { toLocalized } from '../catalog/catalog-common';
 import { toSchedule } from '../orders/order-mapper';
 import { localizedTerms } from '../pdf/seller';
+
+/**
+ * Devis envoyés avant les types d'événement gérables (le nom n'était pas figé) : nom par défaut
+ * de leur code, identique à la liste créée par la migration 20261020090000.
+ */
+const LEGACY_EVENT_TYPE_NAMES: Record<string, LocalizedText> = {
+  WEDDING: { fr: 'Mariage', ar: 'عرس' },
+  ENGAGEMENT: { fr: 'Fiançailles', ar: 'خطوبة' },
+  BIRTHDAY: { fr: 'Anniversaire', ar: 'عيد ميلاد' },
+  AQIQA: { fr: 'Aqiqa', ar: 'عقيقة' },
+  CORPORATE: { fr: 'Événement d’entreprise', ar: 'حفل شركة' },
+  OTHER: { fr: 'Autre', ar: 'أخرى' },
+};
 
 /**
  * Données d'un devis figées à l'envoi (Quote.snapshot) : ce que le client a reçu reste lisible
@@ -16,17 +37,24 @@ export const quoteSnapshotSchema = z.object({
   orderReference: z.string(),
   seller: z.object({ name: z.string(), phone: z.string(), email: z.string() }),
   client: z.object({ name: z.string(), phone: z.string(), email: z.string().nullable() }),
-  event: z.object({
-    type: eventTypeSchema,
-    date: z.string(),
-    startTime: z.string(),
-    endTime: z.string().nullable(),
-    endsNextDay: z.boolean(),
-    guestCount: z.number().int(),
-    venueName: z.string().nullable(),
-    venueAddress: z.string(),
-    city: z.string(),
-  }),
+  event: z
+    .object({
+      type: eventTypeSchema,
+      /** Nom du type à l'envoi (absent des devis envoyés avant les types gérables). */
+      typeName: localizedTextSchema.optional(),
+      date: z.string(),
+      startTime: z.string(),
+      endTime: z.string().nullable(),
+      endsNextDay: z.boolean(),
+      guestCount: z.number().int(),
+      venueName: z.string().nullable(),
+      venueAddress: z.string(),
+      city: z.string(),
+    })
+    .transform((event) => ({
+      ...event,
+      typeName: event.typeName ?? LEGACY_EVENT_TYPE_NAMES[event.type] ?? { fr: event.type },
+    })),
   /** Conditions du traiteur dans les deux langues (PDF : langue du devis ; page : celle du client). */
   terms: z.object({ fr: z.string().nullable(), ar: z.string().nullable() }),
   /** Échéancier proposé si le devis est accepté le jour de l'envoi. */
@@ -38,11 +66,12 @@ export const quoteSnapshotSchema = z.object({
     }),
   ),
 });
-export type QuoteSnapshot = z.infer<typeof quoteSnapshotSchema>;
+export type QuoteSnapshot = z.output<typeof quoteSnapshotSchema>;
 
 export const snapshotOrderSelect = {
   reference: true,
   eventType: true,
+  eventTypeRef: { select: { name: true } },
   eventDate: true,
   eventEndDate: true,
   guestCount: true,
@@ -109,6 +138,7 @@ export function buildSnapshot(input: {
     },
     event: {
       type: order.eventType,
+      typeName: toLocalized(order.eventTypeRef.name),
       date: schedule.eventDate,
       startTime: schedule.startTime,
       endTime: schedule.endTime,

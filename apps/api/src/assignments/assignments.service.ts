@@ -19,6 +19,7 @@ import {
 } from '@traiteur/shared';
 
 import { AuditService } from '../audit/audit.service';
+import { toLocalized } from '../catalog/catalog-common';
 import type { AuthenticatedUser } from '../auth/auth-user';
 import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
@@ -431,7 +432,16 @@ export class AssignmentsService {
           endAt: { gt: from },
           order: { status: { not: 'CANCELLED' } },
         },
-        include: { order: { select: { reference: true, eventType: true, city: true } } },
+        include: {
+          order: {
+            select: {
+              reference: true,
+              eventType: true,
+              eventTypeRef: { select: { name: true } },
+              city: true,
+            },
+          },
+        },
         orderBy: { startAt: 'asc' },
       }),
     ]);
@@ -451,6 +461,7 @@ export class AssignmentsService {
             orderId: assignment.orderId,
             orderReference: assignment.order.reference,
             eventType: assignment.order.eventType,
+            eventTypeName: toLocalized(assignment.order.eventTypeRef.name),
             city: assignment.order.city,
             staffRole: assignment.staffRole,
             status: assignment.status,

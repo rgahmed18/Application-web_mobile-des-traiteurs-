@@ -31,16 +31,25 @@ export const SUBSCRIPTION_PLANS = ['BASIQUE', 'PRO', 'PREMIUM'] as const;
 export const subscriptionPlanSchema = z.enum(SUBSCRIPTION_PLANS);
 export type SubscriptionPlan = z.infer<typeof subscriptionPlanSchema>;
 
-export const EVENT_TYPES = [
+/**
+ * Code d'un type d'événement : la liste est gérée par chaque traiteur (table EventType, nom
+ * traduit). Le code est stable ; les commandes le référencent.
+ */
+export const eventTypeSchema = z
+  .string()
+  .regex(/^[A-Z][A-Z0-9_]{0,39}$/, 'Type d’événement invalide');
+export type EventType = z.infer<typeof eventTypeSchema>;
+
+/** Types créés pour chaque traiteur (migration 20261020090000_event_types_ranges). */
+export const DEFAULT_EVENT_TYPES = [
   'WEDDING',
   'ENGAGEMENT',
   'BIRTHDAY',
   'AQIQA',
   'CORPORATE',
+  'THESIS',
   'OTHER',
 ] as const;
-export const eventTypeSchema = z.enum(EVENT_TYPES);
-export type EventType = z.infer<typeof eventTypeSchema>;
 
 export const ORDER_STATUSES = [
   'DRAFT',

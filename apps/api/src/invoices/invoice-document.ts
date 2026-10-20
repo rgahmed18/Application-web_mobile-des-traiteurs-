@@ -1,4 +1,11 @@
-import { amountToWords, type InvoiceKind, type LineLabel, lineLabelText } from '@traiteur/shared';
+import {
+  amountToWords,
+  getLocalizedText,
+  type InvoiceKind,
+  type LineLabel,
+  lineLabelText,
+  type LocalizedText,
+} from '@traiteur/shared';
 
 import type { DocumentModel } from '../pdf/document-model';
 import { auto, ltr } from '../pdf/document-model';
@@ -19,7 +26,8 @@ export interface InvoiceDocumentData {
   dueDate: string | null;
   orderReference: string;
   event: {
-    type: 'WEDDING' | 'ENGAGEMENT' | 'BIRTHDAY' | 'AQIQA' | 'CORPORATE' | 'OTHER';
+    /** Nom du type d'événement (liste du traiteur). */
+    typeName: LocalizedText;
     date: string;
   };
   original: { number: string; issuedOn: string } | null;
@@ -124,7 +132,9 @@ export function invoiceDocument(data: InvoiceDocumentData): DocumentModel {
       { title: t.buyer, lines: buyerLines },
       {
         title: t.event,
-        lines: [`${t.eventTypes[data.event.type]} — ${localDate(data.event.date)}`],
+        lines: [
+          `${getLocalizedText(data.event.typeName, data.locale)} — ${localDate(data.event.date)}`,
+        ],
       },
     ],
     table: {

@@ -3,6 +3,7 @@ import { type Download, FIRM_ORDER_STATUSES, utcToZoned, zonedDayRange } from '@
 
 import { readLineLabel } from '../documents/line-label';
 import { appErrors } from '../common/errors';
+import { toLocalized } from '../catalog/catalog-common';
 import { toSchedule } from '../orders/order-mapper';
 import type { DocLocale } from '../pdf/format';
 import { PdfService } from '../pdf/pdf.service';
@@ -21,6 +22,7 @@ const orderSelect = {
   id: true,
   reference: true,
   eventType: true,
+  eventTypeRef: { select: { name: true } },
   eventDate: true,
   eventEndDate: true,
   guestCount: true,
@@ -130,7 +132,7 @@ export class ServiceDocumentsService {
           seller,
           hasLogo,
           reference: order.reference,
-          eventType: order.eventType,
+          eventTypeName: toLocalized(order.eventTypeRef.name),
           date: schedule.eventDate,
           startTime: schedule.startTime,
           deliveryTime: deliveryAt
@@ -162,7 +164,7 @@ export class ServiceDocumentsService {
     const schedule = toSchedule(order, timeZone);
     return {
       reference: order.reference,
-      eventType: order.eventType,
+      eventTypeName: toLocalized(order.eventTypeRef.name),
       date: schedule.eventDate,
       startTime: schedule.startTime,
       guestCount: order.guestCount,

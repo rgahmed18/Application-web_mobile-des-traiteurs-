@@ -232,6 +232,9 @@
       "ASSIGNMENT_CONFLICT": "Ce membre est déjà affecté sur ce créneau.",
       "ASSIGNMENT_EXISTS": "Ce membre a déjà ce rôle sur l’événement.",
       "ASSIGNMENT_BATCH_CONFLICT": "Certaines lignes ne peuvent pas être enregistrées : voir chaque ligne.",
+      "EVENT_TYPE_UNAVAILABLE": "Ce type d’événement n’est plus proposé : choisissez-en un autre.",
+      "CATALOG_LIST_IN_USE": "Élément déjà utilisé : archivez-le plutôt que de le supprimer.",
+      "CATALOG_LIST_LAST_ITEM": "Au moins un élément doit rester disponible dans cette liste.",
       "ORDER_NOT_FIRM": "Le personnel s’affecte à une commande confirmée.",
       "MEMBER_UNAVAILABLE": "Ce membre est suspendu.",
       "MISSION_NOT_ALLOWED": "Action impossible pour cette mission.",
@@ -274,7 +277,34 @@
       "dishes": "Plats",
       "packages": "Formules",
       "categories": "Catégories",
-      "services": "Services"
+      "services": "Services",
+      "lists": "Listes"
+    },
+    "lists": {
+      "title": "Listes du catalogue",
+      "description": "Types d’événement et gammes proposés dans les commandes et le catalogue. Le code d’un élément ne change jamais ; son nom, son ordre et son activation, si.",
+      "dragHint": "Glissez une ligne pour changer l’ordre d’affichage (souris, doigt, ou clavier : Espace puis flèches).",
+      "orderSaved": "Ordre enregistré.",
+      "saved": "Élément enregistré.",
+      "newItem": "Ajouter",
+      "newTitle": "Nouvel élément",
+      "editTitle": "Modifier l’élément",
+      "usage": "{count, plural, =0 {Jamais utilisé} one {Utilisé # fois} other {Utilisé # fois}}",
+      "code": "Code : {code}",
+      "archived": "Archivé",
+      "active": "Proposé dans les nouvelles saisies",
+      "dragHandle": "Déplacer « {name} »",
+      "empty": "Aucun élément.",
+      "sections": {
+        "event-types": {
+          "title": "Types d’événement",
+          "hint": "Proposés à la création d’une commande et pour associer les menus à un événement."
+        },
+        "ranges": {
+          "title": "Gammes",
+          "hint": "Portées par les menus et formules, le matériel et les buffets (ex. Standard, Premium, Luxe)."
+        }
+      }
     },
     "fields": {
       "nameFr": "Nom (français)",
@@ -458,14 +488,6 @@
     "DELIVERED": "Livrée",
     "COMPLETED": "Clôturée",
     "CANCELLED": "Annulée"
-  },
-  "eventType": {
-    "WEDDING": "Mariage",
-    "ENGAGEMENT": "Fiançailles",
-    "BIRTHDAY": "Anniversaire",
-    "AQIQA": "Aqiqa",
-    "CORPORATE": "Événement d’entreprise",
-    "OTHER": "Autre"
   },
   "clients": {
     "title": "Clients",

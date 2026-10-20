@@ -12,6 +12,7 @@ const TABS = [
   { key: 'packages', href: '/admin/catalog/packages' },
   { key: 'categories', href: '/admin/catalog/categories' },
   { key: 'services', href: '/admin/catalog/services' },
+  { key: 'lists', href: '/admin/catalog/lists' },
 ] as const;
 
 /** En-tête des listes du catalogue : titre, onglets (liens) et action principale. */

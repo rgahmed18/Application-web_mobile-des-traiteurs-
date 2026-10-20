@@ -26,6 +26,7 @@ import type { UiLocale } from '@/i18n/config';
 import { publicEnv } from '@/lib/env/public';
 import { formatLocalDate } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
+import { useLocalized } from '@/features/catalog/use-localized';
 
 type Step = 'view' | 'accept' | 'reject';
 
@@ -62,7 +63,7 @@ export function PublicQuoteView({
   locale: UiLocale;
 }) {
   const t = useTranslations('publicQuote');
-  const tEvent = useTranslations('eventType');
+  const localized = useLocalized();
   const [quote, setQuote] = useState(initial);
   const [step, setStep] = useState<Step>('view');
   const [name, setName] = useState('');
@@ -159,7 +160,7 @@ export function PublicQuoteView({
             <li className="flex items-center gap-2">
               <CalendarIcon className="size-5 text-muted-foreground" aria-hidden />
               <span>
-                {tEvent(quote.event.type)} —{' '}
+                {localized(quote.event.typeName)} —{' '}
                 <span dir="ltr">{formatLocalDate(quote.event.date)}</span>{' '}
                 <span dir="ltr">{eventTime}</span>
               </span>

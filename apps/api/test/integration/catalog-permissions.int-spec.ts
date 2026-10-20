@@ -137,6 +137,15 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
   const newDish = async () => ({ id: await created('/catalog/dishes', dishBody()) });
   const newCategory = async () => ({ id: await created('/catalog/categories', categoryBody()) });
   const newService = async () => ({ id: await created('/catalog/services', serviceBody()) });
+  const listBody = () => ({
+    name: { fr: `Élément ${suffix()}` },
+    description: null,
+    isActive: true,
+  });
+  const newEventType = async () => ({
+    id: await created('/catalog/lists/event-types', listBody()),
+  });
+  const newRange = async () => ({ id: await created('/catalog/lists/ranges', listBody()) });
   const newPackage = async () => {
     const dish = await newDish();
     return { id: await created('/catalog/packages', packageBody(dish.id)), dishId: dish.id };
@@ -232,6 +241,62 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
       prepare: newService,
     },
     {
+      name: 'créer un type d’événement',
+      method: 'post',
+      path: () => '/catalog/lists/event-types',
+      body: listBody,
+    },
+    {
+      name: 'modifier un type d’événement',
+      method: 'patch',
+      path: (ids) => `/catalog/lists/event-types/${ids.id}`,
+      body: listBody,
+      prepare: newEventType,
+    },
+    {
+      name: 'archiver un type d’événement',
+      method: 'post',
+      path: (ids) => `/catalog/lists/event-types/${ids.id}/archive`,
+      prepare: newEventType,
+    },
+    {
+      name: 'supprimer un type d’événement',
+      method: 'delete',
+      path: (ids) => `/catalog/lists/event-types/${ids.id}`,
+      prepare: newEventType,
+    },
+    {
+      name: 'créer une gamme',
+      method: 'post',
+      path: () => '/catalog/lists/ranges',
+      body: listBody,
+    },
+    {
+      name: 'modifier une gamme',
+      method: 'patch',
+      path: (ids) => `/catalog/lists/ranges/${ids.id}`,
+      body: listBody,
+      prepare: newRange,
+    },
+    {
+      name: 'réordonner les gammes',
+      method: 'put',
+      path: () => '/catalog/lists/ranges/order',
+      prepare: newRange,
+    },
+    {
+      name: 'archiver une gamme',
+      method: 'post',
+      path: (ids) => `/catalog/lists/ranges/${ids.id}/archive`,
+      prepare: newRange,
+    },
+    {
+      name: 'supprimer une gamme',
+      method: 'delete',
+      path: (ids) => `/catalog/lists/ranges/${ids.id}`,
+      prepare: newRange,
+    },
+    {
       name: 'préparer l’envoi d’une photo',
       method: 'post',
       path: () => '/catalog/uploads',
@@ -246,7 +311,12 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
       if (!value) throw new Error(`Élément préparé manquant : ${key}`);
       return value;
     };
-    if (operation.name === 'réordonner les catégories') return { ids: [prepared('id')] };
+    if (
+      operation.name === 'réordonner les catégories' ||
+      operation.name === 'réordonner les gammes'
+    ) {
+      return { ids: [prepared('id')] };
+    }
     if (operation.name === 'créer une formule') return packageBody(prepared('id'));
     if (operation.name === 'modifier une formule') return packageBody(prepared('dishId'));
     return operation.body?.();
