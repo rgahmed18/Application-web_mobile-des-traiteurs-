@@ -96,7 +96,7 @@ export class OrdersController {
   @RequirePermissions('orders.create')
   @ApiOperation({
     summary:
-      'Crée une commande et ses lignes ; 409 AVAILABILITY_CONFLICT si la date est bloquée ou complète (forceAvailability pour passer outre)',
+      'Crée une commande et ses lignes ; 409 AVAILABILITY_CONFLICT si la date est bloquée ou complète (forceAvailability pour passer outre) ; 409 EQUIPMENT_STOCK_CONFLICT si le matériel manque (stockOverrideReason pour confirmer avec un motif)',
   })
   @ApiBody({ schema: zodToOpenApi(orderCreateSchema) })
   @ApiOkResponse(orderResponse)

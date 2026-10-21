@@ -65,6 +65,13 @@ export const ORDER_STATUSES = [
 export const orderStatusSchema = z.enum(ORDER_STATUSES);
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 
-export const LINE_ITEM_TYPES = ['DISH', 'PACKAGE', 'EXTRA_SERVICE', 'CUSTOM'] as const;
+export const LINE_ITEM_TYPES = [
+  'DISH',
+  'PACKAGE',
+  'EXTRA_SERVICE',
+  'EQUIPMENT',
+  'BUFFET',
+  'CUSTOM',
+] as const;
 export const lineItemTypeSchema = z.enum(LINE_ITEM_TYPES);
 export type LineItemType = z.infer<typeof lineItemTypeSchema>;

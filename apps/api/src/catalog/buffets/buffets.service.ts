@@ -40,6 +40,7 @@ type Db = Prisma.TransactionClient;
 const listRefSelect = { id: true, code: true, name: true, archivedAt: true } as const;
 
 const buffetInclude = {
+  _count: { select: { orderItems: true, quoteLines: true } },
   type: { select: listRefSelect },
   range: { select: listRefSelect },
   dishes: {
@@ -78,7 +79,7 @@ function toListRef(row: {
   };
 }
 
-function toBuffet(row: BuffetRow, settings: CatalogSettings, inUse: boolean): Buffet {
+function toBuffet(row: BuffetRow, settings: CatalogSettings): Buffet {
   return {
     id: row.id,
     slug: row.slug,
@@ -111,7 +112,7 @@ function toBuffet(row: BuffetRow, settings: CatalogSettings, inUse: boolean): Bu
       },
     })),
     freeItems: freeItemsSchema.catch([]).parse(row.freeItems),
-    inUse,
+    inUse: row._count.orderItems + row._count.quoteLines > 0,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
   };
@@ -120,8 +121,7 @@ function toBuffet(row: BuffetRow, settings: CatalogSettings, inUse: boolean): Bu
 /**
  * Buffets du catalogue : type et gamme (listes du traiteur), prix par personne ou forfait,
  * invités minimum, composition en plats (décomptés en cuisine) et en éléments libres FR/AR.
- * Les lignes de buffet des commandes et devis arrivent avec l'étape suivante : un buffet ne
- * figure donc encore sur aucun document (« inUse » toujours faux à ce stade).
+ * Un buffet ajouté à une commande ou un devis y est recopié (libellé et prix figés) : « inUse ».
  */
 @Injectable()
 export class BuffetsService {
@@ -162,7 +162,7 @@ export class BuffetsService {
       }),
     ]);
     return {
-      items: rows.map((row) => toBuffet(row, settings, false)),
+      items: rows.map((row) => toBuffet(row, settings)),
       total,
       page: query.page,
       pageSize: query.pageSize,
@@ -176,7 +176,7 @@ export class BuffetsService {
       this.prisma.buffet.findFirst({ where: { id, traiteurId }, include: buffetInclude }),
     ]);
     if (!row) notFound();
-    return toBuffet(row, settings, false);
+    return toBuffet(row, settings);
   }
 
   async create(user: AuthenticatedUser, input: BuffetInput, client: ClientInfo): Promise<Buffet> {
@@ -207,7 +207,6 @@ export class BuffetsService {
         const result = toBuffet(
           await tx.buffet.findUniqueOrThrow({ where: { id }, include: buffetInclude }),
           settings,
-          false,
         );
         await this.audit.record(
           {
@@ -269,7 +268,6 @@ export class BuffetsService {
       const result = toBuffet(
         await tx.buffet.findUniqueOrThrow({ where: { id }, include: buffetInclude }),
         settings,
-        false,
       );
       await this.audit.record(
         {
@@ -278,7 +276,7 @@ export class BuffetsService {
           action: 'catalog.buffet.updated',
           entityType: 'Buffet',
           entityId: id,
-          before: auditSnapshot(toBuffet(existing, settings, false)),
+          before: auditSnapshot(toBuffet(existing, settings)),
           after: auditSnapshot(result),
           client,
         },
@@ -314,7 +312,7 @@ export class BuffetsService {
           action: 'catalog.buffet.deleted',
           entityType: 'Buffet',
           entityId: id,
-          before: auditSnapshot(toBuffet(existing, settings, false)),
+          before: auditSnapshot(toBuffet(existing, settings)),
           client,
         },
         tx,
@@ -354,7 +352,7 @@ export class BuffetsService {
         },
         tx,
       );
-      return toBuffet(row, settings, false);
+      return toBuffet(row, settings);
     });
   }
 

@@ -1,8 +1,15 @@
 'use client';
 
-import { type Availability, availabilitySchema } from '@traiteur/shared';
-import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import {
+  type Availability,
+  availabilitySchema,
+  type EquipmentShortage,
+  equipmentShortageSchema,
+  getLocalizedText,
+} from '@traiteur/shared';
+import { useLocale, useTranslations } from 'next-intl';
+import { type ReactNode, useState } from 'react';
+import { z } from 'zod';
 
 import {
   AlertDialog,
@@ -35,6 +42,13 @@ import { formatDateTime, formatLocalDate } from '@/lib/format/date';
 export function availabilityConflict(error: unknown): Availability | null {
   if (!isApiError(error) || error.code !== 'AVAILABILITY_CONFLICT') return null;
   const parsed = availabilitySchema.safeParse(error.details.availability);
+  return parsed.success ? parsed.data : null;
+}
+
+/** Matériel en manque sur la période de la commande : le traiteur peut confirmer avec un motif. */
+export function stockConflict(error: unknown): EquipmentShortage[] | null {
+  if (!isApiError(error) || error.code !== 'EQUIPMENT_STOCK_CONFLICT') return null;
+  const parsed = z.array(equipmentShortageSchema).safeParse(error.details.shortages);
   return parsed.success ? parsed.data : null;
 }
 
@@ -153,6 +167,7 @@ export function ReasonDialog({
   title,
   description,
   warning,
+  details,
   label,
   placeholder,
   confirmLabel,
@@ -165,6 +180,8 @@ export function ReasonDialog({
   title: string;
   description: string;
   warning?: string;
+  /** Détail affiché sous la description (ex. matériel en manque). */
+  details?: ReactNode;
   label: string;
   placeholder?: string;
   confirmLabel: string;
@@ -202,6 +219,7 @@ export function ReasonDialog({
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription className="text-base">{description}</DialogDescription>
           </DialogHeader>
+          {details}
           {warning && (
             <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
               {warning}
@@ -326,5 +344,50 @@ export function GuestChangeDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Stock de matériel insuffisant : liste des manques et motif obligatoire pour confirmer. */
+export function StockOverrideDialog({
+  shortages,
+  pending = false,
+  onConfirm,
+  onCancel,
+}: {
+  shortages: EquipmentShortage[] | null;
+  pending?: boolean;
+  onConfirm: (reason: string) => void;
+  onCancel: () => void;
+}) {
+  const t = useTranslations('orders.stock');
+  const locale = useLocale();
+  return (
+    <ReasonDialog
+      open={shortages !== null}
+      title={t('title')}
+      description={t('description')}
+      details={
+        <ul className="flex flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          {(shortages ?? []).map((item) => (
+            <li key={item.equipmentId}>
+              <span className="font-medium">{getLocalizedText(item.label, locale)}</span>
+              {' : '}
+              {t('shortage', {
+                requested: item.requested,
+                remaining: Math.max(item.remaining, 0),
+                stock: item.stock,
+              })}
+              {item.pending > 0 && ` · ${t('pending', { count: item.pending })}`}
+            </li>
+          ))}
+        </ul>
+      }
+      label={t('reasonLabel')}
+      placeholder={t('reasonPlaceholder')}
+      confirmLabel={t('confirm')}
+      pending={pending}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
   );
 }

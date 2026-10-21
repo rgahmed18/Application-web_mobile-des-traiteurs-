@@ -1,4 +1,5 @@
 import { getLocalizedText, type LocalizedText, localizedTextSchema } from '@traiteur/shared';
+import { z } from 'zod';
 
 import { readLineLabel } from '../documents/line-label';
 import type { Prisma } from '../generated/prisma/client';
@@ -10,7 +11,9 @@ import { type Seller, sellerHeader } from '../pdf/seller';
 /**
  * Bon de préparation pour la cuisine (par événement ou par jour), sans aucun prix : quantités
  * totales par plat, regroupées par catégorie (entrées, plats, desserts, boissons…). Les formules
- * sont décomposées en plats (quantité par personne × nombre de la ligne, composition actuelle).
+ * et les buffets sont décomposés en plats (quantité par personne × nombre de la ligne,
+ * composition actuelle) ; les éléments libres d'un buffet suivent le nombre de la ligne. Le
+ * matériel loué est récapitulé à part, pour être sorti du dépôt.
  */
 export type PrepUnit = 'PER_PERSON' | 'PER_PIECE' | 'PER_PLATTER' | 'PER_KG' | 'UNIT';
 
@@ -31,6 +34,14 @@ export interface PrepOrder {
   guestCount: number;
   city: string;
   items: PrepItem[];
+  /** Matériel à sortir : libellé figé de la ligne et quantité. */
+  equipment: PrepEquipment[];
+}
+
+export interface PrepEquipment {
+  key: string;
+  label: LocalizedText;
+  quantity: number;
 }
 
 const dishSelect = {
@@ -52,6 +63,16 @@ export const preparationItemsInclude = {
       dish: { select: dishSelect },
       package: {
         select: {
+          dishes: {
+            orderBy: { sortOrder: 'asc' },
+            select: { quantity: true, dish: { select: dishSelect } },
+          },
+        },
+      },
+      equipmentId: true,
+      buffet: {
+        select: {
+          freeItems: true,
           dishes: {
             orderBy: { sortOrder: 'asc' },
             select: { quantity: true, dish: { select: dishSelect } },
@@ -92,6 +113,20 @@ export function preparationItems(row: Pick<PrepRow, 'items'>): PrepItem[] {
       for (const component of line.package.dishes) {
         items.push(dishItem(component.dish, component.quantity * line.quantity));
       }
+    } else if (line.itemType === 'BUFFET' && line.buffet) {
+      for (const component of line.buffet.dishes) {
+        items.push(dishItem(component.dish, component.quantity * line.quantity));
+      }
+      const freeItems = z.array(localizedTextSchema).safeParse(line.buffet.freeItems);
+      for (const label of freeItems.success ? freeItems.data : []) {
+        items.push({
+          key: `buffet-item:${label.fr}`,
+          label,
+          category: null,
+          quantity: line.quantity,
+          unit: 'UNIT',
+        });
+      }
     } else if (line.itemType === 'CUSTOM') {
       const label = readLineLabel(line.label);
       items.push({
@@ -104,6 +139,34 @@ export function preparationItems(row: Pick<PrepRow, 'items'>): PrepItem[] {
     }
   }
   return items;
+}
+
+/** Matériel de la commande (libellé figé de la ligne, repli sur l'article s'il n'existe plus). */
+export function preparationEquipment(row: Pick<PrepRow, 'items'>): PrepEquipment[] {
+  return row.items
+    .filter((line) => line.itemType === 'EQUIPMENT')
+    .map((line) => {
+      const label = readLineLabel(line.label);
+      return { key: line.equipmentId ?? `label:${label.fr}`, label, quantity: line.quantity };
+    });
+}
+
+/** Matériel total par article, dans l'ordre des libellés. */
+export function aggregateEquipment(
+  items: readonly PrepEquipment[],
+  locale: DocLocale,
+): PrepEquipment[] {
+  const byKey = new Map<string, PrepEquipment>();
+  for (const item of items) {
+    const current = byKey.get(item.key);
+    byKey.set(
+      item.key,
+      current ? { ...current, quantity: current.quantity + item.quantity } : item,
+    );
+  }
+  return [...byKey.values()].sort((a, b) =>
+    getLocalizedText(a.label, locale).localeCompare(getLocalizedText(b.label, locale)),
+  );
 }
 
 /** Quantités totales par plat, dans l'ordre des catégories puis des libellés. */
@@ -157,6 +220,20 @@ export function preparationDocument(data: {
   const describe = (order: PrepOrder) =>
     `${ltr(order.reference)} — ${ltr(order.startTime)} — ${getLocalizedText(order.eventTypeName, locale)} — ${t.guests(order.guestCount)} — ${auto(order.city)}`;
   const single = data.scope === 'event' ? data.orders[0] : undefined;
+  const equipment = aggregateEquipment(
+    data.orders.flatMap((order) => order.equipment),
+    locale,
+  );
+  const equipmentSection = equipment.length
+    ? [
+        {
+          title: t.equipment,
+          items: equipment.map(
+            (item) => `${auto(getLocalizedText(item.label, locale))} : ${ltr(item.quantity)}`,
+          ),
+        },
+      ]
+    : [];
 
   return {
     lang: locale,
@@ -190,8 +267,9 @@ export function preparationDocument(data: {
       rows,
     },
     sections: single
-      ? []
+      ? equipmentSection
       : [
+          ...equipmentSection,
           { title: t.byEvent, items: [], bullets: false },
           ...data.orders.map((order) => ({
             title: describe(order),

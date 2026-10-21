@@ -8,13 +8,9 @@ import {
   type Equipment,
   type EquipmentAvailability,
   type EquipmentAvailabilityQuery,
-  EQUIPMENT_FIRM_STATUSES,
-  EQUIPMENT_PENDING_STATUSES,
   type EquipmentInput,
   type EquipmentListQuery,
   type EquipmentPage,
-  occupationPeriod,
-  periodsOverlap,
   resolveTaxRate,
   slugify,
   zonedToUtc,
@@ -39,13 +35,14 @@ import {
   uniqueSlug,
 } from '../catalog-common';
 import { MediaService } from '../media/media.service';
+import { equipmentUsage } from './equipment-usage';
 
 type Db = Prisma.TransactionClient;
 
 const listRefSelect = { id: true, code: true, name: true, archivedAt: true } as const;
 
 const equipmentInclude = {
-  _count: { select: { orderItems: true } },
+  _count: { select: { orderItems: true, quoteLines: true } },
   category: { select: listRefSelect },
   range: { select: listRefSelect },
 } satisfies Prisma.EquipmentItemInclude;
@@ -83,7 +80,7 @@ function toEquipment(row: EquipmentRow, settings: CatalogSettings): Equipment {
     imageKey: row.imageKey,
     isActive: row.isActive,
     archivedAt: toIso(row.archivedAt),
-    inUse: row._count.orderItems > 0,
+    inUse: row._count.orderItems + row._count.quoteLines > 0,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
   };
@@ -308,68 +305,26 @@ export class EquipmentService {
       start: zonedToUtc(startDate, startTime, traiteur.timezone),
       end: zonedToUtc(endDate, endTime, traiteur.timezone),
     };
-    // Commandes candidates : une marge de 10 jours couvre les délais (240 h au plus)
-    const margin = 10 * 86_400_000;
-    const [items, lines] = await Promise.all([
+    const [items, usage] = await Promise.all([
       this.prisma.equipmentItem.findMany({
         where: { traiteurId, archivedAt: null },
         select: { id: true, stockQuantity: true },
         orderBy: { slug: 'asc' },
       }),
-      this.prisma.orderItem.findMany({
-        where: {
-          traiteurId,
-          equipmentId: { not: null },
-          order: {
-            status: { in: [...EQUIPMENT_FIRM_STATUSES, ...EQUIPMENT_PENDING_STATUSES] },
-            eventDate: {
-              gte: new Date(period.start.getTime() - margin),
-              lte: new Date(period.end.getTime() + margin),
-            },
-            ...(query.excludeOrderId ? { id: { not: query.excludeOrderId } } : {}),
-          },
-        },
-        select: {
-          equipmentId: true,
-          quantity: true,
-          order: {
-            select: {
-              status: true,
-              eventDate: true,
-              eventEndDate: true,
-              equipmentSetupHours: true,
-              equipmentReturnHours: true,
-            },
-          },
-        },
+      equipmentUsage(this.prisma, traiteurId, period, traiteur, {
+        excludeOrderId: query.excludeOrderId,
       }),
     ]);
-
-    const reserved = new Map<string, number>();
-    const pending = new Map<string, number>();
-    const firm = new Set<string>(EQUIPMENT_FIRM_STATUSES);
-    for (const line of lines) {
-      if (!line.equipmentId) continue;
-      const occupied = occupationPeriod(
-        line.order.eventDate,
-        line.order.eventEndDate,
-        line.order.equipmentSetupHours ?? traiteur.equipmentSetupHours,
-        line.order.equipmentReturnHours ?? traiteur.equipmentReturnHours,
-      );
-      if (!periodsOverlap(occupied, period)) continue;
-      const target = firm.has(line.order.status) ? reserved : pending;
-      target.set(line.equipmentId, (target.get(line.equipmentId) ?? 0) + line.quantity);
-    }
     return {
       start: period.start.toISOString(),
       end: period.end.toISOString(),
       items: items.map((item) => {
-        const taken = reserved.get(item.id) ?? 0;
+        const taken = usage.reserved.get(item.id) ?? 0;
         return {
           equipmentId: item.id,
           stock: item.stockQuantity,
           reserved: taken,
-          pending: pending.get(item.id) ?? 0,
+          pending: usage.pending.get(item.id) ?? 0,
           remaining: item.stockQuantity - taken,
         };
       }),

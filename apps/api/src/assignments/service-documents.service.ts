@@ -14,6 +14,7 @@ import { deliveryNoteDocument } from './delivery-note';
 import {
   type PrepOrder,
   preparationDocument,
+  preparationEquipment,
   preparationItems,
   preparationItemsInclude,
 } from './preparation-sheet';
@@ -31,7 +32,6 @@ const orderSelect = {
   city: true,
   notes: true,
   serviceNotes: true,
-  equipment: true,
   onSiteContactName: true,
   onSiteContactPhone: true,
   client: {
@@ -144,11 +144,12 @@ export class ServiceDocumentsService {
             name: order.onSiteContactName ?? clientName,
             phone: order.onSiteContactPhone ?? order.client.user.phone,
           },
-          lines: order.items.map((item) => ({
-            label: readLineLabel(item.label),
-            quantity: item.quantity,
-          })),
-          equipment: order.equipment,
+          lines: order.items
+            .filter((item) => item.itemType !== 'EQUIPMENT')
+            .map((item) => ({ label: readLineLabel(item.label), quantity: item.quantity })),
+          equipment: order.items
+            .filter((item) => item.itemType === 'EQUIPMENT')
+            .map((item) => ({ label: readLineLabel(item.label), quantity: item.quantity })),
           serviceNotes: order.serviceNotes,
           clientNotes: order.notes,
         }),
@@ -170,6 +171,7 @@ export class ServiceDocumentsService {
       guestCount: order.guestCount,
       city: order.city,
       items: preparationItems(order),
+      equipment: preparationEquipment(order),
     };
   }
 

@@ -136,3 +136,65 @@ test('client, commande de 3 lignes confirmée, puis retrouvée dans le calendrie
   await day.click({ position: { x: 18, y: 16 } });
   await expect(page.getByTestId('day-orders')).toContainText(reference);
 });
+
+test('matériel dans une commande : stock affiché, alerte de dépassement et confirmation motivée', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const suffix = uniqueSuffix();
+  const item = `Tente berbère e2e ${suffix}`;
+  const lastName = `Matériel ${suffix}`;
+  const eventDate = casablancaDay(60 + (Date.now() % 20));
+  await login(page);
+
+  // Article en stock limité (5)
+  await page.goto('/admin/catalog/equipment/new');
+  await page.getByLabel('Nom (français)').fill(item);
+  await page.getByLabel(/^Prix (TTC|HT)$/).fill('800');
+  await page.getByLabel('Quantité en stock').fill('5');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Matériel créé')).toBeVisible();
+
+  // Client et commande
+  await page.goto('/admin/clients');
+  await page.getByRole('button', { name: 'Nouveau client' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Téléphone').fill(`06${String(Date.now()).slice(-8)}`);
+  await dialog.getByLabel('Prénom').fill('Nadia');
+  await dialog.getByLabel('Nom', { exact: true }).fill(lastName);
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Client enregistré')).toBeVisible();
+  await page.getByRole('link', { name: 'Nouvelle commande' }).click();
+  await page.getByLabel('Date').fill(eventDate);
+  await page.getByLabel('Début').fill('20:00');
+  await page.getByLabel('Nombre d’invités').fill('50');
+  await page.getByLabel('Adresse', { exact: true }).fill('3, rue des Palmiers');
+  await page.getByLabel('Ville').fill('Rabat');
+
+  await page.getByRole('button', { name: 'Ajouter' }).click();
+  await page.getByRole('menuitem', { name: 'Matériel' }).click();
+  await page.getByPlaceholder('Rechercher…').fill(suffix);
+  await page.getByRole('option', { name: new RegExp(item) }).click();
+  const line = page.getByTestId('order-lines').getByRole('listitem').first();
+  await line.getByLabel('Quantité').fill('8');
+  // Stock de la période : 5 disponibles, il en manque 3
+  await expect(line.getByTestId('stock-hint')).toHaveText('Reste 5 sur 5 · manque 3');
+  // Délais du matériel : réglage de l'établissement par défaut
+  await expect(page.getByLabel('Installation (heures avant le début)')).toHaveAttribute(
+    'placeholder',
+    /\d+/,
+  );
+
+  await page.getByRole('button', { name: 'Enregistrer et confirmer' }).click();
+  const force = page.getByRole('button', { name: 'Passer outre et enregistrer' });
+  const stockDialog = page.getByRole('dialog', { name: 'Stock de matériel insuffisant' });
+  await expect(force.or(stockDialog).first()).toBeVisible();
+  if (await force.isVisible()) await force.click();
+  await expect(stockDialog).toContainText('8 demandés, 5 disponibles sur 5');
+  await stockDialog
+    .getByLabel('Motif pour confirmer quand même')
+    .fill('Sous-location chez un confrère');
+  await stockDialog.getByRole('button', { name: 'Confirmer quand même' }).click();
+  await expect(page.getByText(/Commande CMD-\d{4}-\d{5} enregistrée/)).toBeVisible();
+  await expect(page.getByTestId('detail-lines')).toContainText(item);
+});

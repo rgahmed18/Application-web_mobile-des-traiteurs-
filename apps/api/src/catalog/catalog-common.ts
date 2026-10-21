@@ -28,6 +28,8 @@ export async function loadCatalogSettings(db: Db, traiteurId: string): Promise<C
       defaultTaxRateBps: true,
       currency: true,
       timezone: true,
+      equipmentSetupHours: true,
+      equipmentReturnHours: true,
     },
   });
   return traiteur;

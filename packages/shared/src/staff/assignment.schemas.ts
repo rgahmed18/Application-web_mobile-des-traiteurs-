@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { phoneSchema } from '../auth/phone';
-import { eventTypeSchema, orderStatusSchema, staffRoleSchema } from '../enums';
+import { eventTypeSchema, lineItemTypeSchema, orderStatusSchema, staffRoleSchema } from '../enums';
 import { localizedTextSchema } from '../i18n/localized-text';
 import { lineLabelSchema } from '../orders/line-label';
 import { localDateSchema } from '../time/zoned';
@@ -112,7 +112,6 @@ export const serviceInfoSchema = z.object({
   onSiteContactName: z.string().trim().max(120).nullable(),
   onSiteContactPhone: phoneSchema.nullable(),
   serviceNotes: z.string().trim().max(2000).nullable(),
-  equipment: z.string().trim().max(2000).nullable(),
 });
 export type ServiceInfoInput = z.infer<typeof serviceInfoSchema>;
 
@@ -309,10 +308,9 @@ export const missionSchema = missionSummarySchema.extend({
     z.object({
       label: lineLabelSchema,
       quantity: z.number().int(),
-      itemType: z.enum(['DISH', 'PACKAGE', 'EXTRA_SERVICE', 'CUSTOM']),
+      itemType: lineItemTypeSchema,
     }),
   ),
-  equipment: z.string().nullable(),
   serviceNotes: z.string().nullable(),
   missionNotes: z.string().nullable(),
   clientNotes: z.string().nullable(),

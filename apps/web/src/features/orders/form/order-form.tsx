@@ -3,6 +3,8 @@
 import {
   type Availability,
   type CatalogSettings,
+  type EquipmentShortage,
+  localOccupationPeriod,
   type Order,
   orderEditPolicy,
   type OrderEditPolicy,
@@ -34,7 +36,7 @@ import { FormHeader, FormSection } from '@/features/catalog/components/form-layo
 import { useClient } from '@/features/clients/clients-api';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
-import { useCatalogList } from '@/features/catalog/catalog-api';
+import { useCatalogList, useEquipmentAvailability } from '@/features/catalog/catalog-api';
 import { useLocalized } from '@/features/catalog/use-localized';
 
 import {
@@ -44,6 +46,8 @@ import {
   type GuestLineChange,
   isReasonRequired,
   ReasonDialog,
+  stockConflict,
+  StockOverrideDialog,
   versionConflict,
   type VersionConflict,
   VersionConflictDialog,
@@ -51,6 +55,7 @@ import {
 import { useCreateOrder, useUpdateOrder } from '../orders-api';
 import { AvailabilityBanner } from './availability-banner';
 import { ClientPicker } from './client-picker';
+import type { StockFigures } from './catalog-picker';
 import { LinesEditor } from './lines-editor';
 import {
   emptyOrderForm,
@@ -66,6 +71,8 @@ type Intent = 'DRAFT' | 'PENDING' | 'CONFIRMED';
 interface SendOptions {
   forceAvailability?: boolean;
   reason?: string | null;
+  /** Motif pour confirmer malgré un stock de matériel insuffisant. */
+  stockOverrideReason?: string | null;
 }
 
 interface OrderFormProps {
@@ -111,10 +118,28 @@ export function OrderForm({
     orderFormSchema,
     order ? orderToFormValues(order) : emptyOrderForm(initialDate, initialClientId),
   );
-  const [clientId, eventDate, endTime, lines] = useWatch({
-    control: form.control,
-    name: ['clientId', 'eventDate', 'endTime', 'lines'],
+  const [clientId, eventDate, startTime, endTime, endsNextDay, setupHours, returnHours, lines] =
+    useWatch({
+      control: form.control,
+      name: [
+        'clientId',
+        'eventDate',
+        'startTime',
+        'endTime',
+        'endsNextDay',
+        'equipmentSetupHours',
+        'equipmentReturnHours',
+        'lines',
+      ],
+    });
+  const stock = useOrderStock({
+    enabled: can('catalog.read'),
+    orderId: order?.id,
+    event: { eventDate, startTime, endTime, endsNextDay },
+    setupHours: hoursOr(setupHours, settings.equipmentSetupHours),
+    returnHours: hoursOr(returnHours, settings.equipmentReturnHours),
   });
+  const hasEquipment = lines.some((line) => line.itemType === 'EQUIPMENT');
   const client = useClient(clientId === '' ? null : clientId);
 
   const [saved, setSaved] = useState(false);
@@ -123,6 +148,10 @@ export function OrderForm({
     retry: () => void;
   } | null>(null);
   const [reasonRequest, setReasonRequest] = useState<((reason: string) => void) | null>(null);
+  const [stockRequest, setStockRequest] = useState<{
+    shortages: EquipmentShortage[];
+    retry: (reason: string) => void;
+  } | null>(null);
   const [conflict, setConflict] = useState<VersionConflict | null>(null);
   const [guestChange, setGuestChange] = useState<{
     from: number;
@@ -189,7 +218,12 @@ export function OrderForm({
     try {
       let result: Order;
       if (order) {
-        const { status: _status, forceAvailability: _force, ...fields } = values;
+        const {
+          status: _status,
+          forceAvailability: _force,
+          stockOverrideReason: _stock,
+          ...fields
+        } = values;
         result = await updateOrder.mutateAsync({
           id: order.id,
           input: {
@@ -197,6 +231,7 @@ export function OrderForm({
             version: order.version,
             reason: options.reason ?? null,
             forceAvailability: options.forceAvailability ?? false,
+            stockOverrideReason: options.stockOverrideReason ?? null,
           },
         });
         toast.success(tf('saved'));
@@ -204,6 +239,7 @@ export function OrderForm({
         result = await createOrder.mutateAsync({
           ...values,
           forceAvailability: options.forceAvailability ?? false,
+          stockOverrideReason: options.stockOverrideReason ?? null,
         });
         toast.success(tf('created', { reference: result.reference }));
       }
@@ -215,6 +251,14 @@ export function OrderForm({
         setForceRequest({
           availability,
           retry: () => void send(values, { ...options, forceAvailability: true }),
+        });
+        return;
+      }
+      const shortages = stockConflict(error);
+      if (shortages) {
+        setStockRequest({
+          shortages,
+          retry: (reason) => void send(values, { ...options, stockOverrideReason: reason }),
         });
         return;
       }
@@ -462,8 +506,50 @@ export function OrderForm({
               isVatRegistered={settings.isVatRegistered}
               defaultTaxRateBps={settings.defaultTaxRateBps}
               disabled={locked.framed}
+              stock={stock}
             />
           </FormSection>
+
+          {(hasEquipment || setupHours !== '' || returnHours !== '') && (
+            <FormSection title={tf('sections.equipment')} description={tf('equipment.hint')}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="equipmentSetupHours"
+                  label={tf('equipment.setupHours')}
+                  description={tf('equipment.default', { hours: settings.equipmentSetupHours })}
+                  render={(field, { invalid }) => (
+                    <Input
+                      {...field}
+                      inputMode="numeric"
+                      dir="ltr"
+                      className="sm:w-40"
+                      placeholder={String(settings.equipmentSetupHours)}
+                      disabled={locked.framed}
+                      aria-invalid={invalid}
+                    />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="equipmentReturnHours"
+                  label={tf('equipment.returnHours')}
+                  description={tf('equipment.default', { hours: settings.equipmentReturnHours })}
+                  render={(field, { invalid }) => (
+                    <Input
+                      {...field}
+                      inputMode="numeric"
+                      dir="ltr"
+                      className="sm:w-40"
+                      placeholder={String(settings.equipmentReturnHours)}
+                      disabled={locked.framed}
+                      aria-invalid={invalid}
+                    />
+                  )}
+                />
+              </div>
+            </FormSection>
+          )}
 
           <FormSection title={tf('sections.notes')}>
             <FormField
@@ -562,6 +648,16 @@ export function OrderForm({
           retry?.(reason);
         }}
       />
+      <StockOverrideDialog
+        shortages={stockRequest?.shortages ?? null}
+        pending={busy}
+        onCancel={() => setStockRequest(null)}
+        onConfirm={(reason) => {
+          const retry = stockRequest?.retry;
+          setStockRequest(null);
+          retry?.(reason);
+        }}
+      />
       <VersionConflictDialog
         conflict={conflict}
         timeZone={settings.timezone}
@@ -589,5 +685,61 @@ export function OrderForm({
         }}
       />
     </form>
+  );
+}
+
+/** Délai saisi, sinon le réglage du traiteur. */
+function hoursOr(value: string, fallback: number): number {
+  return /^\d+$/.test(value.trim()) ? Math.min(Number(value), 240) : fallback;
+}
+
+/**
+ * Stock restant de chaque article sur la période d'occupation de la commande (début moins
+ * l'installation, fin plus le retour), sans compter les lignes de cette commande.
+ */
+function useOrderStock({
+  enabled,
+  orderId,
+  event,
+  setupHours,
+  returnHours,
+}: {
+  enabled: boolean;
+  orderId: string | undefined;
+  event: { eventDate: string; startTime: string; endTime: string; endsNextDay: boolean };
+  setupHours: number;
+  returnHours: number;
+}): ReadonlyMap<string, StockFigures> | undefined {
+  const valid =
+    /^\d{4}-\d{2}-\d{2}$/.test(event.eventDate) &&
+    /^\d{2}:\d{2}$/.test(event.startTime) &&
+    (event.endTime === '' || /^\d{2}:\d{2}$/.test(event.endTime));
+  const period =
+    enabled && valid
+      ? localOccupationPeriod(
+          {
+            eventDate: event.eventDate,
+            startTime: event.startTime,
+            endTime: event.endTime === '' ? null : event.endTime,
+            endsNextDay: event.endTime !== '' && event.endsNextDay,
+          },
+          setupHours,
+          returnHours,
+        )
+      : null;
+  const availability = useEquipmentAvailability(
+    period ? { ...period, excludeOrderId: orderId } : null,
+  );
+  return useMemo(
+    () =>
+      availability.data
+        ? new Map(
+            availability.data.items.map((item) => [
+              item.equipmentId,
+              { stock: item.stock, remaining: item.remaining, pending: item.pending },
+            ]),
+          )
+        : undefined,
+    [availability.data],
   );
 }

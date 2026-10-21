@@ -261,12 +261,6 @@ export function PersonnelCard({ order }: { order: Order }) {
               t('serviceInfo.contactDefault')
             )}
           </p>
-          {info.equipment && (
-            <p className="whitespace-pre-line">
-              <span className="text-muted-foreground">{t('serviceInfo.equipment')} : </span>
-              {info.equipment}
-            </p>
-          )}
           {info.serviceNotes && (
             <p className="whitespace-pre-line">
               <span className="text-muted-foreground">{t('serviceInfo.serviceNotes')} : </span>
@@ -555,13 +549,11 @@ const serviceFormSchema = z
     onSiteContactName: z.string(),
     onSiteContactPhone: z.string(),
     serviceNotes: z.string(),
-    equipment: z.string(),
   })
   .transform((values): z.input<typeof serviceInfoSchema> => ({
     onSiteContactName: values.onSiteContactName.trim() || null,
     onSiteContactPhone: values.onSiteContactPhone.trim() || null,
     serviceNotes: values.serviceNotes.trim() || null,
-    equipment: values.equipment.trim() || null,
   }))
   .pipe(serviceInfoSchema);
 
@@ -581,7 +573,6 @@ function ServiceInfoDialog({
     onSiteContactName: info.onSiteContactName ?? '',
     onSiteContactPhone: info.onSiteContactPhone ?? '',
     serviceNotes: info.serviceNotes ?? '',
-    equipment: info.equipment ?? '',
   });
   const onSubmit = form.handleSubmit(async (input) => {
     try {
@@ -617,14 +608,6 @@ function ServiceInfoDialog({
           render={(field, { invalid }) => <PhoneInput {...field} aria-invalid={invalid} />}
         />
       </div>
-      <FormField
-        control={form.control}
-        name="equipment"
-        label={t('equipment')}
-        render={(field, { invalid }) => (
-          <Textarea {...field} rows={2} dir="auto" aria-invalid={invalid} />
-        )}
-      />
       <FormField
         control={form.control}
         name="serviceNotes"

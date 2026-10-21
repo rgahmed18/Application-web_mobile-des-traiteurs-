@@ -181,9 +181,20 @@ http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` 
 - **Commandes** (`orders.read`, `orders.create`, `orders.write`, `orders.cancel`,
   `orders.edit_confirmed`) : liste filtrée (statut, période, type, référence ou client),
   formulaire guidé (client recherché ou créé à la volée, événement, lieu, prestations — formules,
-  plats, services, lignes libres — avec remises en montant ou en %, totaux HT / TVA par taux / TTC
-  en direct, bouton **Arrondir le total**), fiche avec historique, devis, paiements et
-  emplacement Personnel. Changer le nombre d'invités propose d'ajuster les lignes « par personne ».
+  plats, buffets, matériel, services, lignes libres — avec remises en montant ou en %, totaux HT /
+  TVA par taux / TTC en direct, bouton **Arrondir le total**), fiche avec historique, devis,
+  paiements et emplacement Personnel. Changer le nombre d'invités propose d'ajuster les lignes
+  « par personne ».
+- **Matériel dans les commandes** : chaque ligne de matériel affiche le stock de la période
+  (« Reste 80 sur 200 · +60 en attente · manque 10 »). La période d'occupation va du début de
+  l'événement moins le délai d'installation à sa fin plus le délai de retour (réglages de
+  l'établissement, 12 h et 24 h par défaut, modifiables par commande). Seules les commandes
+  fermes (confirmée → livrée) sont déduites ; les commandes en attente sont affichées à part.
+  Quand une commande devient ferme (création confirmée, confirmation, modification d'une commande
+  ferme), un stock insuffisant renvoie `409 EQUIPMENT_STOCK_CONFLICT` avec le détail ; le
+  traiteur peut confirmer quand même avec un motif (`stockOverrideReason`), tracé dans l'audit
+  (`equipment.stock_overridden`). Un devis accepté en ligne alors que le matériel manque laisse la
+  commande au traiteur (« date à confirmer »), comme une date complète.
 - **Calendrier** (`calendar.read`, `calendar.manage`) : vues mois, semaine et liste, commandes
   colorées par statut, charge du jour (`2/3`), dates bloquées hachurées. Un clic sur un jour ouvre
   ses commandes, le blocage de la date et « Nouvelle commande » pré-rempli. Capacité par jour
@@ -196,6 +207,10 @@ http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` 
   - formules : composition (plats et quantités par personne), invités min / max, prix par
     personne et valeur indicative des plats au détail calculée en direct ;
   - catégories : ordre par glisser-déposer (souris, doigt ou clavier : Espace puis flèches) ;
+  - buffets : type, gamme, composition en plats du catalogue et en éléments libres FR/AR, prix
+    par personne ou forfait, invités minimum ;
+  - matériel : catégorie, gamme, photo, prix de location et de remplacement, stock ; disponibilité
+    par période (`GET /catalog/equipment/availability?start&end`) ;
   - services : prix et unité de tarification ;
   - listes (`/catalog/lists/event-types`, `/catalog/lists/ranges`) : types d’événement (dont la
     soutenance) et gammes du traiteur, traduits, créés par défaut pour chaque traiteur ; code
@@ -243,7 +258,8 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
   le rôle) et une note. Un chevauchement avec une autre mission du membre est refusé avec le
   détail, sauf si le traiteur passe outre (tracé). Commande confirmée, en préparation ou en
   livraison seulement. Informations de service (`orders.write`) : contact sur place (le client
-  par défaut), matériel, notes de service — jamais montrés au client.
+  par défaut) et notes de service — jamais montrés au client. Le matériel vient des lignes de
+  matériel de la commande (l'ancien champ libre a été versé dans les notes de service).
 - **Planning** (Personnel → Planning) : semaine par personne, missions colorées par statut,
   chevauchements signalés.
 - **Mes missions** (`assignments.read_own`, page d'accueil de l'équipe et des livreurs) :
@@ -259,8 +275,9 @@ requête et transmettent l'IP du navigateur uniquement si elle provient d'un pro
   (il reste la date, la référence et la ville).
 - **Bons PDF** (Typst, sans prix) : bon de préparation par événement (fiche commande, mission
   d'un cuisinier) ou par jour (calendrier), quantités totales par plat regroupées par catégorie,
-  formules décomposées en plats ; bon de livraison dans la langue du client (adresse, contact,
-  contenu, matériel, notes, signature du client à la réception). Générés à la demande.
+  formules et buffets décomposés en plats (éléments libres des buffets compris), matériel à
+  sortir récapitulé à part ; bon de livraison dans la langue du client (adresse, contact,
+  contenu, matériel loué, notes, signature du client à la réception). Générés à la demande.
 - Le livreur n'a plus accès au catalogue par défaut (prix) ; le traiteur peut le lui rendre.
 
 ### Paiements

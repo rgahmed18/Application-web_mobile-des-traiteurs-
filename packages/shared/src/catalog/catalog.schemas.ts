@@ -205,6 +205,9 @@ export const catalogSettingsSchema = z.object({
   defaultTaxRateBps: z.number().int(),
   currency: z.string(),
   timezone: z.string(),
+  /** Délais du matériel par défaut (heures avant le début et après la fin). */
+  equipmentSetupHours: z.number().int(),
+  equipmentReturnHours: z.number().int(),
 });
 export type CatalogSettings = z.infer<typeof catalogSettingsSchema>;
 

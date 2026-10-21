@@ -110,6 +110,8 @@ enum LineItemType {
   DISH
   PACKAGE
   EXTRA_SERVICE
+  EQUIPMENT // location de matériel (stock par période)
+  BUFFET
   CUSTOM
 }
 
@@ -754,6 +756,7 @@ model EquipmentItem {
   category   EquipmentCategory? @relation(fields: [categoryId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
   range      CatalogRange?      @relation(fields: [rangeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
   orderItems OrderItem[]
+  quoteLines QuoteLine[]
 
   @@unique([traiteurId, slug])
   @@unique([id, traiteurId])
@@ -804,10 +807,12 @@ model Buffet {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  traiteur Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  type     BuffetType?   @relation(fields: [typeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
-  range    CatalogRange? @relation(fields: [rangeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
-  dishes   BuffetDish[]
+  traiteur   Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  type       BuffetType?   @relation(fields: [typeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
+  range      CatalogRange? @relation(fields: [rangeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
+  dishes     BuffetDish[]
+  orderItems OrderItem[]
+  quoteLines QuoteLine[]
 
   @@unique([traiteurId, slug])
   @@unique([id, traiteurId])
@@ -859,7 +864,6 @@ model Order {
   onSiteContactName     String? // contact sur place (défaut : le client)
   onSiteContactPhone    String?
   serviceNotes          String? // notes de service pour l'équipe
-  equipment             String? // matériel à livrer (tables, nappes, chauffe-plats…)
   // Délais du matériel pour cette commande (null : réglage du traiteur)
   equipmentSetupHours   Int?
   equipmentReturnHours  Int?
@@ -905,6 +909,7 @@ model OrderItem {
   packageId      String?      @db.Uuid
   extraServiceId String?      @db.Uuid
   equipmentId    String?      @db.Uuid
+  buffetId       String?      @db.Uuid
   label          Json // LocalizedText { fr, ar?, en? } figé à l'ajout de la ligne (copie du catalogue ou saisie)
   // Montants en centimes. Le prix unitaire et la remise du mode de la ligne font foi ;
   // ceux de l'autre mode sont indicatifs. Règles vérifiées par CHECK (voir PriceMode).
@@ -931,9 +936,11 @@ model OrderItem {
   package      Package?       @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
   extraService ExtraService?  @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
   equipment    EquipmentItem? @relation(fields: [equipmentId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  buffet       Buffet?        @relation(fields: [buffetId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
   @@index([traiteurId, orderId])
   @@index([traiteurId, equipmentId])
+  @@index([traiteurId, buffetId])
 }
 
 // Historique des statuts d'une commande (affiché sur la fiche ; AuditLog reste le journal technique).
@@ -1040,6 +1047,8 @@ model QuoteLine {
   dishId         String?      @db.Uuid
   packageId      String?      @db.Uuid
   extraServiceId String?      @db.Uuid
+  equipmentId    String?      @db.Uuid
+  buffetId       String?      @db.Uuid
   label          Json // LocalizedText figé (copie de la ligne de commande)
   priceMode      PriceMode // toujours égal à celui du devis (clé composite)
   quantity       Int
@@ -1055,11 +1064,13 @@ model QuoteLine {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  traiteur     Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  quote        Quote         @relation(fields: [quoteId, traiteurId, priceMode], references: [id, traiteurId, priceMode], onDelete: Cascade)
-  dish         Dish?         @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
-  package      Package?      @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
-  extraService ExtraService? @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  traiteur     Traiteur       @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  quote        Quote          @relation(fields: [quoteId, traiteurId, priceMode], references: [id, traiteurId, priceMode], onDelete: Cascade)
+  dish         Dish?          @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  package      Package?       @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  extraService ExtraService?  @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  equipment    EquipmentItem? @relation(fields: [equipmentId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  buffet       Buffet?        @relation(fields: [buffetId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
   @@index([traiteurId, quoteId])
 }

@@ -132,9 +132,12 @@ describe('API du matériel (application complète)', () => {
           internalNotes: null,
           status,
           forceAvailability: true,
+          // Dépassement voulu par certains cas : confirmé avec un motif (sinon 409)
+          stockOverrideReason: 'Sous-location',
           lines: [
             {
-              itemType: 'CUSTOM',
+              itemType: 'EQUIPMENT',
+              equipmentId,
               label: { fr: 'Chaises' },
               quantity,
               unitPrice: 1_500,
@@ -145,8 +148,6 @@ describe('API du matériel (application complète)', () => {
         })
         .expect(201)
     ).body as { id: string };
-    // Les lignes de matériel arrivent avec l'étape suivante : rattachement direct en base
-    await prisma.orderItem.updateMany({ where: { orderId: order.id }, data: { equipmentId } });
     return order.id;
   }
 

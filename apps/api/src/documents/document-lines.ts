@@ -52,6 +52,8 @@ export interface LineDraft {
   dishId?: string | null;
   packageId?: string | null;
   extraServiceId?: string | null;
+  equipmentId?: string | null;
+  buffetId?: string | null;
   sortOrder?: number;
   /** Commandes uniquement (les lignes de devis n'ont pas de note). */
   notes?: string | null;
@@ -95,6 +97,8 @@ function toColumns(doc: DocumentRef, priceMode: PriceMode, draft: LineDraft, ind
     dishId: draft.dishId ?? null,
     packageId: draft.packageId ?? null,
     extraServiceId: draft.extraServiceId ?? null,
+    equipmentId: draft.equipmentId ?? null,
+    buffetId: draft.buffetId ?? null,
     sortOrder: draft.sortOrder ?? index,
   };
 }

@@ -3,6 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import {
   type Availability,
+  type EquipmentShortage,
   type CancellationRefund,
   availableTransitions,
   formatTaxRate,
@@ -51,6 +52,8 @@ import { useLocalized } from '@/features/catalog/use-localized';
 
 import {
   availabilityConflict,
+  stockConflict,
+  StockOverrideDialog,
   ForceAvailabilityDialog,
   ReasonDialog,
   versionConflict,
@@ -190,6 +193,13 @@ function History({ orderId, timeZone }: { orderId: string; timeZone: string }) {
 }
 
 /** Boutons de changement de statut, selon la machine à états et les droits de l'utilisateur. */
+interface TransitionOptions {
+  reason?: string;
+  forceAvailability?: boolean;
+  stockOverrideReason?: string;
+  refund?: CancellationRefund | null;
+}
+
 function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) {
   const t = useTranslations('orders');
   const tStatus = useTranslations('orderStatus');
@@ -198,7 +208,16 @@ function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) 
   const queryClient = useQueryClient();
   const transition = useTransitionOrder();
   const [reasonFor, setReasonFor] = useState<'CANCELLED' | 'PENDING' | null>(null);
-  const [force, setForce] = useState<{ availability: Availability; to: OrderStatus } | null>(null);
+  const [force, setForce] = useState<{
+    availability: Availability;
+    to: OrderStatus;
+    options: TransitionOptions;
+  } | null>(null);
+  const [stock, setStock] = useState<{
+    shortages: EquipmentShortage[];
+    to: OrderStatus;
+    options: TransitionOptions;
+  } | null>(null);
   const [conflict, setConflict] = useState<VersionConflict | null>(null);
 
   const permissions = new Set(PERMISSION_KEYS.filter((key) => can(key)));
@@ -211,14 +230,7 @@ function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) 
   );
   const paid = payments.data?.schedule.paid ?? 0;
 
-  const run = (
-    to: OrderStatus,
-    options: {
-      reason?: string;
-      forceAvailability?: boolean;
-      refund?: CancellationRefund | null;
-    } = {},
-  ) => {
+  const run = (to: OrderStatus, options: TransitionOptions = {}) => {
     transition.mutate(
       {
         id: order.id,
@@ -227,6 +239,7 @@ function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) 
           version: order.version,
           reason: options.reason ?? null,
           forceAvailability: options.forceAvailability ?? false,
+          stockOverrideReason: options.stockOverrideReason ?? null,
           refund: options.refund ?? null,
         },
       },
@@ -237,7 +250,9 @@ function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) 
         },
         onError: (error) => {
           const availability = availabilityConflict(error);
-          if (availability) return setForce({ availability, to });
+          if (availability) return setForce({ availability, to, options });
+          const shortages = stockConflict(error);
+          if (shortages) return setStock({ shortages, to, options });
           const stale = versionConflict(error);
           if (stale) return setConflict(stale);
           toast.error(describeError(error));
@@ -307,8 +322,17 @@ function StatusActions({ order, timeZone }: { order: Order; timeZone: string }) 
         availability={force?.availability ?? null}
         onCancel={() => setForce(null)}
         onConfirm={() => {
-          if (force) run(force.to, { forceAvailability: true });
+          if (force) run(force.to, { ...force.options, forceAvailability: true });
           setForce(null);
+        }}
+      />
+      <StockOverrideDialog
+        shortages={stock?.shortages ?? null}
+        pending={transition.isPending}
+        onCancel={() => setStock(null)}
+        onConfirm={(reason) => {
+          if (stock) run(stock.to, { ...stock.options, stockOverrideReason: reason });
+          setStock(null);
         }}
       />
       <VersionConflictDialog

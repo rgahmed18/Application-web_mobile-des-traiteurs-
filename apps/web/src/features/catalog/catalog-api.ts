@@ -23,6 +23,9 @@ import {
   type Category,
   type CategoryInput,
   type Equipment,
+  type EquipmentAvailability,
+  type EquipmentAvailabilityQuery,
+  equipmentAvailabilitySchema,
   type EquipmentInput,
   type EquipmentListQuery,
   type EquipmentPage,
@@ -62,6 +65,8 @@ export const catalogKeys = {
   list: (list: CatalogList) => ['catalog', 'lists', list] as const,
   equipmentList: (query: Partial<EquipmentListQuery>) => ['catalog', 'equipment', query] as const,
   equipment: (id: string) => ['catalog', 'equipment-item', id] as const,
+  equipmentAvailability: (query: EquipmentAvailabilityQuery) =>
+    ['catalog', 'equipment-availability', query] as const,
   buffets: (query: Partial<BuffetListQuery>) => ['catalog', 'buffets', query] as const,
   buffet: (id: string) => ['catalog', 'buffet', id] as const,
 };
@@ -159,6 +164,25 @@ export function useEquipment(id: string | null): UseQueryResult<Equipment> {
     queryFn: ({ signal }) =>
       apiRequest(`/catalog/equipment/${id ?? ''}`, { schema: equipmentSchema, signal }),
     enabled: id !== null,
+  });
+}
+
+/** Stock restant de chaque article sur une période (null : période incomplète). */
+export function useEquipmentAvailability(
+  query: EquipmentAvailabilityQuery | null,
+): UseQueryResult<EquipmentAvailability> {
+  return useQuery({
+    queryKey: catalogKeys.equipmentAvailability(
+      query ?? { start: '', end: '', excludeOrderId: undefined },
+    ),
+    queryFn: ({ signal }) =>
+      apiRequest('/catalog/equipment/availability', {
+        query: toQuery(query ?? {}),
+        schema: equipmentAvailabilitySchema,
+        signal,
+      }),
+    enabled: query !== null,
+    placeholderData: keepPreviousData,
   });
 }
 

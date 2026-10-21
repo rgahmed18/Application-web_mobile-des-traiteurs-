@@ -820,7 +820,6 @@ export async function seedDemoAssignments(
           onSiteContactName: 'Hicham (gérant de la salle)',
           onSiteContactPhone: '+212661000099',
           serviceNotes: 'Accès par l’entrée de service, côté parking.',
-          equipment: '20 tables rondes, nappes blanches, 4 chauffe-plats',
         },
       });
     }

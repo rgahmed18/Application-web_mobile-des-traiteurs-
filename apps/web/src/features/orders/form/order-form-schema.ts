@@ -26,6 +26,8 @@ export const lineFormSchema = z.object({
   dishId: z.string().nullable(),
   packageId: z.string().nullable(),
   extraServiceId: z.string().nullable(),
+  equipmentId: z.string().nullable(),
+  buffetId: z.string().nullable(),
   /** Libellé dans toutes les langues (copie du catalogue) ; une ligne libre : fr et/ou ar. */
   label: z.object({ fr: z.string(), ar: z.string(), en: z.string() }),
   quantity: z.string(),
@@ -53,6 +55,11 @@ export function discountToCents(discount: string, unitPrice: number, quantity: n
   return amountToCents(discount);
 }
 
+/** Délai saisi : vide → réglage du traiteur (null), sinon un entier (NaN refusé par l'API). */
+function optionalHours(value: string): number | null {
+  return value.trim() === '' ? null : toInteger(value);
+}
+
 export const orderFormSchema = z
   .object({
     /** Statut demandé (création) ; pour une modification, sert seulement à la validation. */
@@ -69,12 +76,16 @@ export const orderFormSchema = z
     city: z.string(),
     notes: z.string(),
     internalNotes: z.string(),
+    /** Délais du matériel en heures ; vide : réglage du traiteur. */
+    equipmentSetupHours: z.string(),
+    equipmentReturnHours: z.string(),
     lines: z.array(lineFormSchema),
   })
   // Sortie typée comme l'entrée du schéma de l'API (champs à valeur par défaut compris)
   .transform((values): z.input<typeof orderCreateSchema> => ({
     status: values.status,
     forceAvailability: false,
+    stockOverrideReason: null,
     clientId: values.clientId,
     eventType: values.eventType,
     eventDate: values.eventDate,
@@ -87,6 +98,8 @@ export const orderFormSchema = z
     city: values.city,
     notes: values.notes.trim() === '' ? null : values.notes,
     internalNotes: values.internalNotes.trim() === '' ? null : values.internalNotes,
+    equipmentSetupHours: optionalHours(values.equipmentSetupHours),
+    equipmentReturnHours: optionalHours(values.equipmentReturnHours),
     lines: values.lines.map((line) => {
       const unitPrice = amountToCents(line.unitPrice);
       const quantity = toInteger(line.quantity);
@@ -95,6 +108,8 @@ export const orderFormSchema = z
         dishId: line.dishId,
         packageId: line.packageId,
         extraServiceId: line.extraServiceId,
+        equipmentId: line.equipmentId,
+        buffetId: line.buffetId,
         // Traductions vides ignorées par le schéma partagé (repli sur le texte disponible)
         label: line.label,
         quantity,
@@ -140,6 +155,8 @@ export function emptyOrderForm(date: string, clientId: string): OrderFormValues 
     city: '',
     notes: '',
     internalNotes: '',
+    equipmentSetupHours: '',
+    equipmentReturnHours: '',
     lines: [],
   };
 }
@@ -160,12 +177,18 @@ export function orderToFormValues(order: Order): OrderFormValues {
     city: order.city,
     notes: order.notes ?? '',
     internalNotes: order.internalNotes ?? '',
+    equipmentSetupHours:
+      order.equipmentSetupHours === null ? '' : String(order.equipmentSetupHours),
+    equipmentReturnHours:
+      order.equipmentReturnHours === null ? '' : String(order.equipmentReturnHours),
     lines: order.lines.map((line) => ({
       key: line.id,
       itemType: line.itemType,
       dishId: line.dishId,
       packageId: line.packageId,
       extraServiceId: line.extraServiceId,
+      equipmentId: line.equipmentId,
+      buffetId: line.buffetId,
       label: formLabel(line.label),
       quantity: String(line.quantity),
       unitPrice: centsToAmount(line.unitPrice),

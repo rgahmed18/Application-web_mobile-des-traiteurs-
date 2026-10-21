@@ -162,7 +162,7 @@ describe('Réactivité de l’API pendant la génération de PDF', () => {
         label: { fr: `Plat ${index + 1} — sauce et garniture`, ar: `طبق رقم ${index + 1}` },
         quantity: 300,
       })),
-      equipment: null,
+      equipment: [],
       serviceNotes: null,
       clientNotes: null,
     });

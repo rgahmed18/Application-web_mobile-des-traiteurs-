@@ -34,6 +34,7 @@ import { readLineLabel } from '../documents/line-label';
 import { DocumentLinesService } from '../documents/document-lines.service';
 import type { OrderItem, OrderStatus, Prisma } from '../generated/prisma/client';
 import { dayAvailability, hasConflict, lockDay } from '../orders/availability';
+import { equipmentShortages } from '../orders/equipment-stock';
 import { joinAddress } from '../pdf/document-model';
 import { capitalize } from '../pdf/format';
 import { DOCUMENT_TEMPLATE_VERSION, PdfService } from '../pdf/pdf.service';
@@ -65,6 +66,8 @@ const settingsSelect = {
   maxEventsPerDay: true,
   closedWeekdays: true,
   quoteValidityDays: true,
+  equipmentSetupHours: true,
+  equipmentReturnHours: true,
 } satisfies Prisma.TraiteurSelect;
 type QuoteSettings = Prisma.TraiteurGetPayload<{ select: typeof settingsSelect }>;
 
@@ -779,8 +782,12 @@ export class QuotesService {
       const day = utcToZoned(order.eventDate, settings.timezone).date;
       await lockDay(tx, traiteurId, day);
       const availability = await dayAvailability(tx, traiteurId, day, settings, order.id);
-      if (hasConflict(availability)) {
-        // Date bloquée ou complète : l'accord est enregistré, le traiteur confirmera la date
+      // Date bloquée ou complète, ou matériel en manque : l'accord est enregistré, le traiteur
+      // confirmera lui-même (et pourra passer outre, motif tracé)
+      if (
+        hasConflict(availability) ||
+        (await equipmentShortages(tx, traiteurId, order, order.items, settings)).length > 0
+      ) {
         availabilityPending = true;
       } else {
         confirmed = true;
@@ -1054,6 +1061,8 @@ export class QuotesService {
         dishId: item.dishId,
         packageId: item.packageId,
         extraServiceId: item.extraServiceId,
+        equipmentId: item.equipmentId,
+        buffetId: item.buffetId,
         sortOrder: index,
       };
     });
@@ -1135,6 +1144,9 @@ export class QuotesService {
         totalTtc: true,
         depositAmount: true,
         eventDate: true,
+        eventEndDate: true,
+        equipmentSetupHours: true,
+        equipmentReturnHours: true,
         client: { select: { locale: true } },
         items: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
       },

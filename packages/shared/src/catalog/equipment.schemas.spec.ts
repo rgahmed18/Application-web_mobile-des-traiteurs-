@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { zonedToUtc } from '../time/zoned';
-import { occupationPeriod, periodsOverlap } from './equipment.schemas';
+import { localOccupationPeriod, occupationPeriod, periodsOverlap } from './equipment.schemas';
 
 /** Événement en heure du Maroc : jour, début, fin éventuelle (le lendemain si plus tôt). */
 const event = (day: string, start: string, end: string | null, setup = 12, back = 24) => {
@@ -54,5 +54,27 @@ describe('occupation du matériel par période', () => {
   it('heure de fin inconnue : la fin est le début de l’événement', () => {
     const period = event('2026-11-14', '20:00', null, 0, 24);
     expect(period.end.toISOString()).toBe('2026-11-15T20:00:00.000Z');
+  });
+});
+
+describe('période d’occupation en heures locales (saisie d’une commande)', () => {
+  it('fin le lendemain : délais appliqués au début et à la fin réelle', () => {
+    expect(
+      localOccupationPeriod(
+        { eventDate: '2026-11-14', startTime: '20:00', endTime: '02:00', endsNextDay: true },
+        12,
+        24,
+      ),
+    ).toEqual({ start: '2026-11-14T08:00', end: '2026-11-16T02:00' });
+  });
+
+  it('sans heure de fin ni délai : une minute', () => {
+    expect(
+      localOccupationPeriod(
+        { eventDate: '2026-11-14', startTime: '20:00', endTime: null, endsNextDay: false },
+        0,
+        0,
+      ),
+    ).toEqual({ start: '2026-11-14T20:00', end: '2026-11-14T20:01' });
   });
 });

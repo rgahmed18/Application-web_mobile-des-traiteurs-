@@ -45,11 +45,12 @@ import {
 import { centsToAmount } from '@/features/catalog/forms/form-values';
 import { currencyLabel, formatMoney } from '@/lib/format/money';
 
-import { type CatalogChoice, CatalogPicker } from './catalog-picker';
+import { type CatalogChoice, CatalogPicker, StockHint, type StockFigures } from './catalog-picker';
 import {
   formLabel,
   formLabelText,
   lineAmounts,
+  type LineFormValues,
   newLineKey,
   type OrderFormValues,
 } from './order-form-schema';
@@ -62,15 +63,21 @@ interface LinesEditorProps {
   isVatRegistered: boolean;
   defaultTaxRateBps: number;
   disabled: boolean;
+  /** Stock restant du matériel sur la période de la commande (autres commandes fermes déduites). */
+  stock?: ReadonlyMap<string, StockFigures>;
 }
 
-/** Prestations de la commande : formules, plats, services et lignes libres, avec remises. */
+/**
+ * Prestations de la commande : formules, plats, buffets, matériel, services et lignes libres,
+ * avec remises. Le matériel affiche le stock restant sur la période de la commande.
+ */
 export function LinesEditor({
   control,
   priceMode,
   isVatRegistered,
   defaultTaxRateBps,
   disabled,
+  stock,
 }: LinesEditorProps) {
   const t = useTranslations('orders.form.lines');
   const locale = useLocale();
@@ -97,6 +104,8 @@ export function LinesEditor({
       dishId: choice.itemType === 'DISH' ? choice.id : null,
       packageId: choice.itemType === 'PACKAGE' ? choice.id : null,
       extraServiceId: choice.itemType === 'EXTRA_SERVICE' ? choice.id : null,
+      equipmentId: choice.itemType === 'EQUIPMENT' ? choice.id : null,
+      buffetId: choice.itemType === 'BUFFET' ? choice.id : null,
       label: formLabel(choice.label),
       quantity: String(quantity),
       unitPrice: centsToAmount(choice.unitPrice),
@@ -115,6 +124,8 @@ export function LinesEditor({
       dishId: null,
       packageId: null,
       extraServiceId: null,
+      equipmentId: null,
+      buffetId: null,
       label: { fr: '', ar: '', en: '' },
       quantity: '1',
       unitPrice: '',
@@ -299,6 +310,12 @@ export function LinesEditor({
                       </label>
                     )}
                   />
+                  {line?.itemType === 'EQUIPMENT' && line.equipmentId && (
+                    <StockHint
+                      figures={stock?.get(line.equipmentId)}
+                      requested={requestedQuantity(lines, line.equipmentId)}
+                    />
+                  )}
                   <p className="text-sm">
                     <span className="text-muted-foreground">{t('lineTotal')} : </span>
                     <span className="font-semibold tabular-nums" dir="ltr" data-testid="line-total">
@@ -333,6 +350,12 @@ export function LinesEditor({
             <DropdownMenuItem className="py-2.5 text-base" onSelect={() => setPicking('DISH')}>
               {t('addDish')}
             </DropdownMenuItem>
+            <DropdownMenuItem className="py-2.5 text-base" onSelect={() => setPicking('BUFFET')}>
+              {t('addBuffet')}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="py-2.5 text-base" onSelect={() => setPicking('EQUIPMENT')}>
+              {t('addEquipment')}
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="py-2.5 text-base"
               onSelect={() => setPicking('EXTRA_SERVICE')}
@@ -350,10 +373,21 @@ export function LinesEditor({
         <CatalogPicker
           kind={picking}
           priceMode={priceMode}
+          stock={stock}
           onPick={addFromCatalog}
           onClose={() => setPicking(null)}
         />
       )}
     </div>
   );
+}
+
+/** Quantité demandée d'un article de matériel, toutes lignes de la commande confondues. */
+function requestedQuantity(lines: readonly LineFormValues[], equipmentId: string): number {
+  return lines
+    .filter((line) => line.itemType === 'EQUIPMENT' && line.equipmentId === equipmentId)
+    .reduce(
+      (total, line) => total + (/^\d+$/.test(line.quantity.trim()) ? Number(line.quantity) : 0),
+      0,
+    );
 }

@@ -10,6 +10,8 @@ import {
 
 const CLIENT = '11111111-1111-4111-8111-111111111111';
 const DISH = '22222222-2222-4222-8222-222222222222';
+const EQUIPMENT = '33333333-3333-4333-8333-333333333333';
+const BUFFET = '44444444-4444-4444-8444-444444444444';
 
 const line = (overrides: Partial<LineFormValues> = {}): LineFormValues => ({
   key: 'l1',
@@ -17,6 +19,8 @@ const line = (overrides: Partial<LineFormValues> = {}): LineFormValues => ({
   dishId: null,
   packageId: null,
   extraServiceId: null,
+  equipmentId: null,
+  buffetId: null,
   label: { fr: 'Gâteau', ar: '', en: '' },
   quantity: '1',
   unitPrice: '3000',
@@ -78,6 +82,31 @@ describe('orderFormSchema', () => {
         { unitPrice: 1_500, discount: 15_000, taxRateBps: 1000 },
       ],
     });
+  });
+
+  it('matériel et buffet du catalogue, délais du matériel (vide : réglage du traiteur)', () => {
+    const parsed = orderFormSchema.parse({
+      ...filled,
+      equipmentSetupHours: '6',
+      lines: [
+        line({ itemType: 'EQUIPMENT', equipmentId: EQUIPMENT, quantity: '120', unitPrice: '15' }),
+        line({ itemType: 'BUFFET', buffetId: BUFFET, quantity: '100', unitPrice: '180' }),
+      ],
+    });
+    expect(parsed).toMatchObject({
+      equipmentSetupHours: 6,
+      equipmentReturnHours: null,
+      lines: [
+        { itemType: 'EQUIPMENT', equipmentId: EQUIPMENT, buffetId: null, quantity: 120 },
+        { itemType: 'BUFFET', buffetId: BUFFET, equipmentId: null, unitPrice: 18_000 },
+      ],
+    });
+    const paths = (values: typeof filled) =>
+      orderFormSchema.safeParse(values).error?.issues.map((issue) => issue.path.join('.')) ?? [];
+    expect(paths({ ...filled, equipmentReturnHours: '300' })).toContain('equipmentReturnHours');
+    expect(paths({ ...filled, lines: [line({ itemType: 'EQUIPMENT' })] })).toContain(
+      'lines.0.equipmentId',
+    );
   });
 
   it('rejette une fin avant le début le même jour, et des lignes vides hors brouillon', () => {

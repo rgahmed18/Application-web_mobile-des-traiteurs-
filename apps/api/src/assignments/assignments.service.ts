@@ -385,7 +385,6 @@ export class AssignmentsService {
           onSiteContactName: true,
           onSiteContactPhone: true,
           serviceNotes: true,
-          equipment: true,
         },
       });
       if (!order) throw appErrors.notFound('NOT_FOUND', 'Commande introuvable');
@@ -491,7 +490,6 @@ export class AssignmentsService {
         onSiteContactName: true,
         onSiteContactPhone: true,
         serviceNotes: true,
-        equipment: true,
         traiteur: { select: { timezone: true } },
       },
     });
@@ -517,7 +515,6 @@ export class AssignmentsService {
         onSiteContactName: order.onSiteContactName,
         onSiteContactPhone: order.onSiteContactPhone,
         serviceNotes: order.serviceNotes,
-        equipment: order.equipment,
       },
       alert: alerts.get(orderId) ?? null,
     };

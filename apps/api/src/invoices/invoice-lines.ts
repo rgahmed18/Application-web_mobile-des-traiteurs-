@@ -5,6 +5,7 @@ import {
   type DocumentTotals,
   type LineLabel,
   type LineAmounts,
+  type LineItemType,
   negateLineAmounts,
   type PriceMode,
 } from '@traiteur/shared';
@@ -13,7 +14,7 @@ import {
  * Lignes des factures et des avoirs, calculées à partir des montants déjà arrondis (jamais
  * recalculés depuis un total). La base revérifie chaque ligne (CHECK) et les totaux (trigger).
  */
-export type InvoiceItemType = 'DISH' | 'PACKAGE' | 'EXTRA_SERVICE' | 'CUSTOM';
+export type InvoiceItemType = LineItemType;
 
 export interface InvoiceLineDraft extends LineAmounts {
   itemType: InvoiceItemType;

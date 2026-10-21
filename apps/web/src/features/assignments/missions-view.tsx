@@ -139,6 +139,9 @@ export function MissionDetail({ id }: { id: string }) {
     return <LoadError error={mission.error} backHref="/admin/missions" />;
   }
   const data = mission.data;
+  // Matériel loué : listé à part du contenu à préparer ou à livrer
+  const dishes = data.content.filter((item) => item.itemType !== 'EQUIPMENT');
+  const equipment = data.content.filter((item) => item.itemType === 'EQUIPMENT');
   const run = (payload: Parameters<typeof action.mutate>[0], done: string) =>
     action.mutate(payload, { onSuccess: () => toast.success(done), onError: fail });
 
@@ -251,7 +254,7 @@ export function MissionDetail({ id }: { id: string }) {
         </CardHeader>
         <CardContent>
           <ul className="flex flex-col divide-y" data-testid="mission-content">
-            {data.content.map((item, index) => (
+            {dishes.map((item, index) => (
               <li key={index} className="flex justify-between gap-4 py-2">
                 <span dir="auto">{lineLabelText(item.label, locale)}</span>
                 <span className="font-medium tabular-nums">× {item.quantity}</span>
@@ -261,11 +264,28 @@ export function MissionDetail({ id }: { id: string }) {
         </CardContent>
       </Card>
 
-      {(data.equipment || data.serviceNotes || data.missionNotes || data.clientNotes) && (
+      {equipment.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t('equipment')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col divide-y" data-testid="mission-equipment">
+              {equipment.map((item, index) => (
+                <li key={index} className="flex justify-between gap-4 py-2">
+                  <span dir="auto">{lineLabelText(item.label, locale)}</span>
+                  <span className="font-medium tabular-nums">× {item.quantity}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {(data.serviceNotes || data.missionNotes || data.clientNotes) && (
         <Card>
           <CardContent className="flex flex-col gap-3 pt-6 text-sm">
             {data.missionNotes && <Note title={t('missionNotes')} text={data.missionNotes} />}
-            {data.equipment && <Note title={t('equipment')} text={data.equipment} />}
             {data.serviceNotes && <Note title={t('serviceNotes')} text={data.serviceNotes} />}
             {data.clientNotes && <Note title={t('clientNotes')} text={data.clientNotes} />}
           </CardContent>

@@ -362,7 +362,6 @@ describe('API des affectations et missions (application complète)', () => {
         onSiteContactName: 'Karim (beau-frère)',
         onSiteContactPhone: '0661234567',
         serviceNotes: 'Monter par l’ascenseur de service',
-        equipment: '20 tables rondes',
       })
       .expect(200);
 

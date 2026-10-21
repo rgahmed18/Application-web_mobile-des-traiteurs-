@@ -17,6 +17,16 @@ import { lineLabelInputSchema, lineLabelSchema } from './line-label';
 // ─────────────────────────── Saisies ───────────────────────────
 
 const centsSchema = z.number().int().min(0).max(1_000_000_000);
+
+/** Références au catalogue d'une ligne : une seule, celle de son type (aucune pour CUSTOM). */
+export const LINE_REF_FIELDS = [
+  'dishId',
+  'packageId',
+  'extraServiceId',
+  'equipmentId',
+  'buffetId',
+] as const;
+export type LineRefField = (typeof LINE_REF_FIELDS)[number];
 const optionalText = (max: number) => z.string().trim().max(max).nullable();
 
 /**
@@ -29,6 +39,8 @@ export const orderLineInputSchema = z
     dishId: z.uuid().nullable().default(null),
     packageId: z.uuid().nullable().default(null),
     extraServiceId: z.uuid().nullable().default(null),
+    equipmentId: z.uuid().nullable().default(null),
+    buffetId: z.uuid().nullable().default(null),
     /** Libellé dans toutes les langues disponibles (copie du catalogue ou saisie libre). */
     label: lineLabelInputSchema,
     quantity: z.number().int().min(1).max(100_000),
@@ -44,10 +56,12 @@ export const orderLineInputSchema = z
       DISH: 'dishId',
       PACKAGE: 'packageId',
       EXTRA_SERVICE: 'extraServiceId',
+      EQUIPMENT: 'equipmentId',
+      BUFFET: 'buffetId',
       CUSTOM: null,
     } as const;
     const key = expected[line.itemType];
-    for (const field of ['dishId', 'packageId', 'extraServiceId'] as const) {
+    for (const field of LINE_REF_FIELDS) {
       if (field === key && !line[field]) {
         ctx.addIssue({ code: 'custom', path: [field], message: 'Élément du catalogue requis' });
       }
@@ -70,6 +84,15 @@ export const orderLineInputSchema = z
   });
 export type OrderLineInput = z.infer<typeof orderLineInputSchema>;
 
+/** Délai du matériel d'une commande, en heures (null : réglage du traiteur). */
+const equipmentHoursSchema = z.number().int().min(0).max(240).nullable().default(null);
+
+/**
+ * Stock de matériel dépassé sur la période d'occupation : le traiteur peut confirmer quand même,
+ * avec un motif tracé (sous-location, matériel du client…).
+ */
+const stockOverrideSchema = optionalText(500).default(null);
+
 const orderFieldsSchema = z.object({
   /** Membership CLIENT du traiteur. */
   clientId: z.uuid(),
@@ -86,6 +109,9 @@ const orderFieldsSchema = z.object({
   city: z.string().trim().min(1).max(100),
   notes: optionalText(2000),
   internalNotes: optionalText(2000),
+  /** Installation avant le début et retour après la fin, pour le stock de matériel. */
+  equipmentSetupHours: equipmentHoursSchema,
+  equipmentReturnHours: equipmentHoursSchema,
   lines: z.array(orderLineInputSchema).max(200),
 });
 
@@ -118,6 +144,7 @@ export const orderCreateSchema = orderFieldsSchema
     status: z.enum(ORDER_CREATE_STATUSES),
     /** Le traiteur a confirmé passer outre une date bloquée ou une capacité atteinte. */
     forceAvailability: z.boolean().default(false),
+    stockOverrideReason: stockOverrideSchema,
   })
   .superRefine((value, ctx) => {
     refineSchedule(value, ctx);
@@ -139,6 +166,7 @@ export const orderUpdateSchema = orderFieldsSchema
     /** Motif, obligatoire pour modifier une commande confirmée (date, invités, lignes...). */
     reason: optionalText(500).default(null),
     forceAvailability: z.boolean().default(false),
+    stockOverrideReason: stockOverrideSchema,
   })
   .superRefine(refineSchedule);
 export type OrderUpdateInput = z.infer<typeof orderUpdateSchema>;
@@ -148,6 +176,7 @@ export const orderTransitionSchema = z.object({
   reason: optionalText(500).default(null),
   version: z.number().int().min(1),
   forceAvailability: z.boolean().default(false),
+  stockOverrideReason: stockOverrideSchema,
   /**
    * Annulation d'une commande payée : montant remboursé (le reste est conservé comme frais
    * d'annulation). Obligatoire dès qu'un paiement a été encaissé.
@@ -213,6 +242,8 @@ export const orderLineSchema = z.object({
   dishId: z.uuid().nullable(),
   packageId: z.uuid().nullable(),
   extraServiceId: z.uuid().nullable(),
+  equipmentId: z.uuid().nullable(),
+  buffetId: z.uuid().nullable(),
   label: lineLabelSchema,
   quantity: z.number().int(),
   /** Prix unitaire et remise dans le mode de la commande (montants saisis). */
@@ -276,6 +307,8 @@ export const orderSchema = orderSummarySchema.extend({
   venueAddress: z.string(),
   notes: z.string().nullable(),
   internalNotes: z.string().nullable(),
+  equipmentSetupHours: z.number().int().nullable(),
+  equipmentReturnHours: z.number().int().nullable(),
   totalHt: z.number().int(),
   totalTax: z.number().int(),
   taxBreakdown: taxBreakdownSchema,
@@ -344,6 +377,28 @@ export const availabilityConflictSchema = z.object({
   message: z.string(),
   availability: availabilitySchema,
 });
+
+/** Matériel en manque sur la période d'occupation de la commande. */
+export const equipmentShortageSchema = z.object({
+  equipmentId: z.uuid(),
+  label: localizedTextSchema,
+  requested: z.number().int(),
+  stock: z.number().int(),
+  /** Déjà réservé par les autres commandes fermes de la période. */
+  reserved: z.number().int(),
+  /** Commandes en attente de la période (indicatif). */
+  pending: z.number().int(),
+  remaining: z.number().int(),
+});
+export type EquipmentShortage = z.infer<typeof equipmentShortageSchema>;
+
+/** Détail de l'erreur 409 EQUIPMENT_STOCK_CONFLICT (le traiteur peut confirmer avec un motif). */
+export const equipmentStockConflictSchema = z.object({
+  code: z.literal('EQUIPMENT_STOCK_CONFLICT'),
+  message: z.string(),
+  shortages: z.array(equipmentShortageSchema),
+});
+export type EquipmentStockConflict = z.infer<typeof equipmentStockConflictSchema>;
 
 /** Détail de l'erreur 409 ORDER_VERSION_CONFLICT. */
 export const versionConflictSchema = z.object({

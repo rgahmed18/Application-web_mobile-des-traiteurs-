@@ -9,6 +9,8 @@ const settings: CatalogSettings = {
   defaultTaxRateBps: 2000,
   currency: 'MAD',
   timezone: 'Africa/Casablanca',
+  equipmentSetupHours: 12,
+  equipmentReturnHours: 24,
 };
 
 const filled = {

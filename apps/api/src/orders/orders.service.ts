@@ -14,7 +14,11 @@ import {
   type OrderTransitionInput,
   type OrderTransitionResult,
   type OrderUpdateInput,
+  EQUIPMENT_FIRM_STATUSES,
+  type EquipmentShortage,
   FIRM_ORDER_STATUSES,
+  LINE_REF_FIELDS,
+  type LineRefField,
   type LineLabel,
   lineLabelKey,
   OPEN_FIRM_ORDER_STATUSES,
@@ -37,6 +41,8 @@ import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextDocumentNumber } from '../sequences/document-sequence';
 import { type AvailabilitySettings, dayAvailability, hasConflict, lockDay } from './availability';
+import type { EquipmentDelays } from '../catalog/equipment/equipment-usage';
+import { equipmentShortages, type StockOrder } from './equipment-stock';
 import { paymentSummary, paymentTotals, type ScheduleSettings } from '../payments/payment-state';
 import { staffAlerts } from '../assignments/staff-alerts';
 import { creditOnCancellation } from '../invoices/invoice-issuer';
@@ -54,10 +60,13 @@ import {
 
 type Db = Prisma.TransactionClient;
 
-interface OrderSettings extends AvailabilitySettings, ScheduleSettings {
+interface OrderSettings extends AvailabilitySettings, ScheduleSettings, EquipmentDelays {
   priceEntryMode: 'HT' | 'TTC';
   isVatRegistered: boolean;
 }
+
+/** Statuts où le matériel est déduit du stock. */
+const STOCK_STATUSES = new Set<string>(EQUIPMENT_FIRM_STATUSES);
 
 /** Instants UTC du début et de la fin d'un événement saisi dans le fuseau du traiteur. */
 function toInstants(
@@ -90,6 +99,8 @@ function toDraft(line: OrderLineInput, index: number): LineDraft {
     dishId: line.dishId,
     packageId: line.packageId,
     extraServiceId: line.extraServiceId,
+    equipmentId: line.equipmentId,
+    buffetId: line.buffetId,
     notes: line.notes,
     perPerson: line.perPerson,
     sortOrder: index,
@@ -102,6 +113,8 @@ function lineKey(line: {
   dishId: string | null;
   packageId: string | null;
   extraServiceId: string | null;
+  equipmentId: string | null;
+  buffetId: string | null;
   label: LineLabel;
   quantity: number;
   unitPrice: number;
@@ -115,6 +128,8 @@ function lineKey(line: {
     line.dishId,
     line.packageId,
     line.extraServiceId,
+    line.equipmentId,
+    line.buffetId,
     lineLabelKey(line.label),
     line.quantity,
     line.unitPrice,
@@ -273,6 +288,16 @@ export class OrdersService {
         settings,
         input.forceAvailability,
       );
+      const stockOverride = STOCK_STATUSES.has(input.status)
+        ? await this.checkStock(
+            tx,
+            traiteurId,
+            { id: null, eventDate, eventEndDate, ...this.delaysOf(input) },
+            input.lines,
+            settings,
+            input.stockOverrideReason,
+          )
+        : null;
 
       const number = await nextDocumentNumber(tx, {
         traiteurId,
@@ -295,6 +320,7 @@ export class OrdersService {
           priceMode: settings.priceEntryMode,
           notes: input.notes,
           internalNotes: input.internalNotes,
+          ...this.delaysOf(input),
           confirmedAt: input.status === 'CONFIRMED' ? new Date() : null,
         },
       });
@@ -342,6 +368,9 @@ export class OrdersService {
         tx,
       );
       if (forced) await this.recordForced(tx, user, order.id, forced, 'création', client);
+      if (stockOverride) {
+        await this.recordStockOverride(tx, user, order.id, stockOverride, 'création', client);
+      }
       return this.present(tx, await this.load(tx, traiteurId, order.id), settings);
     });
   }
@@ -392,6 +421,10 @@ export class OrdersService {
           return !existing || lineKey(line) !== lineKey(existing);
         });
       mark('framed', 'lines', linesChanged);
+      const delaysChanged =
+        input.equipmentSetupHours !== current.equipmentSetupHours ||
+        input.equipmentReturnHours !== current.equipmentReturnHours;
+      mark('framed', 'equipmentDelays', delaysChanged);
       mark('free', 'venueName', input.venueName !== current.venueName);
       mark('free', 'notes', input.notes !== current.notes);
       mark('internalNotes', 'internalNotes', input.internalNotes !== current.internalNotes);
@@ -439,7 +472,7 @@ export class OrdersService {
       if (linesChanged) {
         // Un élément archivé reste accepté s'il figurait déjà dans la commande
         const previous = new Set(
-          current.items.flatMap((item) => [item.dishId, item.packageId, item.extraServiceId]),
+          current.items.flatMap((item) => LINE_REF_FIELDS.map((field) => item[field])),
         );
         await this.assertLines(tx, traiteurId, settings, input.lines, previous);
       }
@@ -456,10 +489,23 @@ export class OrdersService {
           id,
         );
       }
+      // Commande ferme dont le matériel, la date ou les délais changent : stock revérifié
+      const stockOverride =
+        STOCK_STATUSES.has(current.status) && (linesChanged || delaysChanged || changed.has('date'))
+          ? await this.checkStock(
+              tx,
+              traiteurId,
+              { id, eventDate, eventEndDate, ...this.delaysOf(input) },
+              input.lines,
+              settings,
+              input.stockOverrideReason,
+            )
+          : null;
 
       await tx.order.update({
         where: { id_traiteurId: { id, traiteurId } },
         data: {
+          ...this.delaysOf(input),
           clientId: input.clientId,
           eventType: input.eventType,
           eventDate,
@@ -527,6 +573,9 @@ export class OrdersService {
         tx,
       );
       if (forced) await this.recordForced(tx, user, id, forced, 'modification', client);
+      if (stockOverride) {
+        await this.recordStockOverride(tx, user, id, stockOverride, 'modification', client);
+      }
       return this.present(tx, after, settings);
     });
   }
@@ -575,6 +624,18 @@ export class OrdersService {
           id,
         );
       }
+      // La commande devient ferme : son matériel est déduit du stock
+      const stockOverride =
+        STOCK_STATUSES.has(input.to) && !STOCK_STATUSES.has(from)
+          ? await this.checkStock(
+              tx,
+              traiteurId,
+              current,
+              current.items,
+              settings,
+              input.stockOverrideReason,
+            )
+          : null;
 
       const now = new Date();
       const reason = input.reason?.trim() || null;
@@ -631,6 +692,9 @@ export class OrdersService {
         tx,
       );
       if (forced) await this.recordForced(tx, user, id, forced, `${from}→${input.to}`, client);
+      if (stockOverride) {
+        await this.recordStockOverride(tx, user, id, stockOverride, `${from}→${input.to}`, client);
+      }
       const updated = await this.load(tx, traiteurId, id);
       // Sans orders.read (livreur) : ni prix, ni notes, ni coordonnées du client
       if (!permissions.has('orders.read')) {
@@ -872,6 +936,8 @@ export class OrdersService {
         isVatRegistered: true,
         depositPercentBps: true,
         balanceDueDays: true,
+        equipmentSetupHours: true,
+        equipmentReturnHours: true,
       },
     });
   }
@@ -973,6 +1039,65 @@ export class OrdersService {
     );
   }
 
+  /** Délais du matériel saisis pour la commande (null : réglage du traiteur). */
+  private delaysOf(
+    input: Pick<OrderCreateInput, 'equipmentSetupHours' | 'equipmentReturnHours'>,
+  ): Pick<StockOrder, 'equipmentSetupHours' | 'equipmentReturnHours'> {
+    return {
+      equipmentSetupHours: input.equipmentSetupHours,
+      equipmentReturnHours: input.equipmentReturnHours,
+    };
+  }
+
+  /**
+   * Stock de matériel sur la période d'occupation de la commande : refus 409 (présenté comme un
+   * avertissement) si un article manque, sauf si le traiteur confirme avec un motif. Retourne
+   * les manques et le motif s'il a passé outre (à tracer), null sinon.
+   */
+  private async checkStock(
+    tx: Db,
+    traiteurId: string,
+    order: StockOrder,
+    lines: readonly { equipmentId: string | null; quantity: number }[],
+    settings: OrderSettings,
+    overrideReason: string | null,
+  ): Promise<{ shortages: EquipmentShortage[]; reason: string } | null> {
+    const shortages = await equipmentShortages(tx, traiteurId, order, lines, settings);
+    if (shortages.length === 0) return null;
+    const reason = overrideReason?.trim();
+    if (!reason) {
+      throw appErrors.conflict(
+        'EQUIPMENT_STOCK_CONFLICT',
+        'Stock de matériel insuffisant sur la période de cette commande',
+        { shortages },
+      );
+    }
+    return { shortages, reason };
+  }
+
+  private async recordStockOverride(
+    tx: Db,
+    user: AuthenticatedUser,
+    orderId: string,
+    override: { shortages: EquipmentShortage[]; reason: string },
+    context: string,
+    client: ClientInfo,
+  ): Promise<void> {
+    // Le traiteur confirme malgré un stock insuffisant (sous-location, matériel du client…)
+    await this.audit.record(
+      {
+        traiteurId: requireTraiteurId(user),
+        actor: user,
+        action: 'equipment.stock_overridden',
+        entityType: 'Order',
+        entityId: orderId,
+        after: { reason: override.reason, shortages: override.shortages, context },
+        client,
+      },
+      tx,
+    );
+  }
+
   /** Éléments du catalogue référencés : existants chez ce traiteur, non archivés s'ils sont nouveaux. */
   private async assertLines(
     tx: Db,
@@ -984,22 +1109,33 @@ export class OrdersService {
     if (!settings.isVatRegistered && lines.some((line) => line.taxRateBps !== 0)) {
       throw appErrors.badRequest('INVALID_TAX_RATE', 'Établissement non assujetti : TVA à 0 %');
     }
-    const ids = (key: 'dishId' | 'packageId' | 'extraServiceId') => [
+    const ids = (key: LineRefField) => [
       ...new Set(lines.flatMap((line) => (line[key] ? [line[key]] : []))),
     ];
-    const [dishIds, packageIds, serviceIds] = [
-      ids('dishId'),
-      ids('packageId'),
-      ids('extraServiceId'),
+    const [dishIds, packageIds, serviceIds, equipmentIds, buffetIds] = LINE_REF_FIELDS.map(ids) as [
+      string[],
+      string[],
+      string[],
+      string[],
+      string[],
     ];
     const select = { id: true, archivedAt: true } as const;
-    const [dishes, packages, services] = await Promise.all([
-      tx.dish.findMany({ where: { traiteurId, id: { in: dishIds } }, select }),
-      tx.package.findMany({ where: { traiteurId, id: { in: packageIds } }, select }),
-      tx.extraService.findMany({ where: { traiteurId, id: { in: serviceIds } }, select }),
-    ]);
-    const found = [...dishes, ...packages, ...services];
-    if (found.length !== dishIds.length + packageIds.length + serviceIds.length) {
+    const found = (
+      await Promise.all([
+        tx.dish.findMany({ where: { traiteurId, id: { in: dishIds } }, select }),
+        tx.package.findMany({ where: { traiteurId, id: { in: packageIds } }, select }),
+        tx.extraService.findMany({ where: { traiteurId, id: { in: serviceIds } }, select }),
+        tx.equipmentItem.findMany({ where: { traiteurId, id: { in: equipmentIds } }, select }),
+        tx.buffet.findMany({ where: { traiteurId, id: { in: buffetIds } }, select }),
+      ])
+    ).flat();
+    const expected =
+      dishIds.length +
+      packageIds.length +
+      serviceIds.length +
+      equipmentIds.length +
+      buffetIds.length;
+    if (found.length !== expected) {
       throw appErrors.notFound('NOT_FOUND', 'Élément du catalogue introuvable');
     }
     if (found.some((item) => item.archivedAt && !previous.has(item.id))) {

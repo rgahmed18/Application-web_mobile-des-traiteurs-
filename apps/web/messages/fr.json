@@ -244,7 +244,8 @@
       "CHEQUE_PHOTO_INVALID": "Photo illisible (JPEG, PNG ou WebP, 10 Mo au plus).",
       "IMAGE_IN_USE": "Cette photo vient d’être utilisée ailleurs, réessayez.",
       "SMS_UNAVAILABLE": "L’envoi de SMS est momentanément indisponible, réessayez dans quelques minutes.",
-      "PDF_TIMEOUT": "La génération du document a pris trop de temps, réessayez."
+      "PDF_TIMEOUT": "La génération du document a pris trop de temps, réessayez.",
+      "EQUIPMENT_STOCK_CONFLICT": "Stock de matériel insuffisant sur la période de cette commande."
     }
   },
   "validation": {
@@ -693,7 +694,8 @@
         "client": "Client",
         "event": "Événement",
         "lines": "Prestations",
-        "notes": "Notes"
+        "notes": "Notes",
+        "equipment": "Matériel"
       },
       "client": {
         "search": "Rechercher un client (nom ou téléphone)",
@@ -738,14 +740,21 @@
         "remove": "Retirer la ligne",
         "moveUp": "Monter",
         "moveDown": "Descendre",
-        "empty": "Aucune prestation. Ajoutez une formule, un plat, un service ou une ligne libre.",
+        "empty": "Aucune prestation. Ajoutez une formule, un plat, un buffet, du matériel, un service ou une ligne libre.",
         "lineTotal": "Total ligne",
         "types": {
           "PACKAGE": "Menu ou formule",
           "DISH": "Plat",
           "EXTRA_SERVICE": "Service",
-          "CUSTOM": "Ligne libre"
-        }
+          "CUSTOM": "Ligne libre",
+          "EQUIPMENT": "Matériel",
+          "BUFFET": "Buffet"
+        },
+        "addBuffet": "Buffet",
+        "addEquipment": "Matériel",
+        "stockRemaining": "Reste {remaining} sur {stock}",
+        "stockPending": "+{count} en attente",
+        "stockShort": "manque {missing}"
       },
       "totals": {
         "title": "Totaux",
@@ -796,7 +805,13 @@
       "confirmedHint": "Commande confirmée : un changement de date, d’invités ou de prestations demande un motif.",
       "preparationHint": "Commande en préparation : la date ne peut plus changer.",
       "readOnlyHint": "Commande {status} : seules les notes internes sont modifiables.",
-      "dateLocked": "La date ne peut plus être modifiée."
+      "dateLocked": "La date ne peut plus être modifiée.",
+      "equipment": {
+        "hint": "Le matériel est occupé de l’installation avant le début jusqu’au retour après la fin. Laissez vide pour garder le réglage de l’établissement.",
+        "setupHours": "Installation (heures avant le début)",
+        "returnHours": "Retour (heures après la fin)",
+        "default": "Par défaut : {hours} h"
+      }
     },
     "availability": {
       "checking": "Vérification de la disponibilité…",
@@ -882,7 +897,8 @@
         "notes": "notes",
         "internalNotes": "notes internes",
         "client": "client",
-        "availabilityForced": "disponibilité forcée"
+        "availabilityForced": "disponibilité forcée",
+        "equipmentDelays": "délais du matériel"
       }
     },
     "conflict": {
@@ -891,7 +907,16 @@
       "descriptionUnknown": "Cette commande a été modifiée entre-temps. Rechargez-la pour voir la dernière version.",
       "reload": "Recharger la commande"
     },
-    "paidOf": "{paid} payé"
+    "paidOf": "{paid} payé",
+    "stock": {
+      "title": "Stock de matériel insuffisant",
+      "description": "Sur la période de cet événement (installation et retour compris), le matériel suivant manque :",
+      "shortage": "{requested} demandés, {remaining} disponibles sur {stock}",
+      "pending": "+{count} en attente",
+      "reasonLabel": "Motif pour confirmer quand même",
+      "reasonPlaceholder": "Ex. sous-location chez un confrère, matériel fourni par le client…",
+      "confirm": "Confirmer quand même"
+    }
   },
   "calendar": {
     "title": "Calendrier",
@@ -1681,7 +1706,6 @@
       "title": "Informations de service",
       "contact": "Contact sur place",
       "contactDefault": "le client (par défaut)",
-      "equipment": "Matériel",
       "serviceNotes": "Notes de service",
       "hint": "Visibles par l’équipe et le livreur, jamais par le client.",
       "contactName": "Nom du contact sur place",

@@ -11,7 +11,8 @@ import { docLabels } from '../pdf/labels';
 import { type Seller, sellerFooter, sellerHeader } from '../pdf/seller';
 
 /**
- * Bon de livraison (sans prix) : adresse et contact sur place, contenu et quantités, matériel,
+ * Bon de livraison (sans prix) : adresse et contact sur place, contenu et quantités, matériel
+ * (lignes de matériel de la commande),
  * notes de service, et encadré de signature du client à la réception. Imprimé dans la langue
  * du client, qui le signe. Document de service : ni numéroté ni figé.
  */
@@ -30,7 +31,8 @@ export interface DeliveryNoteData {
   venue: { name: string | null; address: string; city: string };
   contact: { name: string; phone: string };
   lines: { label: LineLabel; quantity: number }[];
-  equipment: string | null;
+  /** Matériel loué : lignes de matériel de la commande. */
+  equipment: { label: LineLabel; quantity: number }[];
   serviceNotes: string | null;
   clientNotes: string | null;
 }
@@ -46,7 +48,14 @@ export function deliveryNoteDocument(data: DeliveryNoteData): DocumentModel {
   const { locale } = data;
   const t = docLabels(locale);
   const sections: NonNullable<DocumentModel['sections']> = [];
-  if (data.equipment) sections.push({ title: t.equipment, items: paragraphs(data.equipment) });
+  if (data.equipment.length > 0) {
+    sections.push({
+      title: t.equipment,
+      items: data.equipment.map(
+        (line) => `${auto(lineLabelText(line.label, locale))} : ${ltr(line.quantity)}`,
+      ),
+    });
+  }
   if (data.serviceNotes) {
     sections.push({ title: t.serviceNotes, items: paragraphs(data.serviceNotes), bullets: false });
   }
