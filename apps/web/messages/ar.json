@@ -266,6 +266,7 @@
     "discountTooHigh": "التخفيض يتجاوز مبلغ السطر.",
     "endBeforeStart": "يجب أن تكون النهاية بعد البداية (اختر «اليوم الموالي» عند الحاجة).",
     "duplicateAssignment": "لهذا العضو هذا الدور مسبقًا في القائمة.",
+    "buffetEmpty": "أضف طبقًا أو عنصرًا واحدًا على الأقل.",
     "linesRequired": "أضف خدمة واحدة على الأقل.",
     "invalidTime": "توقيت غير صالح (HH:MM).",
     "invalidDate": "تاريخ غير صالح."
@@ -276,6 +277,7 @@
     "tabs": {
       "dishes": "الأطباق",
       "packages": "قوائم الطعام والعروض",
+      "buffets": "البوفيهات",
       "categories": "الأصناف",
       "services": "الخدمات",
       "equipment": "المعدات",
@@ -308,6 +310,10 @@
         "equipment-categories": {
           "title": "فئات المعدات",
           "hint": "لترتيب المعدات: كراسي، طاولات، أغطية، أواني، إضاءة…"
+        },
+        "buffet-types": {
+          "title": "أنواع البوفيه",
+          "hint": "مغربي، شرقي، حلويات، شاي… لترتيب البوفيهات واقتراحها."
         }
       }
     },
@@ -331,6 +337,35 @@
       "activeHint": "ألغِ التحديد لسحبها مؤقتًا دون أرشفتها.",
       "inStock": "{count, plural, =0 {لا شيء في المخزون} one {واحدة في المخزون} other {# في المخزون}}",
       "perUnit": "الكراء، للوحدة"
+    },
+    "buffets": {
+      "new": "بوفيه جديد",
+      "newTitle": "بوفيه جديد",
+      "editTitle": "تعديل البوفيه",
+      "created": "تم إنشاء البوفيه",
+      "saved": "تم حفظ البوفيه",
+      "empty": "لا توجد بوفيهات حاليًا",
+      "emptyHint": "بوفيه مغربي، شرقي، حلويات، شاي… يتكون من أطباقك وعناصر حرة، بثمن للفرد أو جزافي.",
+      "sectionGeneral": "الوصف",
+      "type": "نوع البوفيه",
+      "noType": "بدون نوع",
+      "allTypes": "كل الأنواع",
+      "composition": "المكونات",
+      "compositionHint": "أطباق الكتالوج (تُحتسب في ورقة التحضير) وعناصر حرة.",
+      "freeItems": "عناصر حرة",
+      "freeItemFr": "العنصر {number} (بالفرنسية)",
+      "freeItemAr": "العنصر {number} (بالعربية)",
+      "freeItemPlaceholder": "مثال: فواكه جافة",
+      "removeFreeItem": "حذف العنصر {number}",
+      "addFreeItem": "إضافة عنصر",
+      "sectionPrice": "الثمن",
+      "pricing": "طريقة التسعير",
+      "pricingPerPerson": "للفرد",
+      "pricingFlat": "جزافي",
+      "flat": "جزافي",
+      "active": "مقترح في الطلبات الجديدة",
+      "dishCount": "{count, plural, one {طبق واحد} other {# أطباق}}",
+      "itemCount": "{count, plural, one {عنصر واحد} other {# عناصر}}"
     },
     "fields": {
       "nameFr": "الاسم (بالفرنسية)",

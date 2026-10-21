@@ -161,6 +161,21 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
     isActive: true,
   });
   const newEquipment = async () => ({ id: await created('/catalog/equipment', equipmentBody()) });
+  const buffetBody = () => ({
+    name: { fr: `Buffet ${suffix()}` },
+    description: null,
+    typeId: null,
+    rangeId: null,
+    pricingUnit: 'PER_PERSON',
+    price: 18_000,
+    taxRateBps: null,
+    minGuests: 20,
+    imageKey: null,
+    isActive: true,
+    dishes: [],
+    freeItems: [{ fr: 'Fruits secs' }],
+  });
+  const newBuffet = async () => ({ id: await created('/catalog/buffets', buffetBody()) });
   const newPackage = async () => {
     const dish = await newDish();
     return { id: await created('/catalog/packages', packageBody(dish.id)), dishId: dish.id };
@@ -341,6 +356,32 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
       method: 'delete',
       path: (ids) => `/catalog/equipment/${ids.id}`,
       prepare: newEquipment,
+    },
+    {
+      name: 'créer un type de buffet',
+      method: 'post',
+      path: () => '/catalog/lists/buffet-types',
+      body: listBody,
+    },
+    { name: 'créer un buffet', method: 'post', path: () => '/catalog/buffets', body: buffetBody },
+    {
+      name: 'modifier un buffet',
+      method: 'put',
+      path: (ids) => `/catalog/buffets/${ids.id}`,
+      body: buffetBody,
+      prepare: newBuffet,
+    },
+    {
+      name: 'archiver un buffet',
+      method: 'post',
+      path: (ids) => `/catalog/buffets/${ids.id}/archive`,
+      prepare: newBuffet,
+    },
+    {
+      name: 'supprimer un buffet',
+      method: 'delete',
+      path: (ids) => `/catalog/buffets/${ids.id}`,
+      prepare: newBuffet,
     },
     {
       name: 'préparer l’envoi d’une photo',

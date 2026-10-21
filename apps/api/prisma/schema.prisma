@@ -291,6 +291,9 @@ model Traiteur {
   catalogRanges       CatalogRange[]
   equipmentCategories EquipmentCategory[]
   equipmentItems      EquipmentItem[]
+  buffetTypes         BuffetType[]
+  buffets             Buffet[]
+  buffetDishes        BuffetDish[]
   orders              Order[]
   orderItems          OrderItem[]
   orderStatusChanges  OrderStatusChange[]
@@ -558,6 +561,7 @@ model Dish {
   traiteur      Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   category      Category?     @relation(fields: [categoryId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
   packageDishes PackageDish[]
+  buffetDishes  BuffetDish[]
   orderItems    OrderItem[]
   quoteLines    QuoteLine[]
 
@@ -695,6 +699,7 @@ model CatalogRange {
   traiteur  Traiteur        @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   packages  Package[]
   equipment EquipmentItem[]
+  buffets   Buffet[]
 
   @@unique([traiteurId, code])
   @@unique([id, traiteurId])
@@ -754,6 +759,78 @@ model EquipmentItem {
   @@unique([id, traiteurId])
   @@index([traiteurId, categoryId])
   @@index([traiteurId, archivedAt])
+}
+
+// Types de buffet (liste gérable, traduite) : marocain, oriental, sucré, thé…
+// Créés par défaut pour chaque traiteur (trigger "Traiteur_default_lists").
+model BuffetType {
+  id         String    @id @default(uuid()) @db.Uuid
+  traiteurId String    @db.Uuid
+  code       String // ex. MOROCCAN ; jamais modifié
+  name       Json // LocalizedText
+  sortOrder  Int       @default(0)
+  isActive   Boolean   @default(true)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  buffets  Buffet[]
+
+  @@unique([traiteurId, code])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, sortOrder])
+}
+
+// Buffet : type, gamme, prix par personne ou forfait (mode de saisie du traiteur), composition
+// en plats du catalogue (décomptés sur le bon de préparation) et en éléments libres FR/AR.
+model Buffet {
+  id          String      @id @default(uuid()) @db.Uuid
+  traiteurId  String      @db.Uuid
+  typeId      String?     @db.Uuid
+  rangeId     String?     @db.Uuid
+  slug        String
+  name        Json // LocalizedText
+  description Json? // LocalizedText
+  pricingUnit PricingUnit @default(PER_PERSON) // PER_PERSON ou FLAT (CHECK)
+  priceHt     Int // centimes ; fait foi en mode HT
+  priceTtc    Int // centimes ; fait foi en mode TTC
+  taxRateBps  Int? // null = taux par défaut du traiteur
+  minGuests   Int         @default(1)
+  freeItems   Json        @default("[]") // LocalizedText[] : éléments hors catalogue
+  imageKey    String?
+  isActive    Boolean     @default(true)
+  archivedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  traiteur Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  type     BuffetType?   @relation(fields: [typeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
+  range    CatalogRange? @relation(fields: [rangeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
+  dishes   BuffetDish[]
+
+  @@unique([traiteurId, slug])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, typeId])
+  @@index([traiteurId, archivedAt])
+}
+
+model BuffetDish {
+  id         String   @id @default(uuid()) @db.Uuid
+  traiteurId String   @db.Uuid
+  buffetId   String   @db.Uuid
+  dishId     String   @db.Uuid
+  quantity   Int      @default(1) // portions par personne (ou au total pour un forfait)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  buffet   Buffet   @relation(fields: [buffetId, traiteurId], references: [id, traiteurId], onDelete: Cascade)
+  dish     Dish     @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: Restrict)
+
+  @@unique([buffetId, dishId])
+  @@index([traiteurId])
 }
 
 // ─────────────────────────── Commandes ───────────────────────────
@@ -1244,7 +1321,7 @@ model MediaUpload {
   status     MediaUploadStatus @default(PENDING)
   rawKey     String // fichier brut envoyé par le navigateur (tmp/...), supprimé après traitement
   imageKey   String?           @unique // base des variantes traitées (traiteurs/<id>/catalog/<uuid>)
-  entityType String? // Dish | Package | EquipmentItem
+  entityType String? // Dish | Package | EquipmentItem | Buffet
   entityId   String?           @db.Uuid
   detachedAt DateTime?
   createdAt  DateTime          @default(now())

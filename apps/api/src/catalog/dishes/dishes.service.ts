@@ -236,15 +236,17 @@ export class DishesService {
       const existing = await tx.dish.findFirst({
         where: { id, traiteurId },
         include: {
-          _count: { select: { orderItems: true, quoteLines: true, packageDishes: true } },
+          _count: {
+            select: { orderItems: true, quoteLines: true, packageDishes: true, buffetDishes: true },
+          },
         },
       });
       if (!existing) notFound();
       if (existing._count.orderItems + existing._count.quoteLines > 0) {
         throw appErrors.conflict('ITEM_IN_USE', 'Plat utilisé dans une commande ou un devis');
       }
-      if (existing._count.packageDishes > 0) {
-        throw appErrors.conflict('DISH_IN_PACKAGE', 'Plat présent dans une formule');
+      if (existing._count.packageDishes + existing._count.buffetDishes > 0) {
+        throw appErrors.conflict('DISH_IN_PACKAGE', 'Plat présent dans un menu ou un buffet');
       }
       if (existing.imageKey) await this.media.detach(tx, traiteurId, existing.imageKey);
       await tx.dish.delete({ where: { id_traiteurId: { id, traiteurId } } });

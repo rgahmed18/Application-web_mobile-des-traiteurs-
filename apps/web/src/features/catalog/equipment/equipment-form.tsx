@@ -1,10 +1,10 @@
 'use client';
 
-import type { CatalogList, CatalogSettings, Equipment } from '@traiteur/shared';
+import type { CatalogSettings, Equipment } from '@traiteur/shared';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { type Control, Controller, type FieldValues, useWatch } from 'react-hook-form';
+import { Controller, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { FormField } from '@/components/forms/form-field';
@@ -17,81 +17,24 @@ import {
   InputGroupInput,
   InputGroupText,
 } from '@/components/ui/input-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { currencyLabel } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
-import { useCatalogList, useSaveEquipment } from '../catalog-api';
+import { useSaveEquipment } from '../catalog-api';
 import { FormActions, FormHeader, FormSection } from '../components/form-layout';
+import { CatalogListSelect } from '../forms/catalog-list-select';
 import { ImageUploadField } from '../forms/image-upload-field';
 import { LocalizedTextFields } from '../forms/localized-text-fields';
 import { PriceFields } from '../forms/price-fields';
-import { useLocalized } from '../use-localized';
 import {
   EMPTY_EQUIPMENT_FORM,
   equipmentFormSchema,
-  type EquipmentFormValues,
   equipmentToFormValues,
 } from './equipment-form-schema';
 
 const LIST_PATH = '/admin/catalog/equipment';
-const NONE = 'none';
-
-/** Choix dans une liste du catalogue (catégorie, gamme) ; l'élément déjà porté reste proposé. */
-function ListSelect({
-  control,
-  name,
-  list,
-  label,
-  noneLabel,
-  kept,
-}: {
-  control: Control<EquipmentFormValues, unknown, FieldValues>;
-  name: 'categoryId' | 'rangeId';
-  list: CatalogList;
-  label: string;
-  noneLabel: string;
-  kept: string | undefined;
-}) {
-  const localized = useLocalized();
-  const items = useCatalogList(list);
-  const options = (items.data ?? []).filter(
-    (item) => (item.isActive && !item.archived) || item.id === kept,
-  );
-  return (
-    <FormField
-      control={control}
-      name={name}
-      label={label}
-      render={(field) => (
-        <Select
-          value={field.value === '' ? NONE : field.value}
-          onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
-        >
-          <SelectTrigger id={field.id} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NONE}>{noneLabel}</SelectItem>
-            {options.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {localized(item.name)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-    />
-  );
-}
 
 interface EquipmentFormProps {
   settings: CatalogSettings;
@@ -152,7 +95,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
           multiline
         />
         <div className="grid gap-4 md:grid-cols-2">
-          <ListSelect
+          <CatalogListSelect
             control={form.control}
             name="categoryId"
             list="equipment-categories"
@@ -160,7 +103,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
             noneLabel={t('fields.noCategory')}
             kept={item?.category?.id}
           />
-          <ListSelect
+          <CatalogListSelect
             control={form.control}
             name="rangeId"
             list="ranges"

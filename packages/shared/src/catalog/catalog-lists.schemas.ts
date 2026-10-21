@@ -9,7 +9,12 @@ import { localizedTextSchema } from '../i18n/localized-text';
  * nom, ordre et activation restent modifiables. Un élément utilisé ne se supprime pas : il
  * s'archive (retiré des nouvelles saisies, conservé pour l'historique).
  */
-export const CATALOG_LISTS = ['event-types', 'ranges', 'equipment-categories'] as const;
+export const CATALOG_LISTS = [
+  'event-types',
+  'ranges',
+  'equipment-categories',
+  'buffet-types',
+] as const;
 export const catalogListSchema = z.enum(CATALOG_LISTS);
 export type CatalogList = z.infer<typeof catalogListSchema>;
 

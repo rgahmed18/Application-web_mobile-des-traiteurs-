@@ -19,7 +19,7 @@ export { variantKeys } from './image-store';
 /** Délai avant suppression d'une photo jamais rattachée ou remplacée. */
 export const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
 
-export type MediaEntityType = 'Dish' | 'Package' | 'EquipmentItem';
+export type MediaEntityType = 'Dish' | 'Package' | 'EquipmentItem' | 'Buffet';
 
 /**
  * Photos du catalogue, de l'envoi au nettoyage :

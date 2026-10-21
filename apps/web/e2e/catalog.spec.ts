@@ -133,3 +133,35 @@ test('matériel : article avec catégorie, gamme, location, remplacement et stoc
   await expect(row).toContainText('Chaises · Luxe · 200 en stock');
   await expect(row).toContainText('15,00');
 });
+
+test('buffet : type, gamme, plat du catalogue et élément libre, prix par personne', async ({
+  page,
+}) => {
+  const suffix = uniqueSuffix();
+  const name = `Buffet e2e ${suffix}`;
+  await login(page);
+
+  await page.goto('/admin/catalog/buffets');
+  await page.getByRole('link', { name: 'Nouveau buffet' }).first().click();
+  await page.getByLabel('Nom (français)').fill(name);
+  await page.getByLabel('Type de buffet').click();
+  await page.getByRole('option', { name: 'Buffet marocain' }).click();
+  await page.getByLabel('Gamme').click();
+  await page.getByRole('option', { name: 'Premium' }).click();
+
+  await page.getByRole('button', { name: 'Ajouter un plat' }).click();
+  await page.getByPlaceholder('Chercher un plat…').fill('Pastilla');
+  await page.getByRole('option').first().click();
+  await page.getByRole('button', { name: 'Ajouter un élément' }).click();
+  await page.getByLabel('Élément 1 (français)').fill('Fruits secs');
+
+  await page.getByLabel(/^Prix par personne (TTC|HT)$/).fill('180');
+  await page.getByLabel('Nombre d’invités — Minimum').fill('30');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Buffet créé')).toBeVisible();
+
+  await page.getByRole('searchbox', { name: 'Rechercher par nom' }).fill(suffix);
+  const row = page.getByTestId('buffet-list').getByRole('listitem').filter({ hasText: name });
+  await expect(row).toContainText('Buffet marocain · Premium · 1 plat · 1 élément');
+  await expect(row).toContainText('180,00');
+});

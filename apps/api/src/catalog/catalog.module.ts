@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 
 import { CatalogController } from './catalog.controller';
+import { BuffetsController } from './buffets/buffets.controller';
+import { BuffetsService } from './buffets/buffets.service';
 import { CategoriesController } from './categories/categories.controller';
 import { CatalogListsController } from './lists/catalog-lists.controller';
 import { CatalogListsService } from './lists/catalog-lists.service';
@@ -19,6 +21,7 @@ import { PackagesService } from './packages/packages.service';
 @Module({
   controllers: [
     CatalogController,
+    BuffetsController,
     CategoriesController,
     CatalogListsController,
     DishesController,
@@ -27,6 +30,7 @@ import { PackagesService } from './packages/packages.service';
     ExtraServicesController,
   ],
   providers: [
+    BuffetsService,
     CategoriesService,
     CatalogListsService,
     DishesService,

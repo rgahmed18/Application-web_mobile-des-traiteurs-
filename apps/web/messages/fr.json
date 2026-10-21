@@ -266,6 +266,7 @@
     "discountTooHigh": "La remise dépasse le montant de la ligne.",
     "endBeforeStart": "La fin doit être après le début (cochez « le lendemain » si besoin).",
     "duplicateAssignment": "Ce membre a déjà ce rôle dans la liste.",
+    "buffetEmpty": "Ajoutez au moins un plat ou un élément.",
     "linesRequired": "Ajoutez au moins une prestation.",
     "invalidTime": "Heure invalide (HH:MM).",
     "invalidDate": "Date invalide."
@@ -276,6 +277,7 @@
     "tabs": {
       "dishes": "Plats",
       "packages": "Menus et formules",
+      "buffets": "Buffets",
       "categories": "Catégories",
       "services": "Services",
       "equipment": "Matériel",
@@ -308,6 +310,10 @@
         "equipment-categories": {
           "title": "Catégories de matériel",
           "hint": "Pour ranger le matériel : chaises, tables, nappes, vaisselle, éclairage…"
+        },
+        "buffet-types": {
+          "title": "Types de buffet",
+          "hint": "Marocain, oriental, sucré, thé… pour classer et proposer les buffets."
         }
       }
     },
@@ -331,6 +337,35 @@
       "activeHint": "Décochez pour le retirer temporairement sans l’archiver.",
       "inStock": "{count, plural, =0 {Aucun en stock} one {# en stock} other {# en stock}}",
       "perUnit": "la location, par unité"
+    },
+    "buffets": {
+      "new": "Nouveau buffet",
+      "newTitle": "Nouveau buffet",
+      "editTitle": "Modifier le buffet",
+      "created": "Buffet créé",
+      "saved": "Buffet enregistré",
+      "empty": "Aucun buffet pour le moment",
+      "emptyHint": "Buffet marocain, oriental, sucré, thé… composé de vos plats et d’éléments libres, au prix par personne ou au forfait.",
+      "sectionGeneral": "Description",
+      "type": "Type de buffet",
+      "noType": "Sans type",
+      "allTypes": "Tous les types",
+      "composition": "Composition",
+      "compositionHint": "Plats du catalogue (décomptés sur le bon de préparation) et éléments libres.",
+      "freeItems": "Éléments libres",
+      "freeItemFr": "Élément {number} (français)",
+      "freeItemAr": "Élément {number} (arabe)",
+      "freeItemPlaceholder": "ex. Fruits secs",
+      "removeFreeItem": "Retirer l’élément {number}",
+      "addFreeItem": "Ajouter un élément",
+      "sectionPrice": "Prix",
+      "pricing": "Tarification",
+      "pricingPerPerson": "Par personne",
+      "pricingFlat": "Forfait",
+      "flat": "forfait",
+      "active": "Proposé dans les nouvelles commandes",
+      "dishCount": "{count, plural, one {# plat} other {# plats}}",
+      "itemCount": "{count, plural, one {# élément} other {# éléments}}"
     },
     "fields": {
       "nameFr": "Nom (français)",

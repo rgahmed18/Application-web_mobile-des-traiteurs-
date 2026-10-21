@@ -40,7 +40,9 @@ export type DishSummary = Pick<
   archived: boolean;
 };
 
-export function summariesFromPackage(pkg: Package | undefined): Map<string, DishSummary> {
+export function summariesFromPackage(
+  pkg: Pick<Package, 'dishes'> | undefined,
+): Map<string, DishSummary> {
   return new Map(
     (pkg?.dishes ?? []).map((line) => [
       line.dishId,
@@ -49,20 +51,33 @@ export function summariesFromPackage(pkg: Package | undefined): Map<string, Dish
   );
 }
 
-interface CompositionEditorProps {
-  control: Control<PackageFormValues, unknown, FieldValues>;
+/** Seul champ du formulaire utilisé : la composition (menus et formules, buffets). */
+export interface CompositionFormValues {
+  dishes: PackageFormValues['dishes'];
+}
+
+interface CompositionEditorProps<T extends CompositionFormValues> {
+  control: Control<T, unknown, FieldValues>;
   settings: CatalogSettings;
   summaries: Map<string, DishSummary>;
   onSummary: (summary: DishSummary) => void;
 }
 
-/** Plats de la formule et quantité par personne ; ajout par recherche, retrait d'un geste. */
-export function CompositionEditor({
-  control,
+/** Vue du formulaire restreinte à sa composition (le reste du formulaire n'est pas lu). */
+function compositionControl<T extends CompositionFormValues>(
+  control: Control<T, unknown, FieldValues>,
+) {
+  return control as unknown as Control<CompositionFormValues, unknown, FieldValues>;
+}
+
+/** Plats et quantité par personne (menu, buffet) ; ajout par recherche, retrait d'un geste. */
+export function CompositionEditor<T extends CompositionFormValues>({
+  control: formControl,
   settings,
   summaries,
   onSummary,
-}: CompositionEditorProps) {
+}: CompositionEditorProps<T>) {
+  const control = compositionControl(formControl);
   const t = useTranslations('catalog');
   const locale = useLocale();
   const localized = useLocalized();
@@ -187,11 +202,12 @@ export function CompositionEditor({
 }
 
 /** Valeur des plats au détail, affichée à côté du prix par personne (indicatif). */
-export function CompositionValue({
-  control,
+export function CompositionValue<T extends CompositionFormValues>({
+  control: formControl,
   settings,
   summaries,
-}: Pick<CompositionEditorProps, 'control' | 'settings' | 'summaries'>) {
+}: Pick<CompositionEditorProps<T>, 'control' | 'settings' | 'summaries'>) {
+  const control = compositionControl(formControl);
   const t = useTranslations('catalog.packages');
   const locale = useLocale();
   const lines = useWatch({ control, name: 'dishes' });

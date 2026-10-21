@@ -10,9 +10,10 @@ import { PageHeader } from '@/components/layout/page-header';
 const TABS = [
   { key: 'dishes', href: '/admin/catalog/dishes' },
   { key: 'packages', href: '/admin/catalog/packages' },
-  { key: 'categories', href: '/admin/catalog/categories' },
-  { key: 'services', href: '/admin/catalog/services' },
+  { key: 'buffets', href: '/admin/catalog/buffets' },
   { key: 'equipment', href: '/admin/catalog/equipment' },
+  { key: 'services', href: '/admin/catalog/services' },
+  { key: 'categories', href: '/admin/catalog/categories' },
   { key: 'lists', href: '/admin/catalog/lists' },
 ] as const;
 

@@ -37,7 +37,7 @@ const listParam = new ZodValidationPipe(catalogListSchema);
 
 /**
  * Listes gérables du catalogue : « event-types » (types d'événement), « ranges » (gammes) et
- * « equipment-categories » (catégories de matériel).
+ * « equipment-categories » (catégories de matériel) et « buffet-types » (types de buffet).
  * Lecture : catalog.read (composer une commande) ; écriture : catalog.write (administrateur).
  */
 @ApiTags('catalog')

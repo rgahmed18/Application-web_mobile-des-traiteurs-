@@ -10,6 +10,12 @@ import {
 import {
   type CatalogSettings,
   catalogSettingsSchema,
+  type Buffet,
+  type BuffetInput,
+  type BuffetListQuery,
+  type BuffetPage,
+  buffetPageSchema,
+  buffetSchema,
   type CatalogList,
   type CatalogListItem,
   type CatalogListItemInput,
@@ -56,6 +62,8 @@ export const catalogKeys = {
   list: (list: CatalogList) => ['catalog', 'lists', list] as const,
   equipmentList: (query: Partial<EquipmentListQuery>) => ['catalog', 'equipment', query] as const,
   equipment: (id: string) => ['catalog', 'equipment-item', id] as const,
+  buffets: (query: Partial<BuffetListQuery>) => ['catalog', 'buffets', query] as const,
+  buffet: (id: string) => ['catalog', 'buffet', id] as const,
 };
 
 function toQuery(values: object): Record<string, QueryValue> {
@@ -150,6 +158,24 @@ export function useEquipment(id: string | null): UseQueryResult<Equipment> {
     queryKey: catalogKeys.equipment(id ?? ''),
     queryFn: ({ signal }) =>
       apiRequest(`/catalog/equipment/${id ?? ''}`, { schema: equipmentSchema, signal }),
+    enabled: id !== null,
+  });
+}
+
+export function useBuffets(query: Partial<BuffetListQuery>): UseQueryResult<BuffetPage> {
+  return useQuery({
+    queryKey: catalogKeys.buffets(query),
+    queryFn: ({ signal }) =>
+      apiRequest('/catalog/buffets', { query: toQuery(query), schema: buffetPageSchema, signal }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useBuffet(id: string | null): UseQueryResult<Buffet> {
+  return useQuery({
+    queryKey: catalogKeys.buffet(id ?? ''),
+    queryFn: ({ signal }) =>
+      apiRequest(`/catalog/buffets/${id ?? ''}`, { schema: buffetSchema, signal }),
     enabled: id !== null,
   });
 }
@@ -249,7 +275,7 @@ export function useSaveExtraService() {
   );
 }
 
-export type CatalogResource = 'dishes' | 'packages' | 'services' | 'equipment';
+export type CatalogResource = 'dishes' | 'packages' | 'services' | 'equipment' | 'buffets';
 export type LifecycleAction = 'archive' | 'restore' | 'delete';
 
 /** Archiver, restaurer ou supprimer un plat, une formule ou un service. */
@@ -322,6 +348,16 @@ export function useSaveEquipment() {
       method: id ? 'PUT' : 'POST',
       body: input,
       schema: equipmentSchema,
+    }),
+  );
+}
+
+export function useSaveBuffet() {
+  return useCatalogMutation(({ id, input }: { id: string | null; input: BuffetInput }) =>
+    apiRequest(id ? `/catalog/buffets/${id}` : '/catalog/buffets', {
+      method: id ? 'PUT' : 'POST',
+      body: input,
+      schema: buffetSchema,
     }),
   );
 }
