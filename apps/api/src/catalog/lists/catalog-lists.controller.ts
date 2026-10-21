@@ -36,7 +36,8 @@ const listResponse = { schema: zodToOpenApi(z.array(catalogListItemSchema), 'out
 const listParam = new ZodValidationPipe(catalogListSchema);
 
 /**
- * Listes gérables du catalogue : « event-types » (types d'événement) et « ranges » (gammes).
+ * Listes gérables du catalogue : « event-types » (types d'événement), « ranges » (gammes) et
+ * « equipment-categories » (catégories de matériel).
  * Lecture : catalog.read (composer une commande) ; écriture : catalog.write (administrateur).
  */
 @ApiTags('catalog')

@@ -278,6 +278,7 @@
       "packages": "Menus et formules",
       "categories": "Catégories",
       "services": "Services",
+      "equipment": "Matériel",
       "lists": "Listes"
     },
     "lists": {
@@ -303,8 +304,33 @@
         "ranges": {
           "title": "Gammes",
           "hint": "Portées par les menus et formules, le matériel et les buffets (ex. Standard, Premium, Luxe)."
+        },
+        "equipment-categories": {
+          "title": "Catégories de matériel",
+          "hint": "Pour ranger le matériel : chaises, tables, nappes, vaisselle, éclairage…"
         }
       }
+    },
+    "equipment": {
+      "new": "Nouveau matériel",
+      "newTitle": "Nouveau matériel",
+      "editTitle": "Modifier le matériel",
+      "created": "Matériel créé",
+      "saved": "Matériel enregistré",
+      "empty": "Aucun matériel pour le moment",
+      "emptyHint": "Chaises, tables, nappes, housses, vaisselle, décoration florale, éclairage… loués avec vos prestations.",
+      "sectionGeneral": "Description",
+      "sectionPrice": "Location et remplacement",
+      "sectionStock": "Stock",
+      "replacementPriceTtc": "Prix de remplacement TTC (par unité)",
+      "replacementPriceHt": "Prix de remplacement HT (par unité)",
+      "replacementPriceHint": "Facturé pour un article manquant ou cassé au retour. Vide : non facturé.",
+      "stockQuantity": "Quantité en stock",
+      "stockHint": "La disponibilité est calculée par période : chaque commande ferme occupe son matériel de l’installation au retour.",
+      "active": "Proposé dans les nouvelles commandes",
+      "activeHint": "Décochez pour le retirer temporairement sans l’archiver.",
+      "inStock": "{count, plural, =0 {Aucun en stock} one {# en stock} other {# en stock}}",
+      "perUnit": "la location, par unité"
     },
     "fields": {
       "nameFr": "Nom (français)",
@@ -1032,6 +1058,10 @@
       "redact": "Masquer l’adresse et le contact après l’événement",
       "redactHint": "Adresse, téléphone et nom du contact sur place disparaissent des missions terminées.",
       "redactionDays": "Délai (jours après l’événement)",
+      "equipmentTitle": "Matériel : délais d’occupation",
+      "equipmentHint": "Le matériel d’une commande est occupé de son début moins l’installation jusqu’à sa fin plus le retour. Modifiable commande par commande.",
+      "setupHours": "Installation avant l’événement (heures)",
+      "returnHours": "Retour après l’événement (heures)",
       "saved": "Disponibilités enregistrées"
     },
     "weekdays": {

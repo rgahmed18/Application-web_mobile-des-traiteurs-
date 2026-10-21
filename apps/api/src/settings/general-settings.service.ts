@@ -24,6 +24,8 @@ const availabilitySelect = {
   maxEventsPerDay: true,
   closedWeekdays: true,
   missionRedactionDays: true,
+  equipmentSetupHours: true,
+  equipmentReturnHours: true,
 } satisfies Prisma.TraiteurSelect;
 
 const pricingSelect = {

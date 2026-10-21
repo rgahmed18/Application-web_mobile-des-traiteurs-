@@ -192,14 +192,89 @@ const RANGES: ListRepository = {
   delete: async (db, traiteurId, id) => {
     await db.catalogRange.delete({ where: { id_traiteurId: { id, traiteurId } } });
   },
-  // Menus et formules (puis matériel et buffets)
+  // Menus et formules, matériel (puis buffets)
   usage: async (db, traiteurId, rows) => {
-    const packages = await db.package.groupBy({
-      by: ['rangeId'],
-      where: { traiteurId, rangeId: { not: null } },
+    const [packages, equipment] = await Promise.all([
+      db.package.groupBy({
+        by: ['rangeId'],
+        where: { traiteurId, rangeId: { not: null } },
+        _count: { _all: true },
+      }),
+      db.equipmentItem.groupBy({
+        by: ['rangeId'],
+        where: { traiteurId, rangeId: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
+    const counts = new Map<string, number>();
+    for (const row of [...packages, ...equipment]) {
+      if (row.rangeId) counts.set(row.rangeId, (counts.get(row.rangeId) ?? 0) + row._count._all);
+    }
+    return new Map(rows.map((row) => [row.id, counts.get(row.id) ?? 0]));
+  },
+};
+
+const EQUIPMENT_CATEGORIES: ListRepository = {
+  entityType: 'EquipmentCategory',
+  auditPrefix: 'catalog.equipment_category',
+  keepsOneAvailable: false,
+  findMany: async (db, traiteurId) =>
+    (
+      await db.equipmentCategory.findMany({
+        where: { traiteurId },
+        select: listSelect,
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      })
+    ).map((row) => ({ ...row, description: null })),
+  findOne: async (db, traiteurId, id) => {
+    const row = await db.equipmentCategory.findFirst({
+      where: { id, traiteurId },
+      select: listSelect,
+    });
+    return row ? { ...row, description: null } : null;
+  },
+  codeTaken: async (db, traiteurId, code) =>
+    (await db.equipmentCategory.count({ where: { traiteurId, code } })) > 0,
+  maxSortOrder: async (db, traiteurId) =>
+    (await db.equipmentCategory.aggregate({ where: { traiteurId }, _max: { sortOrder: true } }))
+      ._max.sortOrder,
+  create: async (db, data) => ({
+    ...(await db.equipmentCategory.create({
+      data: {
+        traiteurId: data.traiteurId,
+        code: data.code,
+        name: data.name,
+        isActive: data.isActive,
+        sortOrder: data.sortOrder,
+      },
+      select: listSelect,
+    })),
+    description: null,
+  }),
+  update: async (db, traiteurId, id, changes) => ({
+    ...(await db.equipmentCategory.update({
+      where: { id_traiteurId: { id, traiteurId } },
+      data: {
+        name: changes.name,
+        isActive: changes.isActive,
+        sortOrder: changes.sortOrder,
+        archivedAt: changes.archivedAt,
+      },
+      select: listSelect,
+    })),
+    description: null,
+  }),
+  delete: async (db, traiteurId, id) => {
+    await db.equipmentCategory.delete({ where: { id_traiteurId: { id, traiteurId } } });
+  },
+  // Articles de matériel de la catégorie
+  usage: async (db, traiteurId, rows) => {
+    const items = await db.equipmentItem.groupBy({
+      by: ['categoryId'],
+      where: { traiteurId, categoryId: { not: null } },
       _count: { _all: true },
     });
-    const byId = new Map(packages.map((row) => [row.rangeId, row._count._all]));
+    const byId = new Map(items.map((row) => [row.categoryId, row._count._all]));
     return new Map(rows.map((row) => [row.id, byId.get(row.id) ?? 0]));
   },
 };
@@ -207,6 +282,7 @@ const RANGES: ListRepository = {
 const REPOSITORIES: Record<CatalogList, ListRepository> = {
   'event-types': EVENT_TYPES,
   ranges: RANGES,
+  'equipment-categories': EQUIPMENT_CATEGORIES,
 };
 
 function toItem(row: ListRow, usageCount: number): CatalogListItem {

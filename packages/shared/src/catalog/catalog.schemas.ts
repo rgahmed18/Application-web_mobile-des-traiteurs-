@@ -39,10 +39,10 @@ export const COMMON_TAX_RATES_BPS = [0, 700, 1000, 1400, 2000] as const;
 // ─────────────────────────── Champs communs ───────────────────────────
 
 /** Montant en centimes, saisi dans le mode de prix du traiteur (HT ou TTC). */
-const centsSchema = z.number().int().min(0).max(100_000_000);
+export const centsSchema = z.number().int().min(0).max(100_000_000);
 
 /** Taux propre à l'article ; null = taux par défaut du traiteur. */
-const taxRateSchema = z.number().int().min(0).max(MAX_TAX_RATE_BPS).nullable();
+export const taxRateSchema = z.number().int().min(0).max(MAX_TAX_RATE_BPS).nullable();
 
 const optionalDescriptionSchema = localizedTextSchema.nullable();
 

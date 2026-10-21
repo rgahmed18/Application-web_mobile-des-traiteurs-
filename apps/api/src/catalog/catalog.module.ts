@@ -6,6 +6,8 @@ import { CatalogListsController } from './lists/catalog-lists.controller';
 import { CatalogListsService } from './lists/catalog-lists.service';
 import { CategoriesService } from './categories/categories.service';
 import { DishesController } from './dishes/dishes.controller';
+import { EquipmentController } from './equipment/equipment.controller';
+import { EquipmentService } from './equipment/equipment.service';
 import { DishesService } from './dishes/dishes.service';
 import { ExtraServicesController } from './extra-services/extra-services.controller';
 import { ExtraServicesService } from './extra-services/extra-services.service';
@@ -20,6 +22,7 @@ import { PackagesService } from './packages/packages.service';
     CategoriesController,
     CatalogListsController,
     DishesController,
+    EquipmentController,
     PackagesController,
     ExtraServicesController,
   ],
@@ -27,6 +30,7 @@ import { PackagesService } from './packages/packages.service';
     CategoriesService,
     CatalogListsService,
     DishesService,
+    EquipmentService,
     PackagesService,
     ExtraServicesService,
     MediaService,

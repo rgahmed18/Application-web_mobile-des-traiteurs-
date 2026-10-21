@@ -106,3 +106,30 @@ test('listes du catalogue : nouveau type d’événement proposé dans les comma
   await page.getByLabel('Type d’événement').click();
   await expect(page.getByRole('option', { name })).toHaveCount(0);
 });
+
+test('matériel : article avec catégorie, gamme, location, remplacement et stock', async ({
+  page,
+}) => {
+  const suffix = uniqueSuffix();
+  const name = `Chaise Napoléon e2e ${suffix}`;
+  await login(page);
+
+  await page.goto('/admin/catalog/equipment');
+  await page.getByRole('link', { name: 'Nouveau matériel' }).first().click();
+  await page.getByLabel('Nom (français)').fill(name);
+  await page.getByLabel('Nom (arabe)').fill(`كرسي ${suffix}`);
+  await page.getByLabel('Catégorie').click();
+  await page.getByRole('option', { name: 'Chaises' }).click();
+  await page.getByLabel('Gamme').click();
+  await page.getByRole('option', { name: 'Luxe' }).click();
+  await page.getByLabel(/^Prix (TTC|HT)$/).fill('15');
+  await page.getByLabel(/^Prix de remplacement (TTC|HT)/).fill('450');
+  await page.getByLabel('Quantité en stock').fill('200');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Matériel créé')).toBeVisible();
+
+  await page.getByRole('searchbox', { name: 'Rechercher par nom' }).fill(suffix);
+  const row = page.getByTestId('equipment-list').getByRole('listitem').filter({ hasText: name });
+  await expect(row).toContainText('Chaises · Luxe · 200 en stock');
+  await expect(row).toContainText('15,00');
+});

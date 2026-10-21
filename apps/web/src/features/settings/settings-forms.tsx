@@ -174,11 +174,15 @@ const availabilityFormSchema = z
     closedWeekdays: z.array(z.number()),
     redact: z.boolean(),
     missionRedactionDays: z.string(),
+    equipmentSetupHours: z.string(),
+    equipmentReturnHours: z.string(),
   })
   .transform((values): z.input<typeof availabilitySettingsSchema> => ({
     maxEventsPerDay: values.limited ? toInteger(values.maxEventsPerDay) : null,
     closedWeekdays: values.closedWeekdays,
     missionRedactionDays: values.redact ? toInteger(values.missionRedactionDays) : null,
+    equipmentSetupHours: toInteger(values.equipmentSetupHours),
+    equipmentReturnHours: toInteger(values.equipmentReturnHours),
   }))
   .pipe(availabilitySettingsSchema);
 
@@ -188,6 +192,8 @@ const availabilityValues = (settings: AvailabilitySettings) => ({
   closedWeekdays: settings.closedWeekdays,
   redact: settings.missionRedactionDays !== null,
   missionRedactionDays: String(settings.missionRedactionDays ?? 7),
+  equipmentSetupHours: String(settings.equipmentSetupHours),
+  equipmentReturnHours: String(settings.equipmentReturnHours),
 });
 
 export function AvailabilityTab() {
@@ -335,6 +341,28 @@ function AvailabilityForm({ settings }: { settings: AvailabilitySettings }) {
             )}
           />
         )}
+      </FormSection>
+
+      <FormSection title={t('equipmentTitle')} description={t('equipmentHint')}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(['equipmentSetupHours', 'equipmentReturnHours'] as const).map((name) => (
+            <FormField
+              key={name}
+              control={form.control}
+              name={name}
+              label={t(name === 'equipmentSetupHours' ? 'setupHours' : 'returnHours')}
+              render={(field, { invalid }) => (
+                <Input
+                  {...field}
+                  inputMode="numeric"
+                  dir="ltr"
+                  className="max-w-32"
+                  aria-invalid={invalid}
+                />
+              )}
+            />
+          ))}
+        </div>
       </FormSection>
       <SaveBar
         dirty={form.formState.isDirty}

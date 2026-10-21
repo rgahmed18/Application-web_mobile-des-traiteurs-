@@ -44,6 +44,9 @@ export const availabilitySettingsSchema = z.object({
     .transform((days) => [...days].sort((a, b) => a - b)),
   /** Missions terminées : adresse et contact masqués après N jours (null = jamais). */
   missionRedactionDays: z.number().int().min(1).max(365).nullable(),
+  /** Matériel : occupé de (début − installation) à (fin + retour), en heures. */
+  equipmentSetupHours: z.number().int().min(0).max(240),
+  equipmentReturnHours: z.number().int().min(0).max(240),
 });
 export type AvailabilitySettings = z.infer<typeof availabilitySettingsSchema>;
 

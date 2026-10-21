@@ -235,6 +235,9 @@ model Traiteur {
   maxEventsPerDay      Int? // null = pas de limite
   // Jours de fermeture hebdomadaire (ISO : 1 = lundi … 7 = dimanche)
   closedWeekdays       Int[]            @default([])
+  // Matériel occupé de (début − installation) à (fin + retour) ; modifiable par commande
+  equipmentSetupHours  Int              @default(12)
+  equipmentReturnHours Int              @default(24)
   // Missions terminées depuis N jours : adresse et contact sur place masqués (null = jamais)
   missionRedactionDays Int?             @default(7)
 
@@ -270,37 +273,39 @@ model Traiteur {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships        Membership[]
-  refreshTokens      RefreshToken[]
-  clientAddresses    ClientAddress[]
-  rolePermissions    RolePermission[]
-  staffInvitations   StaffInvitation[]
-  featureFlags       FeatureFlag[]
-  blockedDates       BlockedDate[]
-  documentSequences  DocumentSequence[]
-  categories         Category[]
-  dishes             Dish[]
-  packages           Package[]
-  packageDishes      PackageDish[]
-  extraServices      ExtraService[]
-  eventTypes         EventType[]
-  packageEventTypes  PackageEventType[]
-  catalogRanges      CatalogRange[]
-  orders             Order[]
-  orderItems         OrderItem[]
-  orderStatusChanges OrderStatusChange[]
-  quotes             Quote[]
-  quoteLines         QuoteLine[]
-  quoteLinks         QuoteLink[]
-  invoices           Invoice[]
-  invoiceLines       InvoiceLine[]
-  payments           Payment[]
-  staffAssignments   StaffAssignment[]
-  conversations      Conversation[]
-  messages           Message[]
-  reviews            Review[]
-  auditLogs          AuditLog[]
-  mediaUploads       MediaUpload[]
+  memberships         Membership[]
+  refreshTokens       RefreshToken[]
+  clientAddresses     ClientAddress[]
+  rolePermissions     RolePermission[]
+  staffInvitations    StaffInvitation[]
+  featureFlags        FeatureFlag[]
+  blockedDates        BlockedDate[]
+  documentSequences   DocumentSequence[]
+  categories          Category[]
+  dishes              Dish[]
+  packages            Package[]
+  packageDishes       PackageDish[]
+  extraServices       ExtraService[]
+  eventTypes          EventType[]
+  packageEventTypes   PackageEventType[]
+  catalogRanges       CatalogRange[]
+  equipmentCategories EquipmentCategory[]
+  equipmentItems      EquipmentItem[]
+  orders              Order[]
+  orderItems          OrderItem[]
+  orderStatusChanges  OrderStatusChange[]
+  quotes              Quote[]
+  quoteLines          QuoteLine[]
+  quoteLinks          QuoteLink[]
+  invoices            Invoice[]
+  invoiceLines        InvoiceLine[]
+  payments            Payment[]
+  staffAssignments    StaffAssignment[]
+  conversations       Conversation[]
+  messages            Message[]
+  reviews             Review[]
+  auditLogs           AuditLog[]
+  mediaUploads        MediaUpload[]
 }
 
 // Identité globale : un compte unique, utilisable chez plusieurs traiteurs.
@@ -687,12 +692,68 @@ model CatalogRange {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  traiteur Traiteur  @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  packages Package[]
+  traiteur  Traiteur        @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  packages  Package[]
+  equipment EquipmentItem[]
 
   @@unique([traiteurId, code])
   @@unique([id, traiteurId])
   @@index([traiteurId, sortOrder])
+}
+
+// Catégories du matériel de fête (liste gérable, traduite) : chaises, tables, nappes…
+// Créées par défaut pour chaque traiteur (trigger "Traiteur_default_lists").
+model EquipmentCategory {
+  id         String    @id @default(uuid()) @db.Uuid
+  traiteurId String    @db.Uuid
+  code       String // ex. CHAIRS ; jamais modifié
+  name       Json // LocalizedText
+  sortOrder  Int       @default(0)
+  isActive   Boolean   @default(true)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  traiteur Traiteur        @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  items    EquipmentItem[]
+
+  @@unique([traiteurId, code])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, sortOrder])
+}
+
+// Matériel de fête loué avec les prestations : prix de location par unité (mode de saisie du
+// traiteur), prix de remplacement (manquant ou cassé, facturation au retour : étape suivante)
+// et quantité en stock (disponibilité par période : voir EquipmentAvailabilityService).
+model EquipmentItem {
+  id                  String    @id @default(uuid()) @db.Uuid
+  traiteurId          String    @db.Uuid
+  categoryId          String?   @db.Uuid
+  rangeId             String?   @db.Uuid
+  slug                String
+  name                Json // LocalizedText
+  description         Json? // LocalizedText
+  priceHt             Int // location par unité, centimes ; fait foi en mode HT
+  priceTtc            Int // location par unité, centimes ; fait foi en mode TTC
+  replacementPriceHt  Int       @default(0)
+  replacementPriceTtc Int       @default(0)
+  taxRateBps          Int? // null = taux par défaut du traiteur
+  stockQuantity       Int       @default(0)
+  imageKey            String?
+  isActive            Boolean   @default(true)
+  archivedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  traiteur   Traiteur           @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  category   EquipmentCategory? @relation(fields: [categoryId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
+  range      CatalogRange?      @relation(fields: [rangeId, traiteurId], references: [id, traiteurId], onDelete: NoAction, onUpdate: NoAction)
+  orderItems OrderItem[]
+
+  @@unique([traiteurId, slug])
+  @@unique([id, traiteurId])
+  @@index([traiteurId, categoryId])
+  @@index([traiteurId, archivedAt])
 }
 
 // ─────────────────────────── Commandes ───────────────────────────
@@ -722,6 +783,9 @@ model Order {
   onSiteContactPhone    String?
   serviceNotes          String? // notes de service pour l'équipe
   equipment             String? // matériel à livrer (tables, nappes, chauffe-plats…)
+  // Délais du matériel pour cette commande (null : réglage du traiteur)
+  equipmentSetupHours   Int?
+  equipmentReturnHours  Int?
   // Totaux en centimes = somme des lignes (vérifié en fin de transaction)
   totalHt               Int         @default(0)
   totalTax              Int         @default(0)
@@ -763,6 +827,7 @@ model OrderItem {
   dishId         String?      @db.Uuid
   packageId      String?      @db.Uuid
   extraServiceId String?      @db.Uuid
+  equipmentId    String?      @db.Uuid
   label          Json // LocalizedText { fr, ar?, en? } figé à l'ajout de la ligne (copie du catalogue ou saisie)
   // Montants en centimes. Le prix unitaire et la remise du mode de la ligne font foi ;
   // ceux de l'autre mode sont indicatifs. Règles vérifiées par CHECK (voir PriceMode).
@@ -783,13 +848,15 @@ model OrderItem {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  traiteur     Traiteur      @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  order        Order         @relation(fields: [orderId, traiteurId, priceMode], references: [id, traiteurId, priceMode], onDelete: Cascade)
-  dish         Dish?         @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
-  package      Package?      @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
-  extraService ExtraService? @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  traiteur     Traiteur       @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  order        Order          @relation(fields: [orderId, traiteurId, priceMode], references: [id, traiteurId, priceMode], onDelete: Cascade)
+  dish         Dish?          @relation(fields: [dishId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  package      Package?       @relation(fields: [packageId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  extraService ExtraService?  @relation(fields: [extraServiceId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
+  equipment    EquipmentItem? @relation(fields: [equipmentId, traiteurId], references: [id, traiteurId], onDelete: SetNull)
 
   @@index([traiteurId, orderId])
+  @@index([traiteurId, equipmentId])
 }
 
 // Historique des statuts d'une commande (affiché sur la fiche ; AuditLog reste le journal technique).
@@ -1177,7 +1244,7 @@ model MediaUpload {
   status     MediaUploadStatus @default(PENDING)
   rawKey     String // fichier brut envoyé par le navigateur (tmp/...), supprimé après traitement
   imageKey   String?           @unique // base des variantes traitées (traiteurs/<id>/catalog/<uuid>)
-  entityType String? // Dish | Package
+  entityType String? // Dish | Package | EquipmentItem
   entityId   String?           @db.Uuid
   detachedAt DateTime?
   createdAt  DateTime          @default(now())

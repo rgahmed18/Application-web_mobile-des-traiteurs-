@@ -148,6 +148,19 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
     id: await created('/catalog/lists/event-types', listBody()),
   });
   const newRange = async () => ({ id: await created('/catalog/lists/ranges', listBody()) });
+  const equipmentBody = () => ({
+    name: { fr: `Chaise ${suffix()}` },
+    description: null,
+    categoryId: null,
+    rangeId: null,
+    price: 1_500,
+    replacementPrice: 40_000,
+    taxRateBps: null,
+    stockQuantity: 100,
+    imageKey: null,
+    isActive: true,
+  });
+  const newEquipment = async () => ({ id: await created('/catalog/equipment', equipmentBody()) });
   const newPackage = async () => {
     const dish = await newDish();
     return { id: await created('/catalog/packages', packageBody(dish.id)), dishId: dish.id };
@@ -297,6 +310,37 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
       method: 'delete',
       path: (ids) => `/catalog/lists/ranges/${ids.id}`,
       prepare: newRange,
+    },
+    {
+      name: 'créer une catégorie de matériel',
+      method: 'post',
+      path: () => '/catalog/lists/equipment-categories',
+      body: listBody,
+    },
+    {
+      name: 'créer du matériel',
+      method: 'post',
+      path: () => '/catalog/equipment',
+      body: equipmentBody,
+    },
+    {
+      name: 'modifier du matériel',
+      method: 'put',
+      path: (ids) => `/catalog/equipment/${ids.id}`,
+      body: equipmentBody,
+      prepare: newEquipment,
+    },
+    {
+      name: 'archiver du matériel',
+      method: 'post',
+      path: (ids) => `/catalog/equipment/${ids.id}/archive`,
+      prepare: newEquipment,
+    },
+    {
+      name: 'supprimer du matériel',
+      method: 'delete',
+      path: (ids) => `/catalog/equipment/${ids.id}`,
+      prepare: newEquipment,
     },
     {
       name: 'préparer l’envoi d’une photo',

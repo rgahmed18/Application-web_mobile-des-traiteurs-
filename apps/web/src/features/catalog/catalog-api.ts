@@ -16,6 +16,12 @@ import {
   catalogListItemSchema,
   type Category,
   type CategoryInput,
+  type Equipment,
+  type EquipmentInput,
+  type EquipmentListQuery,
+  type EquipmentPage,
+  equipmentPageSchema,
+  equipmentSchema,
   categorySchema,
   type Dish,
   type DishInput,
@@ -48,6 +54,8 @@ export const catalogKeys = {
   package: (id: string) => ['catalog', 'package', id] as const,
   services: (archived: boolean) => ['catalog', 'services', archived] as const,
   list: (list: CatalogList) => ['catalog', 'lists', list] as const,
+  equipmentList: (query: Partial<EquipmentListQuery>) => ['catalog', 'equipment', query] as const,
+  equipment: (id: string) => ['catalog', 'equipment-item', id] as const,
 };
 
 function toQuery(values: object): Record<string, QueryValue> {
@@ -119,6 +127,30 @@ export function useExtraServices(archived: boolean): UseQueryResult<ExtraService
         schema: z.array(extraServiceSchema),
         signal,
       }),
+  });
+}
+
+export function useEquipmentList(
+  query: Partial<EquipmentListQuery>,
+): UseQueryResult<EquipmentPage> {
+  return useQuery({
+    queryKey: catalogKeys.equipmentList(query),
+    queryFn: ({ signal }) =>
+      apiRequest('/catalog/equipment', {
+        query: toQuery(query),
+        schema: equipmentPageSchema,
+        signal,
+      }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useEquipment(id: string | null): UseQueryResult<Equipment> {
+  return useQuery({
+    queryKey: catalogKeys.equipment(id ?? ''),
+    queryFn: ({ signal }) =>
+      apiRequest(`/catalog/equipment/${id ?? ''}`, { schema: equipmentSchema, signal }),
+    enabled: id !== null,
   });
 }
 
@@ -217,7 +249,7 @@ export function useSaveExtraService() {
   );
 }
 
-export type CatalogResource = 'dishes' | 'packages' | 'services';
+export type CatalogResource = 'dishes' | 'packages' | 'services' | 'equipment';
 export type LifecycleAction = 'archive' | 'restore' | 'delete';
 
 /** Archiver, restaurer ou supprimer un plat, une formule ou un service. */
@@ -282,4 +314,14 @@ export function useReorderCatalogList(list: CatalogList) {
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
+}
+
+export function useSaveEquipment() {
+  return useCatalogMutation(({ id, input }: { id: string | null; input: EquipmentInput }) =>
+    apiRequest(id ? `/catalog/equipment/${id}` : '/catalog/equipment', {
+      method: id ? 'PUT' : 'POST',
+      body: input,
+      schema: equipmentSchema,
+    }),
+  );
 }

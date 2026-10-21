@@ -137,6 +137,8 @@ describe('API des paramètres et du compte (application complète)', () => {
         maxEventsPerDay: 3,
         closedWeekdays: [1, 2, 3, 4, 5, 6, 7],
         missionRedactionDays: 7,
+        equipmentSetupHours: 12,
+        equipmentReturnHours: 24,
       })
       .expect(400);
     await api(admin)
@@ -144,6 +146,8 @@ describe('API des paramètres et du compte (application complète)', () => {
         maxEventsPerDay: 3,
         closedWeekdays: [1, 1],
         missionRedactionDays: 7,
+        equipmentSetupHours: 12,
+        equipmentReturnHours: 24,
       })
       .expect(400);
     const saved = await api(admin)
@@ -151,12 +155,16 @@ describe('API des paramètres et du compte (application complète)', () => {
         maxEventsPerDay: 3,
         closedWeekdays: [7, 1],
         missionRedactionDays: null,
+        equipmentSetupHours: 12,
+        equipmentReturnHours: 24,
       })
       .expect(200);
     expect(saved.body).toEqual({
       maxEventsPerDay: 3,
       closedWeekdays: [1, 7],
       missionRedactionDays: null,
+      equipmentSetupHours: 12,
+      equipmentReturnHours: 24,
     });
 
     let offset = 40;
