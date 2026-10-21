@@ -16,8 +16,13 @@ import { ExtraServicesService } from './extra-services/extra-services.service';
 import { MediaService } from './media/media.service';
 import { PackagesController } from './packages/packages.controller';
 import { PackagesService } from './packages/packages.service';
+import { PublicCatalogController } from './public/public-catalog.controller';
+import { PublicCatalogService } from './public/public-catalog.service';
 
-/** Catalogue du traiteur : catégories, plats, formules, services annexes et photos. */
+/**
+ * Catalogue du traiteur : catégories, plats, formules, buffets, matériel, services annexes,
+ * listes et photos ; catalogue public en lecture seule pour le site client.
+ */
 @Module({
   controllers: [
     CatalogController,
@@ -28,6 +33,7 @@ import { PackagesService } from './packages/packages.service';
     EquipmentController,
     PackagesController,
     ExtraServicesController,
+    PublicCatalogController,
   ],
   providers: [
     BuffetsService,
@@ -38,6 +44,7 @@ import { PackagesService } from './packages/packages.service';
     PackagesService,
     ExtraServicesService,
     MediaService,
+    PublicCatalogService,
   ],
   exports: [MediaService],
 })

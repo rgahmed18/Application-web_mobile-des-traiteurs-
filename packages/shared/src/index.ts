@@ -7,6 +7,7 @@ export * from './catalog/buffet.schemas';
 export * from './catalog/catalog.schemas';
 export * from './catalog/equipment.schemas';
 export * from './catalog/media.schemas';
+export * from './catalog/public-catalog.schemas';
 export * from './catalog/slug';
 export * from './documents';
 export * from './enums';

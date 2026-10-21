@@ -405,6 +405,22 @@ Page **Paramètres** en onglets (onglet mémorisé dans l'URL), `settings.manage
 
 Chaque modification est tracée dans le journal d'audit (avant / après).
 
+### Catalogue public (site client)
+
+API en lecture seule, sans connexion, pour le futur site client de chaque traiteur :
+
+- `GET /api/v1/public/traiteurs/:slug/catalog/options` : types d'événement et gammes proposés
+  (actifs, dans l'ordre du traiteur), nom du traiteur et devise ;
+- `GET /api/v1/public/traiteurs/:slug/catalog?eventType=THESIS&range=PREMIUM` : menus et
+  formules (ceux du type demandé et ceux prévus pour tous les événements), buffets et matériel
+  de la gamme demandée.
+
+Seuls les éléments actifs et non archivés sont publiés, avec leurs **prix TTC**, leurs photos
+(URL publique) et leurs textes FR/AR. Ni stock, ni prix de remplacement, ni prix HT. Un traiteur
+inconnu, suspendu ou résilié répond 404. Débit limité à 120 requêtes par minute et par adresse ;
+réponses gardées une minute (`Cache-Control: public, max-age=60` et cache Redis) : une
+modification du catalogue apparaît sur le site en une minute au plus.
+
 ### Cycle de vie d'une commande
 
 Machine à états unique (`packages/shared/src/orders/order-status.ts`), imposée par l'API et
