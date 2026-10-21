@@ -62,13 +62,13 @@ export async function connectScriptStorage(): Promise<ScriptStorage | null> {
 
 /**
  * Traite et dépose une image, puis la rattache à l'élément (MediaUpload ATTACHED).
- * Retourne la clé à enregistrer sur le plat ou la formule.
+ * Retourne la clé à enregistrer sur l'élément (plat, formule, matériel, buffet).
  */
 export async function storeAndAttachImage(
   prisma: PrismaClient,
   storage: ScriptStorage,
   traiteurId: string,
-  entityType: 'Dish' | 'Package',
+  entityType: 'Dish' | 'Package' | 'EquipmentItem' | 'Buffet',
   entityId: string,
   image: Buffer,
 ): Promise<string> {

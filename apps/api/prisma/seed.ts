@@ -33,6 +33,7 @@ import {
   seedDemoCashToCollect,
   seedDemoPayments,
 } from './lib/demo-orders';
+import { seedDemoEquipmentAndBuffets, seedDemoEquipmentOrders } from './lib/demo-equipment';
 import { generateIllustration, PALETTES } from './lib/illustrations';
 import { connectScriptStorage, storeAndAttachImage } from './lib/media-script';
 import { issueInvoice } from '../src/invoices/invoice-issuer';
@@ -729,13 +730,15 @@ async function seedCatalog(traiteurId: string) {
 }
 
 /**
- * Illustrations de démonstration (générées, sans droits) pour chaque plat et formule sans photo.
+ * Illustrations de démonstration (générées, sans droits) pour chaque plat, formule, article de
+ * matériel et buffet sans photo.
  * Remplaçables par de vraies photos : pnpm --filter @traiteur/api catalog:set-photo.
  */
 async function seedIllustrations(
   traiteurId: string,
   dishIds: Map<string, string>,
   packageIds: Map<string, string>,
+  others: { equipmentIds: Map<string, string>; buffetIds: Map<string, string> },
 ): Promise<void> {
   const storage = await connectScriptStorage();
   if (!storage) {
@@ -772,6 +775,37 @@ async function seedIllustrations(
       const image = await generateIllustration(pkg.slug, palette);
       const imageKey = await storeAndAttachImage(prisma, storage, traiteurId, 'Package', id, image);
       await prisma.package.update({ where: { id }, data: { imageKey } });
+      created += 1;
+    }
+    for (const [slug, id] of others.equipmentIds) {
+      const palette = PALETTES.boissons;
+      const row = await prisma.equipmentItem.findUniqueOrThrow({
+        where: { id },
+        select: { imageKey: true },
+      });
+      if (row.imageKey || !palette) continue;
+      const image = await generateIllustration(slug, palette);
+      const imageKey = await storeAndAttachImage(
+        prisma,
+        storage,
+        traiteurId,
+        'EquipmentItem',
+        id,
+        image,
+      );
+      await prisma.equipmentItem.update({ where: { id }, data: { imageKey } });
+      created += 1;
+    }
+    for (const [slug, id] of others.buffetIds) {
+      const palette = PALETTES.patisseries;
+      const row = await prisma.buffet.findUniqueOrThrow({
+        where: { id },
+        select: { imageKey: true },
+      });
+      if (row.imageKey || !palette) continue;
+      const image = await generateIllustration(slug, palette);
+      const imageKey = await storeAndAttachImage(prisma, storage, traiteurId, 'Buffet', id, image);
+      await prisma.buffet.update({ where: { id }, data: { imageKey } });
       created += 1;
     }
   } catch (error) {
@@ -1029,7 +1063,13 @@ async function main(): Promise<void> {
   const traiteur = await seedTraiteur();
   const { users, memberships } = await seedUsers(traiteur.id);
   const { dishIds, packageIds } = await seedCatalog(traiteur.id);
-  await seedIllustrations(traiteur.id, dishIds, packageIds);
+  const { equipmentIds, buffetIds } = await seedDemoEquipmentAndBuffets(
+    prisma,
+    traiteur.id,
+    dishIds,
+    packageIds,
+  );
+  await seedIllustrations(traiteur.id, dishIds, packageIds, { equipmentIds, buffetIds });
   await seedDemoOrder(traiteur, memberships, dishIds, packageIds);
   const salmaId = memberships.get('client');
   const adminUserId = users.get('admin');
@@ -1049,6 +1089,11 @@ async function main(): Promise<void> {
   if (!driverId || !teamId) throw new Error('Équipe de démonstration manquante');
   await seedDemoAssignments(prisma, traiteur.id, { driverId, teamId });
   await seedDemoCashToCollect(prisma, traiteur.id, driverId);
+  await seedDemoEquipmentOrders(prisma, traiteur, adminUserId, {
+    equipmentIds,
+    buffetIds,
+    packageIds,
+  });
 }
 
 main()

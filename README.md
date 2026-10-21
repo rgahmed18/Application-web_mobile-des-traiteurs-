@@ -132,6 +132,12 @@ mi-septembre à mi-novembre 2026 dans tous les statuts : un jour complet (24/10 
 une capacité de 3), deux dates bloquées (31/10 et 06/11), des commandes à clôturer et une commande
 de fiançailles avec devis, facture, acompte et équipe affectée.
 
+Il ajoute aussi le matériel (6 articles : chaises, tables, nappes, housses, chauffe-plats, arche
+florale, avec stock et prix de remplacement), 3 buffets (marocain, sucré, thé au forfait), les
+gammes et types d'événement des formules, et 3 commandes qui les utilisent : une **soutenance**
+le 12/11, un mariage le 21/11 qui mobilise 250 des 300 chaises, et des fiançailles en attente le
+même soir avec 120 chaises (la confirmation signale le manque et demande un motif).
+
 Mot de passe commun : **`Password123!`**
 
 | Rôle           | Téléphone     | Email                           |
