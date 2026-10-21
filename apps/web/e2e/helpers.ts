@@ -3,12 +3,23 @@ import { type APIRequestContext, expect, type Page } from '@playwright/test';
 /** Gérant du traiteur de démonstration (prisma/seed.ts). */
 export const MANAGER = { phone: '0600000002', password: 'Password123!' };
 
+/**
+ * Connexion par le formulaire. Les parcours enchaînent de nombreuses connexions depuis la même
+ * adresse : si la limitation de débit répond « Trop de tentatives », attente puis nouvel essai.
+ */
 export async function login(page: Page, account = MANAGER): Promise<void> {
-  await page.goto('/admin/login');
-  await page.getByLabel('Téléphone ou email').fill(account.phone);
-  await page.getByRole('textbox', { name: 'Mot de passe' }).fill(account.password);
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: /^Bonjour/ })).toBeVisible();
+  const welcome = page.getByRole('heading', { level: 1, name: /^Bonjour/ });
+  const throttled = page.getByText(/Trop de tentatives/);
+  for (let attempt = 1; ; attempt += 1) {
+    await page.goto('/admin/login');
+    await page.getByLabel('Téléphone ou email').fill(account.phone);
+    await page.getByRole('textbox', { name: 'Mot de passe' }).fill(account.password);
+    await page.getByRole('button', { name: 'Se connecter' }).click();
+    await expect(welcome.or(throttled).first()).toBeVisible();
+    if (!(await throttled.isVisible()) || attempt === 4) break;
+    await page.waitForTimeout(20_000);
+  }
+  await expect(welcome).toBeVisible();
 }
 
 /** Suffixe unique : les parcours peuvent être rejoués sur la même base. */

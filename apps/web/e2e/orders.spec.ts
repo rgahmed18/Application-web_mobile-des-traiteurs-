@@ -26,7 +26,7 @@ const MONTHS = [
 test('client, commande de 3 lignes confirmée, puis retrouvée dans le calendrier', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const suffix = uniqueSuffix();
   const lastName = `Testeur ${suffix}`;
   const phone = `06${String(Date.now()).slice(-8)}`;
@@ -140,7 +140,7 @@ test('client, commande de 3 lignes confirmée, puis retrouvée dans le calendrie
 test('matériel dans une commande : stock affiché, alerte de dépassement et confirmation motivée', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const suffix = uniqueSuffix();
   const item = `Tente berbère e2e ${suffix}`;
   const lastName = `Matériel ${suffix}`;

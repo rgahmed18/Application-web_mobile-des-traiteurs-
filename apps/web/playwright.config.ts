@@ -14,7 +14,8 @@ export default defineConfig({
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  timeout: 60_000,
+  // Large : une connexion limitée en débit attend jusqu'à une minute avant de réessayer
+  timeout: 150_000,
   expect: { timeout: 15_000 },
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
