@@ -29,6 +29,7 @@ import type { ClientInfo } from '../common/http/client-info';
 import type { Env } from '../config/env.schema';
 import type { User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import type { AuthenticatedUser } from './auth-user';
 import { computeLockedUntil, isLocked } from './login-lockout';
 import { OtpService } from './otp/otp.service';
@@ -64,6 +65,7 @@ export class AuthService {
     private readonly permissions: PermissionsService,
     private readonly audit: AuditService,
     private readonly twoFactor: TwoFactorService,
+    private readonly storage: StorageService,
     config: ConfigService<Env, true>,
   ) {
     this.maxLoginFailures = config.get('LOGIN_MAX_FAILURES', { infer: true });
@@ -417,6 +419,7 @@ export class AuthService {
         role: current.role,
       },
       permissions: [...permissions].sort(),
+      traiteur: current.traiteurId ? await this.branding(current.traiteurId) : null,
     };
   }
 
@@ -442,6 +445,24 @@ export class AuthService {
     }
     const challengeToken = await this.twoFactor.createChallenge(user, context, kind, client);
     return { twoFactor: kind, challengeToken, expiresIn: CHALLENGE_TTL_SECONDS };
+  }
+
+  /** Nom et logo du traiteur (marque blanche du back-office). */
+  private async branding(traiteurId: string): Promise<{ name: string; logoUrl: string | null }> {
+    const traiteur = await this.prisma.traiteur.findUnique({
+      where: { id: traiteurId },
+      select: { name: true, logoKey: true },
+    });
+    if (!traiteur) return { name: '', logoUrl: null };
+    let logoUrl: string | null = null;
+    if (traiteur.logoKey) {
+      try {
+        logoUrl = await this.storage.signedDownloadUrl(traiteur.logoKey, 'logo.png', 3600);
+      } catch (error) {
+        this.logger.warn(`Logo du traiteur ${traiteurId} indisponible : ${String(error)}`);
+      }
+    }
+    return { name: traiteur.name, logoUrl };
   }
 
   private async currentUser(current: AuthenticatedUser): Promise<User> {
@@ -488,10 +509,10 @@ export class AuthService {
       throw appErrors.badRequest('TRAITEUR_REQUIRED', 'Le traiteur est requis pour se connecter');
     }
 
+    // Le SUPER_ADMIN arrive toujours sur la console de la plateforme, jamais chez un traiteur :
+    // il n'y entre qu'explicitement (motif demandé, accès limité dans le temps et tracé).
+    if (user.isSuperAdmin) return { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' };
     const traiteur = await this.findAvailableTraiteur(traiteurSlug);
-    if (user.isSuperAdmin) {
-      return { traiteurId: traiteur.id, membershipId: null, role: 'SUPER_ADMIN' };
-    }
 
     let membership = await this.prisma.membership.findUnique({
       where: { userId_traiteurId: { userId: user.id, traiteurId: traiteur.id } },

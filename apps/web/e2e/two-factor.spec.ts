@@ -6,7 +6,7 @@ import { totp } from './helpers';
 const SUPER_ADMIN = { phone: '0600000001', password: 'Password123!' };
 const ACCOUNT_MENU = 'Mon compte';
 
-test('super admin : double authentification imposée, codes de secours, puis connexion par code', async ({
+test('super admin : double authentification imposée, console de la plateforme, connexion par code de secours', async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -39,10 +39,17 @@ test('super admin : double authentification imposée, codes de secours, puis con
   await expect(continueButton).toBeDisabled();
   await page.getByText('J’ai rangé ces codes en lieu sûr').click();
   await continueButton.click();
+
+  // ─── Arrivée sur la console de la plateforme, jamais dans un back-office ───
+  await expect(page).toHaveURL(/\/platform$/);
   await expect(page.getByRole('heading', { level: 1, name: /^Bonjour/ })).toBeVisible();
+  await expect(page.getByTestId('super-admin-badge')).toBeVisible();
+  await expect(page.getByTestId('kpi-active')).toBeVisible();
+  await page.goto('/admin/orders');
+  await expect(page).toHaveURL(/\/platform$/);
 
   // ─── Mon compte : activée, imposée (pas de bouton Désactiver) ───
-  await page.goto('/admin/settings?tab=account');
+  await page.goto('/platform/account');
   const status = page.getByTestId('two-factor-status');
   await expect(status).toContainText('Activée');
   await expect(status).toContainText('10 codes de secours restants');
@@ -55,5 +62,5 @@ test('super admin : double authentification imposée, codes de secours, puis con
   await page.getByRole('button', { name: /utiliser un code de secours/ }).click();
   await page.getByLabel('Code de secours').fill(firstCode);
   await page.getByRole('button', { name: 'Vérifier' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: /^Bonjour/ })).toBeVisible();
+  await expect(page.getByTestId('super-admin-badge')).toBeVisible();
 });

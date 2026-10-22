@@ -11,6 +11,7 @@ import { AuthService } from './auth.service';
 import type { OtpService } from './otp/otp.service';
 import type { PasswordService } from './password.service';
 import type { TokenService } from './token.service';
+import type { StorageService } from '../storage/storage.service';
 import type { TwoFactorService } from './two-factor/two-factor.service';
 
 const TRAITEUR = {
@@ -136,6 +137,7 @@ function setup(options: {
     {} as PermissionsService,
     audit as unknown as AuditService,
     twoFactor as unknown as TwoFactorService,
+    {} as StorageService,
     config,
   );
   const getStored = () => stored;
@@ -229,6 +231,20 @@ describe('AuthService.login', () => {
       client,
     );
     expect(tokens.issueTokens).not.toHaveBeenCalled();
+  });
+
+  it('SUPER_ADMIN connecté depuis le back-office d’un traiteur : toujours la console', async () => {
+    const { service, twoFactor } = setup({ user: buildUser({ isSuperAdmin: true }) });
+    await service.login(
+      { identifier: 'admin@x.ma', password: 'x', traiteurSlug: 'dar-diafa' },
+      client,
+    );
+    expect(twoFactor.createChallenge).toHaveBeenCalledWith(
+      expect.anything(),
+      { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' },
+      'SETUP',
+      client,
+    );
   });
 
   it('double authentification active : deuxième étape (code), aucune session', async () => {

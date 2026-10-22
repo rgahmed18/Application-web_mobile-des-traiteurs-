@@ -1889,5 +1889,48 @@
       "tooMany": "محاولات كثيرة: أعد المحاولة بعد دقيقة.",
       "generic": "حدث خطأ. أعد المحاولة."
     }
+  },
+  "platform": {
+    "brand": "لوحة المنصة",
+    "brandSub": "تدبير الممونين",
+    "badge": "مشرف عام",
+    "privacyNote": "لا تُعرض هنا أي معطيات للزبناء: أرقام إجمالية فقط.",
+    "nav": {
+      "dashboard": "لوحة القيادة"
+    },
+    "status": {
+      "ACTIVE": "نشط",
+      "TRIAL": "تجربة",
+      "SUSPENDED": "موقوف",
+      "CANCELLED": "مفسوخ"
+    },
+    "dashboard": {
+      "title": "مرحباً، {name}",
+      "subtitle": "نظرة عامة على المنصة.",
+      "active": "ممونون نشطون",
+      "trial": "في فترة التجربة",
+      "suspended": "موقوفون",
+      "ordersThisMonth": "طلبيات الشهر",
+      "variation": "{percent}٪ مقارنة بالشهر السابق",
+      "noPreviousMonth": "لا طلبيات في الشهر السابق",
+      "revenue": "الاشتراكات المقدرة",
+      "revenueHint": "شهرياً، الممونون النشطون",
+      "activityTitle": "الممونون",
+      "noTraiteur": "لا يوجد أي ممون حالياً.",
+      "orders": "{count, plural, =0 {لا طلبيات} one {طلبية واحدة} two {طلبيتان} few {# طلبيات} many {# طلبية} other {# طلبية}}",
+      "trialsTitle": "تجارب تنتهي قريباً",
+      "noTrial": "لا تنتهي أي تجربة خلال 14 يوماً.",
+      "daysLeft": "{count, plural, =0 {تنتهي اليوم} one {بعد يوم واحد} two {بعد يومين} few {بعد # أيام} many {بعد # يوماً} other {بعد # يوم}}",
+      "actionsTitle": "آخر عمليات المنصة",
+      "noAction": "لا توجد عمليات حالياً.",
+      "pricesTitle": "أثمنة العروض",
+      "perMonth": "{price} / شهرياً"
+    },
+    "actions": {
+      "traiteur_created": "إنشاء ممون",
+      "super_admin_created": "إنشاء مشرف عام",
+      "super_admin_activated": "تفعيل حساب المشرف العام",
+      "super_admin_2fa_reset": "إعادة تعيين التحقق بخطوتين (الخادم)"
+    }
   }
 }

@@ -416,6 +416,25 @@ Page **Paramètres** en onglets (onglet mémorisé dans l'URL), `settings.manage
 
 Chaque modification est tracée dans le journal d'audit (avant / après).
 
+### Console de la plateforme (super admin)
+
+Espace séparé sous `/platform`, impossible à confondre avec le back-office d'un traiteur : barre
+latérale bleu nuit, barre du haut indigo, logo « Console plateforme », badge **SUPER ADMIN**
+permanent (français et arabe). Le back-office est en marque blanche : nom et logo du traiteur
+dans la barre latérale ; « Gestion Traiteurs » est réservé à la console.
+
+- À la connexion, le super admin arrive **toujours** sur la console (session plateforme, sans
+  traiteur) ; il ne voit jamais le back-office d'un traiteur sans y entrer explicitement. Les
+  autres comptes n'ont jamais accès à la console.
+- Routes `/api/v1/platform/*` : réservées au super admin en session plateforme (`PLATFORM_ONLY`
+  pour tout autre rôle et pour un super admin entré chez un traiteur), testées contre chaque rôle.
+- **Tableau de bord** : traiteurs actifs, en essai, suspendus ; commandes du mois (tous traiteurs
+  confondus) ; abonnements estimés au prix en vigueur des offres ; essais qui se terminent dans
+  les 14 jours ; activité par traiteur ; dernières actions de la plateforme. Chiffres agrégés
+  uniquement : aucune donnée des clients des traiteurs.
+- Prix des offres (`PlatformPlanPrice`, historique conservé) : 400, 850 et 1 500 MAD par mois au
+  départ. Période d'essai : 30 jours par défaut (`Traiteur.trialEndsAt`).
+
 ### Catalogue public (site client)
 
 API en lecture seule, sans connexion, pour le futur site client de chaque traiteur :

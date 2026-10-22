@@ -9,7 +9,8 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { PasswordLoginForm } from './password-login-form';
-import { safeNextPath } from './redirect';
+import { destinationFor, safeNextPath } from './redirect';
+import { isPlatformSession, sessionStore } from './session-store';
 import { SmsLoginForm } from './sms-login-form';
 import { TwoFactorStep } from './two-factor-step';
 
@@ -21,7 +22,8 @@ export function LoginTabs() {
   const t = useTranslations('auth.login');
   const router = useRouter();
   const next = safeNextPath(useSearchParams().get('next'));
-  const onSuccess = () => router.replace(next);
+  const onSuccess = () =>
+    router.replace(destinationFor(next, isPlatformSession(sessionStore.getSnapshot())));
   const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null);
   const onResult = (result: TwoFactorChallenge | null) =>
     result ? setChallenge(result) : onSuccess();

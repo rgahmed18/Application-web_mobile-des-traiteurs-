@@ -26,10 +26,17 @@ export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
 /** Pourquoi la session s'est terminée : la page de connexion affiche le message adapté. */
 export type SessionEndReason = 'logout' | 'expired' | null;
 
+/** Traiteur de la session (marque blanche du back-office) ; null dans la console. */
+export interface SessionTraiteur {
+  name: string;
+  logoUrl: string | null;
+}
+
 export interface SessionState {
   status: SessionStatus;
   user: AuthUser | null;
   context: AuthContext | null;
+  traiteur: SessionTraiteur | null;
   permissions: ReadonlySet<string>;
   endReason: SessionEndReason;
 }
@@ -55,6 +62,7 @@ const INITIAL_STATE: SessionState = {
   status: 'loading',
   user: null,
   context: null,
+  traiteur: null,
   permissions: new Set(),
   endReason: null,
 };
@@ -83,7 +91,14 @@ function clearSession(endReason: SessionEndReason): void {
   refreshTimer = null;
   accessToken = null;
   expiresAt = 0;
-  setState({ status: 'anonymous', user: null, context: null, permissions: new Set(), endReason });
+  setState({
+    status: 'anonymous',
+    user: null,
+    context: null,
+    traiteur: null,
+    permissions: new Set(),
+    endReason,
+  });
 }
 
 async function applySession(session: ClientSession): Promise<void> {
@@ -96,6 +111,7 @@ async function applySession(session: ClientSession): Promise<void> {
     status: 'authenticated',
     user: me.user,
     context: me.context,
+    traiteur: me.traiteur,
     permissions: new Set(me.permissions),
     endReason: null,
   });
@@ -198,6 +214,11 @@ export const sessionStore = {
     }
   },
 };
+
+/** Session de la console : super admin sans traiteur (jamais entré chez l'un d'eux). */
+export function isPlatformSession(session: Pick<SessionState, 'context'>): boolean {
+  return session.context?.role === 'SUPER_ADMIN' && session.context.traiteurId === null;
+}
 
 /** Le SUPER_ADMIN a toutes les permissions ; sinon, lecture des droits effectifs. */
 export function hasPermission(session: SessionState, permission: PermissionKey): boolean {

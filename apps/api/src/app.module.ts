@@ -26,6 +26,7 @@ import { SentryExceptionFilter } from './observability/sentry-exception.filter';
 import { PdfModule } from './pdf/pdf.module';
 import { SettingsModule } from './settings/settings.module';
 import { StaffModule } from './staff/staff.module';
+import { PlatformModule } from './platform/platform.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './queue/queue.module';
 import { RedisThrottlerStorage } from './redis/redis-throttler.storage';
@@ -63,6 +64,7 @@ import { StorageModule } from './storage/storage.module';
     InvoicesModule,
     SettingsModule,
     StaffModule,
+    PlatformModule,
     AssignmentsModule,
   ],
   controllers: [HealthController],

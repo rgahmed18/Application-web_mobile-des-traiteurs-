@@ -79,6 +79,7 @@ export function CancelOrderDialog({
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
+            event.stopPropagation();
             setTouched(true);
             if (reasonMissing || amountInvalid) return;
             onConfirm(

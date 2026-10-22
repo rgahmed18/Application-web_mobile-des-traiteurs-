@@ -8,9 +8,10 @@ import { toast } from 'sonner';
 
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { HOME_PATH, LOGIN_PATH } from './redirect';
+import { HOME_PATH, LOGIN_PATH, PLATFORM_HOME_PATH } from './redirect';
 import { usePermission, useSession } from './session-provider';
 import { ForbiddenScreen } from './forbidden-screen';
+import { isPlatformSession } from './session-store';
 
 /** Squelette affiché pendant la restauration de la session (fraction de seconde). */
 function SessionLoading() {
@@ -29,8 +30,9 @@ export function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (session.status === 'authenticated') router.replace(HOME_PATH);
-  }, [session.status, router]);
+    if (session.status !== 'authenticated') return;
+    router.replace(isPlatformSession(session) ? PLATFORM_HOME_PATH : HOME_PATH);
+  }, [session, router]);
 
   if (session.status === 'loading') return <SessionLoading />;
   if (session.status === 'authenticated') return null;
@@ -38,10 +40,18 @@ export function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
 }
 
 /**
- * Back-office : exige une session. Sans session, renvoi vers la connexion en mémorisant la page ;
- * si la session vient d'expirer, l'utilisateur en est informé.
+ * Back-office (ou console) : exige une session. Sans session, renvoi vers la connexion en
+ * mémorisant la page ; si la session vient d'expirer, l'utilisateur en est informé. Chaque
+ * espace refuse l'autre : le super admin en session plateforme est renvoyé vers la console, tout
+ * autre compte vers le back-office.
  */
-export function RequireSession({ children }: { children: ReactNode }) {
+export function RequireSession({
+  area = 'backoffice',
+  children,
+}: {
+  area?: 'backoffice' | 'platform';
+  children: ReactNode;
+}) {
   const session = useSession();
   const router = useRouter();
   const pathname = usePathname();
@@ -58,7 +68,13 @@ export function RequireSession({ children }: { children: ReactNode }) {
     router.replace(`${LOGIN_PATH}${next}`);
   }, [session.status, session.endReason, pathname, router, t]);
 
-  if (session.status !== 'authenticated') return <SessionLoading />;
+  const wrongArea =
+    session.status === 'authenticated' && isPlatformSession(session) !== (area === 'platform');
+  useEffect(() => {
+    if (wrongArea) router.replace(area === 'platform' ? HOME_PATH : PLATFORM_HOME_PATH);
+  }, [wrongArea, area, router]);
+
+  if (session.status !== 'authenticated' || wrongArea) return <SessionLoading />;
   return children;
 }
 

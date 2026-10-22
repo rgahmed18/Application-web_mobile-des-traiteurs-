@@ -91,6 +91,29 @@ html[lang='ar'] {
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/*
+ * Console de la plateforme (SUPER_ADMIN) : indigo et barre latérale bleu nuit, pour ne jamais la
+ * confondre avec le back-office d'un traiteur (terre cuite). Classe posée sur <html> par la
+ * console, pour que les fenêtres et le menu mobile (portails) en héritent aussi.
+ */
+html.platform-theme {
+  --primary: oklch(0.51 0.23 277);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.6 0.2 277);
+  --background: oklch(0.984 0.003 248);
+  --sidebar: oklch(0.24 0.08 280);
+  --sidebar-foreground: oklch(0.93 0.03 280);
+  --sidebar-primary: oklch(0.62 0.2 277);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.33 0.11 279);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.32 0.06 280);
+  --sidebar-ring: oklch(0.62 0.2 277);
+  /* Barre du haut de la console */
+  --platform-topbar: oklch(0.31 0.12 279);
+  --platform-topbar-foreground: oklch(0.93 0.03 280);
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

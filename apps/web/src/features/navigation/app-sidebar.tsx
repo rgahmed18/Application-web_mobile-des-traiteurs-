@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 
-import { Brand } from '@/components/layout/brand';
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +19,7 @@ import {
 import { usePermission } from '@/features/auth/session-provider';
 
 import { isNavItemActive, NAV_ITEMS } from './nav-items';
+import { TraiteurBrand } from './traiteur-brand';
 
 /** Menu latéral : à droite en arabe, en tiroir sur téléphone et tablette. */
 export function AppSidebar() {
@@ -34,7 +34,7 @@ export function AppSidebar() {
   return (
     <Sidebar side={rtl ? 'right' : 'left'} dir={rtl ? 'rtl' : 'ltr'} collapsible="offcanvas">
       <SidebarHeader className="p-4">
-        <Brand />
+        <TraiteurBrand />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

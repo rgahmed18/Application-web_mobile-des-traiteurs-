@@ -1889,5 +1889,48 @@
       "tooMany": "Trop de tentatives : réessayez dans une minute.",
       "generic": "Une erreur est survenue. Réessayez."
     }
+  },
+  "platform": {
+    "brand": "Console plateforme",
+    "brandSub": "Gestion Traiteurs",
+    "badge": "Super admin",
+    "privacyNote": "Aucune donnée client n’est affichée ici : seulement des chiffres agrégés.",
+    "nav": {
+      "dashboard": "Tableau de bord"
+    },
+    "status": {
+      "ACTIVE": "Actif",
+      "TRIAL": "Essai",
+      "SUSPENDED": "Suspendu",
+      "CANCELLED": "Résilié"
+    },
+    "dashboard": {
+      "title": "Bonjour, {name}",
+      "subtitle": "Vue d’ensemble de la plateforme.",
+      "active": "Traiteurs actifs",
+      "trial": "En essai",
+      "suspended": "Suspendus",
+      "ordersThisMonth": "Commandes du mois",
+      "variation": "{percent} % sur le mois précédent",
+      "noPreviousMonth": "Aucune commande le mois précédent",
+      "revenue": "Abonnements estimés",
+      "revenueHint": "par mois, traiteurs actifs",
+      "activityTitle": "Traiteurs",
+      "noTraiteur": "Aucun traiteur pour le moment.",
+      "orders": "{count, plural, =0 {aucune commande} one {# commande} other {# commandes}}",
+      "trialsTitle": "Essais qui se terminent bientôt",
+      "noTrial": "Aucun essai ne se termine dans les 14 jours.",
+      "daysLeft": "{count, plural, =0 {se termine aujourd’hui} one {dans # jour} other {dans # jours}}",
+      "actionsTitle": "Dernières actions de la plateforme",
+      "noAction": "Aucune action pour le moment.",
+      "pricesTitle": "Prix des offres",
+      "perMonth": "{price} / mois"
+    },
+    "actions": {
+      "traiteur_created": "Traiteur créé",
+      "super_admin_created": "Super admin créé",
+      "super_admin_activated": "Compte super admin activé",
+      "super_admin_2fa_reset": "Double authentification réinitialisée (serveur)"
+    }
   }
 }

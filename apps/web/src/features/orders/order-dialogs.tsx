@@ -211,6 +211,9 @@ export function ReasonDialog({
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
+            // La fenêtre est rendue dans un portail, mais l'événement remonte l'arbre React : sans
+            // cela, le formulaire de commande qui l'entoure serait envoyé une seconde fois
+            event.stopPropagation();
             setTouched(true);
             if (!missing) onConfirm(reason.trim());
           }}

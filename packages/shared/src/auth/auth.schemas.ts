@@ -133,6 +133,14 @@ export const meSchema = z.object({
   user: authUserSchema,
   context: authContextSchema,
   permissions: z.array(z.string()),
+  /** Traiteur du contexte (marque blanche du back-office) ; null dans la console. */
+  traiteur: z
+    .object({
+      name: z.string(),
+      /** Logo (lien signé d'une heure), null s'il n'y en a pas. */
+      logoUrl: z.string().nullable(),
+    })
+    .nullable(),
 });
 export type Me = z.infer<typeof meSchema>;
 

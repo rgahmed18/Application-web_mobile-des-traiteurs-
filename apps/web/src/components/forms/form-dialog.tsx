@@ -67,7 +67,16 @@ export function FormDialog({
           )}
         >
           <UnsavedChangesGuard when={open && dirty} />
-          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
+          <form
+            onSubmit={(event) => {
+              // Fenêtre rendue dans un portail : l'envoi ne doit pas remonter jusqu'au formulaire
+              // de la page qui l'a ouverte (ex. nouveau client depuis une commande)
+              event.stopPropagation();
+              onSubmit(event);
+            }}
+            noValidate
+            className="flex flex-col gap-6"
+          >
             <DialogHeader>
               <DialogTitle className="text-xl">{title}</DialogTitle>
             </DialogHeader>

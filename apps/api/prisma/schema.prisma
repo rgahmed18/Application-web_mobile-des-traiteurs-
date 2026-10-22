@@ -231,6 +231,8 @@ model Traiteur {
   logoUrl              String?
   plan                 SubscriptionPlan @default(BASIQUE)
   status               TraiteurStatus   @default(TRIAL)
+  // Fin de la période d'essai (statut TRIAL) : 30 jours par défaut, modifiable par traiteur
+  trialEndsAt          DateTime?
   defaultLocale        Locale           @default(fr)
   currency             String           @default("MAD") @db.Char(3)
   timezone             String           @default("Africa/Casablanca")
@@ -359,6 +361,19 @@ model AccountActivation {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Prix mensuel de chaque offre (console de la plateforme) : une ligne par changement, l'historique
+// est conservé ; le prix en vigueur est celui de la date d'effet la plus récente.
+model PlatformPlanPrice {
+  id            String           @id @default(uuid()) @db.Uuid
+  plan          SubscriptionPlan
+  monthlyPrice  Int // centimes, TTC
+  effectiveFrom DateTime         @default(now())
+  createdById   String?          @db.Uuid // super admin (null : valeur de départ)
+  createdAt     DateTime         @default(now())
+
+  @@index([plan, effectiveFrom])
 }
 
 // Codes de secours de la double authentification : empreinte seulement, usage unique.

@@ -22,6 +22,9 @@ test.describe('Connexion au back-office', () => {
     context,
   }) => {
     await login(page);
+    // Marque blanche : le nom du traiteur, jamais celui de la plateforme
+    await expect(page.getByTestId('traiteur-brand')).toHaveText(/Dar Diafa Traiteur/);
+    await expect(page.getByTestId('super-admin-badge')).toHaveCount(0);
 
     // Le refresh token est dans un cookie httpOnly, jamais lisible par la page
     const cookie = (await context.cookies()).find((item) => item.name === 'gt_refresh');

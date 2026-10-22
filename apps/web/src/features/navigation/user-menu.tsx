@@ -18,8 +18,13 @@ import {
 import { useSession } from '@/features/auth/session-provider';
 import { sessionStore } from '@/features/auth/session-store';
 
-/** Menu de l'utilisateur connecté : nom, téléphone, déconnexion. */
-export function UserMenu() {
+/** Menu de l'utilisateur connecté : nom, téléphone, « Mon compte », déconnexion. */
+export function UserMenu({
+  accountHref = '/admin/settings?tab=account',
+}: {
+  /** Page « Mon compte » de l'espace (back-office ou console). */
+  accountHref?: string;
+}) {
   const t = useTranslations();
   const { user } = useSession();
   if (!user) return null;
@@ -52,7 +57,7 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="py-2.5 text-base">
-          <Link href="/admin/settings?tab=account">
+          <Link href={accountHref}>
             <UserRoundIcon aria-hidden />
             {t('nav.account')}
           </Link>
