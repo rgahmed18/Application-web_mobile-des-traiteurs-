@@ -13,14 +13,12 @@
  */
 import { parseArgs } from 'node:util';
 
-import { getDefaultFeatureFlags, phoneSchema, SUBSCRIPTION_PLANS } from '@traiteur/shared';
+import { phoneSchema, SUBSCRIPTION_PLANS } from '@traiteur/shared';
 import { z } from 'zod';
 
 import { syncPermissionCatalog } from '../access/permission-catalog';
-import { newLinkToken } from '../common/link-token';
+import { provisionTraiteur } from '../platform/provision-traiteur';
 import { cliPrisma } from './cli-prisma';
-
-const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const argsSchema = z.object({
   slug: z
@@ -91,62 +89,31 @@ async function main(): Promise<void> {
   try {
     // Matrice des permissions à jour (normalement déjà faite au déploiement)
     await syncPermissionCatalog(prisma);
-    const { token, hash } = newLinkToken();
-    const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
-    const traiteur = await prisma.$transaction(async (tx) => {
-      if (await tx.traiteur.findUnique({ where: { slug: args.slug } })) {
-        throw new Error(`Le slug « ${args.slug} » est déjà utilisé.`);
-      }
-      const created = await tx.traiteur.create({
-        data: {
-          slug: args.slug,
-          name: args.name,
-          email: args.email,
-          phone: args.phone,
-          city: args.city,
-          plan: args.plan,
-          status: 'ACTIVE',
-          defaultLocale: args.locale,
-        },
-      });
-      await tx.featureFlag.createMany({
-        data: getDefaultFeatureFlags(args.plan).map((flag) => ({
-          traiteurId: created.id,
-          key: flag.key,
-          enabled: flag.enabled,
-        })),
-      });
-      const user =
-        (await tx.user.findUnique({ where: { phone: args.adminPhone } })) ??
-        (await tx.user.create({
-          data: {
-            phone: args.adminPhone,
-            firstName: args.adminFirstName,
-            lastName: args.adminLastName,
-            locale: args.locale,
-          },
-        }));
-      const membership = await tx.membership.create({
-        data: {
-          traiteurId: created.id,
-          userId: user.id,
-          role: 'ADMIN_TRAITEUR',
-          status: 'INVITED',
+    const { traiteur, token } = await prisma.$transaction(async (tx) => {
+      const created = await provisionTraiteur(tx, {
+        slug: args.slug,
+        name: args.name,
+        email: args.email,
+        phone: args.phone,
+        city: args.city,
+        plan: args.plan,
+        locale: args.locale,
+        // Traiteur pilote : actif d'emblée (la console crée les nouveaux traiteurs en essai)
+        status: 'ACTIVE',
+        trialEndsAt: null,
+        admin: {
+          phone: args.adminPhone,
           firstName: args.adminFirstName,
           lastName: args.adminLastName,
-          locale: args.locale,
         },
-      });
-      await tx.staffInvitation.create({
-        data: { traiteurId: created.id, membershipId: membership.id, tokenHash: hash, expiresAt },
       });
       await tx.auditLog.create({
         data: {
-          traiteurId: created.id,
+          traiteurId: created.traiteur.id,
           action: 'traiteur.created',
           entityType: 'Traiteur',
-          entityId: created.id,
-          after: { slug: args.slug, plan: args.plan, adminMembershipId: membership.id },
+          entityId: created.traiteur.id,
+          after: { slug: args.slug, plan: args.plan, adminMembershipId: created.membershipId },
         },
       });
       return created;

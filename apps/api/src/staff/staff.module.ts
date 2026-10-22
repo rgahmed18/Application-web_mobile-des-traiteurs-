@@ -12,5 +12,6 @@ import { StaffService } from './staff.service';
   imports: [AuthModule],
   controllers: [StaffController, RolePermissionsController, PublicInvitationsController],
   providers: [StaffService, InvitationsService, RolePermissionsService],
+  exports: [StaffService],
 })
 export class StaffModule {}

@@ -32,6 +32,12 @@ function apiEnv(key: string): string {
 /** Même serveur PostgreSQL, base dédiée aux parcours. */
 const e2eDatabase = new URL(apiEnv('DATABASE_URL'));
 e2eDatabase.pathname = '/gestion_traiteurs_e2e';
+/**
+ * Photos servies par le stockage local, jamais par l'adresse réseau de recette (S3_PUBLIC_URL peut
+ * pointer sur l'IP Wi-Fi du PC, injoignable après un changement de réseau).
+ */
+const e2eMediaUrl = `${apiEnv('S3_ENDPOINT').replace(/\/+$/, '')}/${apiEnv('S3_BUCKET')}`;
+
 /** Même serveur Redis, base n° 1 : le worker de développement ne prend jamais ces tâches. */
 const e2eRedis = new URL(apiEnv('REDIS_URL'));
 e2eRedis.pathname = '/1';
@@ -79,6 +85,7 @@ export default defineConfig({
         PORT: String(API_PORT),
         CORS_ORIGINS: WEB_URL,
         PUBLIC_WEB_URL: WEB_URL,
+        S3_PUBLIC_URL: e2eMediaUrl,
       },
     },
     {
@@ -90,7 +97,7 @@ export default defineConfig({
       env: {
         PUBLIC_API_URL: `${API_URL}/api/v1`,
         API_INTERNAL_URL: `${API_URL}/api/v1`,
-        PUBLIC_MEDIA_URL: apiEnv('S3_PUBLIC_URL'),
+        PUBLIC_MEDIA_URL: e2eMediaUrl,
         NEXT_DIST_DIR: '.next-e2e',
       },
     },

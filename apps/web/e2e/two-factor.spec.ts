@@ -48,6 +48,36 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await page.goto('/admin/orders');
   await expect(page).toHaveURL(/\/platform$/);
 
+  // ─── Nouveau traiteur depuis la console : essai, administrateur invité par lien ───
+  const suffix = Date.now().toString(36).slice(-5);
+  await page.getByRole('link', { name: 'Traiteurs' }).first().click();
+  await page.getByRole('link', { name: 'Nouveau traiteur' }).first().click();
+  await page.getByLabel('Nom commercial').fill(`Saveurs ${suffix}`);
+  await expect(page.getByLabel('Identifiant')).toHaveValue(`saveurs-${suffix}`);
+  await page.getByLabel('Email').fill(`contact-${suffix}@saveurs.ma`);
+  await page.getByLabel('Téléphone').first().fill('0528000000');
+  await page.getByLabel('Ville').fill('Agadir');
+  await page.getByLabel('Prénom').fill('Samir');
+  await page.getByLabel('Nom', { exact: true }).fill('Alaoui');
+  await page
+    .getByLabel('Téléphone')
+    .last()
+    .fill(`06${String(Date.now()).slice(-8)}`);
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  const linkDialog = page.getByTestId('admin-link-dialog');
+  await expect(linkDialog).toContainText(`Saveurs ${suffix}`);
+  await expect(page.getByTestId('admin-link-url')).toHaveValue(/\/invitation\/[\w-]{43}$/);
+  await linkDialog.getByRole('button', { name: 'Terminé' }).click();
+  const row = page
+    .getByTestId('traiteur-list')
+    .getByRole('listitem')
+    .filter({ hasText: `Saveurs ${suffix}` });
+  await expect(row).toContainText('Essai');
+  await expect(row).toContainText('Samir Alaoui');
+  await row.getByRole('button', { name: 'Renvoyer le lien' }).click();
+  await expect(page.getByTestId('admin-link-dialog')).toBeVisible();
+  await page.getByTestId('admin-link-dialog').getByRole('button', { name: 'Terminé' }).click();
+
   // ─── Mon compte : activée, imposée (pas de bouton Désactiver) ───
   await page.goto('/platform/account');
   const status = page.getByTestId('two-factor-status');

@@ -432,6 +432,13 @@ dans la barre latérale ; « Gestion Traiteurs » est réservé à la console.
   confondus) ; abonnements estimés au prix en vigueur des offres ; essais qui se terminent dans
   les 14 jours ; activité par traiteur ; dernières actions de la plateforme. Chiffres agrégés
   uniquement : aucune donnée des clients des traiteurs.
+- **Traiteurs** (`/platform/traiteurs`) : recherche, filtre de statut, offre, activité du mois,
+  état de l'accès du premier administrateur. **Nouveau traiteur** par formulaire (identité, offre,
+  essai de 30 jours par défaut, administrateur) : même logique que la commande `create-traiteur`
+  ; l'administrateur reçoit un lien d'activation de 7 jours (SMS si possible, sinon copie ou
+  WhatsApp), jamais de mot de passe. **Renvoyer le lien** tant qu'il n'a pas activé son accès
+  (l'ancien lien est annulé). Chaque action est tracée (`platform.traiteur_created`,
+  `platform.admin_invitation_resent`).
 - Prix des offres (`PlatformPlanPrice`, historique conservé) : 400, 850 et 1 500 MAD par mois au
   départ. Période d'essai : 30 jours par défaut (`Traiteur.trialEndsAt`).
 

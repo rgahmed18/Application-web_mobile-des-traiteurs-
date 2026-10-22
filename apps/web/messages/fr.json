@@ -287,7 +287,10 @@
       "INVALID_TWO_FACTOR_CODE": "Code incorrect ou déjà utilisé.",
       "TWO_FACTOR_ALREADY_ENABLED": "La double authentification est déjà activée.",
       "TWO_FACTOR_NOT_ENABLED": "La double authentification n’est pas activée.",
-      "TWO_FACTOR_REQUIRED": "La double authentification est obligatoire pour ce compte."
+      "TWO_FACTOR_REQUIRED": "La double authentification est obligatoire pour ce compte.",
+      "ADMIN_IS_SUPER_ADMIN": "Ce téléphone est celui d’un super admin : utilisez celui de l’administrateur du traiteur.",
+      "ADMIN_ALREADY_ACTIVE": "L’administrateur a déjà activé son accès.",
+      "PLATFORM_ONLY": "Réservé à la console de la plateforme."
     }
   },
   "validation": {
@@ -1896,7 +1899,8 @@
     "badge": "Super admin",
     "privacyNote": "Aucune donnée client n’est affichée ici : seulement des chiffres agrégés.",
     "nav": {
-      "dashboard": "Tableau de bord"
+      "dashboard": "Tableau de bord",
+      "traiteurs": "Traiteurs"
     },
     "status": {
       "ACTIVE": "Actif",
@@ -1930,7 +1934,63 @@
       "traiteur_created": "Traiteur créé",
       "super_admin_created": "Super admin créé",
       "super_admin_activated": "Compte super admin activé",
-      "super_admin_2fa_reset": "Double authentification réinitialisée (serveur)"
+      "super_admin_2fa_reset": "Double authentification réinitialisée (serveur)",
+      "platform_traiteur_created": "Traiteur créé (console)",
+      "platform_admin_invitation_resent": "Lien d’activation renvoyé"
+    },
+    "traiteurs": {
+      "title": "Traiteurs",
+      "subtitle": "Vos clients : offre, statut, administrateur et activité du mois.",
+      "new": "Nouveau traiteur",
+      "search": "Rechercher (nom, identifiant, ville)",
+      "statusFilter": "Statut",
+      "allStatuses": "Tous les statuts",
+      "empty": "Aucun traiteur",
+      "emptyHint": "Créez votre premier traiteur : son administrateur recevra un lien d’activation.",
+      "orders": "{count, plural, =0 {aucune commande ce mois} one {# commande ce mois} other {# commandes ce mois}}",
+      "trialUntil": "essai jusqu’au {date}",
+      "adminInvited": "invité, lien valable jusqu’au {date}",
+      "adminLinkExpired": "invité, lien expiré",
+      "adminStatus": {
+        "ACTIVE": "accès activé",
+        "SUSPENDED": "accès suspendu",
+        "INVITED": "invité"
+      },
+      "resend": "Renvoyer le lien"
+    },
+    "create": {
+      "title": "Nouveau traiteur",
+      "sectionTraiteur": "Traiteur",
+      "name": "Nom commercial",
+      "slug": "Identifiant",
+      "slugHint": "Minuscules, chiffres et tirets, définitif (ex. {slug}).",
+      "email": "Email",
+      "phone": "Téléphone",
+      "city": "Ville",
+      "locale": "Langue",
+      "sectionPlan": "Offre et période d’essai",
+      "plan": "Offre",
+      "perMonth": "{price} / mois",
+      "trialDays": "Essai (jours)",
+      "trialHint": "30 jours par défaut ; 0 : actif tout de suite, sans essai.",
+      "sectionAdmin": "Administrateur du traiteur",
+      "adminHint": "Il recevra un lien d’activation de 7 jours pour choisir son mot de passe. Aucun mot de passe ne passe par la console.",
+      "adminFirstName": "Prénom",
+      "adminLastName": "Nom",
+      "adminPhone": "Téléphone"
+    },
+    "adminLink": {
+      "title": "Lien d’activation pour {traiteur}",
+      "smsSent": "Envoyé par SMS à l’administrateur.",
+      "smsNotSent": "Aucun SMS envoyé : transmettez le lien vous-même (copie ou WhatsApp).",
+      "expires": "Valable jusqu’au {date}.",
+      "url": "Lien d’activation",
+      "copy": "Copier",
+      "copied": "Lien copié",
+      "copyFailed": "Copie impossible : sélectionnez le lien",
+      "once": "Ce lien ne s’affiche qu’une fois. Si besoin, renvoyez-en un nouveau depuis la liste des traiteurs.",
+      "done": "Terminé",
+      "message": "Bonjour {name}, votre espace de gestion {traiteur} est prêt. Activez votre accès ici : {url}"
     }
   }
 }

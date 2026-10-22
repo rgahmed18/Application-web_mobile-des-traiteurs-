@@ -1,6 +1,6 @@
 'use client';
 
-import { LayersIcon, LayoutDashboardIcon, type LucideIcon } from 'lucide-react';
+import { LayersIcon, LayoutDashboardIcon, type LucideIcon, StoreIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
@@ -25,7 +25,7 @@ import {
 import { UserMenu } from '@/features/navigation/user-menu';
 
 interface PlatformNavItem {
-  labelKey: 'dashboard';
+  labelKey: 'dashboard' | 'traiteurs';
   href: string;
   icon: LucideIcon;
 }
@@ -33,6 +33,7 @@ interface PlatformNavItem {
 /** Menu de la console, dans l'ordre d'affichage (complété au fil des étapes). */
 const PLATFORM_NAV: readonly PlatformNavItem[] = [
   { labelKey: 'dashboard', href: '/platform', icon: LayoutDashboardIcon },
+  { labelKey: 'traiteurs', href: '/platform/traiteurs', icon: StoreIcon },
 ];
 
 function isActive(item: PlatformNavItem, pathname: string): boolean {

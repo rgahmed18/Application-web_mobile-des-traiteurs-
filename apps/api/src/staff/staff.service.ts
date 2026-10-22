@@ -157,7 +157,7 @@ export class StaffService {
       );
       return { membershipId: membership.id, ...invitation };
     });
-    const link = await this.deliver(traiteurId, membershipId, token, expiresAt);
+    const link = await this.deliverInvitation(traiteurId, membershipId, token, expiresAt);
     return { member: await this.get(user, membershipId), link };
   }
 
@@ -189,7 +189,7 @@ export class StaffService {
       );
       return invitation;
     });
-    const link = await this.deliver(traiteurId, memberId, token, expiresAt);
+    const link = await this.deliverInvitation(traiteurId, memberId, token, expiresAt);
     return { member: await this.get(user, memberId), link };
   }
 
@@ -360,7 +360,7 @@ export class StaffService {
       return invitation;
     });
     const link = pending
-      ? await this.deliver(traiteurId, memberId, pending.token, pending.expiresAt)
+      ? await this.deliverInvitation(traiteurId, memberId, pending.token, pending.expiresAt)
       : null;
     return { member: await this.get(user, memberId), link };
   }
@@ -425,9 +425,10 @@ export class StaffService {
 
   /**
    * Envoi du lien : par SMS si le numéro est dans un pays autorisé ; toujours retourné à
-   * l'administrateur (copie, WhatsApp) pour les autres cas.
+   * l'administrateur (copie, WhatsApp) pour les autres cas. Aussi utilisé par la console de la
+   * plateforme (premier administrateur d'un traiteur).
    */
-  private async deliver(
+  async deliverInvitation(
     traiteurId: string,
     membershipId: string,
     token: string,

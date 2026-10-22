@@ -153,7 +153,14 @@ describe('Console de la plateforme (application complète)', () => {
     expect(after.estimatedMonthlyRevenue - before.estimatedMonthlyRevenue).toBe(150_000);
     expect(after.ordersThisMonth - before.ordersThisMonth).toBe(1);
     expect(after.trialsEndingSoon.find((row) => row.id === trial.id)?.daysLeft).toBe(5);
-    expect(after.traiteurActivity.find((row) => row.id === premium.id)?.ordersThisMonth).toBe(1);
+    // Activité par traiteur (le tableau de bord n'en montre que les 10 plus actifs)
+    const listed = (
+      await request(server())
+        .get(`/api/v1/platform/traiteurs?search=${premium.slug}`)
+        .set('Authorization', `Bearer ${platformToken}`)
+        .expect(200)
+    ).body as { items: { id: string; ordersThisMonth: number }[] };
+    expect(listed.items.find((row) => row.id === premium.id)?.ordersThisMonth).toBe(1);
     // Aucune donnée de client
     expect(JSON.stringify(after)).not.toContain('Confidentielle');
 
@@ -164,6 +171,89 @@ describe('Console de la plateforme (application complète)', () => {
     await prisma.platformPlanPrice.deleteMany({
       where: { plan: 'PREMIUM', monthlyPrice: 160_000 },
     });
+  });
+
+  it('traiteurs : création en essai, administrateur invité, liste filtrée, nouveau lien', async () => {
+    const post = (path: string, body?: object) =>
+      request(server())
+        .post(`/api/v1${path}`)
+        .set('Authorization', `Bearer ${platformToken}`)
+        .send(body);
+    const slug = `essai-${randomUUID().slice(0, 8)}`;
+    const adminPhone = `06${Math.floor(10_000_000 + Math.random() * 89_999_999)}`;
+    const body = {
+      slug,
+      name: 'Les Délices de Fès',
+      email: 'Contact@Delices.ma',
+      phone: '0535000000',
+      city: 'Fès',
+      plan: 'PRO',
+      locale: 'fr',
+      trialDays: 30,
+      admin: { phone: adminPhone, firstName: 'Nadia', lastName: 'Bennis' },
+    };
+    const created = (await post('/platform/traiteurs', body).expect(201)).body as {
+      traiteur: {
+        id: string;
+        status: string;
+        trialEndsAt: string;
+        email: string;
+        admin: { status: string; firstName: string; invitationExpiresAt: string };
+      };
+      link: { url: string };
+    };
+    expect(created.traiteur).toMatchObject({
+      status: 'TRIAL',
+      email: 'contact@delices.ma',
+      admin: { status: 'INVITED', firstName: 'Nadia' },
+    });
+    const days = (new Date(created.traiteur.trialEndsAt).getTime() - Date.now()) / 86_400_000;
+    expect(Math.round(days)).toBe(30);
+    expect(created.link.url).toMatch(/\/invitation\/[A-Za-z0-9_-]{43}$/);
+    const id = created.traiteur.id;
+    // Offre PRO et listes par défaut (types d'événement, dont la soutenance)
+    expect(
+      await prisma.featureFlag.count({
+        where: { traiteurId: id, key: 'staff_app', enabled: true },
+      }),
+    ).toBe(1);
+    expect(await prisma.eventType.count({ where: { traiteurId: id, code: 'THESIS' } })).toBe(1);
+    expect(
+      await prisma.auditLog.count({
+        where: { traiteurId: id, action: 'platform.traiteur_created' },
+      }),
+    ).toBe(1);
+
+    // Identifiant déjà pris ; téléphone d'un super admin refusé comme administrateur
+    expect((await post('/platform/traiteurs', body).expect(409)).body).toMatchObject({
+      code: 'SLUG_TAKEN',
+    });
+
+    // Liste : recherche et filtre de statut
+    const listed = (
+      await request(server())
+        .get(`/api/v1/platform/traiteurs?search=${slug}&status=TRIAL`)
+        .set('Authorization', `Bearer ${platformToken}`)
+        .expect(200)
+    ).body as { items: { id: string }[]; total: number };
+    expect(listed.items.map((item) => item.id)).toEqual([id]);
+
+    // Nouveau lien : l'ancien ne vaut plus rien
+    const oldToken = created.link.url.split('/invitation/')[1] ?? '';
+    const resent = (await post(`/platform/traiteurs/${id}/admin-invitation`).expect(200)).body as {
+      link: { url: string };
+    };
+    const newToken = resent.link.url.split('/invitation/')[1] ?? '';
+    await request(server()).get(`/api/v1/public/invitations/${oldToken}`).expect(404);
+    await request(server()).get(`/api/v1/public/invitations/${newToken}`).expect(200);
+    // Administrateur activé : plus de lien à renvoyer
+    await prisma.membership.updateMany({
+      where: { traiteurId: id, role: 'ADMIN_TRAITEUR' },
+      data: { status: 'ACTIVE' },
+    });
+    expect(
+      (await post(`/platform/traiteurs/${id}/admin-invitation`).expect(409)).body,
+    ).toMatchObject({ code: 'ADMIN_ALREADY_ACTIVE' });
   });
 
   it('refusée à tous les autres rôles et au super admin entré chez un traiteur', async () => {
@@ -177,11 +267,15 @@ describe('Console de la plateforme (application complète)', () => {
       await tokenFor(traiteur.id, 'SUPER_ADMIN'),
     ];
     for (const token of denied) {
-      const response = await request(server())
-        .get('/api/v1/platform/dashboard')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(403);
-      expect(response.body).toMatchObject({ code: 'PLATFORM_ONLY' });
+      for (const call of [
+        () => request(server()).get('/api/v1/platform/dashboard'),
+        () => request(server()).get('/api/v1/platform/traiteurs'),
+        () => request(server()).post('/api/v1/platform/traiteurs'),
+        () => request(server()).post(`/api/v1/platform/traiteurs/${traiteur.id}/admin-invitation`),
+      ]) {
+        const response = await call().set('Authorization', `Bearer ${token}`).expect(403);
+        expect(response.body).toMatchObject({ code: 'PLATFORM_ONLY' });
+      }
     }
     await request(server()).get('/api/v1/platform/dashboard').expect(401);
   });

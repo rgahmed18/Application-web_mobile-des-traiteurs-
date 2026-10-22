@@ -20,6 +20,8 @@ const KNOWN_ACTIONS = [
   'super_admin_created',
   'super_admin_activated',
   'super_admin_2fa_reset',
+  'platform_traiteur_created',
+  'platform_admin_invitation_resent',
 ] as const;
 function isKnownAction(action: string): action is (typeof KNOWN_ACTIONS)[number] {
   return (KNOWN_ACTIONS as readonly string[]).includes(action);
