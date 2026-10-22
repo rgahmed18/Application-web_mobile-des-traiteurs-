@@ -1,4 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
+import { type AuthSession, isTwoFactorChallenge, type LoginResult } from '@traiteur/shared';
 
 import type { PermissionsService } from '../access/permissions.service';
 import type { AuditEntry, AuditService } from '../audit/audit.service';
@@ -10,6 +11,7 @@ import { AuthService } from './auth.service';
 import type { OtpService } from './otp/otp.service';
 import type { PasswordService } from './password.service';
 import type { TokenService } from './token.service';
+import type { TwoFactorService } from './two-factor/two-factor.service';
 
 const TRAITEUR = {
   id: '22222222-2222-4222-8222-222222222222',
@@ -32,6 +34,10 @@ function buildUser(overrides: Partial<User> = {}): User {
     lastLoginAt: null,
     failedLoginCount: 0,
     lockedUntil: null,
+    twoFactorSecret: null,
+    twoFactorPendingSecret: null,
+    twoFactorEnabledAt: null,
+    twoFactorLastStep: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -114,6 +120,12 @@ function setup(options: {
       return Promise.resolve();
     },
   };
+  // Politique réelle (imposée au SUPER_ADMIN), jetons de deuxième étape simulés
+  const twoFactor = {
+    isRequired: (user: User) => user.isSuperAdmin,
+    isEnabled: (user: User) => user.twoFactorEnabledAt !== null,
+    createChallenge: jest.fn(() => Promise.resolve('jeton-deuxieme-etape')),
+  };
   const settings: Partial<Env> = { LOGIN_MAX_FAILURES: 5, LOGIN_LOCKOUT_MINUTES: [1, 5, 15] };
   const config = { get: (key: keyof Env) => settings[key] } as unknown as ConfigService<Env, true>;
   const service = new AuthService(
@@ -123,6 +135,7 @@ function setup(options: {
     otp as unknown as OtpService,
     {} as PermissionsService,
     audit as unknown as AuditService,
+    twoFactor as unknown as TwoFactorService,
     config,
   );
   const getStored = () => stored;
@@ -132,6 +145,7 @@ function setup(options: {
     passwords,
     otp,
     tokens,
+    twoFactor,
     membershipCreate,
     userCreate,
     auditEntries,
@@ -148,6 +162,12 @@ async function errorCodeOf(promise: Promise<unknown>): Promise<string | undefine
   return undefined;
 }
 
+/** Connexion sans deuxième étape : la session elle-même. */
+function asSession(result: LoginResult): AuthSession {
+  if (isTwoFactorChallenge(result)) throw new Error('deuxième étape inattendue');
+  return result;
+}
+
 describe('AuthService.login', () => {
   const input = { identifier: '0612345678', password: 'Password123!', traiteurSlug: 'dar-diafa' };
 
@@ -156,7 +176,7 @@ describe('AuthService.login', () => {
       user: buildUser(),
       membership: { id: 'm1', role: 'EMPLOYE', status: 'ACTIVE' },
     });
-    const session = await service.login(input, client);
+    const session = asSession(await service.login(input, client));
     expect(session.context).toEqual({
       traiteurId: TRAITEUR.id,
       membershipId: 'm1',
@@ -193,15 +213,39 @@ describe('AuthService.login', () => {
     expect(await errorCodeOf(service.login(withoutTraiteur, client))).toBe('TRAITEUR_REQUIRED');
   });
 
-  it('connecte le SUPER_ADMIN en contexte plateforme sans traiteur', async () => {
-    const { service } = setup({ user: buildUser({ isSuperAdmin: true }) });
-    const session = await service.login({ identifier: 'admin@x.ma', password: 'x' }, client);
-    expect(session.context).toEqual({ traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' });
+  it('SUPER_ADMIN sans double authentification : activation imposée, aucune session', async () => {
+    const { service, twoFactor, tokens } = setup({ user: buildUser({ isSuperAdmin: true }) });
+    const result = await service.login({ identifier: 'admin@x.ma', password: 'x' }, client);
+    expect(result).toEqual({
+      twoFactor: 'SETUP',
+      challengeToken: 'jeton-deuxieme-etape',
+      expiresIn: 600,
+    });
+    // Contexte plateforme, sans traiteur, mémorisé pour la deuxième étape
+    expect(twoFactor.createChallenge).toHaveBeenCalledWith(
+      expect.objectContaining({ isSuperAdmin: true }),
+      { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' },
+      'SETUP',
+      client,
+    );
+    expect(tokens.issueTokens).not.toHaveBeenCalled();
+  });
+
+  it('double authentification active : deuxième étape (code), aucune session', async () => {
+    const { service, tokens, getStored } = setup({
+      user: buildUser({ twoFactorEnabledAt: new Date(), twoFactorSecret: 'v1:x:y:z' }),
+      membership: { id: 'm1', role: 'ADMIN_TRAITEUR', status: 'ACTIVE' },
+    });
+    const result = await service.login(input, client);
+    expect(result).toMatchObject({ twoFactor: 'VERIFY' });
+    expect(tokens.issueTokens).not.toHaveBeenCalled();
+    // La connexion n'est réussie qu'après la deuxième étape
+    expect(getStored()?.lastLoginAt).toBeNull();
   });
 
   it('inscrit automatiquement comme CLIENT un utilisateur nouveau chez ce traiteur', async () => {
     const { service, membershipCreate } = setup({ user: buildUser(), membership: null });
-    const session = await service.login(input, client);
+    const session = asSession(await service.login(input, client));
     expect(membershipCreate).toHaveBeenCalledWith({
       // Coordonnées propres au traiteur, initialisées depuis le compte
       data: {
@@ -286,9 +330,8 @@ describe('AuthService.verifyOtp', () => {
 
   it('crée un compte sans mot de passe si le profil est fourni', async () => {
     const { service, userCreate } = setup({ user: null, membership: null });
-    const session = await service.verifyOtp(
-      { ...input, firstName: 'Youssef', lastName: 'Alami' },
-      client,
+    const session = asSession(
+      await service.verifyOtp({ ...input, firstName: 'Youssef', lastName: 'Alami' }, client),
     );
     expect(userCreate).toHaveBeenCalledWith({
       data: expect.not.objectContaining({ passwordHash: expect.anything() as unknown }) as unknown,

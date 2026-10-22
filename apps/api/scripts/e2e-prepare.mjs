@@ -37,4 +37,4 @@ await client.end();
 const run = (command) => execSync(command, { stdio: 'inherit', env: process.env });
 run('pnpm exec prisma migrate deploy');
 run('pnpm exec prisma db seed');
-console.log(`✓ Base e2e « ${database} » prête`);
+process.stdout.write(`✓ Base e2e « ${database} » prête\n`);

@@ -1,6 +1,7 @@
 export * from './access/features';
 export * from './access/permissions';
 export * from './auth/auth.schemas';
+export * from './auth/two-factor.schemas';
 export * from './auth/phone';
 export * from './catalog/catalog-lists.schemas';
 export * from './catalog/buffet.schemas';

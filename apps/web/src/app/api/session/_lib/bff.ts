@@ -1,6 +1,11 @@
 import 'server-only';
 
-import { type AuthSession, authSessionSchema } from '@traiteur/shared';
+import {
+  type AuthSession,
+  authSessionSchema,
+  twoFactorChallengeConfirmResultSchema,
+  twoFactorChallengeSchema,
+} from '@traiteur/shared';
 import { type NextRequest, NextResponse } from 'next/server';
 import type { z } from 'zod';
 
@@ -105,8 +110,10 @@ export function clearRefreshCookie(response: NextResponse): void {
 export type ClientSession = Omit<AuthSession, 'refreshToken'>;
 
 /**
- * Termine une connexion (mot de passe, code SMS ou rafraîchissement) : vérifie la réponse de
- * l'API, refuse les comptes sans accès au back-office (clients), pose le cookie.
+ * Termine une connexion (mot de passe, code SMS, deuxième étape ou rafraîchissement) : vérifie
+ * la réponse de l'API, refuse les comptes sans accès au back-office (clients), pose le cookie.
+ * Une deuxième étape demandée (double authentification) est relayée telle quelle : aucun
+ * cookie n'est posé avant le code.
  */
 export async function finishSession(
   request: NextRequest,
@@ -118,10 +125,35 @@ export async function finishSession(
     return response;
   }
 
-  const parsed = authSessionSchema.safeParse(await apiResponse.json());
+  const body: unknown = await apiResponse.json();
+  const challenge = twoFactorChallengeSchema.safeParse(body);
+  if (challenge.success) return NextResponse.json(challenge.data);
+  const parsed = authSessionSchema.safeParse(body);
   if (!parsed.success) return jsonError(502, 'API_UNREACHABLE', "Réponse inattendue de l'API");
-  const { refreshToken, ...session } = parsed.data;
+  return sessionResponse(request, parsed.data);
+}
 
+/**
+ * Activation imposée réussie à la connexion : session (cookie posé) et codes de secours, que le
+ * navigateur affiche une seule fois.
+ */
+export async function finishTwoFactorSetup(
+  request: NextRequest,
+  apiResponse: Response,
+): Promise<NextResponse> {
+  if (!apiResponse.ok) return relayError(apiResponse);
+  const parsed = twoFactorChallengeConfirmResultSchema.safeParse(await apiResponse.json());
+  if (!parsed.success) return jsonError(502, 'API_UNREACHABLE', "Réponse inattendue de l'API");
+  return sessionResponse(request, parsed.data.session, {
+    recoveryCodes: parsed.data.recoveryCodes,
+  });
+}
+
+async function sessionResponse(
+  request: NextRequest,
+  { refreshToken, ...session }: AuthSession,
+  extra?: { recoveryCodes: string[] },
+): Promise<NextResponse> {
   if (session.context.role === 'CLIENT') {
     // Un client n'a rien à faire dans le back-office : la session est aussitôt révoquée.
     await callApi(request, '/auth/logout', { refreshToken }).catch(() => undefined);
@@ -134,7 +166,11 @@ export async function finishSession(
     return response;
   }
 
-  const response = NextResponse.json(session satisfies ClientSession);
+  const response = NextResponse.json(
+    extra
+      ? { session: session satisfies ClientSession, ...extra }
+      : (session satisfies ClientSession),
+  );
   setRefreshCookie(response, refreshToken);
   return response;
 }

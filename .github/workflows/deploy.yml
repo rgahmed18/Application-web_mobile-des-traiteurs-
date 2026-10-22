@@ -103,6 +103,7 @@ jobs:
           REDIS_URL=redis://redis:6379
           JWT_ACCESS_SECRET=verification-des-images-secret-jwt-0000000000
           OTP_SECRET=verification-des-images-secret-otp-0000000000
+          TWO_FACTOR_ENCRYPTION_KEY=verification-des-images-cle-2fa-00000000
           PUBLIC_WEB_URL=https://app.exemple.ma
           CORS_ORIGINS=https://app.exemple.ma
           TRUST_PROXY=172.16.0.0/12

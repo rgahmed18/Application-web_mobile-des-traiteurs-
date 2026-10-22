@@ -315,25 +315,70 @@ model Traiteur {
 
 // Identité globale : un compte unique, utilisable chez plusieurs traiteurs.
 model User {
-  id               String     @id @default(uuid()) @db.Uuid
-  phone            String     @unique // format E.164, ex. +212612345678
-  email            String?    @unique
-  passwordHash     String? // null = compte sans mot de passe (connexion par OTP SMS)
-  firstName        String
-  lastName         String
-  locale           Locale     @default(fr)
-  status           UserStatus @default(ACTIVE)
-  isSuperAdmin     Boolean    @default(false)
-  lastLoginAt      DateTime?
+  id                     String     @id @default(uuid()) @db.Uuid
+  phone                  String     @unique // format E.164, ex. +212612345678
+  email                  String?    @unique
+  passwordHash           String? // null = compte sans mot de passe (connexion par OTP SMS)
+  firstName              String
+  lastName               String
+  locale                 Locale     @default(fr)
+  status                 UserStatus @default(ACTIVE)
+  isSuperAdmin           Boolean    @default(false)
+  lastLoginAt            DateTime?
   // Protection contre la force brute : échecs consécutifs et verrouillage progressif
-  failedLoginCount Int        @default(0)
-  lockedUntil      DateTime?
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  failedLoginCount       Int        @default(0)
+  lockedUntil            DateTime?
+  // Double authentification (TOTP) : secret chiffré (AES-256-GCM, TWO_FACTOR_ENCRYPTION_KEY),
+  // obligatoire pour le SUPER_ADMIN. Secret en attente pendant l'activation depuis « Mon compte ».
+  twoFactorSecret        String?
+  twoFactorPendingSecret String?
+  twoFactorEnabledAt     DateTime?
+  // Dernier pas de 30 s accepté : un même code ne sert jamais deux fois
+  twoFactorLastStep      Int?
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
 
-  memberships   Membership[]
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
+  memberships         Membership[]
+  refreshTokens       RefreshToken[]
+  auditLogs           AuditLog[]
+  recoveryCodes       TwoFactorRecoveryCode[]
+  twoFactorChallenges TwoFactorChallenge[]
+}
+
+// Codes de secours de la double authentification : empreinte seulement, usage unique.
+model TwoFactorRecoveryCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  codeHash  String // SHA-256 du code normalisé
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, codeHash])
+}
+
+// Connexion en attente de la deuxième étape (code TOTP ou de secours), ou de l'activation
+// imposée de la double authentification. Jeton (empreinte seulement) valable 10 minutes,
+// 5 essais au plus, usage unique.
+model TwoFactorChallenge {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Uuid
+  tokenHash     String    @unique
+  kind          String // VERIFY ou SETUP (CHECK)
+  traiteurId    String?   @db.Uuid
+  membershipId  String?   @db.Uuid
+  role          Role
+  pendingSecret String? // secret chiffré proposé pendant l'activation
+  attempts      Int       @default(0)
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  ipAddress     String?
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Appartenance d'un utilisateur à un traiteur, avec son rôle.

@@ -123,7 +123,44 @@
       "backToLogin": "Revenir à la connexion"
     },
     "loggedOut": "Vous êtes déconnecté.",
-    "sessionExpired": "Votre session a expiré. Merci de vous reconnecter."
+    "sessionExpired": "Votre session a expiré. Merci de vous reconnecter.",
+    "twoFactor": {
+      "codeLabel": "Code de l’application",
+      "codeHint": "Ouvrez Google Authenticator (ou votre application) : le code change toutes les 30 secondes.",
+      "back": "Retour à la connexion",
+      "restart": "Recommencer la connexion",
+      "verify": {
+        "title": "Double authentification",
+        "description": "Saisissez le code à 6 chiffres affiché par votre application d’authentification.",
+        "submit": "Vérifier",
+        "recoveryLabel": "Code de secours",
+        "useRecovery": "Je n’ai pas mon téléphone : utiliser un code de secours",
+        "useApp": "Utiliser le code de l’application"
+      },
+      "setup": {
+        "title": "Activez la double authentification",
+        "description": "Obligatoire pour ce compte : il donne accès à toute la plateforme. Comptez deux minutes.",
+        "step1": "Installez Google Authenticator, Microsoft Authenticator ou Aegis sur votre téléphone.",
+        "step2": "Dans l’application, ajoutez un compte en scannant ce QR code (ou saisissez la clé).",
+        "step3": "Saisissez le code à 6 chiffres affiché pour terminer.",
+        "qrAlt": "QR code à scanner avec votre application d’authentification",
+        "manualKey": "Clé à saisir à la main",
+        "loading": "Préparation du QR code…",
+        "submit": "Activer et continuer"
+      },
+      "recovery": {
+        "title": "Vos codes de secours",
+        "continue": "Continuer vers l’espace de gestion",
+        "fileTitle": "Gestion Traiteurs — codes de secours (chaque code ne sert qu’une fois). À ranger avec la clé de secours des sauvegardes.",
+        "warningTitle": "Affichés une seule fois",
+        "warning": "Si vous perdez votre téléphone, ces codes sont le seul moyen de vous connecter. Rangez-les maintenant dans votre gestionnaire de mots de passe ET sur une copie papier, avec la clé de secours des sauvegardes. Chaque code ne sert qu’une fois.",
+        "copy": "Copier",
+        "copied": "Codes copiés",
+        "copyFailed": "Copie impossible : notez les codes à la main",
+        "download": "Télécharger (.txt)",
+        "confirmStored": "J’ai rangé ces codes en lieu sûr (gestionnaire de mots de passe et copie papier)."
+      }
+    }
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -245,7 +282,12 @@
       "IMAGE_IN_USE": "Cette photo vient d’être utilisée ailleurs, réessayez.",
       "SMS_UNAVAILABLE": "L’envoi de SMS est momentanément indisponible, réessayez dans quelques minutes.",
       "PDF_TIMEOUT": "La génération du document a pris trop de temps, réessayez.",
-      "EQUIPMENT_STOCK_CONFLICT": "Stock de matériel insuffisant sur la période de cette commande."
+      "EQUIPMENT_STOCK_CONFLICT": "Stock de matériel insuffisant sur la période de cette commande.",
+      "TWO_FACTOR_CHALLENGE_INVALID": "Vérification expirée ou trop d’essais : reconnectez-vous.",
+      "INVALID_TWO_FACTOR_CODE": "Code incorrect ou déjà utilisé.",
+      "TWO_FACTOR_ALREADY_ENABLED": "La double authentification est déjà activée.",
+      "TWO_FACTOR_NOT_ENABLED": "La double authentification n’est pas activée.",
+      "TWO_FACTOR_REQUIRED": "La double authentification est obligatoire pour ce compte."
     }
   },
   "validation": {
@@ -1167,7 +1209,30 @@
       "newPassword": "Nouveau mot de passe",
       "confirmPassword": "Confirmez le mot de passe",
       "changePassword": "Changer le mot de passe",
-      "passwordChanged": "Mot de passe changé : reconnectez-vous"
+      "passwordChanged": "Mot de passe changé : reconnectez-vous",
+      "twoFactor": {
+        "title": "Double authentification",
+        "requiredHint": "Obligatoire pour le super admin : un code de votre téléphone est demandé à chaque connexion.",
+        "optionalHint": "Recommandée : en plus du mot de passe, un code de votre téléphone est demandé à chaque connexion.",
+        "statusOn": "Activée",
+        "statusOff": "Désactivée",
+        "since": "depuis le {date}",
+        "remaining": "{count, plural, =0 {aucun code de secours restant} one {# code de secours restant} other {# codes de secours restants}}",
+        "enable": "Activer",
+        "regenerate": "Nouveaux codes de secours",
+        "disable": "Désactiver",
+        "confirmHint": "Saisissez le code à 6 chiffres affiché par l’application pour terminer.",
+        "disableHint": "Pour désactiver, saisissez un code de l’application ou un code de secours.",
+        "regenerateHint": "Les anciens codes de secours ne fonctionneront plus. Saisissez un code de l’application ou un code de secours.",
+        "code": "Code de l’application",
+        "codeOrRecovery": "Code de l’application ou code de secours",
+        "activate": "Activer",
+        "cancel": "Annuler",
+        "enabled": "Double authentification activée",
+        "disabled": "Double authentification désactivée",
+        "regenerated": "Nouveaux codes de secours créés",
+        "codesStored": "C’est fait"
+      }
     }
   },
   "quotes": {

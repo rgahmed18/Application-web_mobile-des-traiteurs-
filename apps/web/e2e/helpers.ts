@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+
 import { type APIRequestContext, expect, type Page } from '@playwright/test';
 
 /** Gérant du traiteur de démonstration (prisma/seed.ts). */
@@ -53,4 +55,19 @@ export async function apiLogin(
     const { accessToken } = (await response.json()) as { accessToken: string };
     return { Authorization: `Bearer ${accessToken}` };
   }
+}
+
+/** Code TOTP (RFC 6238, SHA-1, 30 s, 6 chiffres) d'une clé base32, pour un pas décalé. */
+export function totp(secret: string, offset = 0): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const char of secret.replace(/\s/g, '').toUpperCase()) {
+    bits += alphabet.indexOf(char).toString(2).padStart(5, '0');
+  }
+  const key = Buffer.from((bits.match(/.{8}/g) ?? []).map((byte) => Number.parseInt(byte, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000) + offset));
+  const hmac = createHmac('sha1', key).update(counter).digest();
+  const start = (hmac[hmac.length - 1] ?? 0) & 15;
+  return String((hmac.readUInt32BE(start) & 0x7fffffff) % 1_000_000).padStart(6, '0');
 }

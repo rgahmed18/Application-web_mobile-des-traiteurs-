@@ -1,21 +1,41 @@
 'use client';
 
+import type { TwoFactorChallenge } from '@traiteur/shared';
 import { KeyRoundIcon, MessageSquareIcon } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { PasswordLoginForm } from './password-login-form';
 import { safeNextPath } from './redirect';
 import { SmsLoginForm } from './sms-login-form';
+import { TwoFactorStep } from './two-factor-step';
 
-/** Deux façons de se connecter, au choix : mot de passe ou code par SMS. */
+/**
+ * Deux façons de se connecter, au choix : mot de passe ou code par SMS ; puis, si la double
+ * authentification est active (ou imposée), la deuxième étape.
+ */
 export function LoginTabs() {
   const t = useTranslations('auth.login');
   const router = useRouter();
   const next = safeNextPath(useSearchParams().get('next'));
   const onSuccess = () => router.replace(next);
+  const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null);
+  const onResult = (result: TwoFactorChallenge | null) =>
+    result ? setChallenge(result) : onSuccess();
+
+  if (challenge) {
+    return (
+      <TwoFactorStep
+        key={challenge.challengeToken}
+        challenge={challenge}
+        onDone={onSuccess}
+        onRestart={() => setChallenge(null)}
+      />
+    );
+  }
 
   return (
     <Tabs defaultValue="password" className="gap-6">
@@ -30,10 +50,10 @@ export function LoginTabs() {
         </TabsTrigger>
       </TabsList>
       <TabsContent value="password">
-        <PasswordLoginForm onSuccess={onSuccess} />
+        <PasswordLoginForm onResult={onResult} />
       </TabsContent>
       <TabsContent value="sms">
-        <SmsLoginForm onSuccess={onSuccess} />
+        <SmsLoginForm onResult={onResult} />
       </TabsContent>
     </Tabs>
   );

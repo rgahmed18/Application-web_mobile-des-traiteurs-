@@ -106,6 +106,8 @@ export const authUserSchema = z.object({
   locale: localeSchema,
   isSuperAdmin: z.boolean(),
   hasPassword: z.boolean(),
+  /** Double authentification activée sur ce compte. */
+  twoFactorEnabled: z.boolean(),
 });
 export type AuthUser = z.infer<typeof authUserSchema>;
 

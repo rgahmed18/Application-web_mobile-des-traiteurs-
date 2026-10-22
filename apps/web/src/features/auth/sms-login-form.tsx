@@ -1,6 +1,6 @@
 'use client';
 
-import { otpCodeSchema, phoneSchema } from '@traiteur/shared';
+import { otpCodeSchema, phoneSchema, type TwoFactorChallenge } from '@traiteur/shared';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -22,7 +22,12 @@ const phoneFormSchema = z.object({ phone: phoneSchema });
 const codeFormSchema = z.object({ code: otpCodeSchema });
 
 /** Connexion par code SMS en deux étapes : numéro, puis code à 6 chiffres. */
-export function SmsLoginForm({ onSuccess }: { onSuccess: () => void }) {
+export function SmsLoginForm({
+  onResult,
+}: {
+  /** Session ouverte (null) ou deuxième étape demandée (double authentification). */
+  onResult: (challenge: TwoFactorChallenge | null) => void;
+}) {
   const t = useTranslations('auth.otp');
   const describeError = useErrorMessage();
   const [phone, setPhone] = useState<string | null>(null);
@@ -46,8 +51,7 @@ export function SmsLoginForm({ onSuccess }: { onSuccess: () => void }) {
   const onSubmitCode = codeForm.handleSubmit(async ({ code }) => {
     if (!phone) return;
     try {
-      await sessionStore.loginWithOtp(phone, code);
-      onSuccess();
+      onResult(await sessionStore.loginWithOtp(phone, code));
     } catch (error) {
       toast.error(describeError(error));
       codeForm.reset({ code: '' });

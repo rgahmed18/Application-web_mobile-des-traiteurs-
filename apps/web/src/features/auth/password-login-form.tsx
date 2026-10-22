@@ -1,6 +1,6 @@
 'use client';
 
-import { loginSchema } from '@traiteur/shared';
+import { loginSchema, type TwoFactorChallenge } from '@traiteur/shared';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -19,7 +19,12 @@ import { sessionStore } from './session-store';
 const formSchema = loginSchema.pick({ identifier: true, password: true });
 
 /** Connexion par téléphone (ou email) et mot de passe. */
-export function PasswordLoginForm({ onSuccess }: { onSuccess: () => void }) {
+export function PasswordLoginForm({
+  onResult,
+}: {
+  /** Session ouverte (null) ou deuxième étape demandée (double authentification). */
+  onResult: (challenge: TwoFactorChallenge | null) => void;
+}) {
   const t = useTranslations('auth.login');
   const describeError = useErrorMessage();
   // Identifiant prérempli après l'activation d'un accès (lien d'invitation)
@@ -28,8 +33,7 @@ export function PasswordLoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   const onSubmit = form.handleSubmit(async ({ identifier, password }) => {
     try {
-      await sessionStore.loginWithPassword(identifier, password);
-      onSuccess();
+      onResult(await sessionStore.loginWithPassword(identifier, password));
     } catch (error) {
       toast.error(describeError(error));
       form.resetField('password');

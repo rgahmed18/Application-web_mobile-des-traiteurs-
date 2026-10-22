@@ -300,12 +300,13 @@ nano .env
 Le fichier contient chaque variable avec son explication. Pour chaque secret, générez la
 valeur **sur le serveur** avec la commande indiquée et collez-la :
 
-| Variable            | Commande                  |
-| ------------------- | ------------------------- |
-| `POSTGRES_PASSWORD` | `openssl rand -hex 32`    |
-| `REDIS_PASSWORD`    | `openssl rand -hex 32`    |
-| `JWT_ACCESS_SECRET` | `openssl rand -base64 48` |
-| `OTP_SECRET`        | `openssl rand -base64 48` |
+| Variable                    | Commande                  |
+| --------------------------- | ------------------------- |
+| `POSTGRES_PASSWORD`         | `openssl rand -hex 32`    |
+| `REDIS_PASSWORD`            | `openssl rand -hex 32`    |
+| `JWT_ACCESS_SECRET`         | `openssl rand -base64 48` |
+| `OTP_SECRET`                | `openssl rand -base64 48` |
+| `TWO_FACTOR_ENCRYPTION_KEY` | `openssl rand -base64 48` |
 
 Valeurs du staging : `ENVIRONMENT=staging`, `APP_HOST=staging.DOMAINE`,
 `MEDIA_HOST=media-staging.DOMAINE`, `ROBOTS=noindex, nofollow`, `TRAITEUR_SLUG=dar-diafa`,
@@ -317,7 +318,7 @@ Enregistrez (`Ctrl+O`, `Entrée`, `Ctrl+X`), puis vérifiez qu'aucun secret n'es
 le fichier est protégé :
 
 ```bash
-grep -nE '^(POSTGRES_PASSWORD|REDIS_PASSWORD|JWT_ACCESS_SECRET|OTP_SECRET|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|BACKUP_S3_ACCESS_KEY_ID|BACKUP_S3_SECRET_ACCESS_KEY)=$' .env \
+grep -nE '^(POSTGRES_PASSWORD|REDIS_PASSWORD|JWT_ACCESS_SECRET|OTP_SECRET|TWO_FACTOR_ENCRYPTION_KEY|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|BACKUP_S3_ACCESS_KEY_ID|BACKUP_S3_SECRET_ACCESS_KEY)=$' .env \
   && echo "⚠ secrets manquants ci-dessus" || echo "✓ secrets renseignés"
 ls -l .env      # doit commencer par -rw------- deploy deploy
 ```

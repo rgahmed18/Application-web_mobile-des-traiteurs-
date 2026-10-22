@@ -64,6 +64,7 @@ jobs:
       TEST_DATABASE_URL: postgresql://traiteur:traiteur@localhost:5432/gestion_traiteurs_test
       JWT_ACCESS_SECRET: ci-jwt-secret-not-used-in-production-000000
       OTP_SECRET: ci-otp-secret-not-used-in-production-000000
+      TWO_FACTOR_ENCRYPTION_KEY: ci-2fa-key-not-used-in-production-0000000
       CORS_ORIGINS: http://localhost:3001
       TRUST_PROXY: loopback
       # Stockage des photos : RustFS (compatible S3), démarré ci-dessous

@@ -5,13 +5,21 @@ import {
   type AuthSession,
   type AuthUser,
   type LoginInput,
+  type LoginResult,
   type Me,
   normalizePhone,
   type OtpRequestInput,
   type OtpRequestResponse,
   type OtpVerifyInput,
   type PasswordResetInput,
+  type RecoveryCodes,
   type RegisterInput,
+  type TwoFactorChallengeConfirmInput,
+  type TwoFactorChallengeConfirmResult,
+  type TwoFactorChallengeSetupInput,
+  type TwoFactorSetupInfo,
+  type TwoFactorStatus,
+  type TwoFactorVerifyInput,
 } from '@traiteur/shared';
 
 import { PermissionsService } from '../access/permissions.service';
@@ -26,6 +34,7 @@ import { computeLockedUntil, isLocked } from './login-lockout';
 import { OtpService } from './otp/otp.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
+import { CHALLENGE_TTL_SECONDS, TwoFactorService } from './two-factor/two-factor.service';
 
 const UNAVAILABLE_TRAITEUR_STATUSES = new Set(['SUSPENDED', 'CANCELLED']);
 
@@ -54,6 +63,7 @@ export class AuthService {
     private readonly otp: OtpService,
     private readonly permissions: PermissionsService,
     private readonly audit: AuditService,
+    private readonly twoFactor: TwoFactorService,
     config: ConfigService<Env, true>,
   ) {
     this.maxLoginFailures = config.get('LOGIN_MAX_FAILURES', { infer: true });
@@ -107,7 +117,7 @@ export class AuthService {
    * Après LOGIN_MAX_FAILURES échecs consécutifs, le compte est verrouillé de façon progressive.
    * Compte inconnu, mot de passe faux ou compte verrouillé : réponse et durée identiques.
    */
-  async login(input: LoginInput, client: ClientInfo): Promise<AuthSession> {
+  async login(input: LoginInput, client: ClientInfo): Promise<LoginResult> {
     const now = new Date();
     const user = await this.findByIdentifier(input.identifier);
     const locked = user !== null && isLocked(user.lockedUntil, now);
@@ -133,8 +143,7 @@ export class AuthService {
     const context = await this.resolveContext(user, input.traiteurSlug ?? null, {
       autoJoinAsClient: true,
     });
-    await this.touchLastLogin(user.id);
-    return this.createSession(user, context, client);
+    return this.completeLogin(user, context, client);
   }
 
   /** Demande d'un code SMS. Réponse identique que le compte existe ou non. */
@@ -150,7 +159,7 @@ export class AuthService {
   }
 
   /** Connexion par code SMS ; crée un compte sans mot de passe si le numéro est inconnu. */
-  async verifyOtp(input: OtpVerifyInput, client: ClientInfo): Promise<AuthSession> {
+  async verifyOtp(input: OtpVerifyInput, client: ClientInfo): Promise<LoginResult> {
     const traiteur = await this.findAvailableTraiteur(input.traiteurSlug);
     const otpId = await this.otp.checkCode(input.phone, 'LOGIN', input.code);
 
@@ -175,8 +184,181 @@ export class AuthService {
     this.assertUserActive(user);
 
     const context = await this.resolveContext(user, traiteur.slug, { autoJoinAsClient: true });
+    return this.completeLogin(user, context, client);
+  }
+
+  // ─────────────────────── Double authentification ───────────────────────
+
+  /** Deuxième étape de la connexion : code de l'application ou code de secours. */
+  async verifyTwoFactor(input: TwoFactorVerifyInput, client: ClientInfo): Promise<AuthSession> {
+    const challenge = await this.twoFactor.loadChallenge(input.challengeToken, 'VERIFY');
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: challenge.userId } });
+    this.assertUserActive(user);
+    const now = new Date();
+    if (isLocked(user.lockedUntil, now)) {
+      await this.auditAuth('auth.login_blocked', user, client, {
+        lockedUntil: user.lockedUntil?.toISOString() ?? null,
+      });
+      throw this.invalidTwoFactorCode();
+    }
+    const check = await this.twoFactor.checkCode(user, input.code);
+    if (!check) {
+      await this.twoFactor.recordChallengeFailure(challenge.id);
+      await this.recordFailedLogin(user, client, now, 'auth.2fa_failed');
+      throw this.invalidTwoFactorCode();
+    }
+    await this.twoFactor.consumeChallenge(challenge.id);
+    if (check.via === 'recovery') {
+      const remaining = (await this.twoFactor.status(user)).recoveryCodesRemaining;
+      await this.auditAuth('auth.2fa_recovery_code_used', user, client, { remaining });
+    }
+    const context = await this.reloadContext(user, challenge.traiteurId, challenge.membershipId);
     await this.touchLastLogin(user.id);
     return this.createSession(user, context, client);
+  }
+
+  /** Activation imposée à la connexion (SUPER_ADMIN) : clé et QR code à scanner. */
+  async setupTwoFactorChallenge(input: TwoFactorChallengeSetupInput): Promise<TwoFactorSetupInfo> {
+    const challenge = await this.twoFactor.loadChallenge(input.challengeToken, 'SETUP');
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: challenge.userId } });
+    const { sealed, info } = await this.twoFactor.proposeSecret(user);
+    await this.prisma.twoFactorChallenge.update({
+      where: { id: challenge.id },
+      data: { pendingSecret: sealed },
+    });
+    return info;
+  }
+
+  /** Premier code de l'application : double authentification activée, session ouverte. */
+  async confirmTwoFactorChallenge(
+    input: TwoFactorChallengeConfirmInput,
+    client: ClientInfo,
+  ): Promise<TwoFactorChallengeConfirmResult> {
+    const challenge = await this.twoFactor.loadChallenge(input.challengeToken, 'SETUP');
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: challenge.userId } });
+    this.assertUserActive(user);
+    const step = challenge.pendingSecret
+      ? this.twoFactor.checkProposedCode(challenge.pendingSecret, input.code)
+      : null;
+    if (step === null || !challenge.pendingSecret) {
+      await this.twoFactor.recordChallengeFailure(challenge.id);
+      throw this.invalidTwoFactorCode();
+    }
+    await this.twoFactor.consumeChallenge(challenge.id);
+    const recoveryCodes = await this.twoFactor.enable(user.id, challenge.pendingSecret, step);
+    // Aucune session ouverte sans double authentification ne doit survivre
+    await this.tokens.revokeAllForUser(user.id);
+    await this.auditAuth('auth.2fa_enabled', user, client, { required: 1 });
+    const context = await this.reloadContext(user, challenge.traiteurId, challenge.membershipId);
+    await this.touchLastLogin(user.id);
+    const enabled = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    return { session: await this.createSession(enabled, context, client), recoveryCodes };
+  }
+
+  async twoFactorStatus(current: AuthenticatedUser): Promise<TwoFactorStatus> {
+    return this.twoFactor.status(await this.currentUser(current));
+  }
+
+  /** Activation depuis « Mon compte » : secret proposé, en attente du premier code. */
+  async beginTwoFactorSetup(current: AuthenticatedUser): Promise<TwoFactorSetupInfo> {
+    const user = await this.currentUser(current);
+    if (this.twoFactor.isEnabled(user)) {
+      throw appErrors.conflict(
+        'TWO_FACTOR_ALREADY_ENABLED',
+        'La double authentification est déjà active',
+      );
+    }
+    const { sealed, info } = await this.twoFactor.proposeSecret(user);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { twoFactorPendingSecret: sealed },
+    });
+    return info;
+  }
+
+  async confirmTwoFactorSetup(
+    current: AuthenticatedUser,
+    code: string,
+    client: ClientInfo,
+  ): Promise<RecoveryCodes> {
+    const user = await this.currentUser(current);
+    if (this.twoFactor.isEnabled(user)) {
+      throw appErrors.conflict(
+        'TWO_FACTOR_ALREADY_ENABLED',
+        'La double authentification est déjà active',
+      );
+    }
+    const pending = user.twoFactorPendingSecret;
+    const step = pending ? this.twoFactor.checkProposedCode(pending, code) : null;
+    if (step === null || !pending) throw this.invalidTwoFactorCode();
+    const recoveryCodes = await this.twoFactor.enable(user.id, pending, step);
+    await this.audit.record({
+      traiteurId: null,
+      actor: current,
+      action: 'auth.2fa_enabled',
+      entityType: 'User',
+      entityId: user.id,
+      after: { required: this.twoFactor.isRequired(user) },
+      client,
+    });
+    return { recoveryCodes };
+  }
+
+  /** Désactivation (facultative seulement) : un code valide est exigé. */
+  async disableTwoFactor(
+    current: AuthenticatedUser,
+    code: string,
+    client: ClientInfo,
+  ): Promise<void> {
+    const user = await this.currentUser(current);
+    if (this.twoFactor.isRequired(user)) {
+      throw appErrors.forbidden(
+        'TWO_FACTOR_REQUIRED',
+        'La double authentification est obligatoire pour ce compte',
+      );
+    }
+    if (!this.twoFactor.isEnabled(user)) {
+      throw appErrors.badRequest(
+        'TWO_FACTOR_NOT_ENABLED',
+        'La double authentification est inactive',
+      );
+    }
+    if (!(await this.twoFactor.checkCode(user, code))) throw this.invalidTwoFactorCode();
+    await this.twoFactor.disable(user.id);
+    await this.audit.record({
+      traiteurId: null,
+      actor: current,
+      action: 'auth.2fa_disabled',
+      entityType: 'User',
+      entityId: user.id,
+      client,
+    });
+  }
+
+  /** Nouveaux codes de secours (les anciens ne valent plus rien) : un code valide est exigé. */
+  async regenerateRecoveryCodes(
+    current: AuthenticatedUser,
+    code: string,
+    client: ClientInfo,
+  ): Promise<RecoveryCodes> {
+    const user = await this.currentUser(current);
+    if (!this.twoFactor.isEnabled(user)) {
+      throw appErrors.badRequest(
+        'TWO_FACTOR_NOT_ENABLED',
+        'La double authentification est inactive',
+      );
+    }
+    if (!(await this.twoFactor.checkCode(user, code))) throw this.invalidTwoFactorCode();
+    const recoveryCodes = await this.twoFactor.regenerateRecoveryCodes(user.id);
+    await this.audit.record({
+      traiteurId: null,
+      actor: current,
+      action: 'auth.2fa_recovery_codes_regenerated',
+      entityType: 'User',
+      entityId: user.id,
+      client,
+    });
+    return { recoveryCodes };
   }
 
   /** Nouveau mot de passe après vérification par SMS ; toutes les sessions sont révoquées. */
@@ -203,6 +385,11 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: consumed.userId } });
     if (!user) throw appErrors.unauthorized('INVALID_TOKEN', 'Session invalide');
     this.assertUserActive(user);
+    // Défense en profondeur : la double authentification est imposée au SUPER_ADMIN
+    if (this.twoFactor.isRequired(user) && !this.twoFactor.isEnabled(user)) {
+      await this.tokens.revokeAllForUser(user.id);
+      throw appErrors.unauthorized('INVALID_TOKEN', 'Session invalide');
+    }
 
     const context = await this.reloadContext(user, consumed.traiteurId, consumed.membershipId);
     return this.createSession(user, context, client, {
@@ -234,6 +421,38 @@ export class AuthService {
   }
 
   // ─────────────────────────── Interne ───────────────────────────
+
+  /**
+   * Identité prouvée (mot de passe ou code SMS) : session directe, ou deuxième étape si la double
+   * authentification est active (VERIFY) ou imposée mais pas encore configurée (SETUP).
+   */
+  private async completeLogin(
+    user: User,
+    context: AuthContext,
+    client: ClientInfo,
+  ): Promise<LoginResult> {
+    const kind = this.twoFactor.isEnabled(user)
+      ? 'VERIFY'
+      : this.twoFactor.isRequired(user)
+        ? 'SETUP'
+        : null;
+    if (!kind) {
+      await this.touchLastLogin(user.id);
+      return this.createSession(user, context, client);
+    }
+    const challengeToken = await this.twoFactor.createChallenge(user, context, kind, client);
+    return { twoFactor: kind, challengeToken, expiresIn: CHALLENGE_TTL_SECONDS };
+  }
+
+  private async currentUser(current: AuthenticatedUser): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { id: current.userId } });
+    if (!user) throw appErrors.unauthorized('INVALID_TOKEN', 'Session invalide');
+    return user;
+  }
+
+  private invalidTwoFactorCode() {
+    return appErrors.unauthorized('INVALID_TWO_FACTOR_CODE', 'Code incorrect ou déjà utilisé');
+  }
 
   private async createSession(
     user: User,
@@ -381,13 +600,18 @@ export class AuthService {
   }
 
   /** Incrémente le compteur d'échecs (de façon atomique) et verrouille au-delà du seuil. */
-  private async recordFailedLogin(user: User, client: ClientInfo, now: Date): Promise<void> {
+  private async recordFailedLogin(
+    user: User,
+    client: ClientInfo,
+    now: Date,
+    action = 'auth.login_failed',
+  ): Promise<void> {
     const { failedLoginCount } = await this.prisma.user.update({
       where: { id: user.id },
       data: { failedLoginCount: { increment: 1 } },
       select: { failedLoginCount: true },
     });
-    await this.auditAuth('auth.login_failed', user, client, { failedLoginCount });
+    await this.auditAuth(action, user, client, { failedLoginCount });
 
     const lockedUntil = computeLockedUntil(
       failedLoginCount,
@@ -435,6 +659,7 @@ export class AuthService {
       locale: user.locale,
       isSuperAdmin: user.isSuperAdmin,
       hasPassword: user.passwordHash !== null,
+      twoFactorEnabled: user.twoFactorEnabledAt !== null,
     };
   }
 }

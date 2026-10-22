@@ -53,8 +53,8 @@ cp apps/mobile-client/.env.example apps/mobile-client/.env
 cp apps/mobile-staff/.env.example apps/mobile-staff/.env
 ```
 
-Dans `apps/api/.env`, remplacez `JWT_ACCESS_SECRET` et `OTP_SECRET` par deux secrets aléatoires
-distincts (32 caractères minimum) :
+Dans `apps/api/.env`, remplacez `JWT_ACCESS_SECRET`, `OTP_SECRET` et `TWO_FACTOR_ENCRYPTION_KEY`
+par trois secrets aléatoires distincts (32 caractères minimum) :
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
@@ -148,6 +148,11 @@ Mot de passe commun : **`Password123!`**
 | LIVREUR        | +212600000004 | livreur@dar-diafa.ma            |
 | EQUIPE         | +212600000006 | equipe@dar-diafa.ma             |
 | CLIENT         | +212600000005 | client@exemple.ma               |
+
+Le SUPER_ADMIN doit activer la **double authentification** à sa première connexion (QR code à
+scanner avec Google Authenticator, Microsoft Authenticator ou Aegis, puis 10 codes de secours à
+usage unique affichés une seule fois). Les administrateurs de traiteur peuvent l'activer depuis
+« Paramètres › Mon compte ».
 
 Le seed est **idempotent** : il peut être relancé sans créer de doublons.
 
@@ -690,6 +695,15 @@ Elle **doit** être appelée dans la même transaction que la création du docum
 - Réponses identiques que le compte existe ou non (pas d'énumération des comptes).
 - Fournisseur SMS simulé (`SMS_PROVIDER=console`) en développement, **interdit en production**
   par la validation des variables d'environnement.
+- **Double authentification (TOTP, RFC 6238)** : obligatoire pour le SUPER_ADMIN (aucune session
+  tant qu'elle n'est pas activée, y compris au rafraîchissement), facultative pour les autres
+  comptes (« Mon compte »). Après le mot de passe ou le code SMS, l'API répond
+  `{ twoFactor: VERIFY | SETUP, challengeToken }` au lieu d'une session ; le code est vérifié par
+  `POST /auth/2fa/verify` (jeton de 10 minutes, 5 essais, usage unique ; chaque échec compte pour
+  le verrouillage progressif du compte). Un code de l'application ne sert jamais deux fois. Secret
+  chiffré en base (AES-256-GCM, `TWO_FACTOR_ENCRYPTION_KEY`) ; 10 codes de secours à usage
+  unique, conservés en empreinte, affichés une seule fois. Le back-office ne pose le cookie de
+  session qu'après la deuxième étape.
 
 ### Protections contre les abus
 

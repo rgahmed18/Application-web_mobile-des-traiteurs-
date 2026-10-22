@@ -6,6 +6,11 @@ import {
   otpRequestResponseSchema,
   type OtpRequestResponse,
   type PermissionKey,
+  recoveryCodesSchema,
+  type TwoFactorChallenge,
+  twoFactorChallengeSchema,
+  type TwoFactorSetupInfo,
+  twoFactorSetupInfoSchema,
 } from '@traiteur/shared';
 import { z } from 'zod';
 
@@ -31,6 +36,17 @@ export interface SessionState {
 
 const clientSessionSchema = authSessionSchema.omit({ refreshToken: true });
 type ClientSession = z.infer<typeof clientSessionSchema>;
+/** Réponse d'une connexion : session, ou deuxième étape (double authentification). */
+const loginResponseSchema = z.union([clientSessionSchema, twoFactorChallengeSchema]);
+
+/** Session ouverte : null ; deuxième étape demandée : la demande. */
+async function applyLogin(
+  response: z.infer<typeof loginResponseSchema>,
+): Promise<TwoFactorChallenge | null> {
+  if ('twoFactor' in response) return response;
+  await applySession(response);
+  return null;
+}
 
 /** Rafraîchissement anticipé, avant l'expiration du jeton. */
 const REFRESH_MARGIN_MS = 60_000;
@@ -125,9 +141,12 @@ export const sessionStore = {
     void refreshAccessToken();
   },
 
-  async loginWithPassword(identifier: string, password: string): Promise<void> {
-    await applySession(
-      await sessionRequest('/login', clientSessionSchema, { identifier, password }),
+  async loginWithPassword(
+    identifier: string,
+    password: string,
+  ): Promise<TwoFactorChallenge | null> {
+    return applyLogin(
+      await sessionRequest('/login', loginResponseSchema, { identifier, password }),
     );
   },
 
@@ -135,8 +154,36 @@ export const sessionStore = {
     return sessionRequest('/otp/request', otpRequestResponseSchema, { phone, purpose });
   },
 
-  async loginWithOtp(phone: string, code: string): Promise<void> {
-    await applySession(await sessionRequest('/otp/verify', clientSessionSchema, { phone, code }));
+  async loginWithOtp(phone: string, code: string): Promise<TwoFactorChallenge | null> {
+    return applyLogin(await sessionRequest('/otp/verify', loginResponseSchema, { phone, code }));
+  },
+
+  /** Deuxième étape : code de l'application ou code de secours. */
+  async verifyTwoFactor(challengeToken: string, code: string): Promise<void> {
+    await applySession(
+      await sessionRequest('/2fa/verify', clientSessionSchema, { challengeToken, code }),
+    );
+  },
+
+  /** Activation imposée : clé et QR code à scanner. */
+  setupTwoFactor(challengeToken: string): Promise<TwoFactorSetupInfo> {
+    return sessionRequest('/2fa/setup', twoFactorSetupInfoSchema, { challengeToken });
+  },
+
+  /**
+   * Premier code de l'application : codes de secours à afficher, puis `finish` ouvre la session
+   * (une fois que l'utilisateur a confirmé les avoir rangés).
+   */
+  async confirmTwoFactor(
+    challengeToken: string,
+    code: string,
+  ): Promise<{ recoveryCodes: string[]; finish: () => Promise<void> }> {
+    const result = await sessionRequest(
+      '/2fa/confirm',
+      recoveryCodesSchema.extend({ session: clientSessionSchema }),
+      { challengeToken, code },
+    );
+    return { recoveryCodes: result.recoveryCodes, finish: () => applySession(result.session) };
   },
 
   resetPassword(phone: string, code: string, newPassword: string): Promise<void> {

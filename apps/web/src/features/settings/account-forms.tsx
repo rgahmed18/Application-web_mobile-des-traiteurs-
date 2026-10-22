@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSession } from '@/features/auth/session-provider';
 import { refreshAccessToken, sessionStore } from '@/features/auth/session-store';
 import { FormSection } from '@/features/catalog/components/form-layout';
 import { setLocale } from '@/i18n/actions';
@@ -32,16 +33,23 @@ import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
 import { changePassword, useAccount, useSaveAccount } from './settings-api';
+import { TwoFactorSection } from './two-factor-section';
 
-/** Mon compte : nom, langue de l'interface et mot de passe (tout utilisateur connecté). */
+/**
+ * Mon compte : nom, langue de l'interface et mot de passe (tout utilisateur connecté) ; double
+ * authentification pour le super admin (imposée) et les administrateurs (facultative).
+ */
 export function AccountTab() {
   const account = useAccount();
+  const { context } = useSession();
+  const twoFactor = context?.role === 'SUPER_ADMIN' || context?.role === 'ADMIN_TRAITEUR';
   if (account.isPending) return <Skeleton className="h-64 w-full" />;
   if (!account.data) return <LoadError error={account.error} backHref="/admin" />;
   return (
     <div className="flex flex-col gap-4">
       <ProfileForm account={account.data} />
       <PasswordForm hasPassword={account.data.hasPassword} />
+      {twoFactor && <TwoFactorSection />}
     </div>
   );
 }

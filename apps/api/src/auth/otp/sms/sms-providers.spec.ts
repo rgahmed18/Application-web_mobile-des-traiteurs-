@@ -33,6 +33,7 @@ const baseEnv = {
   REDIS_URL: 'redis://localhost:6379',
   JWT_ACCESS_SECRET: 'a'.repeat(32),
   OTP_SECRET: 'b'.repeat(32),
+  TWO_FACTOR_ENCRYPTION_KEY: 'c'.repeat(32),
   S3_ENDPOINT: 'http://localhost:9000',
   S3_ACCESS_KEY_ID: 'cle',
   S3_SECRET_ACCESS_KEY: 'secret',

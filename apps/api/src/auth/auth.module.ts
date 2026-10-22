@@ -3,13 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 
 import type { AppConfigService } from '../config/app-config.module';
-import { AuthController } from './auth.controller';
+import { AuthController, TwoFactorAccountController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { OtpService } from './otp/otp.service';
 import { createSmsProvider } from './otp/sms/sms-factory';
 import { SMS_PROVIDER } from './otp/sms.provider';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
+import { TwoFactorService } from './two-factor/two-factor.service';
 
 @Module({
   imports: [
@@ -25,11 +26,12 @@ import { TokenService } from './token.service';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, TwoFactorAccountController],
   providers: [
     AuthService,
     PasswordService,
     TokenService,
+    TwoFactorService,
     OtpService,
     // console (développement), agrégateur http ou Twilio, avec fournisseur de secours
     {

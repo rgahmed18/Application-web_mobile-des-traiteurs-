@@ -74,6 +74,11 @@ export const envSchema = z
 
     /** Clé HMAC des codes OTP : un vol de la base ne permet pas de retrouver les codes. */
     OTP_SECRET: secret('OTP_SECRET'),
+    /**
+     * Clé de chiffrement des secrets de double authentification (AES-256-GCM). La changer rend
+     * les secrets existants illisibles : chaque compte devrait refaire son activation.
+     */
+    TWO_FACTOR_ENCRYPTION_KEY: secret('TWO_FACTOR_ENCRYPTION_KEY'),
     OTP_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),
     OTP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
     OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().min(0).default(60),
