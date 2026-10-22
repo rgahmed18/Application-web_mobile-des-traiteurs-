@@ -342,7 +342,23 @@ model User {
   refreshTokens       RefreshToken[]
   auditLogs           AuditLog[]
   recoveryCodes       TwoFactorRecoveryCode[]
+  accountActivations  AccountActivation[]
   twoFactorChallenges TwoFactorChallenge[]
+}
+
+// Activation d'un compte de la plateforme (SUPER_ADMIN) créé en ligne de commande : lien à usage
+// unique, valable 24 heures, pour choisir son mot de passe (empreinte du jeton seulement).
+model AccountActivation {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Codes de secours de la double authentification : empreinte seulement, usage unique.

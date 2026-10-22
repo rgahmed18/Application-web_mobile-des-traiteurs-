@@ -23,11 +23,12 @@ production ensuite.
 10. [Surveillance et alertes](#10-surveillance-et-alertes)
 11. [Sauvegardes : vérifier qu'elles fonctionnent](#11-sauvegardes--vérifier-quelles-fonctionnent)
 12. [La production](#12-la-production)
-13. [Créer le traiteur pilote](#13-créer-le-traiteur-pilote)
-14. [Checklist avant la mise en production](#14-checklist-avant-la-mise-en-production)
-15. [Mettre à jour, revenir en arrière](#15-mettre-à-jour-revenir-en-arrière)
-16. [Restaurer une sauvegarde](#16-restaurer-une-sauvegarde)
-17. [Journaux et commandes utiles](#17-journaux-et-commandes-utiles)
+13. [Votre compte super admin et la double authentification](#13-votre-compte-super-admin-et-la-double-authentification)
+14. [Créer le traiteur pilote](#14-créer-le-traiteur-pilote)
+15. [Checklist avant la mise en production](#15-checklist-avant-la-mise-en-production)
+16. [Mettre à jour, revenir en arrière](#16-mettre-à-jour-revenir-en-arrière)
+17. [Restaurer une sauvegarde](#17-restaurer-une-sauvegarde)
+18. [Journaux et commandes utiles](#18-journaux-et-commandes-utiles)
 
 ---
 
@@ -223,6 +224,9 @@ partout). Le fichier `secours-traiteur-prod.key` contient la **clé privée**.
 > serveur, dans le dépôt Git, ni dans un e-mail.
 >
 > Ensuite, supprimez le fichier du PC (il est dans vos deux coffres).
+
+Les **codes de secours** de la double authentification (étape 13) se rangent au même endroit,
+sur les deux supports.
 
 Faites de même pour le staging (`secours-traiteur-staging.key`), ou réutilisez une clé de
 staging moins précieuse : ses données sont fictives.
@@ -532,7 +536,78 @@ GitHub › **Actions** › **Déploiement** : le job « Production » installe l
 staging. Si vous avez activé l'approbation (8.3), il attend d'abord votre accord : **Review
 deployments** › **Approve**.
 
-## 13. Créer le traiteur pilote
+## 13. Votre compte super admin et la double authentification
+
+Le **super admin** (vous) a accès à toute la plateforme : la double authentification (code d'une
+application sur votre téléphone) lui est **imposée**. Sans elle, aucune session ne s'ouvre.
+
+### 13.1 Créer le compte
+
+Préparez un numéro de téléphone **réservé** à ce compte (pas celui d'un compte client ou
+personnel : la commande le refuse). Sur le serveur de **production** :
+
+```bash
+/opt/traiteur/scripts/compose.sh run --rm api node dist/cli/super-admin.js create \
+  --phone 06XXXXXXXX --first-name Prénom --last-name Nom --email vous@exemple.ma
+```
+
+La commande affiche un **résumé** de ce qu'elle va faire et attend que vous tapiez `oui`.
+Elle refuse de créer un **deuxième** super admin, sauf si vous ajoutez `--allow-additional`
+(à réserver à un associé de confiance). Elle affiche ensuite un **lien d'activation** valable
+**24 heures**, utilisable **une seule fois**. Ouvrez-le vous-même, sur votre PC :
+
+1. choisissez un mot de passe **unique**, rangé dans votre gestionnaire de mots de passe ;
+2. connectez-vous sur `https://app.DOMAINE/admin/login` : un **QR code** s'affiche ;
+3. installez **Google Authenticator**, **Microsoft Authenticator** ou **Aegis** sur votre
+   téléphone, scannez le QR code et saisissez le code à 6 chiffres ;
+4. **10 codes de secours** s'affichent, **une seule fois**.
+
+> ### ⚠️ Rangez les codes de secours avec la clé des sauvegardes
+>
+> Ces codes sont votre **seul** moyen de vous connecter si vous perdez votre téléphone. Comme
+> la clé de secours des sauvegardes (étape 5), conservez-les à **DEUX** endroits :
+>
+> 1. dans votre **gestionnaire de mots de passe**, dans la même note sécurisée que la clé de
+>    secours des sauvegardes (bouton « Télécharger (.txt) » ou « Copier ») ;
+> 2. sur la **copie papier** rangée avec celle de la clé des sauvegardes (coffre, proche de
+>    confiance).
+>
+> Chaque code ne sert qu'**une fois**. Quand il en reste peu, créez-en de nouveaux depuis
+> « Paramètres › Mon compte › Nouveaux codes de secours » (les anciens sont alors annulés) et
+> remplacez les deux copies. Ne les mettez **jamais** dans un e-mail, un message ou le dépôt Git.
+
+Les administrateurs de traiteur peuvent aussi activer la double authentification (facultative)
+depuis « Paramètres › Mon compte ».
+
+### 13.2 Téléphone ET codes de secours perdus : la procédure de secours
+
+Si vous avez perdu votre téléphone **et** vos codes de secours, la double authentification d'un
+super admin se réinitialise **uniquement sur le serveur** : il faut votre **clé SSH**
+(étape 6.1). Personne ne peut le faire depuis Internet, même avec votre mot de passe.
+
+```bash
+ssh deploy@IP_PROD
+/opt/traiteur/scripts/compose.sh run --rm api node dist/cli/super-admin.js reset-2fa \
+  --phone 06XXXXXXXX
+```
+
+La commande affiche le compte et ce qui va se passer, puis attend `oui` :
+
+- l'ancien secret est effacé : l'ancien téléphone (perdu ou volé) ne produit plus de codes
+  valides ;
+- **tous** les codes de secours restants sont annulés ;
+- **toutes** les sessions ouvertes du compte sont fermées ;
+- l'opération est inscrite au **journal d'audit** (`super_admin.2fa_reset`).
+
+À la connexion suivante : mot de passe, puis **nouveau QR code** à scanner et **nouveaux codes
+de secours** à ranger, comme à l'étape 13.1. Si vous avez aussi oublié votre mot de passe,
+utilisez « Mot de passe oublié » (code par SMS sur le téléphone du compte) avant de vous
+connecter.
+
+> Si quelqu'un d'autre que vous a pu lancer cette commande, votre clé SSH ou le serveur est
+> compromis : changez immédiatement la clé SSH (étape 6.1) et vérifiez le journal d'audit.
+
+## 14. Créer le traiteur pilote
 
 Sur le serveur de **production** :
 
@@ -555,7 +630,7 @@ nano /opt/traiteur/.env                 # TRAITEUR_SLUG=dar-diafa
 L'administrateur complète ensuite les paramètres (Entreprise, Documents, Disponibilités) et
 invite son équipe depuis le back-office.
 
-## 14. Checklist avant la mise en production
+## 15. Checklist avant la mise en production
 
 Imprimez cette liste et cochez chaque ligne **sur le serveur de production** avant d'ouvrir
 le service au traiteur pilote.
@@ -568,6 +643,8 @@ le service au traiteur pilote.
 - [ ] `ALLOW_DEMO_SEED=false`, `ROBOTS=all`, `ENVIRONMENT=production`
 - [ ] SMS réel configuré : demandez un code de connexion sur votre propre téléphone, il arrive
 - [ ] 2FA activée sur Cloudflare, Hetzner, GitHub et Sentry
+- [ ] Compte super admin créé (étape 13), double authentification activée, codes de secours
+      rangés avec la clé des sauvegardes (gestionnaire de mots de passe + copie papier)
 
 **Sauvegardes**
 
@@ -628,7 +705,7 @@ foreach ($p in 22,80,443,3000,3001,5432,6379,9999) {
 - [ ] Le traiteur pilote a été créé par `create-traiteur` (pas de seed), son administrateur
       s'est connecté et a changé ses paramètres
 
-## 15. Mettre à jour, revenir en arrière
+## 16. Mettre à jour, revenir en arrière
 
 **Mise à jour** : poussez sur `main` → le staging se met à jour tout seul. Testez-le, puis
 créez une nouvelle étiquette (`v1.0.1`, `v1.1.0`…), approuvée si l'approbation est activée
@@ -662,7 +739,7 @@ puis **Run workflow** avec `v1.0.0`. Attention : les données saisies **entre** 
 et la restauration sont perdues. Avant toute restauration en production, prévenez le
 traiteur et notez ce qui a été saisi entre-temps.
 
-## 16. Restaurer une sauvegarde
+## 17. Restaurer une sauvegarde
 
 | Situation                                             | Commande (sur le serveur, dans `/opt/traiteur/scripts`) |
 | ----------------------------------------------------- | ------------------------------------------------------- |
@@ -699,7 +776,7 @@ Le script de restauration est testé en conditions réelles à chaque modificati
 avec la clé machine et avec la clé de secours, refus d'une autre clé, base détruite puis
 restaurée à l'identique.
 
-## 17. Journaux et commandes utiles
+## 18. Journaux et commandes utiles
 
 Toutes les commandes se lancent sur le serveur, connecté en `deploy`.
 

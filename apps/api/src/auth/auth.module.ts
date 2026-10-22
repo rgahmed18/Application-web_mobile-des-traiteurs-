@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 
 import type { AppConfigService } from '../config/app-config.module';
+import { ActivationsService } from './activation/activations.service';
+import { PublicActivationsController } from './activation/public-activations.controller';
 import { AuthController, TwoFactorAccountController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { OtpService } from './otp/otp.service';
@@ -26,12 +28,13 @@ import { TwoFactorService } from './two-factor/two-factor.service';
       }),
     }),
   ],
-  controllers: [AuthController, TwoFactorAccountController],
+  controllers: [AuthController, TwoFactorAccountController, PublicActivationsController],
   providers: [
     AuthService,
     PasswordService,
     TokenService,
     TwoFactorService,
+    ActivationsService,
     OtpService,
     // console (développement), agrégateur http ou Twilio, avec fournisseur de secours
     {

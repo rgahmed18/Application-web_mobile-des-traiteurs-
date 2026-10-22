@@ -1865,5 +1865,29 @@
       "photoHint": "Prenez le chèque en photo, bien à plat et lisible.",
       "declared": "Encaissement déclaré"
     }
+  },
+  "platformActivation": {
+    "title": "Bienvenue {name}",
+    "description": "Compte de la plateforme (super admin) : il donne accès à tous les traiteurs. Choisissez votre mot de passe ; la double authentification vous sera demandée à la première connexion.",
+    "identifier": "Votre identifiant sera votre téléphone :",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmez le mot de passe",
+    "passwordHint": "Au moins 8 caractères, avec des lettres et des chiffres. Utilisez un mot de passe unique, rangé dans votre gestionnaire de mots de passe.",
+    "submit": "Activer mon compte",
+    "done": {
+      "title": "Compte activé",
+      "description": "Connectez-vous maintenant : vous configurerez la double authentification (QR code), puis vous rangerez vos codes de secours avec la clé des sauvegardes.",
+      "login": "Se connecter"
+    },
+    "invalid": {
+      "title": "Lien invalide",
+      "description": "Ce lien d’activation n’est plus valable (déjà utilisé ou expiré après 24 heures). Créez-en un nouveau sur le serveur."
+    },
+    "errors": {
+      "weakPassword": "Mot de passe trop faible : au moins 8 caractères, avec des lettres et des chiffres.",
+      "mismatch": "Les deux mots de passe ne correspondent pas.",
+      "tooMany": "Trop de tentatives : réessayez dans une minute.",
+      "generic": "Une erreur est survenue. Réessayez."
+    }
   }
 }

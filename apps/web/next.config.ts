@@ -15,11 +15,11 @@ const nextConfig: NextConfig = {
   ...(process.env.NEXT_OUTPUT === 'standalone'
     ? { output: 'standalone' as const, outputFileTracingRoot: path.join(__dirname, '../../') }
     : {}),
-  // Devis et invitations par lien sécurisé : jamais indexés, jeton jamais transmis (Referer)
+  // Devis, invitations et activations par lien sécurisé : jamais indexés, jeton jamais transmis
   headers() {
     return Promise.resolve([
       {
-        source: '/:area(devis|invitation)/:path*',
+        source: '/:area(devis|invitation|activation)/:path*',
         headers: [
           { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
           { key: 'Referrer-Policy', value: 'no-referrer' },
