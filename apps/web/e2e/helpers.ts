@@ -27,7 +27,7 @@ export function uniqueSuffix(): string {
   return Date.now().toString(36).slice(-6);
 }
 
-const API = process.env.E2E_API_URL ?? 'http://localhost:3000/api/v1';
+const API = process.env.E2E_API_URL ?? 'http://localhost:3100/api/v1';
 
 /**
  * Connexion à l'API (préparation des données d'un parcours) : réponse vérifiée, et attente

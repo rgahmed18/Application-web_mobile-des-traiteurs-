@@ -2,7 +2,7 @@ import { expect, request as apiRequest, test } from '@playwright/test';
 
 import { apiLogin, login, uniqueSuffix } from './helpers';
 
-const API = process.env.E2E_API_URL ?? 'http://localhost:3000/api/v1';
+const API = process.env.E2E_API_URL ?? 'http://localhost:3100/api/v1';
 /** Livreur du traiteur de démonstration (prisma/seed.ts). */
 const DRIVER = { phone: '0600000004', password: 'Password123!' };
 

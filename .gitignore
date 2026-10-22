@@ -7,6 +7,7 @@ dist/
 dist-seed/
 build/
 .next/
+.next-e2e/
 out/
 .expo/
 web-build/

@@ -2,7 +2,7 @@ import { expect, request as apiRequest, test } from '@playwright/test';
 
 import { apiLogin, login } from './helpers';
 
-const API = process.env.E2E_API_URL ?? 'http://localhost:3000/api/v1';
+const API = process.env.E2E_API_URL ?? 'http://localhost:3100/api/v1';
 
 /** Prochain dimanche (ou aujourd'hui), jour civil à Casablanca. */
 function nextSunday(): string {

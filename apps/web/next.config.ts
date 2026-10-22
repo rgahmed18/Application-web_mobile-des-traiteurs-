@@ -7,6 +7,8 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
+  // Parcours e2e : build séparé (.next-e2e), le site de démonstration (.next) n'est jamais touché
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   // Image Docker : serveur autonome (.next/standalone), dépendances tracées depuis la racine du
   // monorepo (paquet partagé). Activé seulement au build de l'image (NEXT_OUTPUT=standalone) :
   // sous Windows, la copie autonome peut exiger des droits de création de liens symboliques.

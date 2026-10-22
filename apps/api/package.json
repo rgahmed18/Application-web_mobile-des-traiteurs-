@@ -9,6 +9,7 @@
     "dev:worker": "node scripts/dev-worker.mjs",
     "start": "node dist/main",
     "start:worker": "node dist/worker",
+    "e2e:server": "node scripts/e2e-prepare.mjs && nest build && node dist/main",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",

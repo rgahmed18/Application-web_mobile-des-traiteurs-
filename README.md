@@ -856,8 +856,11 @@ pnpm --filter @traiteur/api test:int
 # client, commande de 3 lignes confirmée et retrouvée dans le calendrier ; devis envoyé par
 # lien sécurisé, accepté en ligne, facture d'acompte et export CSV ; livreur invité, activé,
 # affecté, qui ne voit que sa mission sans prix ; encaissement déclaré par le livreur, remis à la
-# caisse, reçu émis ; paramètres (fermeture hebdomadaire, mode de prix, mon compte).
-# Docker démarré et base seedée ; l'API et le web sont lancés s'ils ne tournent pas déjà.
+# caisse, reçu émis ; paramètres (fermeture hebdomadaire, mode de prix, mon compte) ; matériel
+# dans une commande (stock, alerte, confirmation motivée).
+# Environnement DÉDIÉ, jamais la base de démonstration : base gestion_traiteurs_e2e recréée et
+# seedée à chaque lancement (nom vérifié), Redis n° 1, API sur le port 3100 et back-office
+# compilé à part (.next-e2e) sur le port 3101. Docker démarré ; rien d'autre à lancer.
 pnpm --filter @traiteur/web exec playwright install chromium   # une seule fois
 pnpm --filter @traiteur/web test:e2e
 ```
