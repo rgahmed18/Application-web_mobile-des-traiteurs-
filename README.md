@@ -462,6 +462,14 @@ dans la barre latérale ; « Gestion Traiteurs » est réservé à la console.
   traiteurs, **sans leur contenu** (ni avant/après) et sans jamais nommer un client (« Nom
   masqué », rôle seul). Seuls le motif des actions de la console et les requêtes faites pendant
   un accès chez un traiteur (méthode, chemin, statut) sont affichés.
+- **Permissions par défaut** (`/platform/permissions`) : matrice rôles × permissions de tous les
+  traiteurs (administrateur, employé, équipe, livreur, client), chaque case prenant effet tout de
+  suite (cache des permissions invalidé). Chaque traiteur ajuste ensuite la sienne, sauf les
+  permissions critiques (cadenas). Une case différente de la valeur prévue par le catalogue
+  (`packages/shared`) est marquée (`RolePermission.editedAt`, point orange) : la synchronisation
+  du catalogue au déploiement (`syncPermissionCatalog`) ne la touche plus et n'ajoute que les
+  nouvelles permissions ; remise à la valeur prévue, elle suit de nouveau le catalogue. Chaque
+  changement est tracé (`platform.permission_default_changed`).
 - **Offres et fonctionnalités** (`/platform/plans`) : prix mensuel de chaque offre modifiable,
   en vigueur tout de suite, historique conservé ; fonctionnalités incluses par offre.
 - Prix des offres (`PlatformPlanPrice`, historique conservé) : 400, 850 et 1 500 MAD par mois au

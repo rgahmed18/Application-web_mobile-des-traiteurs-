@@ -6,6 +6,7 @@ import {
   LayoutDashboardIcon,
   type LucideIcon,
   ScrollTextIcon,
+  ShieldCheckIcon,
   StoreIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -32,7 +33,7 @@ import {
 import { UserMenu } from '@/features/navigation/user-menu';
 
 interface PlatformNavItem {
-  labelKey: 'dashboard' | 'traiteurs' | 'plans' | 'audit';
+  labelKey: 'dashboard' | 'traiteurs' | 'plans' | 'permissions' | 'audit';
   href: string;
   icon: LucideIcon;
 }
@@ -42,6 +43,7 @@ const PLATFORM_NAV: readonly PlatformNavItem[] = [
   { labelKey: 'dashboard', href: '/platform', icon: LayoutDashboardIcon },
   { labelKey: 'traiteurs', href: '/platform/traiteurs', icon: StoreIcon },
   { labelKey: 'plans', href: '/platform/plans', icon: BadgePercentIcon },
+  { labelKey: 'permissions', href: '/platform/permissions', icon: ShieldCheckIcon },
   { labelKey: 'audit', href: '/platform/audit', icon: ScrollTextIcon },
 ];
 

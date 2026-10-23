@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { FEATURE_KEYS } from '../access/features';
 import { phoneSchema } from '../auth/phone';
-import { roleSchema, subscriptionPlanSchema } from '../enums';
+import { roleSchema, subscriptionPlanSchema, TENANT_ROLES, tenantRoleSchema } from '../enums';
 import { localDateSchema } from '../time/zoned';
 
 /**
@@ -311,3 +311,43 @@ export const platformAuditOptionsSchema = z.object({
   traiteurs: z.array(z.object({ id: z.uuid(), name: z.string() })),
 });
 export type PlatformAuditOptions = z.infer<typeof platformAuditOptionsSchema>;
+
+// ─────────────────────────── Matrice des permissions par défaut ───────────────────────────
+
+/**
+ * Matrice par défaut (tous les traiteurs) : modifiable dans la console. Chaque traiteur peut
+ * ensuite l'ajuster, hors permissions critiques. Une case modifiée n'est plus touchée par la
+ * synchronisation du catalogue au déploiement.
+ */
+export const PLATFORM_MATRIX_ROLES = [
+  'ADMIN_TRAITEUR',
+  'EMPLOYE',
+  'EQUIPE',
+  'LIVREUR',
+  'CLIENT',
+] as const satisfies readonly (typeof TENANT_ROLES)[number][];
+
+const permissionCellSchema = z.object({
+  granted: z.boolean(),
+  /** Valeur du catalogue (packages/shared) : celle rétablie par « Valeur du catalogue ». */
+  catalogDefault: z.boolean(),
+});
+
+export const platformPermissionMatrixSchema = z.object({
+  roles: z.array(tenantRoleSchema),
+  permissions: z.array(
+    z.object({
+      key: z.string(),
+      module: z.string(),
+      description: z.string(),
+      /** false : permission critique, que les traiteurs ne peuvent pas ajuster. */
+      isTenantEditable: z.boolean(),
+      cells: z.record(tenantRoleSchema, permissionCellSchema),
+    }),
+  ),
+});
+export type PlatformPermissionMatrix = z.infer<typeof platformPermissionMatrixSchema>;
+
+/** Une case : égale à la valeur du catalogue, elle redevient une case du catalogue. */
+export const platformPermissionUpdateSchema = z.object({ granted: z.boolean() });
+export type PlatformPermissionUpdateInput = z.infer<typeof platformPermissionUpdateSchema>;

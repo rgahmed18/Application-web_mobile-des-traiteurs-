@@ -295,7 +295,8 @@
       "TRAITEUR_NOT_SUSPENDED": "Ce traiteur n’est pas suspendu.",
       "TRAITEUR_NOT_IN_TRIAL": "Ce traiteur n’est pas en essai.",
       "PLATFORM_ACCESS_ENDED": "Accès au traiteur terminé : retour à la console.",
-      "PLATFORM_ACCESS_REQUIRED": "Réservé au super admin entré chez un traiteur."
+      "PLATFORM_ACCESS_REQUIRED": "Réservé au super admin entré chez un traiteur.",
+      "PERMISSION_NOT_FOUND": "Permission introuvable."
     }
   },
   "validation": {
@@ -1907,7 +1908,8 @@
       "dashboard": "Tableau de bord",
       "traiteurs": "Traiteurs",
       "plans": "Offres et fonctionnalités",
-      "audit": "Journal d’audit"
+      "audit": "Journal d’audit",
+      "permissions": "Permissions par défaut"
     },
     "status": {
       "ACTIVE": "Actif",
@@ -1954,7 +1956,8 @@
       "platform_access_started": "Entrée de la plateforme",
       "platform_access_extended": "Accès de la plateforme prolongé",
       "platform_access_ended": "Sortie de la plateforme",
-      "platform_access_request": "Modification par la plateforme"
+      "platform_access_request": "Modification par la plateforme",
+      "platform_permission_default_changed": "Permission par défaut modifiée"
     },
     "traiteurs": {
       "title": "Traiteurs",
@@ -2130,6 +2133,26 @@
       "noTraiteur": "Plateforme",
       "roles": {
         "SUPER_ADMIN": "Super admin",
+        "ADMIN_TRAITEUR": "Administrateur",
+        "EMPLOYE": "Employé",
+        "EQUIPE": "Équipe",
+        "LIVREUR": "Livreur",
+        "CLIENT": "Client"
+      }
+    },
+    "permissions": {
+      "title": "Permissions par défaut",
+      "subtitle": "Ce que chaque rôle peut faire chez tous les traiteurs. Chaque traiteur ajuste ensuite la sienne, sauf les permissions critiques.",
+      "warning": "Chaque case prend effet tout de suite chez tous les traiteurs (sauf ceux qui ont ajusté cette permission eux-mêmes).",
+      "legend": "Un point orange signale une case différente de la valeur prévue par l’application : elle est conservée lors des mises à jour. Le cadenas signale une permission critique, que les traiteurs ne peuvent pas modifier.",
+      "editedCount": "{count, plural, =0 {Aucune case modifiée : valeurs prévues par l’application.} one {# case modifiée par rapport aux valeurs prévues.} other {# cases modifiées par rapport aux valeurs prévues.}}",
+      "permission": "Permission",
+      "critical": "Permission critique : non modifiable par les traiteurs",
+      "editedOn": "Accordée ici, non prévue par l’application",
+      "editedOff": "Retirée ici, prévue par l’application",
+      "granted": "« {permission} » accordée au rôle {role}",
+      "revoked": "« {permission} » retirée au rôle {role}",
+      "roles": {
         "ADMIN_TRAITEUR": "Administrateur",
         "EMPLOYE": "Employé",
         "EQUIPE": "Équipe",

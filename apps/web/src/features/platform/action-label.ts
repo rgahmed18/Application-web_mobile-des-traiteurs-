@@ -26,6 +26,7 @@ const KNOWN_ACTIONS = [
   'platform_access_extended',
   'platform_access_ended',
   'platform_access_request',
+  'platform_permission_default_changed',
 ] as const;
 type KnownAction = (typeof KNOWN_ACTIONS)[number];
 

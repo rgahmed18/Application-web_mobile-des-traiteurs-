@@ -8,6 +8,8 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  type PlatformPermissionMatrix,
+  platformPermissionMatrixSchema,
   type PlatformAuditOptions,
   platformAuditOptionsSchema,
   type PlatformAuditPage,
@@ -153,5 +155,30 @@ export function usePlatformAuditOptions(): UseQueryResult<PlatformAuditOptions> 
     queryKey: [...platformKeys.all, 'audit', 'options'],
     queryFn: ({ signal }) =>
       apiRequest('/platform/audit/options', { schema: platformAuditOptionsSchema, signal }),
+  });
+}
+
+const permissionsKey = [...platformKeys.all, 'permissions'] as const;
+
+/** Matrice des permissions par défaut (tous les traiteurs). */
+export function usePlatformPermissions(): UseQueryResult<PlatformPermissionMatrix> {
+  return useQuery({
+    queryKey: permissionsKey,
+    queryFn: ({ signal }) =>
+      apiRequest('/platform/permissions', { schema: platformPermissionMatrixSchema, signal }),
+  });
+}
+
+/** Une case de la matrice par défaut : effet immédiat chez tous les traiteurs. */
+export function useSetPlatformPermission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ role, key, granted }: { role: string; key: string; granted: boolean }) =>
+      apiRequest(`/platform/permissions/${role}/${key}`, {
+        method: 'PUT',
+        body: { granted },
+        schema: platformPermissionMatrixSchema,
+      }),
+    onSuccess: (matrix) => queryClient.setQueryData(permissionsKey, matrix),
   });
 }

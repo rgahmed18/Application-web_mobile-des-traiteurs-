@@ -411,6 +411,8 @@ describe('Console de la plateforme (application complète)', () => {
         () => request(server()).post(`/api/v1/platform/traiteurs/${traiteur.id}/enter`),
         () => request(server()).get('/api/v1/platform/audit'),
         () => request(server()).get('/api/v1/platform/audit/options'),
+        () => request(server()).get('/api/v1/platform/permissions'),
+        () => request(server()).put('/api/v1/platform/permissions/EQUIPE/catalog.read'),
       ]) {
         const response = await call().set('Authorization', `Bearer ${token}`).expect(403);
         expect(response.body).toMatchObject({ code: 'PLATFORM_ONLY' });
@@ -514,6 +516,100 @@ describe('Console de la plateforme (application complète)', () => {
     expect(options.actions).toEqual(expect.arrayContaining(['platform.access_started']));
     expect(options.traiteurs.map((row) => row.id)).toContain(traiteur.id);
     expect(options.actors.map((row) => row.id)).toContain(access.userId);
+  });
+
+  it('matrice par défaut : modifiable, appliquée aux traiteurs, conservée au déploiement', async () => {
+    interface Matrix {
+      roles: string[];
+      permissions: {
+        key: string;
+        cells: Record<string, { granted: boolean; catalogDefault: boolean }>;
+      }[];
+    }
+    const auth = { Authorization: `Bearer ${platformToken}` };
+    const cell = (matrix: Matrix, key: string, role: string) =>
+      matrix.permissions.find((permission) => permission.key === key)?.cells[role];
+    const set = async (role: string, key: string, granted: boolean) =>
+      (
+        await request(server())
+          .put(`/api/v1/platform/permissions/${role}/${key}`)
+          .set(auth)
+          .send({ granted })
+          .expect(200)
+      ).body as Matrix;
+    const permissionsOf = async (token: string) =>
+      (
+        (await request(server()).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`))
+          .body as { permissions: string[] }
+      ).permissions;
+
+    const initial = (
+      await request(server()).get('/api/v1/platform/permissions').set(auth).expect(200)
+    ).body as Matrix;
+    expect(initial.roles).toEqual(['ADMIN_TRAITEUR', 'EMPLOYE', 'EQUIPE', 'LIVREUR', 'CLIENT']);
+    expect(cell(initial, 'catalog.read', 'EQUIPE')).toEqual({
+      granted: false,
+      catalogDefault: false,
+    });
+    expect(cell(initial, 'orders.cancel', 'ADMIN_TRAITEUR')).toEqual({
+      granted: true,
+      catalogDefault: true,
+    });
+
+    const traiteur = await createTraiteur({ status: 'ACTIVE' });
+    const team = await tokenFor(traiteur.id, 'EQUIPE');
+    const admin = await tokenFor(traiteur.id, 'ADMIN_TRAITEUR');
+    expect(await permissionsOf(team)).not.toContain('catalog.read');
+
+    try {
+      // Accorder et retirer : effet immédiat chez les traiteurs (cache invalidé)
+      expect(cell(await set('EQUIPE', 'catalog.read', true), 'catalog.read', 'EQUIPE')).toEqual({
+        granted: true,
+        catalogDefault: false,
+      });
+      await set('ADMIN_TRAITEUR', 'orders.cancel', false);
+      expect(await permissionsOf(team)).toContain('catalog.read');
+      expect(await permissionsOf(admin)).not.toContain('orders.cancel');
+
+      // Déploiement : la synchronisation du catalogue conserve les cases modifiées
+      await syncPermissionCatalog(prisma);
+      const afterSync = (
+        await request(server()).get('/api/v1/platform/permissions').set(auth).expect(200)
+      ).body as Matrix;
+      expect(cell(afterSync, 'catalog.read', 'EQUIPE')?.granted).toBe(true);
+      expect(cell(afterSync, 'orders.cancel', 'ADMIN_TRAITEUR')?.granted).toBe(false);
+
+      const logged = await prisma.auditLog.findMany({
+        where: { action: 'platform.permission_default_changed', traiteurId: null },
+        orderBy: { createdAt: 'desc' },
+        take: 2,
+      });
+      expect(logged.map((row) => row.after)).toEqual([
+        { key: 'orders.cancel', role: 'ADMIN_TRAITEUR', granted: false, catalogDefault: true },
+        { key: 'catalog.read', role: 'EQUIPE', granted: true, catalogDefault: false },
+      ]);
+
+      await request(server())
+        .put('/api/v1/platform/permissions/SUPER_ADMIN/catalog.read')
+        .set(auth)
+        .send({ granted: true })
+        .expect(400);
+      const unknown = await request(server())
+        .put('/api/v1/platform/permissions/EQUIPE/inconnue.lire')
+        .set(auth)
+        .send({ granted: true })
+        .expect(404);
+      expect(unknown.body).toMatchObject({ code: 'PERMISSION_NOT_FOUND' });
+    } finally {
+      // Retour aux valeurs du catalogue : les cases suivent de nouveau le catalogue
+      await set('EQUIPE', 'catalog.read', false);
+      await set('ADMIN_TRAITEUR', 'orders.cancel', true);
+    }
+    expect(
+      await prisma.rolePermission.count({ where: { traiteurId: null, editedAt: { not: null } } }),
+    ).toBe(0);
+    expect(await permissionsOf(team)).not.toContain('catalog.read');
+    expect(await permissionsOf(admin)).toContain('orders.cancel');
   });
 
   describe('entrer chez un traiteur', () => {

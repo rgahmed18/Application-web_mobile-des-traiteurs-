@@ -19,6 +19,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  PLATFORM_MATRIX_ROLES,
+  type PlatformPermissionMatrix,
+  platformPermissionMatrixSchema,
+  type PlatformPermissionUpdateInput,
+  platformPermissionUpdateSchema,
   type PlatformAuditOptions,
   platformAuditOptionsSchema,
   type PlatformAuditPage,
@@ -52,6 +57,7 @@ import {
   platformTrialUpdateSchema,
   subscriptionPlanSchema,
 } from '@traiteur/shared';
+import { z } from 'zod';
 
 import type { AuthenticatedUser } from '../auth/auth-user';
 import { CurrentUser } from '../auth/decorators';
@@ -61,6 +67,7 @@ import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
 import { PlatformAuditService } from './platform-audit.service';
 import { PlatformDashboardService } from './platform-dashboard.service';
+import { PlatformPermissionsService } from './platform-permissions.service';
 import { PlatformPlansService } from './platform-plans.service';
 import { PlatformTraiteurAdminService } from './platform-traiteur-admin.service';
 import { PlatformTraiteursService } from './platform-traiteurs.service';
@@ -78,6 +85,7 @@ export class PlatformController {
     private readonly admin: PlatformTraiteurAdminService,
     private readonly plans: PlatformPlansService,
     private readonly audit: PlatformAuditService,
+    private readonly permissionMatrix: PlatformPermissionsService,
   ) {}
 
   @Get('dashboard')
@@ -258,5 +266,31 @@ export class PlatformController {
   @ApiOkResponse({ schema: zodToOpenApi(platformAuditOptionsSchema, 'output') })
   auditOptions(): Promise<PlatformAuditOptions> {
     return this.audit.options();
+  }
+
+  @Get('permissions')
+  @ApiOperation({ summary: 'Matrice des permissions par défaut (tous les traiteurs)' })
+  @ApiOkResponse({ schema: zodToOpenApi(platformPermissionMatrixSchema, 'output') })
+  permissions(): Promise<PlatformPermissionMatrix> {
+    return this.permissionMatrix.matrix();
+  }
+
+  @Put('permissions/:role/:key')
+  @ApiOperation({
+    summary:
+      'Accorde ou retire une permission à un rôle dans la matrice par défaut (case conservée au déploiement)',
+  })
+  @ApiBody({ schema: zodToOpenApi(platformPermissionUpdateSchema) })
+  @ApiOkResponse({ schema: zodToOpenApi(platformPermissionMatrixSchema, 'output') })
+  setPermission(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('role', new ZodValidationPipe(z.enum(PLATFORM_MATRIX_ROLES)))
+    role: (typeof PLATFORM_MATRIX_ROLES)[number],
+    @Param('key', new ZodValidationPipe(z.string().regex(/^[a-z_]+\.[a-z_]+$/))) key: string,
+    @Body(new ZodValidationPipe(platformPermissionUpdateSchema))
+    body: PlatformPermissionUpdateInput,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformPermissionMatrix> {
+    return this.permissionMatrix.setDefault(user, key, role, body.granted, client);
   }
 }

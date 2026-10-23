@@ -137,6 +137,21 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await expect(auditList.getByRole('listitem')).toHaveCount(1);
   await expect(auditList).toContainText('Abonnement impayé');
 
+  // ─── Permissions par défaut : une case accordée puis remise à la valeur prévue ───
+  await page.getByRole('link', { name: 'Permissions par défaut' }).first().click();
+  const editedCount = page.getByTestId('permissions-edited-count');
+  await expect(editedCount).toContainText('Aucune case modifiée');
+  const teamCatalog = page.getByRole('checkbox', { name: 'Consulter le catalogue — Équipe' });
+  await expect(teamCatalog).not.toBeChecked();
+  await teamCatalog.click();
+  await expect(page.getByText('« Consulter le catalogue » accordée au rôle Équipe')).toBeVisible();
+  await expect(teamCatalog).toBeChecked();
+  await expect(editedCount).toContainText('1 case modifiée');
+  await expect(page.getByTestId('permission-edited')).toHaveCount(1);
+  await teamCatalog.click();
+  await expect(teamCatalog).not.toBeChecked();
+  await expect(editedCount).toContainText('Aucune case modifiée');
+
   // ─── Offres : nouveau prix en vigueur, historique conservé ───
   await page.getByRole('link', { name: 'Offres et fonctionnalités' }).first().click();
   await page.getByLabel('Nouveau prix mensuel de l’offre BASIQUE').fill('450');

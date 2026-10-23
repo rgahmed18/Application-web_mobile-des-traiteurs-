@@ -11,7 +11,9 @@ export interface PermissionSyncResult {
  * Aligne la base sur le catalogue des permissions (packages/shared) :
  *   - crée ou met à jour chaque permission ;
  *   - supprime les permissions retirées du catalogue (et leurs droits) ;
- *   - aligne la matrice par défaut (RolePermission avec traiteurId = null) ;
+ *   - aligne la matrice par défaut (RolePermission avec traiteurId = null), sauf les cases
+ *     modifiées dans la console (editedAt) : jamais écrasées, seules les nouvelles permissions et
+ *     les cases non modifiées suivent le catalogue ;
  *   - supprime les surcharges des traiteurs sur les permissions non modifiables (déjà ignorées
  *     au calcul des droits) : une permission verrouillée après coup ne garde aucune dérogation.
  * Les autres surcharges des traiteurs sont conservées. Utilisé au déploiement, par le seed et
@@ -45,12 +47,12 @@ export async function syncPermissionCatalog(prisma: PrismaClient): Promise<Permi
     })),
   );
 
-  // Matrice par défaut : ajout des droits manquants…
+  // Matrice par défaut : ajout des droits manquants (une case modifiée existe déjà : ignorée)…
   await prisma.rolePermission.createMany({ data: desired, skipDuplicates: true });
-  // …et retrait de ceux qui ne figurent plus dans le catalogue.
+  // …et retrait de ceux qui ne figurent plus dans le catalogue, hors cases modifiées.
   const desiredKeys = new Set(desired.map((grant) => `${grant.role}:${grant.permissionId}`));
   const existing = await prisma.rolePermission.findMany({
-    where: { traiteurId: null },
+    where: { traiteurId: null, editedAt: null },
     select: { id: true, role: true, permissionId: true },
   });
   const obsolete = existing.filter((row) => !desiredKeys.has(`${row.role}:${row.permissionId}`));

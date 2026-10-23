@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { StaffModule } from '../staff/staff.module';
 import { PlatformAuditService } from './platform-audit.service';
 import { PlatformDashboardService } from './platform-dashboard.service';
+import { PlatformPermissionsService } from './platform-permissions.service';
 import { PlatformPlansService } from './platform-plans.service';
 import { PlatformTraiteurAdminService } from './platform-traiteur-admin.service';
 import { PlatformTraiteursService } from './platform-traiteurs.service';
@@ -19,6 +20,7 @@ import { PlatformGuard } from './platform.guard';
     PlatformTraiteurAdminService,
     PlatformPlansService,
     PlatformAuditService,
+    PlatformPermissionsService,
     PlatformGuard,
   ],
 })
