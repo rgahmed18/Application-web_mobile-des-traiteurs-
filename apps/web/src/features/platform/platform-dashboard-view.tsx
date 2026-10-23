@@ -12,20 +12,8 @@ import { useSession } from '@/features/auth/session-provider';
 import { formatDateTime } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
 
+import { useActionLabel } from './action-label';
 import { usePlatformDashboard } from './platform-api';
-
-/** Actions du journal qui ont un libellé (les autres s'affichent telles quelles). */
-const KNOWN_ACTIONS = [
-  'traiteur_created',
-  'super_admin_created',
-  'super_admin_activated',
-  'super_admin_2fa_reset',
-  'platform_traiteur_created',
-  'platform_admin_invitation_resent',
-] as const;
-function isKnownAction(action: string): action is (typeof KNOWN_ACTIONS)[number] {
-  return (KNOWN_ACTIONS as readonly string[]).includes(action);
-}
 
 const STATUS_CLASS: Record<TraiteurStatus, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
@@ -78,7 +66,7 @@ export function orderVariation(current: number, previous: number): number | null
 /** Tableau de bord de la plateforme : chiffres agrégés uniquement, aucune donnée de client. */
 export function PlatformDashboardView() {
   const t = useTranslations('platform.dashboard');
-  const ta = useTranslations('platform.actions');
+  const actionLabel = useActionLabel();
   const locale = useLocale();
   const { user } = useSession();
   const dashboard = usePlatformDashboard();
@@ -99,11 +87,6 @@ export function PlatformDashboardView() {
     variation === null
       ? t('noPreviousMonth')
       : t('variation', { percent: variation > 0 ? `+${variation}` : String(variation) });
-  // Clés sans point (réservé à l'imbrication des messages) : « traiteur.created » → « traiteur_created »
-  const actionLabel = (action: string) => {
-    const key = action.replaceAll('.', '_');
-    return isKnownAction(key) ? ta(key) : action;
-  };
 
   return (
     <div className="flex flex-col gap-6">

@@ -233,6 +233,9 @@ model Traiteur {
   status               TraiteurStatus   @default(TRIAL)
   // Fin de la période d'essai (statut TRIAL) : 30 jours par défaut, modifiable par traiteur
   trialEndsAt          DateTime?
+  // Suspension par la plateforme (impayé…) : accès coupé à la requête suivante, motif conservé
+  suspendedAt          DateTime?
+  suspensionReason     String?
   defaultLocale        Locale           @default(fr)
   currency             String           @default("MAD") @db.Char(3)
   timezone             String           @default("Africa/Casablanca")

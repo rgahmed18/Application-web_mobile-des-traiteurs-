@@ -144,9 +144,13 @@ export function TraiteurList() {
                 className="grid grid-cols-1 gap-2 p-4 md:grid-cols-[2fr_1fr_1fr_2fr_auto] md:items-center"
               >
                 <span className="flex flex-col">
-                  <span className="font-medium" dir="auto">
+                  <Link
+                    href={`/platform/traiteurs/${traiteur.id}`}
+                    className="font-medium underline-offset-4 hover:underline"
+                    dir="auto"
+                  >
                     {traiteur.name}
-                  </span>
+                  </Link>
                   <span className="text-xs text-muted-foreground" dir="ltr">
                     {traiteur.slug} · {traiteur.city ?? '—'}
                   </span>

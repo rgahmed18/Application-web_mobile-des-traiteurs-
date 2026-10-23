@@ -78,6 +78,26 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await expect(page.getByTestId('admin-link-dialog')).toBeVisible();
   await page.getByTestId('admin-link-dialog').getByRole('button', { name: 'Terminé' }).click();
 
+  // ─── Fiche du traiteur : suspension motivée, accès coupé, réactivation ───
+  await row.getByRole('link', { name: `Saveurs ${suffix}` }).click();
+  const detail = page.getByTestId('traiteur-detail');
+  await expect(detail.getByRole('heading', { level: 1 })).toHaveText(`Saveurs ${suffix}`);
+  await detail.getByRole('button', { name: 'Suspendre' }).click();
+  const suspendDialog = page.getByRole('dialog', { name: /Suspendre Saveurs/ });
+  await suspendDialog.getByLabel('Motif (conservé dans l’historique)').fill('Abonnement impayé');
+  await suspendDialog.getByRole('button', { name: 'Suspendre' }).click();
+  await expect(detail.getByRole('alert')).toContainText('Abonnement impayé');
+  await expect(page.getByTestId('traiteur-history')).toContainText('Traiteur suspendu');
+  await detail.getByRole('button', { name: 'Réactiver' }).click();
+  await expect(detail.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByTestId('traiteur-history')).toContainText('Traiteur réactivé');
+
+  // ─── Offres : nouveau prix en vigueur, historique conservé ───
+  await page.getByRole('link', { name: 'Offres et fonctionnalités' }).first().click();
+  await page.getByLabel('Nouveau prix mensuel de l’offre BASIQUE').fill('450');
+  await page.getByTestId('plan-BASIQUE').getByRole('button', { name: 'Appliquer' }).click();
+  await expect(page.getByTestId('plan-price-BASIQUE')).toContainText('450,00');
+
   // ─── Mon compte : activée, imposée (pas de bouton Désactiver) ───
   await page.goto('/platform/account');
   const status = page.getByTestId('two-factor-status');

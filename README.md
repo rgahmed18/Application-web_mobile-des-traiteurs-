@@ -439,6 +439,13 @@ dans la barre latérale ; « Gestion Traiteurs » est réservé à la console.
   WhatsApp), jamais de mot de passe. **Renvoyer le lien** tant qu'il n'a pas activé son accès
   (l'ancien lien est annulé). Chaque action est tracée (`platform.traiteur_created`,
   `platform.admin_invitation_resent`).
+- **Fiche d'un traiteur** (`/platform/traiteurs/<id>`) : changer l'offre (fonctionnalités remises à
+  celles de l'offre au choix), activer ou couper une fonctionnalité (effet immédiat : cache vidé),
+  prolonger ou raccourcir l'essai, activer l'abonnement avant terme, **suspendre** avec un motif
+  (traiteur, équipe et clients sans accès dès la requête suivante, catalogue public masqué)
+  puis réactiver ; historique des actions de la plateforme sur ce traiteur.
+- **Offres et fonctionnalités** (`/platform/plans`) : prix mensuel de chaque offre modifiable,
+  en vigueur tout de suite, historique conservé ; fonctionnalités incluses par offre.
 - Prix des offres (`PlatformPlanPrice`, historique conservé) : 400, 850 et 1 500 MAD par mois au
   départ. Période d'essai : 30 jours par défaut (`Traiteur.trialEndsAt`).
 

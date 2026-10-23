@@ -256,6 +256,117 @@ describe('Console de la plateforme (application complète)', () => {
     ).toMatchObject({ code: 'ADMIN_ALREADY_ACTIVE' });
   });
 
+  it('fiche : offre, fonctionnalité coupée aussitôt, suspension et réactivation, essai, prix', async () => {
+    const send = (method: 'post' | 'put', path: string, body?: object) =>
+      request(server())
+        [method](`/api/v1${path}`)
+        .set('Authorization', `Bearer ${platformToken}`)
+        .send(body);
+    const traiteur = await createTraiteur({
+      status: 'TRIAL',
+      plan: 'BASIQUE',
+      trialEndsAt: new Date(Date.now() + 10 * 86_400_000),
+    });
+    await prisma.featureFlag.createMany({
+      data: [
+        { traiteurId: traiteur.id, key: 'quotes', enabled: true },
+        { traiteurId: traiteur.id, key: 'invoices', enabled: true },
+      ],
+    });
+    const adminToken = await tokenFor(traiteur.id, 'ADMIN_TRAITEUR');
+    const quotesOf = () =>
+      request(server())
+        .get(`/api/v1/orders/${randomUUID()}/quotes`)
+        .set('Authorization', `Bearer ${adminToken}`);
+    await quotesOf().expect(404);
+
+    // Offre PREMIUM avec ses fonctionnalités
+    const premium = (
+      await send('put', `/platform/traiteurs/${traiteur.id}/plan`, {
+        plan: 'PREMIUM',
+        applyPlanFeatures: true,
+      }).expect(200)
+    ).body as {
+      plan: string;
+      features: { key: string; enabled: boolean; includedInPlan: boolean }[];
+    };
+    expect(premium.plan).toBe('PREMIUM');
+    expect(premium.features.find((item) => item.key === 'whatsapp')).toMatchObject({
+      enabled: true,
+      includedInPlan: true,
+    });
+
+    // Devis coupés : refusés aussitôt au traiteur (cache vidé)
+    await send('put', `/platform/traiteurs/${traiteur.id}/features/quotes`, {
+      enabled: false,
+    }).expect(200);
+    expect((await quotesOf().expect(403)).body).toMatchObject({ code: 'FEATURE_DISABLED' });
+    await send('put', `/platform/traiteurs/${traiteur.id}/features/inconnue`, {
+      enabled: true,
+    }).expect(400);
+
+    // Suspension : motif obligatoire, accès coupé à la requête suivante, puis réactivation
+    await send('post', `/platform/traiteurs/${traiteur.id}/suspend`, { reason: '' }).expect(400);
+    const suspended = (
+      await send('post', `/platform/traiteurs/${traiteur.id}/suspend`, {
+        reason: 'Abonnement impayé (octobre)',
+      }).expect(200)
+    ).body as { status: string; suspensionReason: string };
+    expect(suspended).toMatchObject({
+      status: 'SUSPENDED',
+      suspensionReason: 'Abonnement impayé (octobre)',
+    });
+    expect(
+      (
+        await request(server())
+          .get('/api/v1/orders')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(403)
+      ).body,
+    ).toMatchObject({ code: 'TRAITEUR_UNAVAILABLE' });
+    const reactivated = (
+      await send('post', `/platform/traiteurs/${traiteur.id}/reactivate`).expect(200)
+    ).body as { status: string; history: { action: string; reason: string | null }[] };
+    // Essai encore en cours : il reprend
+    expect(reactivated.status).toBe('TRIAL');
+    expect(reactivated.history.map((entry) => entry.action)).toEqual(
+      expect.arrayContaining(['platform.traiteur_suspended', 'platform.traiteur_reactivated']),
+    );
+    expect(
+      reactivated.history.find((entry) => entry.action === 'platform.traiteur_suspended')?.reason,
+    ).toBe('Abonnement impayé (octobre)');
+    await request(server())
+      .get('/api/v1/orders')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    // Essai prolongé, puis abonnement activé avant terme
+    const extended = (
+      await send('put', `/platform/traiteurs/${traiteur.id}/trial`, {
+        trialEndsOn: '2099-01-31',
+      }).expect(200)
+    ).body as { trialEndsAt: string };
+    expect(extended.trialEndsAt.slice(0, 10)).toBe('2099-01-31');
+    expect(
+      (
+        (await send('post', `/platform/traiteurs/${traiteur.id}/activate`).expect(200)).body as {
+          status: string;
+        }
+      ).status,
+    ).toBe('ACTIVE');
+    await send('post', `/platform/traiteurs/${traiteur.id}/activate`).expect(400);
+
+    // Prix d'une offre : nouveau prix en vigueur, historique conservé
+    const plans = (
+      await send('put', '/platform/plans/PRO/price', { monthlyPrice: 90_000 }).expect(200)
+    ).body as { plans: { plan: string; monthlyPrice: number; history: unknown[] }[] };
+    const pro = plans.plans.find((item) => item.plan === 'PRO');
+    expect(pro?.monthlyPrice).toBe(90_000);
+    expect(pro?.history.length).toBeGreaterThanOrEqual(2);
+    expect((await dashboard()).planPrices.PRO).toBe(90_000);
+    await prisma.platformPlanPrice.deleteMany({ where: { plan: 'PRO', monthlyPrice: 90_000 } });
+  });
+
   it('refusée à tous les autres rôles et au super admin entré chez un traiteur', async () => {
     const traiteur = await createTraiteur({ status: 'ACTIVE' });
     const denied = [
@@ -272,6 +383,11 @@ describe('Console de la plateforme (application complète)', () => {
         () => request(server()).get('/api/v1/platform/traiteurs'),
         () => request(server()).post('/api/v1/platform/traiteurs'),
         () => request(server()).post(`/api/v1/platform/traiteurs/${traiteur.id}/admin-invitation`),
+        () => request(server()).get(`/api/v1/platform/traiteurs/${traiteur.id}`),
+        () => request(server()).put(`/api/v1/platform/traiteurs/${traiteur.id}/plan`),
+        () => request(server()).post(`/api/v1/platform/traiteurs/${traiteur.id}/suspend`),
+        () => request(server()).get('/api/v1/platform/plans'),
+        () => request(server()).put('/api/v1/platform/plans/PRO/price'),
       ]) {
         const response = await call().set('Authorization', `Bearer ${token}`).expect(403);
         expect(response.body).toMatchObject({ code: 'PLATFORM_ONLY' });

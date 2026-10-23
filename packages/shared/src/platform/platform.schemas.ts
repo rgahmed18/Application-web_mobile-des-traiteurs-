@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
+import { FEATURE_KEYS } from '../access/features';
 import { phoneSchema } from '../auth/phone';
 import { subscriptionPlanSchema } from '../enums';
+import { localDateSchema } from '../time/zoned';
 
 /**
  * Console de la plateforme (SUPER_ADMIN) : uniquement des chiffres agrégés, jamais le détail des
@@ -154,3 +156,79 @@ export const platformTraiteurCreateResultSchema = z.object({
   link: platformInvitationLinkSchema,
 });
 export type PlatformTraiteurCreateResult = z.infer<typeof platformTraiteurCreateResultSchema>;
+
+// ─────────────────────────── Fiche d'un traiteur ───────────────────────────
+
+export const featureKeySchema = z.enum(FEATURE_KEYS);
+
+export const platformTraiteurDetailSchema = platformTraiteurSchema.extend({
+  suspendedAt: z.iso.datetime().nullable(),
+  suspensionReason: z.string().nullable(),
+  features: z.array(
+    z.object({
+      key: featureKeySchema,
+      enabled: z.boolean(),
+      /** Incluse par défaut dans l'offre actuelle du traiteur. */
+      includedInPlan: z.boolean(),
+    }),
+  ),
+  /** Actions de la plateforme sur ce traiteur (offre, fonctionnalités, suspension…). */
+  history: z.array(
+    z.object({
+      id: z.uuid(),
+      at: z.iso.datetime(),
+      action: z.string(),
+      actorName: z.string().nullable(),
+      reason: z.string().nullable(),
+    }),
+  ),
+});
+export type PlatformTraiteurDetail = z.infer<typeof platformTraiteurDetailSchema>;
+
+export const platformPlanChangeSchema = z.object({
+  plan: subscriptionPlanSchema,
+  /** Remet les fonctionnalités à celles de la nouvelle offre (sinon, elles sont conservées). */
+  applyPlanFeatures: z.boolean(),
+});
+export type PlatformPlanChangeInput = z.infer<typeof platformPlanChangeSchema>;
+
+export const platformFeatureToggleSchema = z.object({ enabled: z.boolean() });
+export type PlatformFeatureToggleInput = z.infer<typeof platformFeatureToggleSchema>;
+
+export const platformSuspendSchema = z.object({
+  reason: z.string().trim().min(3, 'Motif obligatoire').max(500),
+});
+export type PlatformSuspendInput = z.infer<typeof platformSuspendSchema>;
+
+/** Fin de l'essai (jour, fuseau du Maroc) : prolonger ou raccourcir. */
+export const platformTrialUpdateSchema = z.object({ trialEndsOn: localDateSchema });
+export type PlatformTrialUpdateInput = z.infer<typeof platformTrialUpdateSchema>;
+
+// ─────────────────────────── Offres ───────────────────────────
+
+export const platformPlansSchema = z.object({
+  currency: z.string(),
+  plans: z.array(
+    z.object({
+      plan: subscriptionPlanSchema,
+      /** Prix mensuel en vigueur (centimes, TTC). */
+      monthlyPrice: z.number().int(),
+      features: z.array(featureKeySchema),
+      /** Traiteurs actifs ou en essai sur cette offre. */
+      traiteurs: z.number().int(),
+      history: z.array(
+        z.object({
+          monthlyPrice: z.number().int(),
+          effectiveFrom: z.iso.datetime(),
+          createdBy: z.string().nullable(),
+        }),
+      ),
+    }),
+  ),
+});
+export type PlatformPlans = z.infer<typeof platformPlansSchema>;
+
+export const platformPlanPriceSchema = z.object({
+  monthlyPrice: z.number().int().min(0).max(100_000_000),
+});
+export type PlatformPlanPriceInput = z.infer<typeof platformPlanPriceSchema>;

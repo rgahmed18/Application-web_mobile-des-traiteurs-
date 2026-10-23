@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -28,6 +29,22 @@ import {
   platformTraiteurListQuerySchema,
   type PlatformTraiteurPage,
   platformTraiteurPageSchema,
+  featureKeySchema,
+  type PlatformFeatureToggleInput,
+  platformFeatureToggleSchema,
+  type PlatformPlanChangeInput,
+  platformPlanChangeSchema,
+  type PlatformPlanPriceInput,
+  platformPlanPriceSchema,
+  type PlatformPlans,
+  platformPlansSchema,
+  type PlatformSuspendInput,
+  platformSuspendSchema,
+  type PlatformTraiteurDetail,
+  platformTraiteurDetailSchema,
+  type PlatformTrialUpdateInput,
+  platformTrialUpdateSchema,
+  subscriptionPlanSchema,
 } from '@traiteur/shared';
 
 import type { AuthenticatedUser } from '../auth/auth-user';
@@ -37,6 +54,8 @@ import { uuidParam } from '../common/http/uuid-param';
 import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
 import { PlatformDashboardService } from './platform-dashboard.service';
+import { PlatformPlansService } from './platform-plans.service';
+import { PlatformTraiteurAdminService } from './platform-traiteur-admin.service';
 import { PlatformTraiteursService } from './platform-traiteurs.service';
 import { PlatformGuard } from './platform.guard';
 
@@ -49,6 +68,8 @@ export class PlatformController {
   constructor(
     private readonly dashboards: PlatformDashboardService,
     private readonly traiteurs: PlatformTraiteursService,
+    private readonly admin: PlatformTraiteurAdminService,
+    private readonly plans: PlatformPlansService,
   ) {}
 
   @Get('dashboard')
@@ -99,5 +120,116 @@ export class PlatformController {
     @Client() client: ClientInfo,
   ): Promise<PlatformTraiteurCreateResult> {
     return this.traiteurs.resendAdminInvitation(user, id, client);
+  }
+
+  @Get('traiteurs/:id')
+  @ApiOperation({
+    summary: 'Fiche d’un traiteur : offre, fonctionnalités, essai, suspension, historique',
+  })
+  @ApiOkResponse({ schema: zodToOpenApi(platformTraiteurDetailSchema, 'output') })
+  traiteur(@Param('id', uuidParam) id: string): Promise<PlatformTraiteurDetail> {
+    return this.admin.detail(id);
+  }
+
+  @Put('traiteurs/:id/plan')
+  @ApiOperation({
+    summary: 'Change l’offre (fonctionnalités remises à celles de l’offre au choix)',
+  })
+  @ApiBody({ schema: zodToOpenApi(platformPlanChangeSchema) })
+  @ApiOkResponse({ schema: zodToOpenApi(platformTraiteurDetailSchema, 'output') })
+  changePlan(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Body(new ZodValidationPipe(platformPlanChangeSchema)) body: PlatformPlanChangeInput,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformTraiteurDetail> {
+    return this.admin.changePlan(user, id, body, client);
+  }
+
+  @Put('traiteurs/:id/features/:key')
+  @ApiOperation({ summary: 'Active ou désactive une fonctionnalité pour ce traiteur' })
+  @ApiBody({ schema: zodToOpenApi(platformFeatureToggleSchema) })
+  @ApiOkResponse({ schema: zodToOpenApi(platformTraiteurDetailSchema, 'output') })
+  toggleFeature(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Param('key', new ZodValidationPipe(featureKeySchema))
+    key: (typeof featureKeySchema)['options'][number],
+    @Body(new ZodValidationPipe(platformFeatureToggleSchema)) body: PlatformFeatureToggleInput,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformTraiteurDetail> {
+    return this.admin.toggleFeature(user, id, key, body.enabled, client);
+  }
+
+  @Post('traiteurs/:id/suspend')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Suspend le traiteur (motif obligatoire) : accès coupé aussitôt' })
+  @ApiBody({ schema: zodToOpenApi(platformSuspendSchema) })
+  @ApiOkResponse({ schema: zodToOpenApi(platformTraiteurDetailSchema, 'output') })
+  suspend(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Body(new ZodValidationPipe(platformSuspendSchema)) body: PlatformSuspendInput,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformTraiteurDetail> {
+    return this.admin.suspend(user, id, body.reason, client);
+  }
+
+  @Post('traiteurs/:id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Réactive un traiteur suspendu (essai s’il n’est pas terminé)' })
+  @ApiOkResponse({ schema: zodToOpenApi(platformTraiteurDetailSchema, 'output') })
+  reactivate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformTraiteurDetail> {
+    return this.admin.reactivate(user, id, client);
+  }
+
+  @Put('traiteurs/:id/trial')
+  @ApiOperation({ summary: 'Fin de l’essai : prolonger ou raccourcir' })
+  @ApiBody({ schema: zodToOpenApi(platformTrialUpdateSchema) })
+  @ApiOkResponse({ schema: zodToOpenApi(platformTraiteurDetailSchema, 'output') })
+  updateTrial(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Body(new ZodValidationPipe(platformTrialUpdateSchema)) body: PlatformTrialUpdateInput,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformTraiteurDetail> {
+    return this.admin.updateTrial(user, id, body.trialEndsOn, client);
+  }
+
+  @Post('traiteurs/:id/activate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Termine l’essai : abonnement actif tout de suite' })
+  @ApiOkResponse({ schema: zodToOpenApi(platformTraiteurDetailSchema, 'output') })
+  activate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformTraiteurDetail> {
+    return this.admin.activateSubscription(user, id, client);
+  }
+
+  @Get('plans')
+  @ApiOperation({ summary: 'Offres : prix en vigueur, historique, fonctionnalités, traiteurs' })
+  @ApiOkResponse({ schema: zodToOpenApi(platformPlansSchema, 'output') })
+  listPlans(): Promise<PlatformPlans> {
+    return this.plans.plans();
+  }
+
+  @Put('plans/:plan/price')
+  @ApiOperation({ summary: 'Nouveau prix mensuel, en vigueur tout de suite (historique conservé)' })
+  @ApiBody({ schema: zodToOpenApi(platformPlanPriceSchema) })
+  @ApiOkResponse({ schema: zodToOpenApi(platformPlansSchema, 'output') })
+  setPlanPrice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('plan', new ZodValidationPipe(subscriptionPlanSchema))
+    plan: (typeof subscriptionPlanSchema)['options'][number],
+    @Body(new ZodValidationPipe(platformPlanPriceSchema)) body: PlatformPlanPriceInput,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformPlans> {
+    return this.plans.setPrice(user, plan, body.monthlyPrice, client);
   }
 }

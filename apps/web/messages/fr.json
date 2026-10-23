@@ -290,7 +290,10 @@
       "TWO_FACTOR_REQUIRED": "La double authentification est obligatoire pour ce compte.",
       "ADMIN_IS_SUPER_ADMIN": "Ce téléphone est celui d’un super admin : utilisez celui de l’administrateur du traiteur.",
       "ADMIN_ALREADY_ACTIVE": "L’administrateur a déjà activé son accès.",
-      "PLATFORM_ONLY": "Réservé à la console de la plateforme."
+      "PLATFORM_ONLY": "Réservé à la console de la plateforme.",
+      "TRAITEUR_ALREADY_SUSPENDED": "Ce traiteur est déjà suspendu.",
+      "TRAITEUR_NOT_SUSPENDED": "Ce traiteur n’est pas suspendu.",
+      "TRAITEUR_NOT_IN_TRIAL": "Ce traiteur n’est pas en essai."
     }
   },
   "validation": {
@@ -1900,7 +1903,8 @@
     "privacyNote": "Aucune donnée client n’est affichée ici : seulement des chiffres agrégés.",
     "nav": {
       "dashboard": "Tableau de bord",
-      "traiteurs": "Traiteurs"
+      "traiteurs": "Traiteurs",
+      "plans": "Offres et fonctionnalités"
     },
     "status": {
       "ACTIVE": "Actif",
@@ -1936,7 +1940,14 @@
       "super_admin_activated": "Compte super admin activé",
       "super_admin_2fa_reset": "Double authentification réinitialisée (serveur)",
       "platform_traiteur_created": "Traiteur créé (console)",
-      "platform_admin_invitation_resent": "Lien d’activation renvoyé"
+      "platform_admin_invitation_resent": "Lien d’activation renvoyé",
+      "platform_plan_changed": "Offre changée",
+      "platform_feature_toggled": "Fonctionnalité modifiée",
+      "platform_traiteur_suspended": "Traiteur suspendu",
+      "platform_traiteur_reactivated": "Traiteur réactivé",
+      "platform_trial_updated": "Fin de l’essai modifiée",
+      "platform_subscription_activated": "Abonnement activé",
+      "platform_plan_price_changed": "Prix d’une offre modifié"
     },
     "traiteurs": {
       "title": "Traiteurs",
@@ -1991,6 +2002,79 @@
       "once": "Ce lien ne s’affiche qu’une fois. Si besoin, renvoyez-en un nouveau depuis la liste des traiteurs.",
       "done": "Terminé",
       "message": "Bonjour {name}, votre espace de gestion {traiteur} est prêt. Activez votre accès ici : {url}"
+    },
+    "features": {
+      "quotes": "Devis",
+      "invoices": "Factures",
+      "online_payment": "Paiement en ligne",
+      "staff_app": "Application du personnel",
+      "delivery_tracking": "Suivi des livraisons",
+      "multi_language": "Français et arabe",
+      "analytics": "Statistiques",
+      "chatbot": "Assistant conversationnel",
+      "whatsapp": "WhatsApp",
+      "custom_domain": "Domaine personnalisé"
+    },
+    "detail": {
+      "back": "Traiteurs",
+      "createdOn": "créé le {date}",
+      "suspendedSince": "Suspendu depuis le {date} — motif : {reason}",
+      "reactivate": "Réactiver",
+      "reactivated": "Traiteur réactivé",
+      "planTitle": "Offre",
+      "planHint": "Le prix mensuel suit l’offre (page « Offres et fonctionnalités »).",
+      "applyFeatures": "Remettre les fonctionnalités à celles de la nouvelle offre",
+      "changePlan": "Changer l’offre",
+      "planSaved": "Offre modifiée",
+      "subscriptionTitle": "Abonnement",
+      "trialEndsOn": "Fin de l’essai",
+      "saveTrial": "Modifier la fin de l’essai",
+      "trialSaved": "Fin de l’essai modifiée",
+      "activateNow": "Activer l’abonnement maintenant",
+      "activated": "Abonnement activé",
+      "statusText": {
+        "ACTIVE": "Abonnement actif.",
+        "TRIAL": "En essai.",
+        "SUSPENDED": "Suspendu : aucun accès pour le traiteur, son équipe et ses clients.",
+        "CANCELLED": "Résilié."
+      },
+      "suspend": "Suspendre",
+      "suspendTitle": "Suspendre {name} ?",
+      "suspendDescription": "Le traiteur, son équipe et ses clients perdent l’accès dès leur prochaine action, et son catalogue public n’est plus affiché. Ses données sont conservées ; vous pourrez le réactiver.",
+      "suspendReason": "Motif (conservé dans l’historique)",
+      "suspendPlaceholder": "Ex. abonnement impayé depuis le 1er octobre",
+      "suspended": "Traiteur suspendu",
+      "featuresTitle": "Fonctionnalités",
+      "featuresHint": "Activer ou couper une fonctionnalité prend effet tout de suite.",
+      "inPlan": "incluse dans l’offre",
+      "featureOn": "Fonctionnalité activée",
+      "featureOff": "Fonctionnalité désactivée",
+      "adminTitle": "Administrateur",
+      "adminStatus": {
+        "INVITED": "Invité : accès pas encore activé",
+        "ACTIVE": "Accès activé",
+        "SUSPENDED": "Accès suspendu"
+      },
+      "resend": "Renvoyer le lien d’activation",
+      "historyTitle": "Historique de la plateforme",
+      "noHistory": "Aucune action pour le moment."
+    },
+    "plans": {
+      "title": "Offres et fonctionnalités",
+      "subtitle": "Prix mensuels (historique conservé) et fonctionnalités incluses dans chaque offre.",
+      "perMonth": "{price} / mois",
+      "traiteurs": "{count, plural, =0 {aucun traiteur} one {# traiteur actif ou en essai} other {# traiteurs actifs ou en essai}}",
+      "newPrice": "Nouveau prix mensuel",
+      "newPriceFor": "Nouveau prix mensuel de l’offre {plan}",
+      "apply": "Appliquer",
+      "saved": "Nouveau prix en vigueur",
+      "history": "Historique",
+      "initial": "valeur de départ",
+      "featuresTitle": "Fonctionnalités par offre",
+      "featuresHint": "Valeurs appliquées à la création d’un traiteur ou au changement d’offre ; chaque traiteur peut ensuite être ajusté depuis sa fiche.",
+      "feature": "Fonctionnalité",
+      "yes": "incluse",
+      "no": "non incluse"
     }
   }
 }

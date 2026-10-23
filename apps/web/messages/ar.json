@@ -290,7 +290,10 @@
       "TWO_FACTOR_REQUIRED": "التحقق بخطوتين إلزامي لهذا الحساب.",
       "ADMIN_IS_SUPER_ADMIN": "هذا الهاتف خاص بمشرف عام: استعمل هاتف مسؤول الممون.",
       "ADMIN_ALREADY_ACTIVE": "سبق للمسؤول تفعيل ولوجه.",
-      "PLATFORM_ONLY": "خاص بلوحة المنصة."
+      "PLATFORM_ONLY": "خاص بلوحة المنصة.",
+      "TRAITEUR_ALREADY_SUSPENDED": "هذا الممون موقوف مسبقاً.",
+      "TRAITEUR_NOT_SUSPENDED": "هذا الممون غير موقوف.",
+      "TRAITEUR_NOT_IN_TRIAL": "هذا الممون ليس في فترة التجربة."
     }
   },
   "validation": {
@@ -1900,7 +1903,8 @@
     "privacyNote": "لا تُعرض هنا أي معطيات للزبناء: أرقام إجمالية فقط.",
     "nav": {
       "dashboard": "لوحة القيادة",
-      "traiteurs": "الممونون"
+      "traiteurs": "الممونون",
+      "plans": "العروض والوظائف"
     },
     "status": {
       "ACTIVE": "نشط",
@@ -1936,7 +1940,14 @@
       "super_admin_activated": "تفعيل حساب المشرف العام",
       "super_admin_2fa_reset": "إعادة تعيين التحقق بخطوتين (الخادم)",
       "platform_traiteur_created": "إنشاء ممون (لوحة المنصة)",
-      "platform_admin_invitation_resent": "إعادة إرسال رابط التفعيل"
+      "platform_admin_invitation_resent": "إعادة إرسال رابط التفعيل",
+      "platform_plan_changed": "تغيير العرض",
+      "platform_feature_toggled": "تعديل وظيفة",
+      "platform_traiteur_suspended": "إيقاف ممون",
+      "platform_traiteur_reactivated": "إعادة تفعيل ممون",
+      "platform_trial_updated": "تعديل نهاية التجربة",
+      "platform_subscription_activated": "تفعيل الاشتراك",
+      "platform_plan_price_changed": "تعديل ثمن عرض"
     },
     "traiteurs": {
       "title": "الممونون",
@@ -1991,6 +2002,79 @@
       "once": "لا يُعرض هذا الرابط إلا مرة واحدة. عند الحاجة، أعد إرسال رابط جديد من قائمة الممونين.",
       "done": "إنهاء",
       "message": "مرحباً {name}، فضاء تدبير {traiteur} جاهز. فعّل ولوجك هنا: {url}"
+    },
+    "features": {
+      "quotes": "عروض الأسعار",
+      "invoices": "الفواتير",
+      "online_payment": "الأداء الإلكتروني",
+      "staff_app": "تطبيق الفريق",
+      "delivery_tracking": "تتبع التوصيل",
+      "multi_language": "الفرنسية والعربية",
+      "analytics": "الإحصائيات",
+      "chatbot": "المساعد الآلي",
+      "whatsapp": "واتساب",
+      "custom_domain": "نطاق خاص"
+    },
+    "detail": {
+      "back": "الممونون",
+      "createdOn": "أُنشئ في {date}",
+      "suspendedSince": "موقوف منذ {date} — السبب: {reason}",
+      "reactivate": "إعادة التفعيل",
+      "reactivated": "تمت إعادة تفعيل الممون",
+      "planTitle": "العرض",
+      "planHint": "الثمن الشهري حسب العرض (صفحة « العروض والوظائف »).",
+      "applyFeatures": "إرجاع الوظائف إلى وظائف العرض الجديد",
+      "changePlan": "تغيير العرض",
+      "planSaved": "تم تغيير العرض",
+      "subscriptionTitle": "الاشتراك",
+      "trialEndsOn": "نهاية التجربة",
+      "saveTrial": "تعديل نهاية التجربة",
+      "trialSaved": "تم تعديل نهاية التجربة",
+      "activateNow": "تفعيل الاشتراك الآن",
+      "activated": "تم تفعيل الاشتراك",
+      "statusText": {
+        "ACTIVE": "اشتراك نشط.",
+        "TRIAL": "في فترة التجربة.",
+        "SUSPENDED": "موقوف: لا ولوج للممون وفريقه وزبنائه.",
+        "CANCELLED": "مفسوخ."
+      },
+      "suspend": "إيقاف",
+      "suspendTitle": "إيقاف {name}؟",
+      "suspendDescription": "يفقد الممون وفريقه وزبناؤه الولوج عند أول عملية، ولا يُعرض كتالوجه العمومي. تُحفظ معطياته ويمكنك إعادة تفعيله.",
+      "suspendReason": "السبب (يُحفظ في السجل)",
+      "suspendPlaceholder": "مثلاً: اشتراك غير مؤدى منذ فاتح أكتوبر",
+      "suspended": "تم إيقاف الممون",
+      "featuresTitle": "الوظائف",
+      "featuresHint": "تفعيل وظيفة أو إيقافها يسري فوراً.",
+      "inPlan": "مضمنة في العرض",
+      "featureOn": "تم تفعيل الوظيفة",
+      "featureOff": "تم إيقاف الوظيفة",
+      "adminTitle": "المسؤول",
+      "adminStatus": {
+        "INVITED": "مدعو: لم يُفعّل الولوج بعد",
+        "ACTIVE": "الولوج مفعّل",
+        "SUSPENDED": "الولوج موقوف"
+      },
+      "resend": "إعادة إرسال رابط التفعيل",
+      "historyTitle": "سجل المنصة",
+      "noHistory": "لا توجد عمليات حالياً."
+    },
+    "plans": {
+      "title": "العروض والوظائف",
+      "subtitle": "الأثمنة الشهرية (مع السجل) والوظائف المضمنة في كل عرض.",
+      "perMonth": "{price} / شهرياً",
+      "traiteurs": "{count, plural, =0 {لا يوجد أي ممون} one {ممون واحد نشط أو في التجربة} two {ممونان نشطان أو في التجربة} few {# ممونين نشطين أو في التجربة} many {# ممونا نشطاً أو في التجربة} other {# ممون نشط أو في التجربة}}",
+      "newPrice": "الثمن الشهري الجديد",
+      "newPriceFor": "الثمن الشهري الجديد للعرض {plan}",
+      "apply": "تطبيق",
+      "saved": "الثمن الجديد ساري المفعول",
+      "history": "السجل",
+      "initial": "القيمة الأولى",
+      "featuresTitle": "الوظائف حسب العرض",
+      "featuresHint": "قيم تُطبق عند إنشاء ممون أو تغيير عرضه؛ ويمكن بعد ذلك ضبط كل ممون من بطاقته.",
+      "feature": "الوظيفة",
+      "yes": "مضمنة",
+      "no": "غير مضمنة"
     }
   }
 }
