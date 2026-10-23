@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { FEATURE_KEYS } from '../access/features';
 import { phoneSchema } from '../auth/phone';
-import { subscriptionPlanSchema } from '../enums';
+import { roleSchema, subscriptionPlanSchema } from '../enums';
 import { localDateSchema } from '../time/zoned';
 
 /**
@@ -251,3 +251,63 @@ export const platformAccessSchema = z.object({
   expiresAt: z.iso.datetime(),
 });
 export type PlatformAccess = z.infer<typeof platformAccessSchema>;
+
+// ─────────────────────────── Journal d'audit ───────────────────────────
+
+/**
+ * Journal d'audit de la console. Portée « platform » (par défaut) : actions des super admins, des
+ * commandes serveur et de la console ; « all » : toutes les actions, y compris celles des équipes
+ * des traiteurs (sans leur contenu : ni avant/après, ni nom d'un client).
+ */
+export const PLATFORM_AUDIT_SCOPES = ['platform', 'all'] as const;
+
+export const platformAuditQuerySchema = z
+  .object({
+    scope: z.enum(PLATFORM_AUDIT_SCOPES).default('platform'),
+    actorUserId: z.uuid().optional(),
+    action: z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9_.]{1,80}$/)
+      .optional(),
+    traiteurId: z.uuid().optional(),
+    from: localDateSchema.optional(),
+    to: localDateSchema.optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .refine((query) => !query.from || !query.to || query.from <= query.to, {
+    message: 'Période invalide',
+    path: ['to'],
+  });
+export type PlatformAuditQuery = z.infer<typeof platformAuditQuerySchema>;
+
+export const platformAuditEntrySchema = z.object({
+  id: z.uuid(),
+  at: z.iso.datetime(),
+  action: z.string(),
+  traiteur: z.object({ id: z.uuid(), name: z.string() }).nullable(),
+  /** Auteur : nom masqué pour un client (seul son rôle est indiqué) ; null : action système. */
+  actor: z.object({ name: z.string().nullable(), role: roleSchema.nullable() }).nullable(),
+  entityType: z.string(),
+  /** Motif (actions de la console) ou requête faite chez un traiteur (méthode, chemin, statut). */
+  detail: z.string().nullable(),
+  ipAddress: z.string().nullable(),
+});
+export type PlatformAuditEntry = z.infer<typeof platformAuditEntrySchema>;
+
+export const platformAuditPageSchema = z.object({
+  items: z.array(platformAuditEntrySchema),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+});
+export type PlatformAuditPage = z.infer<typeof platformAuditPageSchema>;
+
+/** Valeurs proposées par les filtres : super admins, actions enregistrées, traiteurs. */
+export const platformAuditOptionsSchema = z.object({
+  actors: z.array(z.object({ id: z.uuid(), name: z.string() })),
+  actions: z.array(z.string()),
+  traiteurs: z.array(z.object({ id: z.uuid(), name: z.string() })),
+});
+export type PlatformAuditOptions = z.infer<typeof platformAuditOptionsSchema>;

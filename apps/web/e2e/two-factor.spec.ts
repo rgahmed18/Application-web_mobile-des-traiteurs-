@@ -124,6 +124,19 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await expect(history).toContainText('Accès de la plateforme prolongé');
   await expect(history).toContainText('Sortie de la plateforme');
 
+  // ─── Journal d'audit : filtré sur ce traiteur ───
+  await page.getByRole('link', { name: 'Journal d’audit' }).first().click();
+  await page.getByLabel('Traiteur', { exact: true }).click();
+  await page.getByRole('option', { name: `Saveurs ${suffix}` }).click();
+  const auditList = page.getByTestId('audit-list');
+  await expect(auditList).toContainText('Entrée de la plateforme');
+  await expect(auditList).toContainText('Aide à la saisie du catalogue');
+  await expect(auditList).toContainText('Traiteur suspendu');
+  await page.getByLabel('Quoi').click();
+  await page.getByRole('option', { name: 'Traiteur suspendu' }).click();
+  await expect(auditList.getByRole('listitem')).toHaveCount(1);
+  await expect(auditList).toContainText('Abonnement impayé');
+
   // ─── Offres : nouveau prix en vigueur, historique conservé ───
   await page.getByRole('link', { name: 'Offres et fonctionnalités' }).first().click();
   await page.getByLabel('Nouveau prix mensuel de l’offre BASIQUE').fill('450');

@@ -19,6 +19,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  type PlatformAuditOptions,
+  platformAuditOptionsSchema,
+  type PlatformAuditPage,
+  platformAuditPageSchema,
+  type PlatformAuditQuery,
+  platformAuditQuerySchema,
   type PlatformDashboard,
   platformDashboardSchema,
   type PlatformTraiteurCreateInput,
@@ -53,6 +59,7 @@ import { Client, type ClientInfo } from '../common/http/client-info';
 import { uuidParam } from '../common/http/uuid-param';
 import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
+import { PlatformAuditService } from './platform-audit.service';
 import { PlatformDashboardService } from './platform-dashboard.service';
 import { PlatformPlansService } from './platform-plans.service';
 import { PlatformTraiteurAdminService } from './platform-traiteur-admin.service';
@@ -70,6 +77,7 @@ export class PlatformController {
     private readonly traiteurs: PlatformTraiteursService,
     private readonly admin: PlatformTraiteurAdminService,
     private readonly plans: PlatformPlansService,
+    private readonly audit: PlatformAuditService,
   ) {}
 
   @Get('dashboard')
@@ -231,5 +239,24 @@ export class PlatformController {
     @Client() client: ClientInfo,
   ): Promise<PlatformPlans> {
     return this.plans.setPrice(user, plan, body.monthlyPrice, client);
+  }
+
+  @Get('audit')
+  @ApiOperation({
+    summary:
+      'Journal d’audit : qui, quoi, chez quel traiteur, quand (sans le contenu des actions des traiteurs)',
+  })
+  @ApiOkResponse({ schema: zodToOpenApi(platformAuditPageSchema, 'output') })
+  auditLog(
+    @Query(new ZodValidationPipe(platformAuditQuerySchema)) query: PlatformAuditQuery,
+  ): Promise<PlatformAuditPage> {
+    return this.audit.list(query);
+  }
+
+  @Get('audit/options')
+  @ApiOperation({ summary: 'Valeurs des filtres du journal : super admins, actions, traiteurs' })
+  @ApiOkResponse({ schema: zodToOpenApi(platformAuditOptionsSchema, 'output') })
+  auditOptions(): Promise<PlatformAuditOptions> {
+    return this.audit.options();
   }
 }

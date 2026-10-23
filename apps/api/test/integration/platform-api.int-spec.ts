@@ -409,6 +409,8 @@ describe('Console de la plateforme (application complète)', () => {
         () => request(server()).get('/api/v1/platform/plans'),
         () => request(server()).put('/api/v1/platform/plans/PRO/price'),
         () => request(server()).post(`/api/v1/platform/traiteurs/${traiteur.id}/enter`),
+        () => request(server()).get('/api/v1/platform/audit'),
+        () => request(server()).get('/api/v1/platform/audit/options'),
       ]) {
         const response = await call().set('Authorization', `Bearer ${token}`).expect(403);
         expect(response.body).toMatchObject({ code: 'PLATFORM_ONLY' });
@@ -426,6 +428,92 @@ describe('Console de la plateforme (application complète)', () => {
         expect(response.body).toMatchObject({ code: 'PLATFORM_ACCESS_REQUIRED' });
       }
     }
+  });
+
+  it('journal d’audit : filtres (qui, quoi, traiteur, période), jamais de donnée de client', async () => {
+    interface AuditPage {
+      items: {
+        action: string;
+        traiteur: { id: string; name: string } | null;
+        actor: { name: string | null; role: string | null } | null;
+        detail: string | null;
+      }[];
+      total: number;
+    }
+    const audit = async (query: Record<string, string>) =>
+      (
+        await request(server())
+          .get('/api/v1/platform/audit')
+          .query(query)
+          .set('Authorization', `Bearer ${platformToken}`)
+          .expect(200)
+      ).body as AuditPage;
+
+    const traiteur = await createTraiteur({ status: 'ACTIVE' });
+    await request(server())
+      .post(`/api/v1/platform/traiteurs/${traiteur.id}/enter`)
+      .set('Authorization', `Bearer ${platformToken}`)
+      .send({ reason: 'Vérification du journal' })
+      .expect(200);
+    // Action d'un client chez ce traiteur : son nom et le contenu ne sortent jamais
+    const clientUser = await prisma.user.create({
+      data: { phone: randomPhone(), firstName: 'Nadia', lastName: 'Secrète' },
+    });
+    await prisma.auditLog.create({
+      data: {
+        traiteurId: traiteur.id,
+        actorUserId: clientUser.id,
+        actorRole: 'CLIENT',
+        action: 'quote.accepted',
+        entityType: 'Quote',
+        after: { reason: 'Adresse : 12 rue Secrète', clientName: 'Nadia Secrète' },
+      },
+    });
+
+    const platformOnly = await audit({ traiteurId: traiteur.id });
+    expect(platformOnly.items.map((item) => item.action)).toEqual(['platform.access_started']);
+    expect(platformOnly.items[0]).toMatchObject({
+      traiteur: { id: traiteur.id, name: traiteur.name },
+      actor: { role: 'SUPER_ADMIN', name: 'Test SUPER_ADMIN' },
+      detail: 'Vérification du journal',
+    });
+
+    const all = await audit({ traiteurId: traiteur.id, scope: 'all' });
+    expect(all.total).toBe(2);
+    expect(all.items[0]).toMatchObject({
+      action: 'quote.accepted',
+      actor: { name: null, role: 'CLIENT' },
+      detail: null,
+    });
+    expect(JSON.stringify(all)).not.toContain('Secrète');
+
+    expect(
+      (await audit({ traiteurId: traiteur.id, scope: 'all', action: 'quote.accepted' })).total,
+    ).toBe(1);
+    const access = await prisma.platformAccess.findFirstOrThrow({
+      where: { traiteurId: traiteur.id },
+    });
+    expect(
+      (await audit({ traiteurId: traiteur.id, scope: 'all', actorUserId: access.userId })).total,
+    ).toBe(1);
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Casablanca' });
+    expect((await audit({ traiteurId: traiteur.id, from: today, to: today })).total).toBe(1);
+    expect((await audit({ traiteurId: traiteur.id, to: '2020-01-01' })).total).toBe(0);
+    await request(server())
+      .get('/api/v1/platform/audit')
+      .query({ from: '2026-02-01', to: '2026-01-01' })
+      .set('Authorization', `Bearer ${platformToken}`)
+      .expect(400);
+
+    const options = (
+      await request(server())
+        .get('/api/v1/platform/audit/options')
+        .set('Authorization', `Bearer ${platformToken}`)
+        .expect(200)
+    ).body as { actors: { id: string }[]; actions: string[]; traiteurs: { id: string }[] };
+    expect(options.actions).toEqual(expect.arrayContaining(['platform.access_started']));
+    expect(options.traiteurs.map((row) => row.id)).toContain(traiteur.id);
+    expect(options.actors.map((row) => row.id)).toContain(access.userId);
   });
 
   describe('entrer chez un traiteur', () => {

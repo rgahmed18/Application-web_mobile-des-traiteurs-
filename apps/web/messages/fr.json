@@ -1906,7 +1906,8 @@
     "nav": {
       "dashboard": "Tableau de bord",
       "traiteurs": "Traiteurs",
-      "plans": "Offres et fonctionnalités"
+      "plans": "Offres et fonctionnalités",
+      "audit": "Journal d’audit"
     },
     "status": {
       "ACTIVE": "Actif",
@@ -2102,6 +2103,39 @@
       "reasonPlaceholder": "Ex. import du catalogue pas encore terminé",
       "extended": "Accès prolongé de 2 heures",
       "ended": "Accès au traiteur terminé : retour à la console"
+    },
+    "audit": {
+      "title": "Journal d’audit",
+      "subtitle": "Qui a fait quoi, chez quel traiteur, et quand. Le contenu des actions des traiteurs n’est jamais affiché ici.",
+      "scope": "Actions",
+      "scopes": {
+        "platform": "De la plateforme",
+        "all": "Toutes les actions"
+      },
+      "actor": "Qui",
+      "allActors": "Tous",
+      "action": "Quoi",
+      "allActions": "Toutes",
+      "traiteur": "Traiteur",
+      "allTraiteurs": "Tous les traiteurs",
+      "from": "Du",
+      "to": "Au",
+      "invalidPeriod": "La date de fin précède la date de début.",
+      "reset": "Effacer les filtres",
+      "count": "{count, plural, one {# action} other {# actions}}",
+      "empty": "Aucune action",
+      "emptyHint": "Aucune action ne correspond à ces filtres.",
+      "system": "Système",
+      "hiddenName": "Nom masqué",
+      "noTraiteur": "Plateforme",
+      "roles": {
+        "SUPER_ADMIN": "Super admin",
+        "ADMIN_TRAITEUR": "Administrateur",
+        "EMPLOYE": "Employé",
+        "EQUIPE": "Équipe",
+        "LIVREUR": "Livreur",
+        "CLIENT": "Client"
+      }
     }
   }
 }

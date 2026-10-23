@@ -456,6 +456,12 @@ dans la barre latérale ; « Gestion Traiteurs » est réservé à la console.
   modification** faite pendant l'accès (`platform.access_request` : méthode, chemin, statut).
   Routes : `POST /platform/traiteurs/:id/enter`, `POST /platform/access/extend`,
   `POST /platform/access/leave`.
+- **Journal d'audit** (`/platform/audit`) : qui a fait quoi, chez quel traiteur, quand, avec
+  filtres (auteur parmi les super admins, action, traiteur, période en heure du Maroc). Par
+  défaut les actions de la plateforme ; « Toutes les actions » ajoute celles des équipes des
+  traiteurs, **sans leur contenu** (ni avant/après) et sans jamais nommer un client (« Nom
+  masqué », rôle seul). Seuls le motif des actions de la console et les requêtes faites pendant
+  un accès chez un traiteur (méthode, chemin, statut) sont affichés.
 - **Offres et fonctionnalités** (`/platform/plans`) : prix mensuel de chaque offre modifiable,
   en vigueur tout de suite, historique conservé ; fonctionnalités incluses par offre.
 - Prix des offres (`PlatformPlanPrice`, historique conservé) : 400, 850 et 1 500 MAD par mois au

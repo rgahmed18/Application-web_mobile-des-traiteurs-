@@ -1473,4 +1473,7 @@ model AuditLog {
 
   @@index([traiteurId, createdAt])
   @@index([entityType, entityId])
+  // Journal de la console : tous traiteurs, du plus récent au plus ancien
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
 }

@@ -8,6 +8,11 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  type PlatformAuditOptions,
+  platformAuditOptionsSchema,
+  type PlatformAuditPage,
+  platformAuditPageSchema,
+  type PlatformAuditQuery,
   type PlatformDashboard,
   platformDashboardSchema,
   type PlatformTraiteurCreateInput,
@@ -127,5 +132,26 @@ export function useSetPlanPrice() {
         schema: platformPlansSchema,
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: platformKeys.all }),
+  });
+}
+
+/** Journal d'audit de la console (filtres : portée, auteur, action, traiteur, période). */
+export function usePlatformAudit(
+  query: Partial<PlatformAuditQuery>,
+): UseQueryResult<PlatformAuditPage> {
+  return useQuery({
+    queryKey: [...platformKeys.all, 'audit', query],
+    queryFn: ({ signal }) =>
+      apiRequest('/platform/audit', { query, schema: platformAuditPageSchema, signal }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Valeurs proposées par les filtres du journal. */
+export function usePlatformAuditOptions(): UseQueryResult<PlatformAuditOptions> {
+  return useQuery({
+    queryKey: [...platformKeys.all, 'audit', 'options'],
+    queryFn: ({ signal }) =>
+      apiRequest('/platform/audit/options', { schema: platformAuditOptionsSchema, signal }),
   });
 }
