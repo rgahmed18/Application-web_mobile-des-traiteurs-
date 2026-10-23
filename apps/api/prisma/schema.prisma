@@ -298,6 +298,7 @@ model Traiteur {
   catalogRanges       CatalogRange[]
   equipmentCategories EquipmentCategory[]
   equipmentItems      EquipmentItem[]
+  platformAccesses    PlatformAccess[]
   buffetTypes         BuffetType[]
   buffets             Buffet[]
   buffetDishes        BuffetDish[]
@@ -349,6 +350,7 @@ model User {
   recoveryCodes       TwoFactorRecoveryCode[]
   accountActivations  AccountActivation[]
   twoFactorChallenges TwoFactorChallenge[]
+  platformAccesses    PlatformAccess[]
 }
 
 // Activation d'un compte de la plateforme (SUPER_ADMIN) créé en ligne de commande : lien à usage
@@ -364,6 +366,28 @@ model AccountActivation {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Accès d'un super admin chez un traiteur (dépannage) : motif obligatoire, 2 heures, prolongeable
+// avec un nouveau motif ; chaque requête de la session le revérifie. Entrée, prolongations et
+// sortie sont tracées dans le journal d'audit du traiteur.
+model PlatformAccess {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  traiteurId String    @db.Uuid
+  reason     String
+  startedAt  DateTime  @default(now())
+  expiresAt  DateTime
+  endedAt    DateTime?
+  endReason  String? // LEFT (sortie), EXPIRED (durée écoulée)
+  extensions Int       @default(0)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  traiteur      Traiteur       @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId, endedAt])
+  @@index([traiteurId, startedAt])
 }
 
 // Prix mensuel de chaque offre (console de la plateforme) : une ligne par changement, l'historique
@@ -479,24 +503,27 @@ model ClientAddress {
 }
 
 model RefreshToken {
-  id           String    @id @default(uuid()) @db.Uuid
-  userId       String    @db.Uuid
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
   // Contexte actif de la session : traiteur + appartenance (SUPER_ADMIN : membershipId null,
   // traiteurId null en contexte plateforme ou renseigné s'il agit dans un traiteur)
-  traiteurId   String?   @db.Uuid
-  membershipId String?   @db.Uuid
-  familyId     String    @db.Uuid // chaîne de rotation, révoquée entièrement en cas de réutilisation
-  tokenHash    String    @unique
-  expiresAt    DateTime
-  revokedAt    DateTime?
-  replacedById String?   @db.Uuid
-  userAgent    String?
-  ipAddress    String?
-  createdAt    DateTime  @default(now())
+  traiteurId       String?   @db.Uuid
+  membershipId     String?   @db.Uuid
+  familyId         String    @db.Uuid // chaîne de rotation, révoquée entièrement en cas de réutilisation
+  tokenHash        String    @unique
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  replacedById     String?   @db.Uuid
+  // Session d'un super admin entré chez un traiteur : liée à son accès (motif, durée)
+  platformAccessId String?   @db.Uuid
+  userAgent        String?
+  ipAddress        String?
+  createdAt        DateTime  @default(now())
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  traiteur   Traiteur?   @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
-  membership Membership? @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  traiteur       Traiteur?       @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  membership     Membership?     @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  platformAccess PlatformAccess? @relation(fields: [platformAccessId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])

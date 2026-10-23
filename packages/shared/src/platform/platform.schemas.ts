@@ -232,3 +232,22 @@ export const platformPlanPriceSchema = z.object({
   monthlyPrice: z.number().int().min(0).max(100_000_000),
 });
 export type PlatformPlanPriceInput = z.infer<typeof platformPlanPriceSchema>;
+
+// ─────────────────────────── Entrer chez un traiteur ───────────────────────────
+
+/** Durée d'un accès chez un traiteur (prolongeable avec un nouveau motif). */
+export const PLATFORM_ACCESS_HOURS = 2;
+
+export const platformAccessReasonSchema = z.object({
+  reason: z.string().trim().min(3, 'Motif obligatoire').max(300),
+});
+export type PlatformAccessReasonInput = z.infer<typeof platformAccessReasonSchema>;
+
+export const platformAccessSchema = z.object({
+  id: z.uuid(),
+  traiteurName: z.string(),
+  reason: z.string(),
+  startedAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+});
+export type PlatformAccess = z.infer<typeof platformAccessSchema>;

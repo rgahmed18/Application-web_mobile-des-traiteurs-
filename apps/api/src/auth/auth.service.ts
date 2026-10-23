@@ -12,6 +12,8 @@ import {
   type OtpRequestResponse,
   type OtpVerifyInput,
   type PasswordResetInput,
+  PLATFORM_ACCESS_HOURS,
+  type PlatformAccess,
   type RecoveryCodes,
   type RegisterInput,
   type TwoFactorChallengeConfirmInput,
@@ -45,6 +47,13 @@ const UNAVAILABLE_TRAITEUR_STATUSES = new Set(['SUSPENDED', 'CANCELLED']);
  */
 const LOGIN_FAILED_MESSAGE =
   'Identifiants incorrects ou compte temporairement verrouillé. Réessayez dans quelques minutes.';
+
+/** Contexte d'une session, avec l'accès de la plateforme d'un super admin entré chez un traiteur. */
+type SessionContext = AuthContext & { platformAccessId?: string | null };
+
+function platformAccessExpiry(from: Date): Date {
+  return new Date(from.getTime() + PLATFORM_ACCESS_HOURS * 3600 * 1000);
+}
 
 interface ContextOptions {
   /** Crée un Membership CLIENT si l'utilisateur n'en a pas encore chez ce traiteur. */
@@ -393,7 +402,13 @@ export class AuthService {
       throw appErrors.unauthorized('INVALID_TOKEN', 'Session invalide');
     }
 
-    const context = await this.reloadContext(user, consumed.traiteurId, consumed.membershipId);
+    const context = await this.reloadContext(
+      user,
+      consumed.traiteurId,
+      consumed.membershipId,
+      consumed.platformAccessId,
+      client,
+    );
     return this.createSession(user, context, client, {
       familyId: consumed.familyId,
       previousTokenId: consumed.tokenId,
@@ -420,10 +435,180 @@ export class AuthService {
       },
       permissions: [...permissions].sort(),
       traiteur: current.traiteurId ? await this.branding(current.traiteurId) : null,
+      platformAccess: current.platformAccessId
+        ? await this.platformAccess(current.platformAccessId)
+        : null,
     };
   }
 
+  // ─────────────────── Accès de la plateforme chez un traiteur ───────────────────
+
+  /**
+   * Le super admin entre chez un traiteur pour l'aider : motif obligatoire, accès de
+   * PLATFORM_ACCESS_HOURS heures, session limitée à ce traiteur. Un accès encore ouvert ailleurs
+   * est clos. Entrée tracée dans le journal du traiteur.
+   */
+  async enterTraiteur(
+    current: AuthenticatedUser,
+    traiteurId: string,
+    reason: string,
+    client: ClientInfo,
+  ): Promise<AuthSession> {
+    const user = await this.currentUser(current);
+    const traiteur = await this.prisma.traiteur.findUnique({
+      where: { id: traiteurId },
+      select: { id: true },
+    });
+    if (!traiteur) throw appErrors.notFound('TRAITEUR_NOT_FOUND', 'Traiteur introuvable');
+
+    const now = new Date();
+    const access = await this.prisma.$transaction(async (tx) => {
+      const open = await tx.platformAccess.findMany({
+        where: { userId: user.id, endedAt: null },
+        select: { id: true, traiteurId: true, expiresAt: true },
+      });
+      for (const previous of open) {
+        const endReason = previous.expiresAt > now ? 'LEFT' : 'EXPIRED';
+        await tx.platformAccess.update({
+          where: { id: previous.id },
+          data: { endedAt: now, endReason },
+        });
+        await tx.refreshToken.updateMany({
+          where: { platformAccessId: previous.id, revokedAt: null },
+          data: { revokedAt: now },
+        });
+        await this.audit.record(
+          {
+            traiteurId: previous.traiteurId,
+            actor: current,
+            action: 'platform.access_ended',
+            entityType: 'PlatformAccess',
+            entityId: previous.id,
+            after: { endReason },
+            client,
+          },
+          tx,
+        );
+      }
+      const created = await tx.platformAccess.create({
+        data: {
+          userId: user.id,
+          traiteurId,
+          reason,
+          startedAt: now,
+          expiresAt: platformAccessExpiry(now),
+        },
+      });
+      await this.audit.record(
+        {
+          traiteurId,
+          actor: current,
+          action: 'platform.access_started',
+          entityType: 'PlatformAccess',
+          entityId: created.id,
+          after: { reason, expiresAt: created.expiresAt.toISOString() },
+          client,
+        },
+        tx,
+      );
+      return created;
+    });
+
+    return this.createSession(
+      user,
+      { traiteurId, membershipId: null, role: 'SUPER_ADMIN', platformAccessId: access.id },
+      client,
+    );
+  }
+
+  /** Prolonge l'accès en cours de PLATFORM_ACCESS_HOURS heures à partir de maintenant (nouveau motif). */
+  async extendPlatformAccess(
+    current: AuthenticatedUser,
+    reason: string,
+    client: ClientInfo,
+  ): Promise<PlatformAccess> {
+    const accessId = this.requirePlatformAccess(current);
+    const now = new Date();
+    const expiresAt = platformAccessExpiry(now);
+    const { count } = await this.prisma.platformAccess.updateMany({
+      where: { id: accessId, userId: current.userId, endedAt: null, expiresAt: { gt: now } },
+      data: { expiresAt, extensions: { increment: 1 } },
+    });
+    if (count === 0) {
+      throw appErrors.unauthorized(
+        'PLATFORM_ACCESS_ENDED',
+        'Accès au traiteur terminé : retour à la console',
+      );
+    }
+    await this.audit.record({
+      traiteurId: current.traiteurId,
+      actor: current,
+      action: 'platform.access_extended',
+      entityType: 'PlatformAccess',
+      entityId: accessId,
+      after: { reason, expiresAt: expiresAt.toISOString() },
+      client,
+    });
+    const access = await this.platformAccess(accessId);
+    if (!access) {
+      throw appErrors.unauthorized(
+        'PLATFORM_ACCESS_ENDED',
+        'Accès au traiteur terminé : retour à la console',
+      );
+    }
+    return access;
+  }
+
+  /**
+   * Quitte le traiteur : l'accès est clos, les sessions ouvertes chez lui sont révoquées, et une
+   * session de la console est renvoyée.
+   */
+  async leaveTraiteur(current: AuthenticatedUser, client: ClientInfo): Promise<AuthSession> {
+    const accessId = this.requirePlatformAccess(current);
+    const user = await this.currentUser(current);
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.platformAccess.updateMany({
+        where: { id: accessId, userId: user.id, endedAt: null },
+        data: { endedAt: now, endReason: 'LEFT' },
+      });
+      await tx.refreshToken.updateMany({
+        where: { platformAccessId: accessId, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      if (count === 1) {
+        await this.audit.record(
+          {
+            traiteurId: current.traiteurId,
+            actor: current,
+            action: 'platform.access_ended',
+            entityType: 'PlatformAccess',
+            entityId: accessId,
+            after: { endReason: 'LEFT' },
+            client,
+          },
+          tx,
+        );
+      }
+    });
+    return this.createSession(
+      user,
+      { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' },
+      client,
+    );
+  }
+
   // ─────────────────────────── Interne ───────────────────────────
+
+  private requirePlatformAccess(current: AuthenticatedUser): string {
+    if (!current.isSuperAdmin || !current.traiteurId || !current.platformAccessId) {
+      throw appErrors.forbidden(
+        'PLATFORM_ACCESS_REQUIRED',
+        'Réservé au super admin entré chez un traiteur',
+      );
+    }
+    return current.platformAccessId;
+  }
 
   /**
    * Identité prouvée (mot de passe ou code SMS) : session directe, ou deuxième étape si la double
@@ -445,6 +630,22 @@ export class AuthService {
     }
     const challengeToken = await this.twoFactor.createChallenge(user, context, kind, client);
     return { twoFactor: kind, challengeToken, expiresIn: CHALLENGE_TTL_SECONDS };
+  }
+
+  /** Accès en cours d'un super admin chez un traiteur (bandeau du back-office). */
+  private async platformAccess(id: string): Promise<Me['platformAccess']> {
+    const access = await this.prisma.platformAccess.findUnique({
+      where: { id },
+      include: { traiteur: { select: { name: true } } },
+    });
+    if (!access || access.endedAt) return null;
+    return {
+      id: access.id,
+      traiteurName: access.traiteur.name,
+      reason: access.reason,
+      startedAt: access.startedAt.toISOString(),
+      expiresAt: access.expiresAt.toISOString(),
+    };
   }
 
   /** Nom et logo du traiteur (marque blanche du back-office). */
@@ -477,7 +678,7 @@ export class AuthService {
 
   private async createSession(
     user: User,
-    context: AuthContext,
+    context: SessionContext,
     client: ClientInfo,
     rotation?: { familyId: string; previousTokenId: string },
   ): Promise<AuthSession> {
@@ -494,7 +695,11 @@ export class AuthService {
       expiresIn: issued.expiresIn,
       refreshToken: issued.refreshToken,
       user: this.toAuthUser(user),
-      context,
+      context: {
+        traiteurId: context.traiteurId,
+        membershipId: context.membershipId,
+        role: context.role,
+      },
     };
   }
 
@@ -552,11 +757,44 @@ export class AuthService {
     user: User,
     traiteurId: string | null,
     membershipId: string | null,
-  ): Promise<AuthContext> {
+    platformAccessId: string | null = null,
+    client?: ClientInfo,
+  ): Promise<SessionContext> {
     if (user.isSuperAdmin) {
-      if (!traiteurId) return { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' };
-      await this.assertTraiteurAvailable(traiteurId);
-      return { traiteurId, membershipId: null, role: 'SUPER_ADMIN' };
+      const platform: SessionContext = {
+        traiteurId: null,
+        membershipId: null,
+        role: 'SUPER_ADMIN',
+      };
+      if (!traiteurId) return platform;
+      // Chez un traiteur : seulement pendant un accès en cours ; sinon retour à la console
+      const now = new Date();
+      const access = platformAccessId
+        ? await this.prisma.platformAccess.findFirst({
+            where: { id: platformAccessId, userId: user.id, traiteurId },
+          })
+        : null;
+      if (access && !access.endedAt && access.expiresAt > now) {
+        return { traiteurId, membershipId: null, role: 'SUPER_ADMIN', platformAccessId: access.id };
+      }
+      if (access && !access.endedAt) {
+        const { count } = await this.prisma.platformAccess.updateMany({
+          where: { id: access.id, endedAt: null },
+          data: { endedAt: now, endReason: 'EXPIRED' },
+        });
+        if (count === 1) {
+          await this.audit.record({
+            traiteurId,
+            actor: null,
+            action: 'platform.access_ended',
+            entityType: 'PlatformAccess',
+            entityId: access.id,
+            after: { endReason: 'EXPIRED', userId: user.id },
+            client,
+          });
+        }
+      }
+      return platform;
     }
     if (!traiteurId || !membershipId) {
       throw appErrors.unauthorized('INVALID_TOKEN', 'Session invalide');

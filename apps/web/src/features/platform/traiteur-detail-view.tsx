@@ -7,7 +7,7 @@ import {
   type SubscriptionPlan,
   todayInTimeZone,
 } from '@traiteur/shared';
-import { ArrowLeftIcon, BanIcon, PlayIcon, SendIcon } from 'lucide-react';
+import { ArrowLeftIcon, BanIcon, LogInIcon, PlayIcon, SendIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -27,6 +27,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { HOME_PATH } from '@/features/auth/redirect';
+import { sessionStore } from '@/features/auth/session-store';
 import { ReasonDialog } from '@/features/orders/order-dialogs';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatDate, formatDateTime } from '@/lib/format/date';
@@ -74,6 +76,8 @@ function TraiteurDetail({ detail }: { detail: PlatformTraiteurDetail }) {
     detail.trialEndsAt ? todayInTimeZone(PLATFORM_TIMEZONE, new Date(detail.trialEndsAt)) : '',
   );
   const [suspending, setSuspending] = useState(false);
+  const [entering, setEntering] = useState(false);
+  const [enterPending, setEnterPending] = useState(false);
   const [link, setLink] = useState<PlatformTraiteurCreateResult | null>(null);
 
   const run = (
@@ -95,6 +99,15 @@ function TraiteurDetail({ detail }: { detail: PlatformTraiteurDetail }) {
         <span className="text-sm text-muted-foreground" dir="ltr">
           {detail.slug}
         </span>
+        <Button
+          type="button"
+          className="ms-auto"
+          disabled={enterPending}
+          onClick={() => setEntering(true)}
+        >
+          <LogInIcon aria-hidden className="rtl:rotate-180" />
+          {t('enter')}
+        </Button>
       </div>
       <p className="text-sm text-muted-foreground">
         {detail.city ?? '—'} · <span dir="ltr">{detail.phone}</span> ·{' '}
@@ -337,6 +350,28 @@ function TraiteurDetail({ detail }: { detail: PlatformTraiteurDetail }) {
         onConfirm={(reason) => {
           setSuspending(false);
           run({ method: 'POST', path: '/suspend', body: { reason } }, t('suspended'));
+        }}
+      />
+      <ReasonDialog
+        open={entering}
+        title={t('enterTitle', { name: detail.name })}
+        description={t('enterDescription')}
+        label={t('enterReason')}
+        placeholder={t('enterPlaceholder')}
+        confirmLabel={t('enter')}
+        pending={enterPending}
+        onCancel={() => setEntering(false)}
+        onConfirm={(reason) => {
+          setEntering(false);
+          setEnterPending(true);
+          sessionStore
+            .enterTraiteur(detail.id, reason)
+            // Rechargement complet : la console ne laisse rien en mémoire dans le back-office
+            .then(() => window.location.assign(HOME_PATH))
+            .catch((error: unknown) => {
+              setEnterPending(false);
+              toast.error(describeError(error));
+            });
         }}
       />
       <AdminLinkDialog result={link} onClose={() => setLink(null)} />

@@ -81,6 +81,7 @@ describe('TokenService', () => {
       mid: MEMBERSHIP_ID,
       role: 'CLIENT',
       sa: false,
+      pa: null,
       typ: 'access',
     });
   });

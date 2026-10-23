@@ -11,6 +11,7 @@ import { OtpService } from './otp/otp.service';
 import { createSmsProvider } from './otp/sms/sms-factory';
 import { SMS_PROVIDER } from './otp/sms.provider';
 import { PasswordService } from './password.service';
+import { PlatformAccessController } from './platform-access.controller';
 import { TokenService } from './token.service';
 import { TwoFactorService } from './two-factor/two-factor.service';
 
@@ -28,7 +29,12 @@ import { TwoFactorService } from './two-factor/two-factor.service';
       }),
     }),
   ],
-  controllers: [AuthController, TwoFactorAccountController, PublicActivationsController],
+  controllers: [
+    AuthController,
+    TwoFactorAccountController,
+    PublicActivationsController,
+    PlatformAccessController,
+  ],
   providers: [
     AuthService,
     PasswordService,

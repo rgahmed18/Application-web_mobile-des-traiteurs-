@@ -122,9 +122,11 @@ describe('TenantGuard', () => {
     Promise<{ status: string; isSuperAdmin: boolean } | null>,
     [unknown]
   >();
+  const accessFindFirst = jest.fn<Promise<{ id: string } | null>, [unknown]>();
   const prisma = {
     membership: { findFirst },
     user: { findUnique },
+    platformAccess: { findFirst: accessFindFirst },
   } as unknown as PrismaService;
   const guard = new TenantGuard(createReflector({}), prisma);
 
@@ -195,10 +197,37 @@ describe('TenantGuard', () => {
     await expectErrorCode(guard.canActivate(createHttpContext({ user })), 'TRAITEUR_REQUIRED');
   });
 
-  it('laisse passer un SUPER_ADMIN actif', async () => {
+  it('laisse passer un SUPER_ADMIN actif dans la console', async () => {
     findUnique.mockResolvedValue({ status: 'ACTIVE', isSuperAdmin: true });
-    const user = buildUser({ role: 'SUPER_ADMIN', isSuperAdmin: true, membershipId: null });
+    const user = buildUser({
+      role: 'SUPER_ADMIN',
+      isSuperAdmin: true,
+      traiteurId: null,
+      membershipId: null,
+    });
     await expect(guard.canActivate(createHttpContext({ user }))).resolves.toBe(true);
+  });
+
+  it('SUPER_ADMIN chez un traiteur : seulement pendant un accès en cours', async () => {
+    findUnique.mockResolvedValue({ status: 'ACTIVE', isSuperAdmin: true });
+    const base = { role: 'SUPER_ADMIN' as const, isSuperAdmin: true, membershipId: null };
+    await expectErrorCode(
+      guard.canActivate(createHttpContext({ user: buildUser(base) })),
+      'PLATFORM_ACCESS_ENDED',
+    );
+    accessFindFirst.mockResolvedValueOnce(null);
+    await expectErrorCode(
+      guard.canActivate(
+        createHttpContext({ user: buildUser({ ...base, platformAccessId: 'acces-termine' }) }),
+      ),
+      'PLATFORM_ACCESS_ENDED',
+    );
+    accessFindFirst.mockResolvedValueOnce({ id: 'acces-en-cours' });
+    await expect(
+      guard.canActivate(
+        createHttpContext({ user: buildUser({ ...base, platformAccessId: 'acces-en-cours' }) }),
+      ),
+    ).resolves.toBe(true);
   });
 
   it('refuse un jeton SUPER_ADMIN dont le compte a perdu ce statut', async () => {

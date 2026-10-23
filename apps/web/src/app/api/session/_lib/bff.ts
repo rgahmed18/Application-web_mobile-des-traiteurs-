@@ -56,13 +56,18 @@ export async function readBody<TSchema extends z.ZodType>(
   }
 }
 
-/** Appel POST à l'API depuis le serveur Next. */
+/**
+ * Appel POST à l'API depuis le serveur Next. `authorization` : jeton du navigateur, relayé pour
+ * les routes qui exigent une session (entrer chez un traiteur, en sortir).
+ */
 export async function callApi(
   request: NextRequest,
   path: string,
   body: JsonBody,
+  authorization?: string,
 ): Promise<Response> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authorization) headers.Authorization = authorization;
   // IP du navigateur (limitation de débit, journal d'audit) : seulement si elle vient de nos
   // proxys ; sinon aucune, et l'API voit l'adresse du serveur Next. Les en-têtes du client ne
   // sont jamais recopiés.
@@ -77,6 +82,12 @@ export async function callApi(
     body: JSON.stringify(body),
     cache: 'no-store',
   });
+}
+
+/** En-tête « Authorization: Bearer … » du navigateur, ou null. */
+export function bearerHeader(request: NextRequest): string | null {
+  const value = request.headers.get('authorization');
+  return value && /^Bearer [\w.-]+$/.test(value) ? value : null;
 }
 
 /** Relaie tel quel une réponse d'erreur de l'API (code et message stables). */

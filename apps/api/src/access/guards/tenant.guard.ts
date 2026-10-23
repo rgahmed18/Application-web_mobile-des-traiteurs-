@@ -13,7 +13,8 @@ const UNAVAILABLE_TRAITEUR_STATUSES = new Set(['SUSPENDED', 'CANCELLED']);
  * - Le Membership est revérifié en base à chaque requête : une suspension ou un changement
  *   de rôle prend effet immédiatement, sans attendre l'expiration du jeton.
  * - Un paramètre de route :traiteurId doit correspondre au traiteur du jeton.
- * - Le SUPER_ADMIN n'est pas soumis à ces contrôles.
+ * - Le SUPER_ADMIN n'est pas soumis à ces contrôles ; chez un traiteur, son accès (motif, durée)
+ *   doit être en cours, sinon 401 PLATFORM_ACCESS_ENDED (la session revient à la console).
  */
 @Injectable()
 export class TenantGuard implements CanActivate {
@@ -35,6 +36,27 @@ export class TenantGuard implements CanActivate {
       });
       if (!superAdmin?.isSuperAdmin || superAdmin.status !== 'ACTIVE') {
         throw appErrors.forbidden('ACCOUNT_DISABLED', 'Compte désactivé');
+      }
+      // Chez un traiteur : uniquement pendant un accès en cours (motif, 2 heures, non terminé)
+      if (user.traiteurId) {
+        const access = user.platformAccessId
+          ? await this.prisma.platformAccess.findFirst({
+              where: {
+                id: user.platformAccessId,
+                userId: user.userId,
+                traiteurId: user.traiteurId,
+                endedAt: null,
+                expiresAt: { gt: new Date() },
+              },
+              select: { id: true },
+            })
+          : null;
+        if (!access) {
+          throw appErrors.unauthorized(
+            'PLATFORM_ACCESS_ENDED',
+            'Accès au traiteur terminé : retour à la console',
+          );
+        }
       }
       return true;
     }

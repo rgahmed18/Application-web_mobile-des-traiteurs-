@@ -18,7 +18,11 @@ import {
 import { useSession } from '@/features/auth/session-provider';
 import { sessionStore } from '@/features/auth/session-store';
 
-/** Menu de l'utilisateur connecté : nom, téléphone, « Mon compte », déconnexion. */
+/**
+ * Menu de l'utilisateur connecté : nom, téléphone, « Mon compte », déconnexion. Le super admin
+ * est toujours présenté comme tel (« Super Admin · plateforme », SA), y compris chez un
+ * traiteur : jamais confondu avec l'administrateur du traiteur.
+ */
 export function UserMenu({
   accountHref = '/admin/settings?tab=account',
 }: {
@@ -26,9 +30,12 @@ export function UserMenu({
   accountHref?: string;
 }) {
   const t = useTranslations();
-  const { user } = useSession();
+  const { user, platformAccess } = useSession();
   if (!user) return null;
-  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+  const superAdmin = user.isSuperAdmin;
+  const initials = superAdmin
+    ? 'SA'
+    : `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
 
   async function logout() {
     await sessionStore.logout();
@@ -37,10 +44,24 @@ export function UserMenu({
 
   return (
     <DropdownMenu>
+      {platformAccess && (
+        <span
+          className="hidden items-center rounded-full bg-[#1b1840] px-3 py-1 text-xs font-bold text-amber-300 sm:inline-flex"
+          data-testid="super-admin-identity"
+        >
+          {t('platform.identity')}
+        </span>
+      )}
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" aria-label={t('nav.account')} className="rounded-full">
           <Avatar className="size-10">
-            <AvatarFallback className="bg-primary/10 font-medium text-primary">
+            <AvatarFallback
+              className={
+                superAdmin
+                  ? 'bg-[#1b1840] font-bold text-amber-300'
+                  : 'bg-primary/10 font-medium text-primary'
+              }
+            >
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -48,7 +69,8 @@ export function UserMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuLabel className="flex flex-col gap-0.5">
-          <span className="text-base font-medium">
+          {superAdmin && <span className="text-base font-semibold">{t('platform.identity')}</span>}
+          <span className={superAdmin ? 'text-sm font-normal' : 'text-base font-medium'}>
             {user.firstName} {user.lastName}
           </span>
           <span className="text-sm font-normal text-muted-foreground" dir="ltr">

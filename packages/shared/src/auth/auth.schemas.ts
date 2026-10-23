@@ -133,6 +133,16 @@ export const meSchema = z.object({
   user: authUserSchema,
   context: authContextSchema,
   permissions: z.array(z.string()),
+  /** Super admin entré chez un traiteur : accès en cours (bandeau, temps restant). */
+  platformAccess: z
+    .object({
+      id: z.uuid(),
+      traiteurName: z.string(),
+      reason: z.string(),
+      startedAt: z.iso.datetime(),
+      expiresAt: z.iso.datetime(),
+    })
+    .nullable(),
   /** Traiteur du contexte (marque blanche du back-office) ; null dans la console. */
   traiteur: z
     .object({

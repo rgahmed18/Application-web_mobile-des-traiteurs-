@@ -63,14 +63,34 @@ describe('Console de la plateforme (application complète)', () => {
         firstName: 'Test',
         lastName: role,
         isSuperAdmin: role === 'SUPER_ADMIN',
+        // Double authentification imposée au super admin (vérifiée au rafraîchissement)
+        ...(role === 'SUPER_ADMIN'
+          ? { twoFactorEnabledAt: new Date(), twoFactorSecret: 'test' }
+          : {}),
       },
     });
     if (role === 'SUPER_ADMIN') {
+      // Chez un traiteur : entré depuis la console (accès en cours)
+      const access = traiteurId
+        ? await prisma.platformAccess.create({
+            data: {
+              userId: user.id,
+              traiteurId,
+              reason: 'Test',
+              expiresAt: new Date(Date.now() + 3_600_000),
+            },
+          })
+        : null;
       return (
         await tokens.issueTokens(
           user.id,
           true,
-          { traiteurId, membershipId: null, role: 'SUPER_ADMIN' },
+          {
+            traiteurId,
+            membershipId: null,
+            role: 'SUPER_ADMIN',
+            platformAccessId: access?.id ?? null,
+          },
           { ipAddress: '127.0.0.1', userAgent: 'jest' },
         )
       ).accessToken;
@@ -388,11 +408,207 @@ describe('Console de la plateforme (application complète)', () => {
         () => request(server()).post(`/api/v1/platform/traiteurs/${traiteur.id}/suspend`),
         () => request(server()).get('/api/v1/platform/plans'),
         () => request(server()).put('/api/v1/platform/plans/PRO/price'),
+        () => request(server()).post(`/api/v1/platform/traiteurs/${traiteur.id}/enter`),
       ]) {
         const response = await call().set('Authorization', `Bearer ${token}`).expect(403);
         expect(response.body).toMatchObject({ code: 'PLATFORM_ONLY' });
       }
     }
     await request(server()).get('/api/v1/platform/dashboard').expect(401);
+    // Prolonger ou quitter : seulement pour un super admin entré chez un traiteur
+    for (const token of [...denied.slice(0, 4), platformToken]) {
+      for (const path of ['/api/v1/platform/access/extend', '/api/v1/platform/access/leave']) {
+        const response = await request(server())
+          .post(path)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ reason: 'Essai' })
+          .expect(403);
+        expect(response.body).toMatchObject({ code: 'PLATFORM_ACCESS_REQUIRED' });
+      }
+    }
+  });
+
+  describe('entrer chez un traiteur', () => {
+    interface Session {
+      accessToken: string;
+      refreshToken: string;
+      context: { traiteurId: string | null; role: string };
+    }
+    interface Me {
+      context: { traiteurId: string | null };
+      platformAccess: {
+        id: string;
+        traiteurName: string;
+        reason: string;
+        expiresAt: string;
+      } | null;
+    }
+    const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+    const me = async (token: string) =>
+      (await request(server()).get('/api/v1/auth/me').set(auth(token)).expect(200)).body as Me;
+    const enter = async (traiteurId: string, reason = 'Aide à la saisie du catalogue') =>
+      (
+        await request(server())
+          .post(`/api/v1/platform/traiteurs/${traiteurId}/enter`)
+          .set(auth(platformToken))
+          .send({ reason })
+          .expect(200)
+      ).body as Session;
+    const actions = async (traiteurId: string) =>
+      (
+        await prisma.auditLog.findMany({
+          where: { traiteurId, action: { startsWith: 'platform.access' } },
+          orderBy: { createdAt: 'asc' },
+        })
+      ).map((row) => row.action);
+
+    it('motif obligatoire, session limitée au traiteur, modifications tracées, sortie', async () => {
+      const traiteur = await createTraiteur({ status: 'ACTIVE' });
+      await request(server())
+        .post(`/api/v1/platform/traiteurs/${traiteur.id}/enter`)
+        .set(auth(platformToken))
+        .send({ reason: ' ' })
+        .expect(400);
+      await request(server())
+        .post(`/api/v1/platform/traiteurs/${randomUUID()}/enter`)
+        .set(auth(platformToken))
+        .send({ reason: 'Aide' })
+        .expect(404);
+
+      const session = await enter(traiteur.id);
+      expect(session.context).toMatchObject({ traiteurId: traiteur.id, role: 'SUPER_ADMIN' });
+      const inside = await me(session.accessToken);
+      expect(inside.platformAccess).toMatchObject({
+        traiteurName: traiteur.name,
+        reason: 'Aide à la saisie du catalogue',
+      });
+      const remaining = Date.parse(inside.platformAccess?.expiresAt ?? '') - Date.now();
+      expect(remaining).toBeGreaterThan(119 * 60_000);
+      expect(remaining).toBeLessThanOrEqual(120 * 60_000);
+
+      // Back-office du traiteur accessible ; console refusée pendant l'accès
+      await request(server())
+        .get('/api/v1/catalog/categories')
+        .set(auth(session.accessToken))
+        .expect(200);
+      await request(server())
+        .get('/api/v1/platform/dashboard')
+        .set(auth(session.accessToken))
+        .expect(403);
+
+      // Une modification : tracée avec méthode, chemin et statut
+      await request(server())
+        .post('/api/v1/catalog/categories')
+        .set(auth(session.accessToken))
+        .send({ name: { fr: 'Ajoutée par la plateforme' }, description: null, isActive: true })
+        .expect(201);
+      const logged = await prisma.auditLog.findFirstOrThrow({
+        where: { traiteurId: traiteur.id, action: 'platform.access_request' },
+      });
+      expect(logged.actorRole).toBe('SUPER_ADMIN');
+      expect(logged.after).toMatchObject({
+        method: 'POST',
+        path: '/api/v1/catalog/categories',
+        status: 201,
+      });
+
+      // Prolonger : nouveau motif, 2 heures à partir de maintenant
+      await request(server())
+        .post('/api/v1/platform/access/extend')
+        .set(auth(session.accessToken))
+        .send({})
+        .expect(400);
+      await request(server())
+        .post('/api/v1/platform/access/extend')
+        .set(auth(session.accessToken))
+        .send({ reason: 'Import encore en cours' })
+        .expect(200);
+      const access = await prisma.platformAccess.findFirstOrThrow({
+        where: { traiteurId: traiteur.id },
+      });
+      expect(access.extensions).toBe(1);
+
+      // Quitter : retour à la console, sessions chez le traiteur révoquées
+      const left = (
+        await request(server())
+          .post('/api/v1/platform/access/leave')
+          .set(auth(session.accessToken))
+          .expect(200)
+      ).body as Session;
+      expect(left.context).toMatchObject({ traiteurId: null, role: 'SUPER_ADMIN' });
+      await request(server())
+        .get('/api/v1/platform/dashboard')
+        .set(auth(left.accessToken))
+        .expect(200);
+      const ended = await prisma.platformAccess.findUniqueOrThrow({ where: { id: access.id } });
+      expect(ended.endReason).toBe('LEFT');
+      const oldAccess = await request(server())
+        .get('/api/v1/catalog/categories')
+        .set(auth(session.accessToken))
+        .expect(401);
+      expect(oldAccess.body).toMatchObject({ code: 'PLATFORM_ACCESS_ENDED' });
+      await request(server())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: session.refreshToken })
+        .expect(401);
+
+      expect(await actions(traiteur.id)).toEqual([
+        'platform.access_started',
+        'platform.access_request',
+        'platform.access_extended',
+        'platform.access_ended',
+      ]);
+    });
+
+    it('après 2 heures : accès refusé, et le rafraîchissement ramène à la console', async () => {
+      const traiteur = await createTraiteur({ status: 'ACTIVE' });
+      const session = await enter(traiteur.id);
+      await prisma.platformAccess.updateMany({
+        where: { traiteurId: traiteur.id },
+        data: { expiresAt: new Date(Date.now() - 1000) },
+      });
+      const refused = await request(server())
+        .get('/api/v1/catalog/categories')
+        .set(auth(session.accessToken))
+        .expect(401);
+      expect(refused.body).toMatchObject({ code: 'PLATFORM_ACCESS_ENDED' });
+      await request(server())
+        .post('/api/v1/platform/access/extend')
+        .set(auth(session.accessToken))
+        .send({ reason: 'Trop tard' })
+        .expect(401);
+
+      const refreshed = (
+        await request(server())
+          .post('/api/v1/auth/refresh')
+          .send({ refreshToken: session.refreshToken })
+          .expect(200)
+      ).body as Session;
+      expect(refreshed.context).toMatchObject({ traiteurId: null, role: 'SUPER_ADMIN' });
+      expect((await me(refreshed.accessToken)).platformAccess).toBeNull();
+      const access = await prisma.platformAccess.findFirstOrThrow({
+        where: { traiteurId: traiteur.id },
+      });
+      expect(access.endReason).toBe('EXPIRED');
+      expect(await actions(traiteur.id)).toEqual([
+        'platform.access_started',
+        'platform.access_ended',
+      ]);
+    });
+
+    it('entrer chez un autre traiteur clôt l’accès précédent', async () => {
+      const first = await createTraiteur({ status: 'ACTIVE' });
+      const second = await createTraiteur({ status: 'ACTIVE' });
+      const firstSession = await enter(first.id);
+      await enter(second.id);
+      await request(server())
+        .get('/api/v1/catalog/categories')
+        .set(auth(firstSession.accessToken))
+        .expect(401);
+      const open = await prisma.platformAccess.findMany({
+        where: { traiteurId: { in: [first.id, second.id] }, endedAt: null },
+      });
+      expect(open.map((row) => row.traiteurId)).toEqual([second.id]);
+    });
   });
 });

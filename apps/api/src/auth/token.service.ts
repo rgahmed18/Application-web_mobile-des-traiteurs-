@@ -19,6 +19,7 @@ const accessTokenPayloadSchema = z.object({
   mid: z.uuid().nullable(),
   role: roleSchema,
   sa: z.boolean(),
+  pa: z.uuid().nullable().optional(),
   typ: z.literal('access'),
 });
 
@@ -35,6 +36,7 @@ export interface ConsumedRefreshToken {
   membershipId: string | null;
   familyId: string;
   tokenId: string;
+  platformAccessId: string | null;
 }
 
 @Injectable()
@@ -68,7 +70,7 @@ export class TokenService {
   async issueTokens(
     userId: string,
     isSuperAdmin: boolean,
-    context: AuthContext,
+    context: AuthContext & { platformAccessId?: string | null },
     client: ClientInfo,
     rotation?: { familyId: string; previousTokenId: string },
   ): Promise<IssuedTokens> {
@@ -78,6 +80,7 @@ export class TokenService {
       mid: context.membershipId,
       role: context.role,
       sa: isSuperAdmin,
+      pa: context.platformAccessId ?? null,
       typ: 'access',
     };
     const accessToken = await this.jwt.signAsync(payload);
@@ -88,6 +91,7 @@ export class TokenService {
         userId,
         traiteurId: context.traiteurId,
         membershipId: context.membershipId,
+        platformAccessId: context.platformAccessId ?? null,
         familyId: rotation?.familyId ?? randomUUID(),
         tokenHash: this.hashRefreshToken(refreshToken),
         expiresAt: new Date(Date.now() + this.refreshTtlMs),
@@ -138,6 +142,7 @@ export class TokenService {
       membershipId: stored.membershipId,
       familyId: stored.familyId,
       tokenId: stored.id,
+      platformAccessId: stored.platformAccessId,
     };
   }
 

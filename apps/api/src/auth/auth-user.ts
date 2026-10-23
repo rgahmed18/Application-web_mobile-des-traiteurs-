@@ -9,6 +9,8 @@ export interface AccessTokenPayload {
   mid: string | null; // membership actif
   role: Role;
   sa: boolean; // super administrateur
+  /** Accès de la plateforme chez ce traiteur (super admin entré pour dépanner). */
+  pa?: string | null;
   typ: 'access';
 }
 
@@ -19,6 +21,8 @@ export interface AuthenticatedUser {
   membershipId: string | null;
   role: Role;
   isSuperAdmin: boolean;
+  /** Super admin entré chez un traiteur : accès (motif, durée) revérifié à chaque requête. */
+  platformAccessId: string | null;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -32,5 +36,6 @@ export function toAuthenticatedUser(payload: AccessTokenPayload): AuthenticatedU
     membershipId: payload.mid,
     role: payload.role,
     isSuperAdmin: payload.sa,
+    platformAccessId: payload.pa ?? null,
   };
 }

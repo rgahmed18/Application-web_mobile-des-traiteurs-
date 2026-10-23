@@ -82,10 +82,19 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
         isSuperAdmin: true,
       },
     });
+    // Entré chez le traiteur depuis la console (accès en cours, motif)
+    const access = await prisma.platformAccess.create({
+      data: {
+        userId: user.id,
+        traiteurId,
+        reason: 'Test des permissions',
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
     const issued = await tokens.issueTokens(
       user.id,
       true,
-      { traiteurId, membershipId: null, role: 'SUPER_ADMIN' },
+      { traiteurId, membershipId: null, role: 'SUPER_ADMIN', platformAccessId: access.id },
       { ipAddress: '127.0.0.1', userAgent: 'jest' },
     );
     return { token: issued.accessToken, userId: user.id };

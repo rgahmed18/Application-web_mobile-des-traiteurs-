@@ -293,7 +293,9 @@
       "PLATFORM_ONLY": "خاص بلوحة المنصة.",
       "TRAITEUR_ALREADY_SUSPENDED": "هذا الممون موقوف مسبقاً.",
       "TRAITEUR_NOT_SUSPENDED": "هذا الممون غير موقوف.",
-      "TRAITEUR_NOT_IN_TRIAL": "هذا الممون ليس في فترة التجربة."
+      "TRAITEUR_NOT_IN_TRIAL": "هذا الممون ليس في فترة التجربة.",
+      "PLATFORM_ACCESS_ENDED": "انتهى الولوج عند الممون: العودة إلى لوحة المنصة.",
+      "PLATFORM_ACCESS_REQUIRED": "مخصص للمشرف العام الداخل عند ممون."
     }
   },
   "validation": {
@@ -1947,7 +1949,11 @@
       "platform_traiteur_reactivated": "إعادة تفعيل ممون",
       "platform_trial_updated": "تعديل نهاية التجربة",
       "platform_subscription_activated": "تفعيل الاشتراك",
-      "platform_plan_price_changed": "تعديل ثمن عرض"
+      "platform_plan_price_changed": "تعديل ثمن عرض",
+      "platform_access_started": "دخول المنصة",
+      "platform_access_extended": "تمديد ولوج المنصة",
+      "platform_access_ended": "خروج المنصة",
+      "platform_access_request": "تعديل من طرف المنصة"
     },
     "traiteurs": {
       "title": "الممونون",
@@ -2057,7 +2063,12 @@
       },
       "resend": "إعادة إرسال رابط التفعيل",
       "historyTitle": "سجل المنصة",
-      "noHistory": "لا توجد عمليات حالياً."
+      "noHistory": "لا توجد عمليات حالياً.",
+      "enter": "الدخول عند هذا الممون",
+      "enterTitle": "الدخول عند {name}؟",
+      "enterDescription": "ستطّلع على معطياته (الطلبيات، الزبناء، الكتالوج) ويمكنك تعديلها لمدة ساعتين. يُسجَّل الدخول وكل تعديل والخروج في سجله.",
+      "enterReason": "السبب (يظهر في سجل الممون)",
+      "enterPlaceholder": "مثلاً: مساعدة في استيراد الكتالوج، بطلب عبر الهاتف"
     },
     "plans": {
       "title": "العروض والوظائف",
@@ -2075,6 +2086,22 @@
       "feature": "الوظيفة",
       "yes": "مضمنة",
       "no": "غير مضمنة"
+    },
+    "identity": "المشرف العام · المنصة",
+    "access": {
+      "insideLong": "أنت عند {name} بصفتك المشرف العام",
+      "insideShort": "عند {name}",
+      "reason": "السبب: {reason}",
+      "expiresInHours": "ينتهي بعد {hours} س {minutes} د",
+      "expiresInMinutes": "ينتهي بعد {minutes} د",
+      "extend": "تمديد",
+      "leave": "الخروج والعودة إلى لوحة المنصة",
+      "extendTitle": "تمديد الولوج لساعتين؟",
+      "extendDescription": "سيستمر الولوج ساعتين ابتداءً من الآن. يُطلب سبب جديد.",
+      "reasonLabel": "السبب",
+      "reasonPlaceholder": "مثلاً: استيراد الكتالوج لم ينتهِ بعد",
+      "extended": "تم تمديد الولوج لساعتين",
+      "ended": "انتهى الولوج عند الممون: العودة إلى لوحة المنصة"
     }
   }
 }

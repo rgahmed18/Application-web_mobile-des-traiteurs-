@@ -22,7 +22,7 @@ import { isNavItemActive, NAV_ITEMS } from './nav-items';
 import { TraiteurBrand } from './traiteur-brand';
 
 /** Menu latéral : à droite en arabe, en tiroir sur téléphone et tablette. */
-export function AppSidebar() {
+export function AppSidebar({ className }: { className?: string }) {
   const t = useTranslations('nav');
   const locale = useLocale();
   const pathname = usePathname();
@@ -32,7 +32,12 @@ export function AppSidebar() {
   const items = NAV_ITEMS.filter((item) => !item.permission || can(item.permission));
 
   return (
-    <Sidebar side={rtl ? 'right' : 'left'} dir={rtl ? 'rtl' : 'ltr'} collapsible="offcanvas">
+    <Sidebar
+      side={rtl ? 'right' : 'left'}
+      dir={rtl ? 'rtl' : 'ltr'}
+      collapsible="offcanvas"
+      className={className}
+    >
       <SidebarHeader className="p-4">
         <TraiteurBrand />
       </SidebarHeader>

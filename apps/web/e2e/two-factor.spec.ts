@@ -92,6 +92,38 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await expect(detail.getByRole('alert')).toHaveCount(0);
   await expect(page.getByTestId('traiteur-history')).toContainText('Traiteur réactivé');
 
+  // ─── Entrer chez le traiteur : motif, bandeau, identité du super admin, prolonger, quitter ───
+  const detailUrl = page.url();
+  await detail.getByRole('button', { name: 'Entrer chez ce traiteur' }).click();
+  const enterDialog = page.getByRole('dialog', { name: /Entrer chez Saveurs/ });
+  await enterDialog
+    .getByLabel('Motif (visible dans l’historique du traiteur)')
+    .fill('Aide à la saisie du catalogue');
+  await enterDialog.getByRole('button', { name: 'Entrer chez ce traiteur' }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  const banner = page.getByTestId('platform-access-banner');
+  await expect(banner).toContainText(`Vous êtes chez Saveurs ${suffix} en tant que Super Admin`);
+  await expect(page.getByTestId('platform-access-remaining')).toHaveText(
+    /expire dans (2 h 00|1 h 5\d)/,
+  );
+  await expect(page.getByTestId('super-admin-identity')).toHaveText('Super Admin · plateforme');
+  await expect(page.getByTestId('super-admin-badge')).toHaveCount(0);
+  await banner.getByRole('button', { name: 'Prolonger' }).click();
+  const extendDialog = page.getByRole('dialog', { name: /Prolonger l’accès/ });
+  await extendDialog.getByLabel('Motif').fill('Import pas encore terminé');
+  await extendDialog.getByRole('button', { name: 'Prolonger' }).click();
+  await expect(page.getByText('Accès prolongé de 2 heures')).toBeVisible();
+  await banner.getByRole('button', { name: 'Quitter et revenir à la console' }).click();
+  await expect(page).toHaveURL(/\/platform$/);
+  await expect(page.getByTestId('platform-access-banner')).toHaveCount(0);
+  await expect(page.getByTestId('super-admin-badge')).toBeVisible();
+  await page.goto(detailUrl);
+  const history = page.getByTestId('traiteur-history');
+  await expect(history).toContainText('Entrée de la plateforme');
+  await expect(history).toContainText('Aide à la saisie du catalogue');
+  await expect(history).toContainText('Accès de la plateforme prolongé');
+  await expect(history).toContainText('Sortie de la plateforme');
+
   // ─── Offres : nouveau prix en vigueur, historique conservé ───
   await page.getByRole('link', { name: 'Offres et fonctionnalités' }).first().click();
   await page.getByLabel('Nouveau prix mensuel de l’offre BASIQUE').fill('450');

@@ -6,6 +6,8 @@ import {
   otpRequestResponseSchema,
   type OtpRequestResponse,
   type PermissionKey,
+  type PlatformAccess,
+  platformAccessSchema,
   recoveryCodesSchema,
   type TwoFactorChallenge,
   twoFactorChallengeSchema,
@@ -37,6 +39,8 @@ export interface SessionState {
   user: AuthUser | null;
   context: AuthContext | null;
   traiteur: SessionTraiteur | null;
+  /** Super admin entré chez un traiteur : motif et fin de l'accès (bandeau). */
+  platformAccess: PlatformAccess | null;
   permissions: ReadonlySet<string>;
   endReason: SessionEndReason;
 }
@@ -63,6 +67,7 @@ const INITIAL_STATE: SessionState = {
   user: null,
   context: null,
   traiteur: null,
+  platformAccess: null,
   permissions: new Set(),
   endReason: null,
 };
@@ -96,6 +101,7 @@ function clearSession(endReason: SessionEndReason): void {
     user: null,
     context: null,
     traiteur: null,
+    platformAccess: null,
     permissions: new Set(),
     endReason,
   });
@@ -112,6 +118,7 @@ async function applySession(session: ClientSession): Promise<void> {
     user: me.user,
     context: me.context,
     traiteur: me.traiteur,
+    platformAccess: me.platformAccess,
     permissions: new Set(me.permissions),
     endReason: null,
   });
@@ -204,6 +211,41 @@ export const sessionStore = {
 
   resetPassword(phone: string, code: string, newPassword: string): Promise<void> {
     return sessionRequest('/password/reset', z.void(), { phone, code, newPassword });
+  },
+
+  /**
+   * Console : entre chez un traiteur (motif obligatoire), pour 2 heures. La page est ensuite
+   * rechargée sur le back-office : aucune donnée d'un espace ne reste en mémoire dans l'autre.
+   */
+  async enterTraiteur(traiteurId: string, reason: string): Promise<void> {
+    await sessionRequest(
+      '/platform/enter',
+      clientSessionSchema,
+      { traiteurId, reason },
+      await getAccessToken(),
+    );
+  },
+
+  /** Prolonge l'accès en cours de 2 heures (nouveau motif). */
+  async extendPlatformAccess(reason: string): Promise<void> {
+    const access = await apiRequest('/platform/access/extend', {
+      method: 'POST',
+      body: { reason },
+      schema: platformAccessSchema,
+    });
+    setState({ platformAccess: access });
+  },
+
+  /**
+   * Quitte le traiteur (session de la console posée, page à recharger sur la console). Accès
+   * déjà expiré : le rafraîchissement ramène de lui-même à la console.
+   */
+  async leaveTraiteur(): Promise<void> {
+    try {
+      await sessionRequest('/platform/leave', clientSessionSchema, {}, await getAccessToken());
+    } catch (error) {
+      if (!(await refreshAccessToken()) || state.platformAccess) throw error;
+    }
   },
 
   async logout(): Promise<void> {

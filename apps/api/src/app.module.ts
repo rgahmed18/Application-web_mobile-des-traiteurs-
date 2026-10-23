@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import type { Redis } from 'ioredis';
 
@@ -11,6 +11,7 @@ import { RolesGuard } from './access/guards/roles.guard';
 import { TenantGuard } from './access/guards/tenant.guard';
 import { AssignmentsModule } from './assignments/assignments.module';
 import { AuditModule } from './audit/audit.module';
+import { PlatformAccessAuditInterceptor } from './audit/platform-access-audit.interceptor';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { ClientsModule } from './clients/clients.module';
@@ -78,6 +79,8 @@ import { StorageModule } from './storage/storage.module';
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_GUARD, useClass: FeatureGuard },
+    // Super admin entré chez un traiteur : chaque modification est tracée
+    { provide: APP_INTERCEPTOR, useClass: PlatformAccessAuditInterceptor },
   ],
 })
 export class AppModule {}

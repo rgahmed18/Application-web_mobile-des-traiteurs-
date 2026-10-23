@@ -22,6 +22,10 @@ const KNOWN_ACTIONS = [
   'platform_trial_updated',
   'platform_subscription_activated',
   'platform_plan_price_changed',
+  'platform_access_started',
+  'platform_access_extended',
+  'platform_access_ended',
+  'platform_access_request',
 ] as const;
 type KnownAction = (typeof KNOWN_ACTIONS)[number];
 

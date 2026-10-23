@@ -32,6 +32,10 @@ const HISTORY_ACTIONS = [
   'platform.traiteur_reactivated',
   'platform.trial_updated',
   'platform.subscription_activated',
+  // Entrées et sorties du super admin chez le traiteur (le détail des requêtes reste dans l'audit)
+  'platform.access_started',
+  'platform.access_extended',
+  'platform.access_ended',
 ];
 
 /**

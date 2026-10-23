@@ -37,6 +37,7 @@ export function buildUser(overrides: Partial<AuthenticatedUser> = {}): Authentic
     membershipId: '33333333-3333-4333-8333-333333333333',
     role: 'EMPLOYE',
     isSuperAdmin: false,
+    platformAccessId: null,
     ...overrides,
   };
 }

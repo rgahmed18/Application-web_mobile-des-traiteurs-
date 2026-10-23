@@ -98,13 +98,19 @@ export async function sessionRequest<TSchema extends z.ZodType>(
   path: string,
   schema: TSchema,
   body: unknown = {},
+  accessToken?: string | null,
 ): Promise<z.infer<TSchema>> {
   let response: Response;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   try {
     response = await fetch(`/api/session${path}`, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
   } catch (error) {

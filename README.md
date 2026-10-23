@@ -444,6 +444,18 @@ dans la barre latérale ; « Gestion Traiteurs » est réservé à la console.
   prolonger ou raccourcir l'essai, activer l'abonnement avant terme, **suspendre** avec un motif
   (traiteur, équipe et clients sans accès dès la requête suivante, catalogue public masqué)
   puis réactiver ; historique des actions de la plateforme sur ce traiteur.
+- **Entrer chez un traiteur** (bouton de la fiche) : motif obligatoire, accès de **2 heures**
+  (`PlatformAccess`), session limitée à ce traiteur. Le back-office affiche un bandeau rayé
+  ambre impossible à manquer (nom du traiteur, motif, temps restant « expire dans 1 h 52 »,
+  **Prolonger** avec un nouveau motif, **Quitter et revenir à la console**), en français et en
+  arabe ; le super admin y apparaît toujours comme « Super Admin · plateforme » (avatar SA),
+  jamais sous le nom de l'administrateur du traiteur. L'accès est revérifié à chaque requête :
+  terminé ou expiré, l'API répond `PLATFORM_ACCESS_ENDED` et le rafraîchissement de session
+  ramène à la console (sortie automatique). Entrée, prolongation et sortie sont tracées dans
+  l'historique du traiteur (`platform.access_started|extended|ended`), ainsi que **chaque
+  modification** faite pendant l'accès (`platform.access_request` : méthode, chemin, statut).
+  Routes : `POST /platform/traiteurs/:id/enter`, `POST /platform/access/extend`,
+  `POST /platform/access/leave`.
 - **Offres et fonctionnalités** (`/platform/plans`) : prix mensuel de chaque offre modifiable,
   en vigueur tout de suite, historique conservé ; fonctionnalités incluses par offre.
 - Prix des offres (`PlatformPlanPrice`, historique conservé) : 400, 850 et 1 500 MAD par mois au

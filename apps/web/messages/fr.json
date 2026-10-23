@@ -293,7 +293,9 @@
       "PLATFORM_ONLY": "Réservé à la console de la plateforme.",
       "TRAITEUR_ALREADY_SUSPENDED": "Ce traiteur est déjà suspendu.",
       "TRAITEUR_NOT_SUSPENDED": "Ce traiteur n’est pas suspendu.",
-      "TRAITEUR_NOT_IN_TRIAL": "Ce traiteur n’est pas en essai."
+      "TRAITEUR_NOT_IN_TRIAL": "Ce traiteur n’est pas en essai.",
+      "PLATFORM_ACCESS_ENDED": "Accès au traiteur terminé : retour à la console.",
+      "PLATFORM_ACCESS_REQUIRED": "Réservé au super admin entré chez un traiteur."
     }
   },
   "validation": {
@@ -1947,7 +1949,11 @@
       "platform_traiteur_reactivated": "Traiteur réactivé",
       "platform_trial_updated": "Fin de l’essai modifiée",
       "platform_subscription_activated": "Abonnement activé",
-      "platform_plan_price_changed": "Prix d’une offre modifié"
+      "platform_plan_price_changed": "Prix d’une offre modifié",
+      "platform_access_started": "Entrée de la plateforme",
+      "platform_access_extended": "Accès de la plateforme prolongé",
+      "platform_access_ended": "Sortie de la plateforme",
+      "platform_access_request": "Modification par la plateforme"
     },
     "traiteurs": {
       "title": "Traiteurs",
@@ -2057,7 +2063,12 @@
       },
       "resend": "Renvoyer le lien d’activation",
       "historyTitle": "Historique de la plateforme",
-      "noHistory": "Aucune action pour le moment."
+      "noHistory": "Aucune action pour le moment.",
+      "enter": "Entrer chez ce traiteur",
+      "enterTitle": "Entrer chez {name} ?",
+      "enterDescription": "Vous verrez et pourrez modifier ses données (commandes, clients, catalogue) pendant 2 heures. L’entrée, chaque modification et la sortie sont tracées dans son historique.",
+      "enterReason": "Motif (visible dans l’historique du traiteur)",
+      "enterPlaceholder": "Ex. aide à l’import du catalogue, demandée par téléphone"
     },
     "plans": {
       "title": "Offres et fonctionnalités",
@@ -2075,6 +2086,22 @@
       "feature": "Fonctionnalité",
       "yes": "incluse",
       "no": "non incluse"
+    },
+    "identity": "Super Admin · plateforme",
+    "access": {
+      "insideLong": "Vous êtes chez {name} en tant que Super Admin",
+      "insideShort": "Chez {name}",
+      "reason": "motif : {reason}",
+      "expiresInHours": "expire dans {hours} h {minutes}",
+      "expiresInMinutes": "expire dans {minutes} min",
+      "extend": "Prolonger",
+      "leave": "Quitter et revenir à la console",
+      "extendTitle": "Prolonger l’accès de 2 heures ?",
+      "extendDescription": "L’accès durera 2 heures à partir de maintenant. Un nouveau motif est demandé.",
+      "reasonLabel": "Motif",
+      "reasonPlaceholder": "Ex. import du catalogue pas encore terminé",
+      "extended": "Accès prolongé de 2 heures",
+      "ended": "Accès au traiteur terminé : retour à la console"
     }
   }
 }
