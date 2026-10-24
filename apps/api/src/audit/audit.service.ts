@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../auth/auth-user';
 import type { ClientInfo } from '../common/http/client-info';
+import { normalizeIpAddress } from '../common/http/ip-address';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -35,7 +36,7 @@ export class AuditService {
         entityId: entry.entityId ?? null,
         before: entry.before,
         after: entry.after,
-        ipAddress: entry.client?.ipAddress ?? null,
+        ipAddress: normalizeIpAddress(entry.client?.ipAddress),
         userAgent: entry.client?.userAgent ?? null,
       },
     });

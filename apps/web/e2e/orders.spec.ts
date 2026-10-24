@@ -79,7 +79,7 @@ test('client, commande de 3 lignes confirmée, puis retrouvée dans le calendrie
     page.getByTestId('order-lines').getByRole('listitem').first().getByLabel('Quantité'),
   ).toHaveValue('80');
   // 80 × 250,00 + 80 × 15,00 + 1 500,00 = 22 700,00 TTC, calculé en direct
-  await expect(page.getByTestId('order-total-ttc')).toHaveText(/22\.700,00/);
+  await expect(page.getByTestId('order-total-ttc')).toHaveText(/22 700,00/);
 
   // Jour complet ou bloqué : le traiteur décide de passer outre (à la création comme à la confirmation)
   const force = page.getByRole('button', { name: 'Passer outre et enregistrer' });
@@ -101,22 +101,22 @@ test('client, commande de 3 lignes confirmée, puis retrouvée dans le calendrie
     page.getByTestId('status-actions').getByRole('button', { name: 'Démarrer la préparation' }),
   ).toBeVisible();
   await expect(page.getByTestId('detail-lines').getByRole('listitem')).toHaveCount(3);
-  await expect(page.getByTestId('detail-total-ttc')).toHaveText(/22\.700,00/);
+  await expect(page.getByTestId('detail-total-ttc')).toHaveText(/22 700,00/);
   const reference = (await page.getByRole('heading', { level: 1 }).textContent())?.trim() ?? '';
   await expect(page.getByTestId('order-history')).toContainText('En attente → Confirmée');
   await expect(page.getByTestId('order-history')).toContainText('Commande créée — En attente');
 
   // ─── Encaissement de l'acompte (30 % de 22 700,00 = 6 810,00), reçu numéroté ───
   const payments = page.getByTestId('payments-card');
-  await expect(payments.getByTestId('installments')).toContainText('6.810,00');
+  await expect(payments.getByTestId('installments')).toContainText('6\u00A0810,00');
   await payments.getByRole('button', { name: 'Enregistrer un paiement' }).click();
   const paymentDialog = page.getByRole('dialog');
   await expect(paymentDialog.getByLabel('Montant')).toHaveValue('6810,00');
   await paymentDialog.getByLabel('Référence').fill('VIR-E2E');
   await paymentDialog.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(page.getByText(/Paiement enregistré — reçu REC-\d{4}-\d{5}/)).toBeVisible();
-  await expect(payments.getByTestId('payments-paid')).toHaveText(/6\.810,00/);
-  await expect(payments.getByTestId('payments-remaining')).toHaveText(/15\.890,00/);
+  await expect(payments.getByTestId('payments-paid')).toHaveText(/6\u00A0810,00/);
+  await expect(payments.getByTestId('payments-remaining')).toHaveText(/15 890,00/);
 
   // ─── Calendrier : la commande apparaît le jour de l'événement ───
   await page.getByRole('link', { name: 'Calendrier' }).first().click();

@@ -98,7 +98,7 @@ test('encaissement à la livraison : déclaré par le livreur, remis à la caiss
   await expect(driver.getByTestId('missions-list')).toBeVisible();
   await driver.goto(`/admin/missions/${missionId}`);
   const cash = driver.getByTestId('mission-cash');
-  await expect(cash.getByTestId('mission-cash-amount')).toContainText(/1.500,00/);
+  await expect(cash.getByTestId('mission-cash-amount')).toContainText(/1\u00A0500,00/);
   await cash.getByRole('button', { name: 'Encaissé' }).click();
   const dialog = driver.getByRole('dialog');
   await expect(dialog.getByLabel('Montant reçu')).toHaveValue(/^1500/);
@@ -111,7 +111,7 @@ test('encaissement à la livraison : déclaré par le livreur, remis à la caiss
   await login(page);
   await page.goto('/admin/cash-desk');
   const item = page.getByTestId('cash-desk-item').filter({ hasText: order.reference });
-  await expect(item).toContainText(/1.500,00/);
+  await expect(item).toContainText(/1\u00A0500,00/);
   await item.getByRole('button', { name: 'Argent reçu' }).click();
   await page.getByRole('button', { name: 'Oui, argent reçu' }).click();
   await expect(page.getByText('Remise enregistrée, reçu émis')).toBeVisible();

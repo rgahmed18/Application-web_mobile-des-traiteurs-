@@ -439,6 +439,7 @@ describe('Console de la plateforme (application complète)', () => {
         traiteur: { id: string; name: string } | null;
         actor: { name: string | null; role: string | null } | null;
         detail: string | null;
+        ipAddress: string | null;
       }[];
       total: number;
     }
@@ -468,7 +469,10 @@ describe('Console de la plateforme (application complète)', () => {
         actorRole: 'CLIENT',
         action: 'quote.accepted',
         entityType: 'Quote',
+        before: { clientName: 'Nadia Secrète' },
         after: { reason: 'Adresse : 12 rue Secrète', clientName: 'Nadia Secrète' },
+        // Entrée ancienne : IPv4 vue à travers une socket IPv6
+        ipAddress: '::ffff:10.1.2.3',
       },
     });
 
@@ -478,7 +482,12 @@ describe('Console de la plateforme (application complète)', () => {
       traiteur: { id: traiteur.id, name: traiteur.name },
       actor: { role: 'SUPER_ADMIN', name: 'Test SUPER_ADMIN' },
       detail: 'Vérification du journal',
+      // Vue détail : valeurs de l'action de la plateforme
+      before: null,
+      after: { reason: 'Vérification du journal' },
     });
+    // Adresse enregistrée sous sa forme courte (supertest passe par ::ffff:127.0.0.1)
+    expect(platformOnly.items[0]?.ipAddress).toBe('127.0.0.1');
 
     const all = await audit({ traiteurId: traiteur.id, scope: 'all' });
     expect(all.total).toBe(2);
@@ -486,6 +495,9 @@ describe('Console de la plateforme (application complète)', () => {
       action: 'quote.accepted',
       actor: { name: null, role: 'CLIENT' },
       detail: null,
+      before: null,
+      after: null,
+      ipAddress: '10.1.2.3',
     });
     expect(JSON.stringify(all)).not.toContain('Secrète');
 

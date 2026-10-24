@@ -158,6 +158,25 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await page.getByTestId('plan-BASIQUE').getByRole('button', { name: 'Appliquer' }).click();
   await expect(page.getByTestId('plan-price-BASIQUE')).toContainText('450,00');
 
+  // ─── Journal : chaque ligne se lit sans ouvrir la base, détail avant / après au clic ───
+  await page.getByRole('link', { name: 'Journal d’audit' }).first().click();
+  const journal = page.getByTestId('audit-list');
+  await expect(journal).toContainText('Basique : 400 → 450 MAD');
+  await expect(journal).toContainText('Équipe · Consulter le catalogue : désactivée → activée');
+  await expect(journal).toContainText(
+    `Saveurs ${suffix} : Essai → Suspendu — motif : Abonnement impayé`,
+  );
+  await expect(journal).not.toContainText('::ffff:');
+  await journal.getByRole('button', { name: /Basique : 400 → 450 MAD/ }).click();
+  const detailDialog = page.getByTestId('audit-detail');
+  await expect(detailDialog).toContainText('Prix d’une offre modifié');
+  const changes = detailDialog.getByTestId('audit-detail-changes');
+  await expect(changes.getByRole('row', { name: /Prix mensuel/ })).toContainText(
+    /400,00 MAD.*450,00 MAD/,
+  );
+  await page.keyboard.press('Escape');
+  await expect(detailDialog).toHaveCount(0);
+
   // ─── Mon compte : activée, imposée (pas de bouton Désactiver) ───
   await page.goto('/platform/account');
   const status = page.getByTestId('two-factor-status');

@@ -292,7 +292,14 @@ export const platformAuditEntrySchema = z.object({
   entityType: z.string(),
   /** Motif (actions de la console) ou requête faite chez un traiteur (méthode, chemin, statut). */
   detail: z.string().nullable(),
+  /**
+   * Valeurs avant / après (vue détail), pour les actions de la plateforme seulement : celles des
+   * traiteurs ne sortent jamais (données de leurs clients possibles).
+   */
+  before: z.record(z.string(), z.unknown()).nullable(),
+  after: z.record(z.string(), z.unknown()).nullable(),
   ipAddress: z.string().nullable(),
+  userAgent: z.string().nullable(),
 });
 export type PlatformAuditEntry = z.infer<typeof platformAuditEntrySchema>;
 

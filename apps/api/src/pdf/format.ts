@@ -1,28 +1,25 @@
-import { formatTaxRate, utcToZoned } from '@traiteur/shared';
+import {
+  formatAmount,
+  formatTaxRate,
+  MONEY_CURRENCY_LABEL,
+  MONEY_GROUP_SEPARATOR,
+  utcToZoned,
+} from '@traiteur/shared';
 
 import { ltr } from './document-model';
 
 export type DocLocale = 'fr' | 'ar';
 
 /**
- * Mise en forme des documents PDF : identique à l'interface (format marocain, chiffres
- * occidentaux dans les deux langues), sans Intl pour un rendu déterministe.
+ * Mise en forme des documents PDF : identique à l'interface (format unique de packages/shared :
+ * « 1 500,00 MAD », espace insécable entre les milliers, chiffres occidentaux dans les deux
+ * langues), sans Intl pour un rendu déterministe.
  */
-const CURRENCY: Readonly<Record<DocLocale, string>> = { fr: 'MAD', ar: 'د.م.' };
+export { formatAmount };
 
-/** 2270000 → « 22.700,00 » */
-export function formatAmount(cents: number): string {
-  const sign = cents < 0 ? '-' : '';
-  const absolute = Math.abs(cents);
-  const units = Math.floor(absolute / 100)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `${sign}${units},${(absolute % 100).toString().padStart(2, '0')}`;
-}
-
-/** « ⟦22.700,00⟧ MAD » ou « ⟦22.700,00⟧ د.م. » (la devise reste hors du passage gauche-droite). */
+/** « ⟦22 700,00⟧ MAD » ou « ⟦22 700,00⟧ د.م. » (la devise reste hors du passage gauche-droite). */
 export function money(cents: number, locale: DocLocale): string {
-  return `${ltr(formatAmount(cents))} ${CURRENCY[locale]}`;
+  return `${ltr(formatAmount(cents))}${MONEY_GROUP_SEPARATOR}${MONEY_CURRENCY_LABEL[locale]}`;
 }
 
 /** Montant seul, pour une colonne de tableau. */

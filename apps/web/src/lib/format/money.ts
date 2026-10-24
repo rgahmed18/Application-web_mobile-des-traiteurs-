@@ -1,39 +1,17 @@
+import { formatAmount, formatMoney, MONEY_CURRENCY_LABEL } from '@traiteur/shared';
+
 import type { UiLocale } from '@/i18n/config';
 
 /**
- * Montants en dirhams, au format marocain (convention CLDR « fr-MA ») :
- *   fr : 38.599,51 MAD
- *   ar : 38.599,51 د.م.   (chiffres occidentaux, usage courant au Maroc)
- *
- * Formatage volontairement manuel : Intl insère selon les versions des marques de direction
- * invisibles (U+200F) qui diffèrent entre serveur et navigateur et cassent l'hydratation React.
+ * Montants en dirhams : format unique de l'application (packages/shared, identique dans les
+ * PDF) : « 1 500,00 MAD » en français, « 1 500,00 د.م. » en arabe (espace insécable entre les
+ * milliers, chiffres occidentaux, usage courant au Maroc).
  */
-const CURRENCY_LABEL: Readonly<Record<UiLocale, string>> = { fr: 'MAD', ar: 'د.م.' };
-const NBSP = ' ';
-
-/** Groupe les chiffres par milliers : 38599 → « 38.599 ». */
-function groupThousands(digits: string): string {
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
-
-/** Montant en centimes → « 38.599,51 » (sans devise). */
-export function formatAmount(cents: number): string {
-  if (!Number.isSafeInteger(cents)) throw new RangeError('Montant en centimes attendu');
-  const sign = cents < 0 ? '-' : '';
-  const absolute = Math.abs(cents);
-  const units = Math.floor(absolute / 100).toString();
-  const decimals = (absolute % 100).toString().padStart(2, '0');
-  return `${sign}${groupThousands(units)},${decimals}`;
-}
-
-/** Montant en centimes → « 38.599,51 MAD » ou « 38.599,51 د.م. ». */
-export function formatMoney(cents: number, locale: UiLocale): string {
-  return `${formatAmount(cents)}${NBSP}${CURRENCY_LABEL[locale]}`;
-}
+export { formatAmount, formatMoney };
 
 /** Libellé de la devise seul (suffixe des champs de saisie). */
 export function currencyLabel(locale: UiLocale): string {
-  return CURRENCY_LABEL[locale];
+  return MONEY_CURRENCY_LABEL[locale];
 }
 
 /** Partie entière avec points de milliers facultatifs : « 1.250.000 » ou « 1250000 ». */

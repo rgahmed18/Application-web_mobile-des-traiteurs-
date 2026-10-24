@@ -73,7 +73,7 @@ test('devis envoyé par lien sécurisé, accepté en ligne, puis facture d’aco
   expect(response?.headers()['x-robots-tag']).toContain('noindex');
   expect(response?.headers()['referrer-policy']).toBe('no-referrer');
   await expect(client.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
-  await expect(client.getByTestId('public-quote-total')).toHaveText(/10\.000,00/);
+  await expect(client.getByTestId('public-quote-total')).toHaveText(/10\u00A0000,00/);
   await expect(client.getByTestId('public-quote-status')).toHaveText('En attente de votre réponse');
 
   await client.getByRole('button', { name: 'Accepter le devis' }).click();
@@ -96,7 +96,7 @@ test('devis envoyé par lien sécurisé, accepté en ligne, puis facture d’aco
   // ─── Facture d'acompte (30 % de 10 000,00), datée du jour, numéro définitif ───
   const invoices = page.getByTestId('invoices-card');
   await invoices.getByRole('button', { name: 'Facturer l’acompte' }).click();
-  await expect(page.getByRole('alertdialog')).toContainText('3.000,00');
+  await expect(page.getByRole('alertdialog')).toContainText('3\u00A0000,00');
   await page.getByRole('alertdialog').getByRole('button', { name: 'Émettre la facture' }).click();
   await expect(page.getByText(/Facture FAC-\d{4}-\d{5} émise/)).toBeVisible();
   await expect(invoices.getByTestId('invoices-list')).toContainText('Facture d’acompte');

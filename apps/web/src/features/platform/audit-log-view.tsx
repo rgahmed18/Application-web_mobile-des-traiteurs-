@@ -22,6 +22,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime } from '@/lib/format/date';
 
 import { useActionLabel } from './action-label';
+import { AuditDetailDialog } from './audit-detail-dialog';
+import { useAuditDescriber } from './audit-summary';
 import { usePlatformAudit, usePlatformAuditOptions } from './platform-api';
 
 const PAGE_SIZE = 50;
@@ -67,6 +69,8 @@ function ActorCell({ actor }: { actor: PlatformAuditEntry['actor'] }) {
 export function AuditLogView() {
   const t = useTranslations('platform.audit');
   const actionLabel = useActionLabel();
+  const describe = useAuditDescriber();
+  const [selected, setSelected] = useState<PlatformAuditEntry | null>(null);
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS);
   const [page, setPage] = useState(1);
   const options = usePlatformAuditOptions();
@@ -207,37 +211,42 @@ export function AuditLogView() {
           <p className="text-sm text-muted-foreground">{t('count', { count: audit.data.total })}</p>
           <ul className="flex flex-col divide-y rounded-xl border bg-card" data-testid="audit-list">
             {audit.data.items.map((entry) => (
-              <li
-                key={entry.id}
-                className="grid grid-cols-1 gap-2 p-4 text-sm md:grid-cols-[10rem_2fr_1.5fr_1.5fr] md:items-start"
-              >
-                <span className="text-muted-foreground tabular-nums">
-                  {formatDateTime(entry.at)}
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="font-medium">{actionLabel(entry.action)}</span>
-                  {entry.detail && (
-                    <span className="break-words text-muted-foreground" dir="auto">
-                      {entry.detail}
-                    </span>
-                  )}
-                </span>
-                <span dir="auto">
-                  {entry.traiteur?.name ?? (
-                    <span className="text-muted-foreground">{t('noTraiteur')}</span>
-                  )}
-                </span>
-                <span className="flex flex-col gap-0.5">
-                  <ActorCell actor={entry.actor} />
-                  {entry.ipAddress && (
-                    <span className="text-xs text-muted-foreground" dir="ltr">
-                      {entry.ipAddress}
-                    </span>
-                  )}
-                </span>
+              <li key={entry.id}>
+                {/* Ligne cliquable : vue détail (avant / après) */}
+                <button
+                  type="button"
+                  onClick={() => setSelected(entry)}
+                  className="grid w-full grid-cols-1 gap-2 p-4 text-start text-sm hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none md:grid-cols-[10rem_2fr_1.5fr_1.5fr] md:items-start"
+                >
+                  <span className="text-muted-foreground tabular-nums">
+                    {formatDateTime(entry.at)}
+                  </span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="font-medium">{actionLabel(entry.action)}</span>
+                    {describe.summary(entry) && (
+                      <span className="break-words text-muted-foreground" dir="auto">
+                        {describe.summary(entry)}
+                      </span>
+                    )}
+                  </span>
+                  <span dir="auto">
+                    {entry.traiteur?.name ?? (
+                      <span className="text-muted-foreground">{t('noTraiteur')}</span>
+                    )}
+                  </span>
+                  <span className="flex flex-col gap-0.5">
+                    <ActorCell actor={entry.actor} />
+                    {entry.ipAddress && (
+                      <span className="text-xs text-muted-foreground" dir="ltr">
+                        {entry.ipAddress}
+                      </span>
+                    )}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
+          <AuditDetailDialog entry={selected} onClose={() => setSelected(null)} />
           <PaginationBar
             page={page}
             pageSize={PAGE_SIZE}

@@ -4,14 +4,14 @@ import { formatDate, formatDateTime } from './date';
 import { centsToInput, formatAmount, formatMoney, parseAmountToCents } from './money';
 
 describe('formatMoney', () => {
-  it('formate au format marocain en français', () => {
-    expect(formatMoney(3_859_951, 'fr')).toBe('38.599,51 MAD');
-    expect(formatMoney(25_000, 'fr')).toBe('250,00 MAD');
-    expect(formatMoney(5, 'fr')).toBe('0,05 MAD');
+  it('espace insécable entre les milliers en français', () => {
+    expect(formatMoney(3_859_951, 'fr')).toBe('38\u00A0599,51\u00A0MAD');
+    expect(formatMoney(25_000, 'fr')).toBe('250,00\u00A0MAD');
+    expect(formatMoney(5, 'fr')).toBe('0,05\u00A0MAD');
   });
 
   it('garde les chiffres occidentaux en arabe, avec « د.م. »', () => {
-    expect(formatMoney(3_859_951, 'ar')).toBe('38.599,51 د.م.');
+    expect(formatMoney(3_859_951, 'ar')).toBe('38\u00A0599,51\u00A0د.م.');
   });
 
   it('ne contient aucune marque de direction invisible', () => {
@@ -19,8 +19,8 @@ describe('formatMoney', () => {
   });
 
   it('gère les montants négatifs (avoirs) et les grands montants', () => {
-    expect(formatAmount(-3_000_000)).toBe('-30.000,00');
-    expect(formatAmount(123_456_789_00)).toBe('123.456.789,00');
+    expect(formatAmount(-3_000_000)).toBe('-30\u00A0000,00');
+    expect(formatAmount(123_456_789_00)).toBe('123\u00A0456\u00A0789,00');
   });
 });
 

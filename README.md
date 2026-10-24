@@ -174,8 +174,12 @@ http://localhost:3001/admin — se connecter avec `0600000002` / `Password123!` 
 - **Connexion** par mot de passe ou par code SMS (le code s'affiche dans les logs de l'API en
   développement), mot de passe oublié.
 - **Français / arabe** (bouton en haut de l'écran) : toute l'interface passe en arabe et en
-  miroir (RTL). Chiffres occidentaux, montants au format marocain (`1.250,00 MAD` /
-  `1.250,00 د.م.`), dates `JJ/MM/AAAA` dans le fuseau du traiteur.
+  miroir (RTL). Chiffres occidentaux ; montants au format unique de `packages/shared`
+  (`formatMoney`), identique dans l'interface, la console et les PDF : `1 500,00 MAD` /
+  `1 500,00 د.م.` (espace insécable entre les milliers et avant la devise, virgule décimale).
+  Exports : XLSX en nombres (affichés selon la langue d'Excel, `# ##0,00` en français), CSV en
+  `1500,00` sans séparateur pour rester relu comme un nombre. Dates `JJ/MM/AAAA` dans le fuseau
+  du traiteur.
 - **Menu** filtré selon les permissions de `/auth/me` ; Personnel affiche « Bientôt disponible ».
 - **Paramètres › Documents et paiements** (`settings.manage`) : acompte, solde à J-N, validité
   des devis, conditions FR/AR, TVA des frais d'annulation, numérotation des avoirs, mentions

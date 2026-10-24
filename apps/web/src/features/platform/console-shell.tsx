@@ -138,11 +138,12 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
     <SidebarProvider>
       <ConsoleSidebar />
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-16 items-center gap-3 bg-[var(--platform-topbar)] px-4 text-[var(--platform-topbar-foreground)]">
-          <SidebarTrigger className="hover:bg-white/10 hover:text-white" />
+        {/* Anneau de focus clair : visible sur l'indigo (bouton du menu, langue, compte) */}
+        <header className="sticky top-0 z-10 flex h-16 items-center gap-3 bg-[var(--platform-topbar)] px-4 text-[var(--platform-topbar-foreground)] [--ring:oklch(0.93_0.06_85)]">
+          <SidebarTrigger className="text-white hover:bg-white/15 hover:text-white focus-visible:ring-white/60" />
           <div className="ms-auto flex items-center gap-2">
             <SuperAdminBadge />
-            <LanguageSwitcher />
+            <LanguageSwitcher onDark />
             <UserMenu accountHref="/platform/account" />
           </div>
         </header>

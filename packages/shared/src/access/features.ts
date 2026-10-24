@@ -20,7 +20,8 @@ export type FeatureKey = (typeof FEATURE_KEYS)[number];
  * FeatureFlag d'un nouveau traiteur ; chaque flag reste ensuite modifiable en base.
  */
 export const PLAN_FEATURES: Readonly<Record<SubscriptionPlan, readonly FeatureKey[]>> = {
-  BASIQUE: ['quotes', 'invoices'],
+  // Français et arabe dans toutes les offres : le Maroc est bilingue
+  BASIQUE: ['quotes', 'invoices', 'multi_language'],
   PRO: ['quotes', 'invoices', 'staff_app', 'delivery_tracking', 'multi_language', 'analytics'],
   PREMIUM: FEATURE_KEYS,
 };

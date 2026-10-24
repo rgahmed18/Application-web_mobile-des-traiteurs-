@@ -102,7 +102,7 @@ export function PlatformAccessBanner() {
           type="button"
           size="sm"
           variant="outline"
-          className="shrink-0 border-[#1b1840]/40 bg-white/80 text-[#1b1840] hover:bg-white"
+          className="shrink-0 border-[#1b1840]/60 bg-white/90 text-[#1b1840] hover:bg-white hover:text-[#1b1840] focus-visible:border-[#1b1840] focus-visible:ring-[#1b1840]/50"
           disabled={pending}
           onClick={() => setExtending(true)}
           aria-label={t('extend')}
@@ -113,7 +113,7 @@ export function PlatformAccessBanner() {
         <Button
           type="button"
           size="sm"
-          className="shrink-0 bg-[#1b1840] text-white hover:bg-[#2a2560]"
+          className="shrink-0 bg-[#1b1840] text-white hover:bg-[#2a2560] hover:text-white focus-visible:ring-[#1b1840]/50 focus-visible:ring-offset-1 focus-visible:ring-offset-amber-300"
           disabled={pending}
           onClick={() => void leave()}
           aria-label={t('leave')}

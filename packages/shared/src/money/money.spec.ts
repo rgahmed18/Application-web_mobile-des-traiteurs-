@@ -7,6 +7,8 @@ import {
   computeTax,
   divideAndRound,
   extractHt,
+  formatAmount,
+  formatMoney,
   formatTaxRate,
   htToTtc,
   type LineAmounts,
@@ -345,5 +347,15 @@ describe('formatTaxRate', () => {
   it('affiche un taux lisible', () => {
     expect(formatTaxRate(2000)).toBe('20 %');
     expect(formatTaxRate(550)).toBe('5.50 %');
+  });
+});
+
+describe('formatMoney (format unique : interface, PDF)', () => {
+  it('espace insécable entre les milliers, virgule décimale, devise après le montant', () => {
+    expect(formatMoney(150_000)).toBe('1 500,00 MAD');
+    expect(formatMoney(150_000, 'ar')).toBe('1 500,00 د.م.');
+    expect(formatAmount(-3_000_000)).toBe('-30 000,00');
+    expect(formatAmount(12_345_678_900)).toBe('123 456 789,00');
+    expect(formatAmount(5)).toBe('0,05');
   });
 });

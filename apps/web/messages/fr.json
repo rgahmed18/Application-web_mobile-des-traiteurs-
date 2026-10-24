@@ -2138,6 +2138,64 @@
         "EQUIPE": "Équipe",
         "LIVREUR": "Livreur",
         "CLIENT": "Client"
+      },
+      "plans": {
+        "BASIQUE": "Basique",
+        "PRO": "Pro",
+        "PREMIUM": "Premium"
+      },
+      "state": {
+        "on": "activée",
+        "off": "désactivée",
+        "yes": "oui",
+        "no": "non"
+      },
+      "endReason": {
+        "LEFT": "sortie",
+        "EXPIRED": "fin des 2 heures (sortie automatique)"
+      },
+      "summary": {
+        "permission": "{role} · {permission} : {before} → {after}",
+        "change": "{subject} : {before} → {after}",
+        "price": "{plan} : {before} → {after} {currency}",
+        "feature": "{traiteur} · {feature} : {before} → {after}",
+        "suspended": "{traiteur} : {before} → {after} — motif : {reason}",
+        "trial": "{traiteur} : fin de l’essai {before} → {after}",
+        "created": "{traiteur} : offre {plan}, {days, plural, =0 {sans essai} one {essai de # jour} other {essai de # jours}}",
+        "access": "{traiteur} — motif : {reason} (jusqu’au {until})",
+        "accessEnded": "{traiteur} : {how}"
+      },
+      "detail": {
+        "when": "Quand",
+        "who": "Qui",
+        "ip": "Adresse IP",
+        "userAgent": "Navigateur",
+        "field": "Champ",
+        "before": "Avant",
+        "after": "Après",
+        "hidden": "Action d’un traiteur : son contenu n’est pas affiché dans la console (données de ses clients possibles).",
+        "open": "Voir le détail"
+      },
+      "fields": {
+        "plan": "Offre",
+        "monthlyPrice": "Prix mensuel",
+        "applyPlanFeatures": "Fonctionnalités de l’offre appliquées",
+        "key": "Élément",
+        "role": "Rôle",
+        "granted": "Permission",
+        "enabled": "État",
+        "catalogDefault": "Valeur prévue par l’application",
+        "status": "Statut",
+        "reason": "Motif",
+        "trialEndsAt": "Fin de l’essai",
+        "trialDays": "Durée de l’essai (jours)",
+        "slug": "Identifiant",
+        "expiresAt": "Fin de l’accès",
+        "endReason": "Fin",
+        "method": "Méthode",
+        "path": "Adresse",
+        "userId": "Compte",
+        "adminMembershipId": "Administrateur"
       }
     },
     "permissions": {

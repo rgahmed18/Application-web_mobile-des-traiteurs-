@@ -277,14 +277,32 @@ export function negateLineAmounts(line: LineAmounts): LineAmounts {
   };
 }
 
-/** Formate un montant en centimes pour l'affichage (ex. « 1 250,00 MAD »). */
-export function formatMoney(amountCents: number, locale = 'fr-MA', currency = 'MAD'): string {
+/**
+ * Format unique des montants (interface, PDF, messages) : espace insécable entre les milliers,
+ * virgule décimale, deux décimales, chiffres occidentaux dans les deux langues (usage courant au
+ * Maroc), devise après le montant :
+ *   fr : « 1 500,00 MAD »      ar : « 1 500,00 د.م. »
+ * Sans Intl : le rendu est identique sur le serveur, le navigateur et dans les PDF (Intl insère
+ * selon les versions des marques de direction invisibles et varie d'un moteur à l'autre).
+ */
+export const MONEY_GROUP_SEPARATOR = ' ';
+export const MONEY_CURRENCY_LABEL = { fr: 'MAD', ar: 'د.م.' } as const;
+export type MoneyLocale = keyof typeof MONEY_CURRENCY_LABEL;
+
+/** 150000 → « 1 500,00 » (sans devise). */
+export function formatAmount(amountCents: number): string {
   assertSafeInteger(amountCents, 'amountCents');
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amountCents / 100);
+  const sign = amountCents < 0 ? '-' : '';
+  const absolute = Math.abs(amountCents);
+  const units = Math.floor(absolute / 100)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, MONEY_GROUP_SEPARATOR);
+  return `${sign}${units},${(absolute % 100).toString().padStart(2, '0')}`;
+}
+
+/** 150000 → « 1 500,00 MAD » ou « 1 500,00 د.م. ». */
+export function formatMoney(amountCents: number, locale: MoneyLocale = 'fr'): string {
+  return `${formatAmount(amountCents)}${MONEY_GROUP_SEPARATOR}${MONEY_CURRENCY_LABEL[locale]}`;
 }
 
 /** Formate un taux en points de base (ex. 2000 → « 20 % »). */

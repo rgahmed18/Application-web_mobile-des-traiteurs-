@@ -2138,6 +2138,64 @@
         "EQUIPE": "الفريق",
         "LIVREUR": "موزع",
         "CLIENT": "زبون"
+      },
+      "plans": {
+        "BASIQUE": "الأساسي",
+        "PRO": "المهني",
+        "PREMIUM": "المتميز"
+      },
+      "state": {
+        "on": "مفعّلة",
+        "off": "معطّلة",
+        "yes": "نعم",
+        "no": "لا"
+      },
+      "endReason": {
+        "LEFT": "خروج",
+        "EXPIRED": "انتهاء الساعتين (خروج تلقائي)"
+      },
+      "summary": {
+        "permission": "{role} · {permission}: {before} ← {after}",
+        "change": "{subject}: {before} ← {after}",
+        "price": "{plan}: {before} ← {after} {currency}",
+        "feature": "{traiteur} · {feature}: {before} ← {after}",
+        "suspended": "{traiteur}: {before} ← {after} — السبب: {reason}",
+        "trial": "{traiteur}: نهاية التجربة {before} ← {after}",
+        "created": "{traiteur}: العرض {plan}، {days, plural, =0 {بدون تجربة} one {تجربة يوم واحد} two {تجربة يومين} few {تجربة # أيام} many {تجربة # يوماً} other {تجربة # يوم}}",
+        "access": "{traiteur} — السبب: {reason} (إلى غاية {until})",
+        "accessEnded": "{traiteur}: {how}"
+      },
+      "detail": {
+        "when": "متى",
+        "who": "من",
+        "ip": "عنوان IP",
+        "userAgent": "المتصفح",
+        "field": "الحقل",
+        "before": "قبل",
+        "after": "بعد",
+        "hidden": "عملية خاصة بممون: لا يُعرض محتواها في لوحة المنصة (قد تتضمن معطيات زبنائه).",
+        "open": "عرض التفاصيل"
+      },
+      "fields": {
+        "plan": "العرض",
+        "monthlyPrice": "الثمن الشهري",
+        "applyPlanFeatures": "تطبيق وظائف العرض",
+        "key": "العنصر",
+        "role": "الدور",
+        "granted": "الصلاحية",
+        "enabled": "الحالة",
+        "catalogDefault": "القيمة المقررة في التطبيق",
+        "status": "الوضعية",
+        "reason": "السبب",
+        "trialEndsAt": "نهاية التجربة",
+        "trialDays": "مدة التجربة (أيام)",
+        "slug": "المعرّف",
+        "expiresAt": "نهاية الولوج",
+        "endReason": "النهاية",
+        "method": "الطريقة",
+        "path": "العنوان",
+        "userId": "الحساب",
+        "adminMembershipId": "المسؤول"
       }
     },
     "permissions": {

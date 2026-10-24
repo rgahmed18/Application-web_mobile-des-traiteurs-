@@ -90,7 +90,10 @@ export function PlatformDashboardView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={t('title', { name: user?.firstName ?? '' })} description={t('subtitle')} />
+      <PageHeader
+        title={t('title', { name: user ? `${user.firstName} ${user.lastName}`.trim() : '' })}
+        description={t('subtitle')}
+      />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Kpi testId="kpi-active" label={t('active')} value={String(data.traiteurs.active)} />

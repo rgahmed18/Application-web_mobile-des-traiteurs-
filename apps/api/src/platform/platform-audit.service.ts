@@ -6,6 +6,7 @@ import {
   zonedDayRange,
 } from '@traiteur/shared';
 
+import { normalizeIpAddress } from '../common/http/ip-address';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -48,6 +49,14 @@ function detailOf(action: string, after: Prisma.JsonValue | null): string | null
   return typeof after.reason === 'string' ? after.reason : null;
 }
 
+/** Avant / après d'une action de la plateforme (objet JSON) ; null pour celles des traiteurs. */
+function changeOf(action: string, value: Prisma.JsonValue | null): Record<string, unknown> | null {
+  if (!isPlatformAction(action) || !value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value;
+}
+
 /** Journal d'audit de la console : qui, quoi, chez quel traiteur, quand. */
 @Injectable()
 export class PlatformAuditService {
@@ -80,8 +89,10 @@ export class PlatformAuditService {
           action: true,
           actorRole: true,
           entityType: true,
+          before: true,
           after: true,
           ipAddress: true,
+          userAgent: true,
           traiteur: { select: { id: true, name: true } },
           actor: { select: { firstName: true, lastName: true } },
         },
@@ -107,7 +118,11 @@ export class PlatformAuditService {
             : null,
         entityType: row.entityType,
         detail: detailOf(row.action, row.after),
-        ipAddress: row.ipAddress,
+        before: changeOf(row.action, row.before),
+        after: changeOf(row.action, row.after),
+        // Entrées antérieures à la normalisation : forme courte aussi
+        ipAddress: normalizeIpAddress(row.ipAddress),
+        userAgent: row.userAgent,
       })),
       total,
       page: query.page,
