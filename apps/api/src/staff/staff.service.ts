@@ -22,6 +22,7 @@ import { requireTraiteurId } from '../common/tenant';
 import type { Env } from '../config/env.schema';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SpacesService } from '../spaces/spaces.service';
 
 type Db = Prisma.TransactionClient;
 
@@ -58,16 +59,15 @@ const ROLE_LABELS: Record<StaffMemberRole, { fr: string; ar: string }> = {
 @Injectable()
 export class StaffService {
   private readonly logger = new Logger(StaffService.name);
-  private readonly webUrl: string;
   private readonly smsCountries: readonly string[];
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
+    private readonly spaces: SpacesService,
     config: ConfigService<Env, true>,
   ) {
-    this.webUrl = config.get('PUBLIC_WEB_URL', { infer: true }).replace(/\/+$/, '');
     this.smsCountries = config.get('SMS_ALLOWED_COUNTRY_CODES', { infer: true });
   }
 
@@ -434,7 +434,8 @@ export class StaffService {
     token: string,
     expiresAt: Date,
   ): Promise<InvitationLink> {
-    const url = `${this.webUrl}/invitation/${token}`;
+    // Adresse du traiteur (son sous-domaine) : l'invité arrive directement dans son espace
+    const url = `${await this.spaces.tenantUrl(traiteurId)}/invitation/${token}`;
     const member = await this.prisma.membership.findUniqueOrThrow({
       where: { id: membershipId },
       select: {

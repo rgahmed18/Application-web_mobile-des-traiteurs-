@@ -247,6 +247,23 @@ describe('AuthService.login', () => {
     );
   });
 
+  it('SUPER_ADMIN sur l’adresse d’un traiteur (espace de gestion) : refusé, aucune session', async () => {
+    const { service, twoFactor, tokens } = setup({ user: buildUser({ isSuperAdmin: true }) });
+    await expect(
+      service.login(
+        {
+          identifier: 'admin@x.ma',
+          password: 'x',
+          traiteurSlug: 'dar-diafa',
+          space: 'backoffice',
+        },
+        client,
+      ),
+    ).rejects.toMatchObject({ response: { code: 'NO_BACKOFFICE_ACCESS' } });
+    expect(twoFactor.createChallenge).not.toHaveBeenCalled();
+    expect(tokens.issueTokens).not.toHaveBeenCalled();
+  });
+
   it('double authentification active : deuxième étape (code), aucune session', async () => {
     const { service, tokens, getStored } = setup({
       user: buildUser({ twoFactorEnabledAt: new Date(), twoFactorSecret: 'v1:x:y:z' }),

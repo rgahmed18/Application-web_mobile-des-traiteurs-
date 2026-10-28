@@ -106,6 +106,9 @@ jobs:
           TWO_FACTOR_ENCRYPTION_KEY=verification-des-images-cle-2fa-00000000
           PUBLIC_WEB_URL=https://app.exemple.ma
           CORS_ORIGINS=https://app.exemple.ma
+          TENANT_BASE_DOMAIN=exemple.ma
+          PLATFORM_HOSTNAMES=app.exemple.ma
+          TENANT_URL_TEMPLATE=https://{slug}.exemple.ma
           TRUST_PROXY=172.16.0.0/12
           S3_ENDPOINT=http://stockage-absent:9000
           S3_BUCKET=media
@@ -130,13 +133,14 @@ jobs:
           echo "▶ Création d'un traiteur"
           run "$API" node dist/cli/create-traiteur.js --slug verification --name "Traiteur Vérif" \
             --email contact@exemple.ma --phone 0522000000 --city Casablanca \
-            --admin-phone 0612345678 --admin-first-name Admin --admin-last-name Test | grep -q '/invitation/'
+            --admin-phone 0612345678 --admin-first-name Admin --admin-last-name Test \
+            | grep -q 'https://verification.exemple.ma/invitation/'
           echo "▶ Démarrage de l'API, du worker et du back-office"
           docker run -d --name api --network smoke --env-file smoke.env "$API"
           docker run -d --name worker --network smoke --env-file smoke.env "$API" node dist/worker.js
           docker run -d --name web --network smoke -e API_INTERNAL_URL=http://api:3000/api/v1 \
             -e PUBLIC_API_URL=https://app.exemple.ma/api/v1 -e PUBLIC_MEDIA_URL=https://media.exemple.ma \
-            -e TRAITEUR_SLUG=verification -e WEB_TRUSTED_PROXY_HOPS=1 "$WEB"
+            -e WEB_TRUSTED_PROXY_HOPS=1 "$WEB"
           for service in api web; do
             for _ in $(seq 1 40); do
               [ "$(docker inspect -f '{{.State.Health.Status}}' "$service")" = healthy ] && break

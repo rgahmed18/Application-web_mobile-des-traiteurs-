@@ -12,6 +12,8 @@ export * from './catalog/media.schemas';
 export * from './catalog/public-catalog.schemas';
 export * from './catalog/slug';
 export * from './platform/platform.schemas';
+export * from './spaces/space-host';
+export * from './spaces/space.schemas';
 export * from './documents';
 export * from './enums';
 export * from './i18n/localized-text';

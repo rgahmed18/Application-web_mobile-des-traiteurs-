@@ -8,8 +8,17 @@ import { z } from 'zod';
  * avant le code applicatif. Ces valeurs sont publiques : n'y mettez jamais de secret.
  */
 export const publicEnvSchema = z.object({
-  /** URL de l'API appelée directement par le navigateur (données du back-office). */
-  PUBLIC_API_URL: z.url().default('http://localhost:3000/api/v1'),
+  /**
+   * URL de l'API appelée directement par le navigateur (données du back-office). En production,
+   * un chemin (« /api/v1 ») : chaque adresse (console, sous-domaine ou domaine d'un traiteur)
+   * appelle l'API sur elle-même, derrière Caddy, sans origine croisée.
+   */
+  PUBLIC_API_URL: z
+    .union([
+      z.url(),
+      z.string().regex(/^\/(?!\/)[\w/-]*$/, 'URL ou chemin commençant par un seul /'),
+    ])
+    .default('http://localhost:3000/api/v1'),
   /** Base publique des photos (bucket media / CDN), ex. http://localhost:9000/traiteur-media */
   PUBLIC_MEDIA_URL: z.url().default('http://localhost:9000/traiteur-media'),
   /** Suivi des erreurs du navigateur (DSN Sentry, public par nature) ; vide : désactivé. */

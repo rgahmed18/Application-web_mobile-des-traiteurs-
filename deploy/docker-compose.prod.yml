@@ -21,6 +21,11 @@ x-api-environment: &api-environment
   PORT: '3000'
   PUBLIC_WEB_URL: https://${APP_HOST}
   CORS_ORIGINS: https://${APP_HOST}
+  # Espaces : console sur APP_HOST, chaque traiteur sur <identifiant>.TENANT_BASE_DOMAIN (ou son
+  # domaine personnalisé vérifié). Le navigateur appelle l'API sur sa propre adresse (/api/v1).
+  TENANT_BASE_DOMAIN: ${TENANT_BASE_DOMAIN}
+  PLATFORM_HOSTNAMES: ${APP_HOST}
+  TENANT_URL_TEMPLATE: https://{slug}.${TENANT_BASE_DOMAIN}
   # Caddy et le serveur Next (qui relaie l'IP du navigateur) sont sur ce sous-réseau interne
   TRUST_PROXY: ${DOCKER_SUBNET:-172.30.0.0/24}
   SWAGGER_ENABLED: 'false'
@@ -126,12 +131,13 @@ services:
     restart: unless-stopped
     init: true
     environment:
-      PUBLIC_API_URL: https://${APP_HOST}/api/v1
+      # Chemin : chaque adresse (console, sous-domaine ou domaine d'un traiteur) appelle l'API
+      # sur elle-même, derrière Caddy
+      PUBLIC_API_URL: /api/v1
       PUBLIC_MEDIA_URL: https://${MEDIA_HOST}
       PUBLIC_SENTRY_DSN: ${SENTRY_DSN:-}
       PUBLIC_SENTRY_ENVIRONMENT: ${ENVIRONMENT}
       API_INTERNAL_URL: http://api:3000/api/v1
-      TRAITEUR_SLUG: ${TRAITEUR_SLUG}
       # Un seul proxy de confiance devant Next : Caddy
       WEB_TRUSTED_PROXY_HOPS: '1'
       REFRESH_COOKIE_SECURE: 'true'

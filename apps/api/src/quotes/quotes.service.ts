@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   addDays,
   amountToWords,
@@ -28,7 +27,6 @@ import type { AuthenticatedUser } from '../auth/auth-user';
 import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
-import type { Env } from '../config/env.schema';
 import type { LineDraft } from '../documents/document-lines';
 import { readLineLabel } from '../documents/line-label';
 import { DocumentLinesService } from '../documents/document-lines.service';
@@ -40,6 +38,7 @@ import { capitalize } from '../pdf/format';
 import { DOCUMENT_TEMPLATE_VERSION, PdfService } from '../pdf/pdf.service';
 import { type Seller, sellerSelect } from '../pdf/seller';
 import { PrismaService } from '../prisma/prisma.service';
+import { SpacesService } from '../spaces/spaces.service';
 import { nextDocumentNumber } from '../sequences/document-sequence';
 import { PRIVATE_PREFIX, StorageService } from '../storage/storage.service';
 import { quoteDocument } from './quote-document';
@@ -120,7 +119,6 @@ export interface QuotePdf {
 @Injectable()
 export class QuotesService {
   private readonly logger = new Logger(QuotesService.name);
-  private readonly webUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -128,10 +126,8 @@ export class QuotesService {
     private readonly lines: DocumentLinesService,
     private readonly pdf: PdfService,
     private readonly storage: StorageService,
-    config: ConfigService<Env, true>,
-  ) {
-    this.webUrl = config.get('PUBLIC_WEB_URL', { infer: true }).replace(/\/+$/, '');
-  }
+    private readonly spaces: SpacesService,
+  ) {}
 
   // ─────────────────────────── Back-office ───────────────────────────
 
@@ -920,7 +916,9 @@ export class QuotesService {
     const { token, hash } = newLinkToken();
     const expiresAt = zonedToUtc(validityEnd(lastDay), '00:00', settings.timezone);
     await tx.quoteLink.create({ data: { traiteurId, quoteId, tokenHash: hash, expiresAt } });
-    return { url: `${this.webUrl}/devis/${token}`, expiresAt: expiresAt.toISOString() };
+    // Adresse du traiteur : le client voit le devis sous la marque de son traiteur
+    const webUrl = await this.spaces.tenantUrl(traiteurId);
+    return { url: `${webUrl}/devis/${token}`, expiresAt: expiresAt.toISOString() };
   }
 
   /**

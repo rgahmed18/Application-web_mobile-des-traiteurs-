@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { z } from 'zod';
 
+import { corsOrigin } from './common/http/cors-origin';
 import type { AppConfigService } from './config/app-config.module';
 
 // Messages de validation en français (les codes d'erreur restent stables pour les clients)
@@ -22,7 +23,7 @@ export function configureApp(app: NestExpressApplication): void {
   app.set('trust proxy', config.get('TRUST_PROXY', { infer: true }));
   app.use(helmet());
   app.enableCors({
-    origin: config.get('CORS_ORIGINS', { infer: true }),
+    origin: corsOrigin(config.get('CORS_ORIGINS', { infer: true })),
     credentials: true,
     // Nom du fichier d'un export (xlsx, CSV), lu par le back-office
     exposedHeaders: ['Content-Disposition'],

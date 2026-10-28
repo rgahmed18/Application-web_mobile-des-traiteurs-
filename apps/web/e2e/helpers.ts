@@ -31,6 +31,9 @@ export function uniqueSuffix(): string {
 
 const API = process.env.E2E_API_URL ?? 'http://localhost:3100/api/v1';
 
+/** Adresse de la console de la plateforme (le back-office des traiteurs est sur leur sous-domaine). */
+export const PLATFORM_URL = process.env.E2E_PLATFORM_URL ?? 'http://localhost:3101';
+
 /**
  * Connexion à l'API (préparation des données d'un parcours) : réponse vérifiée, et attente
  * puis nouvel essai si la limitation de débit des connexions répond 429 (les parcours
@@ -42,7 +45,12 @@ export async function apiLogin(
 ): Promise<{ Authorization: string }> {
   for (let attempt = 1; ; attempt += 1) {
     const response = await api.post(`${API}/auth/login`, {
-      data: { traiteurSlug: 'dar-diafa', identifier: account.phone, password: account.password },
+      data: {
+        traiteurSlug: 'dar-diafa',
+        identifier: account.phone,
+        password: account.password,
+        space: 'backoffice',
+      },
     });
     if (response.status() === 429 && attempt < 4) {
       const wait = Number(response.headers()['retry-after'] ?? '20');

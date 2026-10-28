@@ -1,11 +1,14 @@
-import { getTextDirection } from '@traiteur/shared';
+import { getTextDirection, type Space } from '@traiteur/shared';
 import type { Metadata } from 'next';
 import { Geist, IBM_Plex_Sans_Arabic } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { currentScriptFallbackScript, unsupportedBrowserScript } from '@/lib/browser-support';
+import { SpaceNotFound } from '@/features/space/space-not-found';
+import { SpaceProvider } from '@/features/space/space-provider';
 import { publicEnvScript, serverPublicEnv } from '@/lib/env/public';
+import { currentSpace, SpaceUnavailableError } from '@/lib/space/space.server';
 
 import './globals.css';
 import { Providers } from './providers';
@@ -31,6 +34,15 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
   const locale = await getLocale();
   const dir = getTextDirection(locale);
   const t = await getTranslations('unsupportedBrowser');
+  // Espace servi par l'adresse (console ou traiteur) ; aucun : « Espace introuvable »
+  let space: Space | null = null;
+  let unavailable = false;
+  try {
+    space = await currentSpace();
+  } catch (error) {
+    if (!(error instanceof SpaceUnavailableError)) throw error;
+    unavailable = true;
+  }
 
   return (
     <html
@@ -51,9 +63,15 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
         <script dangerouslySetInnerHTML={{ __html: publicEnvScript(serverPublicEnv()) }} />
       </head>
       <body className="flex min-h-full flex-col">
-        <NextIntlClientProvider>
-          <Providers dir={dir}>{children}</Providers>
-        </NextIntlClientProvider>
+        {space ? (
+          <NextIntlClientProvider>
+            <SpaceProvider space={space}>
+              <Providers dir={dir}>{children}</Providers>
+            </SpaceProvider>
+          </NextIntlClientProvider>
+        ) : (
+          <SpaceNotFound unavailable={unavailable} />
+        )}
       </body>
     </html>
   );

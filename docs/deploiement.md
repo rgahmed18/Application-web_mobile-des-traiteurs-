@@ -88,12 +88,21 @@ winget install FiloSottile.age     # chiffrement des sauvegardes
 
 Choisissez `DOMAINE` (par exemple `dardiafa.ma`). Vous utiliserez :
 
-| Adresse                 | Rôle                             |
-| ----------------------- | -------------------------------- |
-| `app.DOMAINE`           | back-office en production        |
-| `staging.DOMAINE`       | back-office de test              |
-| `media.DOMAINE`         | photos de production (bucket R2) |
-| `media-staging.DOMAINE` | photos du staging (bucket R2)    |
+| Adresse                         | Rôle                                                       |
+| ------------------------------- | ---------------------------------------------------------- |
+| `app.DOMAINE`                   | console de la plateforme (super admin), production         |
+| `<identifiant>.DOMAINE`         | back-office de chaque traiteur, production (ex. dar-diafa) |
+| `staging.DOMAINE`               | console de test                                            |
+| `<identifiant>.staging.DOMAINE` | back-office de chaque traiteur, staging                    |
+| `media.DOMAINE`                 | photos de production (bucket R2)                           |
+| `media-staging.DOMAINE`         | photos du staging (bucket R2)                              |
+
+**Le traiteur vient toujours de l'adresse** : `dar-diafa.DOMAINE` ouvre le back-office de
+Dar Diafa, et seulement lui. Un membre du personnel ne peut se connecter que sur l'adresse de
+son traiteur ; le super admin seulement sur celle de la console. Une adresse inconnue affiche
+« Espace introuvable ». Les liens d'invitation et de devis pointent vers l'adresse du traiteur.
+Les sous-domaines `www`, `api`, `app`, `admin`, `console`, `media`, `staging`… ne sont
+jamais attribués à un traiteur.
 
 ### Cas A : domaine .com acheté chez Cloudflare Registrar
 
@@ -152,7 +161,7 @@ Le navigateur envoie les photos d'origine directement dans le bucket `documents`
 ```json
 [
   {
-    "AllowedOrigins": ["https://staging.DOMAINE"],
+    "AllowedOrigins": ["*"],
     "AllowedMethods": ["PUT", "GET", "HEAD"],
     "AllowedHeaders": ["content-type"],
     "MaxAgeSeconds": 3600
@@ -160,7 +169,9 @@ Le navigateur envoie les photos d'origine directement dans le bucket `documents`
 ]
 ```
 
-(`https://app.DOMAINE` pour `traiteur-prod-documents`.)
+Toutes les origines : le back-office de chaque traiteur a sa propre adresse (sous-domaine ou
+domaine personnalisé). L'origine ne protège rien ici : chaque envoi utilise une URL signée par
+l'API, valable quelques minutes, pour un seul fichier.
 
 ### 4.4 Verrouillage des sauvegardes (protection contre un piratage)
 
@@ -262,9 +273,18 @@ Notez l'adresse IPv4 : `IP_STAGING`.
 
 ### 6.3 DNS du staging
 
-Cloudflare › votre domaine › **DNS** › **Add record** : type **A**, nom `staging`, contenu
-`IP_STAGING`, **Proxy status : DNS only** (nuage **gris**). Caddy doit être le seul proxy
-devant l'application (voir « IP réelle des clients » dans le README).
+Cloudflare › votre domaine › **DNS** › **Add record**, deux fois, **Proxy status : DNS only**
+(nuage **gris**) :
+
+| Type | Nom         | Contenu      | Rôle                                             |
+| ---- | ----------- | ------------ | ------------------------------------------------ |
+| A    | `staging`   | `IP_STAGING` | console de test                                  |
+| A    | `*.staging` | `IP_STAGING` | back-office des traiteurs (`dar-diafa.staging…`) |
+
+Caddy doit être le seul proxy devant l'application (voir « IP réelle des clients » dans le
+README). Il obtient le certificat HTTPS d'un traiteur à la première visite de son adresse,
+après avoir vérifié auprès de l'API que ce traiteur existe : une adresse inventée n'obtient
+jamais de certificat.
 
 ### 6.4 Sécuriser le serveur
 
@@ -313,7 +333,8 @@ valeur **sur le serveur** avec la commande indiquée et collez-la :
 | `TWO_FACTOR_ENCRYPTION_KEY` | `openssl rand -base64 48` |
 
 Valeurs du staging : `ENVIRONMENT=staging`, `APP_HOST=staging.DOMAINE`,
-`MEDIA_HOST=media-staging.DOMAINE`, `ROBOTS=noindex, nofollow`, `TRAITEUR_SLUG=dar-diafa`,
+`TENANT_BASE_DOMAIN=staging.DOMAINE`, `MEDIA_HOST=media-staging.DOMAINE`,
+`ROBOTS=noindex, nofollow`,
 `ALLOW_DEMO_SEED=true`, `IMAGE_REGISTRY=ghcr.io/VOTRE_COMPTE`, les buckets et jetons
 `staging` de l'étape 4. Gardez les valeurs de mémoire réduites indiquées en bas du fichier
 (serveur de 4 Go).
@@ -508,16 +529,16 @@ temporairement la clé depuis votre gestionnaire de mots de passe, puis supprime
 
 Mêmes étapes que le staging, avec ces différences :
 
-| Étape | Production                                                                                                                                                                                                                                                                                                           |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6.2   | Type **CX33**, nom `traiteur-prod` ; option **Backups** Hetzner conseillée (+20 %, copie complète du serveur)                                                                                                                                                                                                        |
-| 6.3   | Enregistrement **A** `app` → `IP_PROD`, nuage gris                                                                                                                                                                                                                                                                   |
-| 7.1   | `ENVIRONMENT=production`, `APP_HOST=app.DOMAINE`, `MEDIA_HOST=media.DOMAINE`, `ROBOTS=all`, **`ALLOW_DEMO_SEED=false`**, buckets et jetons `prod`, **nouveaux** secrets (jamais ceux du staging), supprimez les lignes de mémoire réduite (valeurs par défaut) ; `SMS_PROVIDER=http`, `SMS_FALLBACK_PROVIDER=twilio` |
-| 7.2   | Clé de secours **de production**                                                                                                                                                                                                                                                                                     |
-| 7.3   | Jeton `ghcr-prod` distinct                                                                                                                                                                                                                                                                                           |
-| 8.1   | Clé `github-deploy-prod`, ajoutée sur le serveur de production                                                                                                                                                                                                                                                       |
-| 8.2   | Secrets du dépôt `PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_PRIVATE_KEY`, `PRODUCTION_SSH_KNOWN_HOSTS` (valeurs de production) ; variable `DEPLOY_PRODUCTION` = `true` ; approbation obligatoire en plus si votre offre le permet (8.3)                                                                                  |
-| 9     | **Pas de seed de démonstration** (il est d'ailleurs refusé)                                                                                                                                                                                                                                                          |
+| Étape | Production                                                                                                                                                                                                                                                                                                                                         |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6.2   | Type **CX33**, nom `traiteur-prod` ; option **Backups** Hetzner conseillée (+20 %, copie complète du serveur)                                                                                                                                                                                                                                      |
+| 6.3   | Enregistrements **A** `app` et `*` → `IP_PROD`, nuage gris                                                                                                                                                                                                                                                                                         |
+| 7.1   | `ENVIRONMENT=production`, `APP_HOST=app.DOMAINE`, `TENANT_BASE_DOMAIN=DOMAINE`, `MEDIA_HOST=media.DOMAINE`, `ROBOTS=all`, **`ALLOW_DEMO_SEED=false`**, buckets et jetons `prod`, **nouveaux** secrets (jamais ceux du staging), supprimez les lignes de mémoire réduite (valeurs par défaut) ; `SMS_PROVIDER=http`, `SMS_FALLBACK_PROVIDER=twilio` |
+| 7.2   | Clé de secours **de production**                                                                                                                                                                                                                                                                                                                   |
+| 7.3   | Jeton `ghcr-prod` distinct                                                                                                                                                                                                                                                                                                                         |
+| 8.1   | Clé `github-deploy-prod`, ajoutée sur le serveur de production                                                                                                                                                                                                                                                                                     |
+| 8.2   | Secrets du dépôt `PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_PRIVATE_KEY`, `PRODUCTION_SSH_KNOWN_HOSTS` (valeurs de production) ; variable `DEPLOY_PRODUCTION` = `true` ; approbation obligatoire en plus si votre offre le permet (8.3)                                                                                                                |
+| 9     | **Pas de seed de démonstration** (il est d'ailleurs refusé)                                                                                                                                                                                                                                                                                        |
 
 **Fournisseur SMS** (production) : après vos essais, renseignez `SMS_HTTP_*` selon la
 documentation de l'agrégateur retenu (exemples dans `apps/api/.env.example`), le nom
@@ -618,14 +639,11 @@ Sur le serveur de **production** :
   --admin-phone 0612345678 --admin-first-name Karim --admin-last-name Benjelloun
 ```
 
-La commande affiche un **lien d'activation** (valable 7 jours) : envoyez-le à l'administrateur
-(WhatsApp, SMS). Il choisira lui-même son mot de passe : aucun mot de passe ne passe par la
-ligne de commande. Ensuite :
-
-```bash
-nano /opt/traiteur/.env                 # TRAITEUR_SLUG=dar-diafa
-/opt/traiteur/scripts/compose.sh up -d web
-```
+La commande affiche un **lien d'activation** (valable 7 jours), sur l'adresse du traiteur
+(`https://dar-diafa.DOMAINE/invitation/…`) : envoyez-le à l'administrateur (WhatsApp, SMS).
+Il choisira lui-même son mot de passe : aucun mot de passe ne passe par la ligne de commande.
+Aucune autre configuration : son espace de gestion est `https://dar-diafa.DOMAINE/admin/login`.
+Les traiteurs suivants se créent depuis la console (Traiteurs › Nouveau traiteur).
 
 L'administrateur complète ensuite les paramètres (Entreprise, Documents, Disponibilités) et
 invite son équipe depuis le back-office.

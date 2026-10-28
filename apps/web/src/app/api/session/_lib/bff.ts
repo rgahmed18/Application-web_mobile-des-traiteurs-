@@ -3,6 +3,7 @@ import 'server-only';
 import {
   type AuthSession,
   authSessionSchema,
+  type Space,
   twoFactorChallengeConfirmResultSchema,
   twoFactorChallengeSchema,
 } from '@traiteur/shared';
@@ -10,6 +11,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import type { z } from 'zod';
 
 import { serverEnv } from '@/lib/env/server';
+import { DEMO_SPACE_COOKIE, resolveSpace } from '@/lib/space/space.server';
 
 import { clientIpFromHeaders } from './client-ip';
 
@@ -129,6 +131,7 @@ export type ClientSession = Omit<AuthSession, 'refreshToken'>;
 export async function finishSession(
   request: NextRequest,
   apiResponse: Response,
+  space?: Space,
 ): Promise<NextResponse> {
   if (!apiResponse.ok) {
     const response = await relayError(apiResponse);
@@ -141,7 +144,30 @@ export async function finishSession(
   if (challenge.success) return NextResponse.json(challenge.data);
   const parsed = authSessionSchema.safeParse(body);
   if (!parsed.success) return jsonError(502, 'API_UNREACHABLE', "Réponse inattendue de l'API");
-  return sessionResponse(request, parsed.data);
+  return sessionResponse(request, parsed.data, space);
+}
+
+/** Espace servi par l'adresse de la requête ; null : « Espace introuvable ». */
+export function requestSpace(request: NextRequest): Promise<Space | null> {
+  return resolveSpace(request.headers.get('host'), request.cookies.get(DEMO_SPACE_COOKIE)?.value);
+}
+
+export function spaceNotFound(): NextResponse {
+  return jsonError(404, 'SPACE_NOT_FOUND', 'Espace introuvable');
+}
+
+/**
+ * Une session ne vaut que pour l'espace de son adresse : sur celle d'un traiteur, une session de
+ * son personnel ; sur celle de la console, une session du super admin (console, ou entré chez
+ * un traiteur depuis la console).
+ */
+export function sessionMatchesSpace(context: AuthSession['context'], space: Space): boolean {
+  if (space.kind === 'platform') return context.role === 'SUPER_ADMIN';
+  return (
+    context.role !== 'SUPER_ADMIN' &&
+    context.role !== 'CLIENT' &&
+    context.traiteurId === space.traiteur.id
+  );
 }
 
 /**
@@ -155,7 +181,7 @@ export async function finishTwoFactorSetup(
   if (!apiResponse.ok) return relayError(apiResponse);
   const parsed = twoFactorChallengeConfirmResultSchema.safeParse(await apiResponse.json());
   if (!parsed.success) return jsonError(502, 'API_UNREACHABLE', "Réponse inattendue de l'API");
-  return sessionResponse(request, parsed.data.session, {
+  return sessionResponse(request, parsed.data.session, undefined, {
     recoveryCodes: parsed.data.recoveryCodes,
   });
 }
@@ -163,10 +189,13 @@ export async function finishTwoFactorSetup(
 async function sessionResponse(
   request: NextRequest,
   { refreshToken, ...session }: AuthSession,
+  knownSpace?: Space,
   extra?: { recoveryCodes: string[] },
 ): Promise<NextResponse> {
-  if (session.context.role === 'CLIENT') {
-    // Un client n'a rien à faire dans le back-office : la session est aussitôt révoquée.
+  const space = knownSpace ?? (await requestSpace(request));
+  if (session.context.role === 'CLIENT' || !space || !sessionMatchesSpace(session.context, space)) {
+    // Un client n'a rien à faire dans le back-office, et une session ne sert que sur l'adresse de
+    // son espace : elle est aussitôt révoquée.
     await callApi(request, '/auth/logout', { refreshToken }).catch(() => undefined);
     const response = jsonError(
       403,

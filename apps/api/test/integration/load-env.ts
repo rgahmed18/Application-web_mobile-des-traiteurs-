@@ -8,3 +8,10 @@ process.env.DATABASE_URL = getTestDatabaseUrl();
 if (process.env.S3_ENDPOINT && process.env.S3_BUCKET) {
   process.env.S3_PUBLIC_URL = `${process.env.S3_ENDPOINT.replace(/\/+$/, '')}/${process.env.S3_BUCKET}`;
 }
+
+// Espaces : choix du traiteur (démonstration) et back-office des traiteurs sur leurs sous-domaines
+// (*.localhost) autorisés à appeler l'API, comme en développement.
+process.env.DEMO_SPACE_SELECTION = 'true';
+process.env.CORS_ORIGINS = [process.env.CORS_ORIGINS, 'http://*.localhost:3001']
+  .filter(Boolean)
+  .join(',');

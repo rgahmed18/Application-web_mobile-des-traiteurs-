@@ -38,7 +38,9 @@ export interface ApiRequestOptions<TSchema extends z.ZodType> {
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
-  const url = new URL(`${publicEnv().PUBLIC_API_URL}${path}`);
+  // PUBLIC_API_URL peut être un chemin (« /api/v1 ») : relatif à l'adresse de la page
+  const base = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
+  const url = new URL(`${publicEnv().PUBLIC_API_URL}${path}`, base);
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== undefined && value !== null && value !== '')
       url.searchParams.set(key, String(value));

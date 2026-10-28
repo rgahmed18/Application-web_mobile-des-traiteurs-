@@ -479,6 +479,57 @@ dans la barre latérale ; « Gestion Traiteurs » est réservé à la console.
 - Prix des offres (`PlatformPlanPrice`, historique conservé) : 400, 850 et 1 500 MAD par mois au
   départ. Période d'essai : 30 jours par défaut (`Traiteur.trialEndsAt`).
 
+### Espaces : le traiteur vient de l'adresse
+
+Une seule application sert toute la plateforme ; **le traiteur est toujours déduit de l'adresse**
+par le serveur, jamais choisi par le navigateur :
+
+| Adresse                                | Espace                                               |
+| -------------------------------------- | ---------------------------------------------------- |
+| `APP_HOST` (ex. `app.exemple.ma`)      | console de la plateforme (super admin)               |
+| `<identifiant>.TENANT_BASE_DOMAIN`     | back-office du traiteur (ex. `dar-diafa.exemple.ma`) |
+| domaine personnalisé vérifié (Premium) | back-office du traiteur                              |
+| toute autre adresse                    | « Espace introuvable » (et aucun certificat)         |
+
+- Résolution par l'API (`GET /public/spaces/resolve?host=`, gardée 30 s) : un traiteur résilié
+  n'est plus servi, un traiteur suspendu l'est (la connexion explique l'indisponibilité).
+  Sous-domaines réservés : `www`, `api`, `app`, `admin`, `console`, `media`, `staging`…
+- **Connexion à l'espace de gestion** (`space: "backoffice"`, posé par le serveur web) : un
+  Membership du personnel actif chez **ce** traiteur est exigé ; aucune inscription
+  automatique comme client, aucune création de compte. Numéro inconnu, client, membre d'un
+  autre traiteur : même réponse (« Ce compte n'a pas accès à l'espace de gestion de Dar
+  Diafa »), sans jamais nommer un autre traiteur. Le super admin ne se connecte que sur
+  l'adresse de la console (on ne saisit jamais ses identifiants sur l'adresse d'un traiteur).
+- Une session ne vaut que pour l'espace de son adresse : le serveur web la révoque sinon (à la
+  connexion comme à chaque rafraîchissement).
+- Liens envoyés (invitations, devis) : adresse du traiteur (`TENANT_URL_TEMPLATE`, ou son
+  domaine personnalisé). Le lien d'activation d'un super admin : la console (`PUBLIC_WEB_URL`).
+- Production : `PUBLIC_API_URL=/api/v1`, chaque adresse appelle l'API sur elle-même (Caddy),
+  sans origine croisée. Développement : `http://localhost:3001` (console) et
+  `http://dar-diafa.localhost:3001` (Chrome, Edge et Firefox résolvent `*.localhost` seuls),
+  `CORS_ORIGINS` avec le modèle `http://*.localhost:3001`.
+- **Démonstration** sur un PC du réseau local : `TENANT_BASE_DOMAIN=<IP>.nip.io` ; le téléphone
+  ouvre `http://dar-diafa.<IP>.nip.io:3001` (nip.io renvoie l'IP contenue dans le nom, il faut
+  un accès Internet pour le DNS). Pour le développement seulement, `DEMO_SPACE_SELECTION=true`
+  (API et web) ajoute sur la console « ?traiteur=<identifiant> » et une liste de choix ; refusé
+  au démarrage si `NODE_ENV=production`, donc jamais avec `next start`.
+- Nettoyage des inscriptions client créées par erreur avant cette correction : commande
+  `leaked-client-memberships` (docs/deploiement.md).
+
+**Applications mobiles (choix retenu, pas encore codé)** :
+
+- Application des **clients** : une par traiteur (marque blanche), l'identifiant est fixé dans
+  sa configuration (`EXPO_PUBLIC_TRAITEUR_SLUG`) ; l'inscription automatique comme client
+  reste propre à cet espace (`space` « client »).
+- Application du **personnel** : une seule pour tous les traiteurs. Elle saura à quel traiteur
+  elle appartient par **le lien d'invitation**, qui contient déjà l'adresse du traiteur
+  (`https://dar-diafa.<domaine>/invitation/…` : lien universel ouvert par l'application, qui en
+  retient l'identifiant), et, à défaut, par **un choix à la première connexion** parmi les
+  traiteurs où le compte fait partie du personnel (route à ajouter : liste des espaces du
+  compte après preuve de son identité, sans jamais montrer les traiteurs où il est seulement
+  client). La connexion se fait ensuite avec `space: "backoffice"` et cet identifiant ; un
+  membre de plusieurs traiteurs change d'espace en se reconnectant.
+
 ### Catalogue public (site client)
 
 API en lecture seule, sans connexion, pour le futur site client de chaque traiteur :

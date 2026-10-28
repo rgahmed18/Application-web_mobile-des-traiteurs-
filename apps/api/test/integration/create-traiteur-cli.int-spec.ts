@@ -21,7 +21,7 @@ async function createTraiteur(args: string[]) {
         env: {
           ...process.env,
           DATABASE_URL: getTestDatabaseUrl(),
-          PUBLIC_WEB_URL: 'https://app.exemple.ma',
+          TENANT_URL_TEMPLATE: 'https://{slug}.exemple.ma',
         },
       },
     );
@@ -67,7 +67,10 @@ describe('create-traiteur (ligne de commande)', () => {
       'Benjelloun',
     ]);
     expect(result.code).toBe(0);
-    const link = /https:\/\/app\.exemple\.ma\/invitation\/([A-Za-z0-9_-]{43})/.exec(result.stdout);
+    // Lien vers l'adresse du traiteur (son sous-domaine)
+    const link = new RegExp(`https://${slug}\\.exemple\\.ma/invitation/([A-Za-z0-9_-]{43})`).exec(
+      result.stdout,
+    );
     expect(link).not.toBeNull();
 
     const traiteur = await prisma.traiteur.findUniqueOrThrow({

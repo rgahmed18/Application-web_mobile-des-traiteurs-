@@ -1,10 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-import { totp } from './helpers';
+import { PLATFORM_URL, totp } from './helpers';
 
 /** Super admin du seed (base e2e recréée à chaque lancement : double authentification inactive). */
 const SUPER_ADMIN = { phone: '0600000001', password: 'Password123!' };
 const ACCOUNT_MENU = 'Mon compte';
+
+// La console n'est servie que sur son adresse, jamais sur celle d'un traiteur
+test.use({ baseURL: PLATFORM_URL });
 
 test('super admin : double authentification imposée, console de la plateforme, connexion par code de secours', async ({
   page,

@@ -733,13 +733,31 @@ export class AuthService {
   ): Promise<AuthContext> {
     if (!traiteurSlug) {
       if (user.isSuperAdmin) return { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' };
+      if (backoffice) {
+        // Adresse de la console : réservée à la plateforme
+        throw appErrors.forbidden(
+          'NO_BACKOFFICE_ACCESS',
+          "Ce compte n'a pas accès à la console de la plateforme. Connectez-vous depuis l'adresse de votre traiteur.",
+        );
+      }
       throw appErrors.badRequest('TRAITEUR_REQUIRED', 'Le traiteur est requis pour se connecter');
     }
 
     // Le SUPER_ADMIN arrive toujours sur la console de la plateforme, jamais chez un traiteur :
     // il n'y entre qu'explicitement (motif demandé, accès limité dans le temps et tracé).
-    if (user.isSuperAdmin) return { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' };
+    // Depuis l'adresse d'un traiteur (espace de gestion), le super admin est refusé : il ne se
+    // connecte que sur l'adresse de la console (un domaine personnalisé est contrôlé par le
+    // traiteur : on n'y saisit jamais les identifiants de la plateforme).
+    if (user.isSuperAdmin && !backoffice) {
+      return { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' };
+    }
     const traiteur = await this.findAvailableTraiteur(traiteurSlug);
+    if (user.isSuperAdmin) {
+      await this.auditAuth('auth.backoffice_denied', user, client ?? NO_CLIENT, {
+        traiteurSlug: traiteur.slug,
+      });
+      throw this.noBackofficeAccess(traiteur.name);
+    }
 
     let membership = await this.prisma.membership.findUnique({
       where: { userId_traiteurId: { userId: user.id, traiteurId: traiteur.id } },

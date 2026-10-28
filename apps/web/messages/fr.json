@@ -90,7 +90,6 @@
   "auth": {
     "login": {
       "title": "Connexion",
-      "subtitle": "Accédez à l’espace de gestion de votre établissement.",
       "tabPassword": "Mot de passe",
       "tabSms": "Code par SMS",
       "identifier": "Téléphone ou email",
@@ -99,7 +98,9 @@
       "showPassword": "Afficher le mot de passe",
       "hidePassword": "Masquer le mot de passe",
       "submit": "Se connecter",
-      "forgotPassword": "Mot de passe oublié ?"
+      "forgotPassword": "Mot de passe oublié ?",
+      "subtitleTraiteur": "Espace de gestion de {name}.",
+      "subtitlePlatform": "Console de la plateforme (super admin)."
     },
     "otp": {
       "phone": "Numéro de téléphone",
@@ -296,8 +297,11 @@
       "TRAITEUR_NOT_IN_TRIAL": "Ce traiteur n’est pas en essai.",
       "PLATFORM_ACCESS_ENDED": "Accès au traiteur terminé : retour à la console.",
       "PLATFORM_ACCESS_REQUIRED": "Réservé au super admin entré chez un traiteur.",
-      "PERMISSION_NOT_FOUND": "Permission introuvable."
-    }
+      "PERMISSION_NOT_FOUND": "Permission introuvable.",
+      "SPACE_NOT_FOUND": "Espace introuvable : vérifiez l’adresse."
+    },
+    "noBackofficeAccessTraiteur": "Ce compte n’a pas accès à l’espace de gestion de {name}. Vérifiez l’adresse de connexion de votre traiteur.",
+    "noBackofficeAccessPlatform": "Ce compte n’a pas accès à la console de la plateforme. Connectez-vous depuis l’adresse de votre traiteur."
   },
   "validation": {
     "required": "Ce champ est obligatoire.",
@@ -2218,5 +2222,15 @@
         "CLIENT": "Client"
       }
     }
+  },
+  "space": {
+    "notFoundTitle": "Espace introuvable",
+    "notFoundBody": "Cette adresse ne correspond à aucun espace. Vérifiez l’adresse communiquée par votre traiteur.",
+    "unavailableTitle": "Service momentanément indisponible",
+    "unavailableBody": "Réessayez dans quelques instants.",
+    "demoTitle": "Démonstration : choisir l’espace",
+    "demoHint": "En production, l’espace vient de l’adresse (sous-domaine du traiteur). Changer d’espace impose de se reconnecter.",
+    "demoPlatform": "Console de la plateforme",
+    "demoCurrent": "actuel"
   }
 }

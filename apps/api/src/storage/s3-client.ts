@@ -113,7 +113,12 @@ export async function ensureBuckets(
       CORSConfiguration: {
         CORSRules: [
           {
-            AllowedOrigins: corsOrigins.length > 0 ? [...corsOrigins] : ['*'],
+            // Modèle de sous-domaines (« http://*.localhost:3001 ») : tous les espaces des
+            // traiteurs envoient des photos ; les URL d'envoi sont signées, l'origine ne protège rien
+            AllowedOrigins:
+              corsOrigins.length > 0 && !corsOrigins.some((origin) => origin.includes('*'))
+                ? [...corsOrigins]
+                : ['*'],
             AllowedMethods: ['PUT', 'GET', 'HEAD'],
             AllowedHeaders: ['*'],
             MaxAgeSeconds: 3600,

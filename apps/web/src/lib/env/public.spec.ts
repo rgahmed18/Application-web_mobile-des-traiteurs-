@@ -21,6 +21,11 @@ describe('variables publiques lues au démarrage', () => {
     });
     expect(serverPublicEnv({}).PUBLIC_API_URL).toBe('http://localhost:3000/api/v1');
     expect(() => serverPublicEnv({ PUBLIC_API_URL: 'pas une url' })).toThrow(/PUBLIC_API_URL/);
+    // Production : un chemin, l'API est appelée sur l'adresse de la page (console ou traiteur)
+    expect(serverPublicEnv({ PUBLIC_API_URL: '/api/v1' }).PUBLIC_API_URL).toBe('/api/v1');
+    for (const url of ['//evil.com/api', '//evil/api']) {
+      expect(() => serverPublicEnv({ PUBLIC_API_URL: url })).toThrow(/PUBLIC_API_URL/);
+    }
   });
 
   it('script de la page : JSON échappé, impossible d’en sortir par une balise', () => {

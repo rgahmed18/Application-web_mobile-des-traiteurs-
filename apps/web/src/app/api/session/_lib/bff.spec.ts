@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { callApi, finishSession, REFRESH_COOKIE } from './bff';
+import { callApi, finishSession, REFRESH_COOKIE, sessionMatchesSpace } from './bff';
 
 /** En-têtes réellement envoyés à l'API par le serveur Next. */
 async function forwardedHeaders(incoming: Record<string, string>): Promise<Headers> {
@@ -61,8 +61,47 @@ describe('finishSession : double authentification', () => {
       },
       context: { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' },
     };
-    const response = await finishSession(request, Response.json(session));
+    const response = await finishSession(request, Response.json(session), { kind: 'platform' });
     expect(JSON.stringify(await response.json())).not.toContain('refresh-secret');
     expect(response.cookies.get(REFRESH_COOKIE)?.value).toBe('refresh-secret');
+  });
+});
+
+describe('sessionMatchesSpace : une session ne vaut que pour l’espace de son adresse', () => {
+  const darDiafa = {
+    kind: 'traiteur' as const,
+    traiteur: {
+      id: '22222222-2222-4222-8222-222222222222',
+      slug: 'dar-diafa',
+      name: 'Dar Diafa',
+      logoUrl: null,
+      status: 'ACTIVE' as const,
+    },
+  };
+  const staff = (traiteurId: string | null, role: 'ADMIN_TRAITEUR' | 'SUPER_ADMIN' | 'CLIENT') => ({
+    traiteurId,
+    membershipId: role === 'SUPER_ADMIN' ? null : '33333333-3333-4333-8333-333333333333',
+    role,
+  });
+
+  it('adresse d’un traiteur : seulement son personnel', () => {
+    expect(sessionMatchesSpace(staff(darDiafa.traiteur.id, 'ADMIN_TRAITEUR'), darDiafa)).toBe(true);
+    expect(
+      sessionMatchesSpace(
+        staff('44444444-4444-4444-8444-444444444444', 'ADMIN_TRAITEUR'),
+        darDiafa,
+      ),
+    ).toBe(false);
+    expect(sessionMatchesSpace(staff(darDiafa.traiteur.id, 'CLIENT'), darDiafa)).toBe(false);
+    expect(sessionMatchesSpace(staff(darDiafa.traiteur.id, 'SUPER_ADMIN'), darDiafa)).toBe(false);
+  });
+
+  it('adresse de la console : seulement le super admin (console ou entré chez un traiteur)', () => {
+    const platform = { kind: 'platform' as const };
+    expect(sessionMatchesSpace(staff(null, 'SUPER_ADMIN'), platform)).toBe(true);
+    expect(sessionMatchesSpace(staff(darDiafa.traiteur.id, 'SUPER_ADMIN'), platform)).toBe(true);
+    expect(sessionMatchesSpace(staff(darDiafa.traiteur.id, 'ADMIN_TRAITEUR'), platform)).toBe(
+      false,
+    );
   });
 });

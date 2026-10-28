@@ -33,6 +33,7 @@ import { QueueModule } from './queue/queue.module';
 import { RedisThrottlerStorage } from './redis/redis-throttler.storage';
 import { REDIS_CLIENT, RedisModule } from './redis/redis.module';
 import { SequencesModule } from './sequences/sequences.module';
+import { SpacesModule } from './spaces/spaces.module';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
@@ -52,6 +53,7 @@ import { StorageModule } from './storage/storage.module';
     AccessModule,
     AuditModule,
     SequencesModule,
+    SpacesModule,
     DocumentsModule,
     StorageModule,
     AuthModule,

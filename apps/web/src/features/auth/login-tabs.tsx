@@ -15,10 +15,10 @@ import { SmsLoginForm } from './sms-login-form';
 import { TwoFactorStep } from './two-factor-step';
 
 /**
- * Deux façons de se connecter, au choix : mot de passe ou code par SMS ; puis, si la double
- * authentification est active (ou imposée), la deuxième étape.
+ * Deux façons de se connecter, au choix : mot de passe ou code par SMS (espace d'un traiteur
+ * seulement) ; puis, si la double authentification est active (ou imposée), la deuxième étape.
  */
-export function LoginTabs() {
+export function LoginTabs({ smsLogin = true }: { smsLogin?: boolean }) {
   const t = useTranslations('auth.login');
   const router = useRouter();
   const next = safeNextPath(useSearchParams().get('next'));
@@ -38,6 +38,9 @@ export function LoginTabs() {
       />
     );
   }
+
+  // Console de la plateforme : mot de passe puis double authentification, jamais de code SMS
+  if (!smsLogin) return <PasswordLoginForm onResult={onResult} />;
 
   return (
     <Tabs defaultValue="password" className="gap-6">

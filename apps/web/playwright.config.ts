@@ -8,11 +8,16 @@ import { defineConfig, devices } from '@playwright/test';
  * `gestion_traiteurs_e2e` recréée et seedée à chaque lancement (garde-fou sur le nom),
  * base Redis n° 1, API sur le port 3100 et back-office sur le port 3101. La base de
  * démonstration et les serveurs de développement (3000, 3001) ne sont jamais utilisés.
+ * Comme en production, l'espace vient de l'adresse : le back-office de Dar Diafa est testé sur
+ * dar-diafa.localhost:3101 (Chromium résout seul *.localhost), la console sur localhost:3101.
  * Prérequis : services Docker démarrés (`pnpm docker:up`).
  */
 const API_PORT = 3100;
 const WEB_PORT = 3101;
-const WEB_URL = `http://localhost:${WEB_PORT}`;
+/** Console de la plateforme. */
+const PLATFORM_URL = `http://localhost:${WEB_PORT}`;
+/** Back-office du traiteur de démonstration (sous-domaine). */
+const WEB_URL = `http://dar-diafa.localhost:${WEB_PORT}`;
 const API_URL = `http://localhost:${API_PORT}`;
 
 /** Variable de l'API : environnement (CI), sinon apps/api/.env (poste de développement). */
@@ -44,6 +49,7 @@ e2eRedis.pathname = '/1';
 
 // Lu par les parcours (préparation des données par l'API)
 process.env.E2E_API_URL = `${API_URL}/api/v1`;
+process.env.E2E_PLATFORM_URL = PLATFORM_URL;
 
 export default defineConfig({
   testDir: './e2e',
@@ -83,15 +89,19 @@ export default defineConfig({
         DATABASE_URL: e2eDatabase.toString(),
         REDIS_URL: e2eRedis.toString(),
         PORT: String(API_PORT),
-        CORS_ORIGINS: WEB_URL,
-        PUBLIC_WEB_URL: WEB_URL,
+        CORS_ORIGINS: `${PLATFORM_URL},http://*.localhost:${WEB_PORT}`,
+        PUBLIC_WEB_URL: PLATFORM_URL,
+        TENANT_BASE_DOMAIN: 'localhost',
+        PLATFORM_HOSTNAMES: 'localhost',
+        TENANT_URL_TEMPLATE: `http://{slug}.localhost:${WEB_PORT}`,
         S3_PUBLIC_URL: e2eMediaUrl,
       },
     },
     {
       // Version compilée (rapide et proche de la production), dans un dossier de build séparé
       command: `pnpm --filter @traiteur/web exec next build && pnpm --filter @traiteur/web exec next start -p ${WEB_PORT}`,
-      url: `${WEB_URL}/admin/login`,
+      // Vérifié sur l'adresse de la console (Node ne résout pas forcément *.localhost)
+      url: `${PLATFORM_URL}/admin/login`,
       reuseExistingServer: !process.env.CI,
       timeout: 300_000,
       env: {

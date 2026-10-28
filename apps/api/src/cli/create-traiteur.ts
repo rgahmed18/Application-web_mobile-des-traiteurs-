@@ -8,8 +8,8 @@
  *     --city Casablanca --plan PRO \
  *     --admin-phone 0612345678 --admin-first-name Karim --admin-last-name Benjelloun
  *
- * Ensuite : TRAITEUR_SLUG=<slug> dans la configuration du back-office (un back-office par
- * traiteur pour l'instant), puis ouvrir le lien affiché et l'envoyer à l'administrateur.
+ * Le lien affiché pointe vers l'adresse du traiteur (TENANT_URL_TEMPLATE, ex.
+ * https://dar-diafa.exemple.ma) : l'envoyer à l'administrateur. Aucune autre configuration.
  */
 import { parseArgs } from 'node:util';
 
@@ -18,6 +18,7 @@ import { z } from 'zod';
 
 import { syncPermissionCatalog } from '../access/permission-catalog';
 import { provisionTraiteur } from '../platform/provision-traiteur';
+import { tenantUrlFromTemplate } from '../spaces/tenant-url';
 import { cliPrisma } from './cli-prisma';
 
 const argsSchema = z.object({
@@ -34,7 +35,8 @@ const argsSchema = z.object({
   adminPhone: phoneSchema,
   adminFirstName: z.string().trim().min(1).max(80),
   adminLastName: z.string().trim().min(1).max(80),
-  webUrl: z.url(),
+  /** Modèle d'adresse des traiteurs (« https://{slug}.exemple.ma »). */
+  urlTemplate: z.string().includes('{slug}'),
 });
 
 function readArgs() {
@@ -63,7 +65,7 @@ function readArgs() {
     adminPhone: values['admin-phone'],
     adminFirstName: values['admin-first-name'],
     adminLastName: values['admin-last-name'],
-    webUrl: process.env.PUBLIC_WEB_URL,
+    urlTemplate: process.env.TENANT_URL_TEMPLATE ?? 'http://{slug}.localhost:3001',
   });
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
@@ -118,14 +120,13 @@ async function main(): Promise<void> {
       });
       return created;
     });
-    const url = `${args.webUrl.replace(/\/+$/, '')}/invitation/${token}`;
+    const webUrl = tenantUrlFromTemplate(args.urlTemplate, traiteur.slug);
+    const url = `${webUrl}/invitation/${token}`;
     print(`✓ Traiteur « ${traiteur.name} » créé (slug ${traiteur.slug}, offre ${traiteur.plan})`);
     print(`✓ Premier administrateur : ${args.adminFirstName} ${args.adminLastName}`);
     print('\nLien d’activation (valable 7 jours, à transmettre à l’administrateur) :');
     print(url);
-    print(
-      `\nÀ faire : TRAITEUR_SLUG=${traiteur.slug} dans le .env du serveur, puis redémarrer le service web.`,
-    );
+    print(`\nAdresse de son espace de gestion : ${webUrl}/admin/login`);
   } finally {
     await prisma.$disconnect();
   }

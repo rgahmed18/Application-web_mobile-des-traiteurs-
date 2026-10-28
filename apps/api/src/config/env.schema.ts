@@ -60,8 +60,40 @@ export const envSchema = z
           .filter((origin) => origin.length > 0),
       ),
     SWAGGER_ENABLED: booleanString,
-    /** Adresse publique du site web : liens des devis envoyés aux clients (/devis/…). */
+    /** Adresse de la console de la plateforme (lien d'activation d'un super admin). */
     PUBLIC_WEB_URL: z.url().default('http://localhost:3001'),
+    /**
+     * Domaine des traiteurs : chacun est servi sur « <identifiant>.<TENANT_BASE_DOMAIN> »
+     * (production : gestion-traiteurs.ma ; développement : localhost ; démo sur un PC :
+     * <IP>.nip.io).
+     */
+    TENANT_BASE_DOMAIN: z.string().trim().min(1).default('localhost'),
+    /** Adresses (sans port) de la console de la plateforme, séparées par des virgules. */
+    PLATFORM_HOSTNAMES: z
+      .string()
+      .default('localhost')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((host) => host.trim().toLowerCase())
+          .filter((host) => host.length > 0),
+      ),
+    /**
+     * Adresse d'un traiteur dans les liens envoyés (invitations, devis) ; « {slug} » est remplacé
+     * par son identifiant. Un domaine personnalisé vérifié et actif est utilisé à la place.
+     */
+    TENANT_URL_TEMPLATE: z
+      .string()
+      .default('http://{slug}.localhost:3001')
+      .refine(
+        (value) => value.includes('{slug}') && URL.canParse(value.replace('{slug}', 'exemple')),
+        'doit être une URL contenant {slug}',
+      ),
+    /**
+     * Démonstration : liste des traiteurs proposée au choix par la page de connexion. Refusé en
+     * production (le traiteur vient alors toujours de l'adresse).
+     */
+    DEMO_SPACE_SELECTION: booleanString,
     /** À activer derrière un reverse proxy (IP réelle du client pour la limitation de débit). */
     TRUST_PROXY: trustProxy,
 
@@ -221,6 +253,14 @@ export const envSchema = z
           message: 'TWILIO_FROM ou TWILIO_MESSAGING_SERVICE_SID requis pour Twilio',
         });
       }
+    }
+    if (env.NODE_ENV === 'production' && env.DEMO_SPACE_SELECTION) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DEMO_SPACE_SELECTION'],
+        message:
+          'le choix du traiteur (démonstration) est interdit en production : le traiteur vient de l’adresse',
+      });
     }
     if (env.NODE_ENV === 'production' && env.SMS_PROVIDER === 'console') {
       ctx.addIssue({

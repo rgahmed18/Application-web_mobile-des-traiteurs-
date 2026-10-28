@@ -1,13 +1,20 @@
-# Reverse proxy et HTTPS automatique (Let's Encrypt). APP_HOST : app.<domaine> en production,
-# staging.<domaine> en staging. Les photos sont servies directement par Cloudflare R2
-# (media.<domaine>), pas par ce serveur.
+# Reverse proxy et HTTPS automatique (Let's Encrypt). APP_HOST : console de la plateforme
+# (app.<domaine> en production, staging.<domaine> en staging). Chaque traiteur est servi sur
+# <identifiant>.TENANT_BASE_DOMAIN, ou sur son domaine personnalisé vérifié (offre Premium).
+# Les photos sont servies directement par Cloudflare R2 (media.<domaine>), pas par ce serveur.
 {
 	email {$ACME_EMAIL}
+	# Certificats des traiteurs demandés à la première visite, SEULEMENT si l'API confirme que
+	# l'adresse sert un espace (traiteur existant, ou domaine personnalisé vérifié et actif) :
+	# une adresse inconnue n'obtient jamais de certificat (« Espace introuvable »).
+	on_demand_tls {
+		ask http://api:3000/api/v1/public/spaces/tls-check
+	}
 	# Pas de journal d'accès : il contiendrait les IP et les URL (dont les jetons des liens de
 	# devis et d'invitation). Les erreurs de Caddy restent dans le journal du conteneur.
 }
 
-{$APP_HOST} {
+(application) {
 	encode zstd gzip
 
 	request_body {
@@ -36,4 +43,17 @@
 	handle {
 		reverse_proxy web:3001
 	}
+}
+
+# Console de la plateforme : certificat obtenu au démarrage
+{$APP_HOST} {
+	import application
+}
+
+# Traiteurs (sous-domaines et domaines personnalisés) : certificat à la demande, après « ask »
+https:// {
+	tls {
+		on_demand
+	}
+	import application
 }
