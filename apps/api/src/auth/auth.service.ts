@@ -48,6 +48,8 @@ const UNAVAILABLE_TRAITEUR_STATUSES = new Set(['SUSPENDED', 'CANCELLED']);
 const LOGIN_FAILED_MESSAGE =
   'Identifiants incorrects ou compte temporairement verrouillé. Réessayez dans quelques minutes.';
 
+const NO_CLIENT: ClientInfo = { ipAddress: null, userAgent: null };
+
 /** Contexte d'une session, avec l'accès de la plateforme d'un super admin entré chez un traiteur. */
 type SessionContext = AuthContext & { platformAccessId?: string | null };
 
@@ -58,6 +60,13 @@ function platformAccessExpiry(from: Date): Date {
 interface ContextOptions {
   /** Crée un Membership CLIENT si l'utilisateur n'en a pas encore chez ce traiteur. */
   autoJoinAsClient: boolean;
+  /**
+   * Espace de gestion : un Membership du personnel actif chez CE traiteur est exigé ; aucune
+   * inscription automatique (jamais client d'un autre traiteur en se connectant au back-office).
+   */
+  backoffice?: boolean;
+  /** Pour tracer un refus d'accès à l'espace de gestion. */
+  client?: ClientInfo;
 }
 
 @Injectable()
@@ -151,8 +160,11 @@ export class AuthService {
     }
     this.assertUserActive(user);
 
+    const backoffice = input.space === 'backoffice';
     const context = await this.resolveContext(user, input.traiteurSlug ?? null, {
-      autoJoinAsClient: true,
+      autoJoinAsClient: !backoffice,
+      backoffice,
+      client,
     });
     return this.completeLogin(user, context, client);
   }
@@ -175,8 +187,14 @@ export class AuthService {
     const otpId = await this.otp.checkCode(input.phone, 'LOGIN', input.code);
 
     let user = await this.prisma.user.findUnique({ where: { phone: input.phone } });
+    const backoffice = input.space === 'backoffice';
     if (user) {
       await this.otp.consumeCode(otpId);
+    } else if (backoffice) {
+      // Espace de gestion : jamais de création de compte. Même réponse qu'un compte qui existe
+      // mais n'appartient pas à ce traiteur.
+      await this.otp.consumeCode(otpId);
+      throw this.noBackofficeAccess(traiteur.name);
     } else {
       if (!input.firstName || !input.lastName) {
         // Le code n'est pas consommé : l'app peut le renvoyer avec le prénom et le nom.
@@ -194,7 +212,11 @@ export class AuthService {
     }
     this.assertUserActive(user);
 
-    const context = await this.resolveContext(user, traiteur.slug, { autoJoinAsClient: true });
+    const context = await this.resolveContext(user, traiteur.slug, {
+      autoJoinAsClient: !backoffice,
+      backoffice,
+      client,
+    });
     return this.completeLogin(user, context, client);
   }
 
@@ -707,7 +729,7 @@ export class AuthService {
   private async resolveContext(
     user: User,
     traiteurSlug: string | null,
-    { autoJoinAsClient }: ContextOptions,
+    { autoJoinAsClient, backoffice = false, client }: ContextOptions,
   ): Promise<AuthContext> {
     if (!traiteurSlug) {
       if (user.isSuperAdmin) return { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' };
@@ -722,6 +744,14 @@ export class AuthService {
     let membership = await this.prisma.membership.findUnique({
       where: { userId_traiteurId: { userId: user.id, traiteurId: traiteur.id } },
     });
+    if (backoffice && (!membership || membership.role === 'CLIENT')) {
+      // Tracé au niveau de la plateforme : le traiteur n'apprend pas qu'un compte d'ailleurs a
+      // tenté d'entrer chez lui
+      await this.auditAuth('auth.backoffice_denied', user, client ?? NO_CLIENT, {
+        traiteurSlug: traiteur.slug,
+      });
+      throw this.noBackofficeAccess(traiteur.name);
+    }
     if (!membership) {
       if (!autoJoinAsClient) {
         throw appErrors.forbidden('MEMBERSHIP_INACTIVE', "Vous n'avez pas accès à ce traiteur");
@@ -810,10 +840,23 @@ export class AuthService {
     return { traiteurId, membershipId, role: membership.role };
   }
 
-  private async findAvailableTraiteur(slug: string): Promise<{ id: string; slug: string }> {
+  /**
+   * Compte sans accès à l'espace de gestion de ce traiteur (inconnu, client, ou membre d'un autre
+   * traiteur) : même réponse dans tous les cas, sans jamais nommer un autre traiteur.
+   */
+  private noBackofficeAccess(traiteurName: string) {
+    return appErrors.forbidden(
+      'NO_BACKOFFICE_ACCESS',
+      `Ce compte n'a pas accès à l'espace de gestion de ${traiteurName}. Vérifiez l'adresse de connexion de votre traiteur.`,
+    );
+  }
+
+  private async findAvailableTraiteur(
+    slug: string,
+  ): Promise<{ id: string; slug: string; name: string }> {
     const traiteur = await this.prisma.traiteur.findUnique({
       where: { slug },
-      select: { id: true, slug: true, status: true },
+      select: { id: true, slug: true, name: true, status: true },
     });
     if (!traiteur) throw appErrors.notFound('TRAITEUR_NOT_FOUND', 'Traiteur introuvable');
     if (UNAVAILABLE_TRAITEUR_STATUSES.has(traiteur.status)) {

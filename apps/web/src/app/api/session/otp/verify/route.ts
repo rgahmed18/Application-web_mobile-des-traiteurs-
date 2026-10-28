@@ -16,8 +16,8 @@ import {
 const bodySchema = z.object({ phone: phoneSchema, code: otpCodeSchema });
 
 /**
- * Connexion par code SMS. Aucun prénom ni nom n'est transmis : un numéro inconnu reçoit
- * PROFILE_REQUIRED, le back-office ne crée jamais de compte.
+ * Connexion par code SMS à l'espace de gestion : un numéro inconnu, un client ou un membre d'un
+ * autre traiteur reçoivent la même réponse (NO_BACKOFFICE_ACCESS) ; aucun compte n'est créé.
  */
 export async function POST(request: NextRequest) {
   const rejected = rejectCrossOrigin(request);
@@ -30,6 +30,8 @@ export async function POST(request: NextRequest) {
     const apiResponse = await callApi(request, '/auth/otp/verify', {
       ...body,
       traiteurSlug: serverEnv().TRAITEUR_SLUG,
+      // Espace de gestion : ni création de compte ni inscription automatique comme client
+      space: 'backoffice',
     });
     return await finishSession(request, apiResponse);
   } catch {

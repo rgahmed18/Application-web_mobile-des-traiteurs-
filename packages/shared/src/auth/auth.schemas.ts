@@ -53,6 +53,17 @@ export const registerSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 
 /**
+ * Espace d'où vient la connexion :
+ *   - « client » (par défaut, applications des clients) : un compte sans Membership chez ce traiteur y est
+ *     inscrit comme client ;
+ *   - « backoffice » (espace de gestion, posé par le serveur web) : jamais d'inscription
+ *     automatique, un Membership du personnel actif chez CE traiteur est exigé.
+ */
+export const AUTH_SPACES = ['client', 'backoffice'] as const;
+export const authSpaceSchema = z.enum(AUTH_SPACES);
+export type AuthSpace = z.infer<typeof authSpaceSchema>;
+
+/**
  * Connexion par mot de passe. `identifier` = téléphone ou email.
  * Sans `traiteurSlug`, seule la connexion SUPER_ADMIN (contexte plateforme) est possible.
  */
@@ -60,6 +71,7 @@ export const loginSchema = z.object({
   traiteurSlug: traiteurSlugSchema.optional(),
   identifier: z.string().trim().min(1).max(254),
   password: z.string().min(1).max(128),
+  space: authSpaceSchema.optional(),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
@@ -80,6 +92,8 @@ export const otpVerifySchema = z.object({
   firstName: nameSchema.optional(),
   lastName: nameSchema.optional(),
   locale: localeSchema.optional(),
+  /** « backoffice » : jamais de création de compte ni d'inscription comme client. */
+  space: authSpaceSchema.optional(),
 });
 export type OtpVerifyInput = z.infer<typeof otpVerifySchema>;
 

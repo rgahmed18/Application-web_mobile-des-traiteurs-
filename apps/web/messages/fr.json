@@ -228,7 +228,7 @@
       "DOCUMENT_NOT_FOUND": "Document introuvable.",
       "LINE_NOT_FOUND": "Ligne introuvable.",
       "TOO_MANY_REQUESTS": "Trop de tentatives. Patientez un instant avant de réessayer.",
-      "NO_BACKOFFICE_ACCESS": "Ce compte n’a pas accès à l’espace de gestion.",
+      "NO_BACKOFFICE_ACCESS": "Ce compte n’a pas accès à cet espace de gestion. Vérifiez l’adresse de connexion de votre traiteur.",
       "API_UNREACHABLE": "Le serveur est momentanément indisponible. Réessayez dans un instant.",
       "DISH_IN_PACKAGE": "Ce plat fait partie d’une formule : retirez-le de la formule ou archivez-le.",
       "ITEM_ARCHIVED": "Un élément archivé ne peut pas être ajouté. Restaurez-le d’abord.",

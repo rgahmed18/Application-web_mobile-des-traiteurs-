@@ -12,7 +12,7 @@ import {
   rejectCrossOrigin,
 } from '../_lib/bff';
 
-const bodySchema = loginSchema.omit({ traiteurSlug: true });
+const bodySchema = loginSchema.omit({ traiteurSlug: true, space: true });
 
 /** Connexion par téléphone ou email + mot de passe. */
 export async function POST(request: NextRequest) {
@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     const apiResponse = await callApi(request, '/auth/login', {
       ...body,
       traiteurSlug: serverEnv().TRAITEUR_SLUG,
+      // Espace de gestion : jamais d'inscription automatique comme client
+      space: 'backoffice',
     });
     return await finishSession(request, apiResponse);
   } catch {
