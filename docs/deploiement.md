@@ -793,6 +793,23 @@ Toutes les commandes se lancent sur le serveur, connecté en `deploy`.
 
 Les journaux sont conservés **30 jours** (2 Go au plus), puis effacés automatiquement.
 
+### Inscriptions « client » créées par erreur (une fois, après la mise à jour)
+
+Avant la correction de la connexion au back-office, un membre du personnel d'un traiteur qui se
+connectait à l'espace de gestion d'un autre traiteur y était inscrit automatiquement comme
+client. Pour retrouver et supprimer ces inscriptions :
+
+```bash
+/opt/traiteur/scripts/compose.sh run --rm api node dist/cli/leaked-client-memberships.js
+```
+
+La commande **liste d'abord** ce qu'elle supprimerait (nom, téléphone, traiteur, traiteurs où le
+compte fait partie du personnel), puis attend `oui`. Seules sont concernées les inscriptions
+client d'un membre du personnel d'un **autre** traiteur, créées **après** son entrée dans ce
+personnel et **sans aucune activité** (ni commande, ni adresse, ni conversation, ni message, ni
+avis). Chaque suppression est inscrite au journal d'audit du traiteur concerné
+(`membership.leaked_client_removed`). Sans `oui`, rien n'est modifié.
+
 ### Interface des journaux (Dozzle), par tunnel SSH uniquement
 
 Dozzle n'est **jamais** accessible depuis Internet : il n'écoute que sur le serveur lui-même.
