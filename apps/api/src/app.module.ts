@@ -17,6 +17,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { ClientsModule } from './clients/clients.module';
 import { DocumentRecoveryModule } from './document-recovery/document-recovery.module';
 import { DocumentsModule } from './documents/documents.module';
+import { DraftsModule } from './drafts/drafts.module';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
 import { OrdersModule } from './orders/orders.module';
@@ -55,6 +56,7 @@ import { StorageModule } from './storage/storage.module';
     SequencesModule,
     SpacesModule,
     DocumentsModule,
+    DraftsModule,
     StorageModule,
     AuthModule,
     CatalogModule,

@@ -496,6 +496,8 @@ export class AuthService {
           where: { id: previous.id },
           data: { endedAt: now, endReason },
         });
+        // Brouillons du super admin : liés à l'accès, ils disparaissent avec lui
+        await tx.formDraft.deleteMany({ where: { platformAccessId: previous.id } });
         await tx.refreshToken.updateMany({
           where: { platformAccessId: previous.id, revokedAt: null },
           data: { revokedAt: now },
@@ -599,6 +601,7 @@ export class AuthService {
         where: { platformAccessId: accessId, revokedAt: null },
         data: { revokedAt: now },
       });
+      await tx.formDraft.deleteMany({ where: { platformAccessId: accessId } });
       if (count === 1) {
         await this.audit.record(
           {
@@ -831,6 +834,7 @@ export class AuthService {
           where: { id: access.id, endedAt: null },
           data: { endedAt: now, endReason: 'EXPIRED' },
         });
+        await this.prisma.formDraft.deleteMany({ where: { platformAccessId: access.id } });
         if (count === 1) {
           await this.audit.record({
             traiteurId,

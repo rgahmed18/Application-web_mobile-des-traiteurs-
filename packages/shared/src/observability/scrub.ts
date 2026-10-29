@@ -16,7 +16,7 @@ export const REDACTED = '[masqué]';
 
 /** Noms de champs dont la valeur est toujours masquée. */
 const SENSITIVE_KEY =
-  /pass(word|wd)?|secret|token|authori[sz]ation|cookie|session|api[-_]?key|access[-_]?key|private[-_]?key|dsn|otp|phone|t[ée]l[ée]phone|mobile|e-?mail|courriel|^name$|(first|last|full|display|user|client|contact|member|legal|recorded|actor|driver)[-_]?name$|^nom$|pr[ée]nom|address|adresse|street|iban|rib$|^ice$|cnss|tax[-_]?id|identifier|ip[-_]?address|^ip$|signature|birth/i;
+  /pass(word|wd)?|secret|token|authori[sz]ation|cookie|session|api[-_]?key|access[-_]?key|private[-_]?key|dsn|otp|phone|t[ée]l[ée]phone|mobile|e-?mail|courriel|^name$|(first|last|full|display|user|client|contact|member|legal|recorded|actor|driver)[-_]?name$|^nom$|pr[ée]nom|address|adresse|street|iban|rib$|^ice$|cnss|tax[-_]?id|identifier|ip[-_]?address|^ip$|signature|birth|^drafts?$|form[-_]?draft/i;
 
 /** Contextes techniques ajoutés par le SDK, jamais personnels. */
 const TECHNICAL_CONTEXTS = new Set([

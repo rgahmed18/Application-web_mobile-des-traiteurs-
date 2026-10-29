@@ -15,8 +15,11 @@ import { type AuditRequestContext, auditRequestContext } from './audit-context';
 import { AuditService } from './audit.service';
 
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-/** Déjà tracées par le service (prolongation, sortie). */
-const SELF_AUDITED = /\/platform\/access\/(extend|leave)$/;
+/**
+ * Non tracées ici : prolongation et sortie (tracées par le service), et brouillons (leur contenu
+ * ne va jamais dans l'audit, et l'enregistrement automatique créerait une ligne par seconde).
+ */
+const SELF_AUDITED = /\/platform\/access\/(extend|leave)$|\/me\/drafts(\/|$)/;
 
 /**
  * Super admin entré chez un traiteur : chaque modification (POST, PUT, PATCH, DELETE) est tracée

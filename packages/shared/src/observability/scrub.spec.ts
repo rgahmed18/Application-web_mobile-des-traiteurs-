@@ -154,3 +154,13 @@ describe('filtrage des rapports d’erreur', () => {
     });
   });
 });
+
+describe('brouillons : jamais dans Sentry', () => {
+  it('le contenu d’un brouillon est retiré, quel que soit l’endroit de l’événement', () => {
+    const event = scrubEvent({
+      extra: { draft: { notes: 'Allergie arachides — Mme Bennani' } },
+      contexts: { form: { formDraft: { label: 'Commande Bennani' } } },
+    });
+    expect(JSON.stringify(event)).not.toContain('Bennani');
+  });
+});

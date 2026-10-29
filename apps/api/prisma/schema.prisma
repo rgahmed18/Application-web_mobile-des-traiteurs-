@@ -300,6 +300,7 @@ model Traiteur {
   equipmentItems      EquipmentItem[]
   platformAccesses    PlatformAccess[]
   domains             TraiteurDomain[]
+  formDrafts          FormDraft[]
   buffetTypes         BuffetType[]
   buffets             Buffet[]
   buffetDishes        BuffetDish[]
@@ -352,6 +353,7 @@ model User {
   accountActivations  AccountActivation[]
   twoFactorChallenges TwoFactorChallenge[]
   platformAccesses    PlatformAccess[]
+  formDrafts          FormDraft[]
 }
 
 // Activation d'un compte de la plateforme (SUPER_ADMIN) créé en ligne de commande : lien à usage
@@ -367,6 +369,31 @@ model AccountActivation {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Brouillon d'un formulaire du back-office, enregistré côté serveur (jamais dans le navigateur :
+// PC partagés). Lié à l'utilisateur ET au traiteur ; un brouillon du super admin est lié à son
+// accès temporaire et supprimé à sa fin. Supprimé après l'enregistrement réel ou à expiresAt.
+model FormDraft {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @db.Uuid
+  traiteurId       String   @db.Uuid
+  platformAccessId String?  @db.Uuid
+  formKey          String // ex. « order:new », « dish:<id> », « settings:company »
+  label            String?
+  baseVersion      String?
+  data             Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  expiresAt        DateTime
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  traiteur       Traiteur        @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  platformAccess PlatformAccess? @relation(fields: [platformAccessId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, traiteurId, formKey])
+  @@index([expiresAt])
+  @@index([platformAccessId])
 }
 
 // Domaine personnalisé d'un traiteur (offre Premium) : servi, et certificat HTTPS délivré,
@@ -406,6 +433,7 @@ model PlatformAccess {
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   traiteur      Traiteur       @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   refreshTokens RefreshToken[]
+  formDrafts    FormDraft[]
 
   @@index([userId, endedAt])
   @@index([traiteurId, startedAt])
@@ -587,15 +615,15 @@ model Permission {
 // traiteurId = null  → matrice par défaut (gérée par le SUPER_ADMIN)
 // traiteurId renseigné → surcharge du traiteur, prioritaire sur le défaut
 model RolePermission {
-  id           String   @id @default(uuid()) @db.Uuid
-  traiteurId   String?  @db.Uuid
+  id           String    @id @default(uuid()) @db.Uuid
+  traiteurId   String?   @db.Uuid
   role         Role
-  permissionId String   @db.Uuid
-  granted      Boolean  @default(true) // une surcharge peut accorder ou retirer
+  permissionId String    @db.Uuid
+  granted      Boolean   @default(true) // une surcharge peut accorder ou retirer
   // Matrice par défaut modifiée dans la console : la synchronisation du catalogue n'y touche plus
   editedAt     DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   traiteur   Traiteur?  @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
