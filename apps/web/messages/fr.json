@@ -165,7 +165,7 @@
   },
   "dashboard": {
     "title": "Tableau de bord",
-    "welcome": "Bonjour {name}",
+    "welcome": "Bonjour, {name}",
     "subtitle": "Voici l’essentiel de votre activité.",
     "cards": {
       "todayEvents": "Commandes du jour",

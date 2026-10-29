@@ -90,7 +90,8 @@ function PlanCard({ plan }: { plan: Plan }) {
                 <span className="tabular-nums">{formatMoney(row.monthlyPrice, locale)}</span>
                 <span>
                   {formatDateTime(row.effectiveFrom)}
-                  {row.createdBy ? ` · ${row.createdBy}` : ` · ${t('initial')}`}
+                  {' · '}
+                  <bdi>{row.createdBy ?? t('initial')}</bdi>
                 </span>
               </li>
             ))}

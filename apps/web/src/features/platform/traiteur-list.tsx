@@ -151,8 +151,8 @@ export function TraiteurList() {
                   >
                     {traiteur.name}
                   </Link>
-                  <span className="text-xs text-muted-foreground" dir="ltr">
-                    {traiteur.slug} · {traiteur.city ?? '—'}
+                  <span className="text-xs text-muted-foreground">
+                    <bdi dir="ltr">{traiteur.slug}</bdi> · <bdi>{traiteur.city ?? '—'}</bdi>
                   </span>
                 </span>
                 <span className="text-sm">

@@ -165,7 +165,7 @@
   },
   "dashboard": {
     "title": "لوحة القيادة",
-    "welcome": "مرحبًا {name}",
+    "welcome": "مرحبًا، {name}",
     "subtitle": "إليك أهم مؤشرات نشاطك.",
     "cards": {
       "todayEvents": "طلبات اليوم",

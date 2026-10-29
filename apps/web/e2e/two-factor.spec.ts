@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { PLATFORM_URL, totp } from './helpers';
+import { isolated, PLATFORM_URL, totp } from './helpers';
 
 /** Super admin du seed (base e2e recréée à chaque lancement : double authentification inactive). */
 const SUPER_ADMIN = { phone: '0600000001', password: 'Password123!' };
@@ -109,7 +109,9 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await enterDialog.getByRole('button', { name: 'Entrer chez ce traiteur' }).click();
   await expect(page).toHaveURL(/\/admin$/);
   const banner = page.getByTestId('platform-access-banner');
-  await expect(banner).toContainText(`Vous êtes chez Saveurs ${suffix} en tant que Super Admin`);
+  await expect(banner).toContainText(
+    isolated(`Vous êtes chez `, `Saveurs ${suffix}`, ` en tant que Super Admin`),
+  );
   await expect(page.getByTestId('platform-access-remaining')).toHaveText(
     /expire dans (2 h 00|1 h 5\d)/,
   );
@@ -171,7 +173,7 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await expect(journal).toContainText('Basique : 400 → 450 MAD');
   await expect(journal).toContainText('Équipe · Consulter le catalogue : désactivée → activée');
   await expect(journal).toContainText(
-    `Saveurs ${suffix} : Essai → Suspendu — motif : Abonnement impayé`,
+    isolated(``, `Saveurs ${suffix}`, ` : Essai → Suspendu — motif : Abonnement impayé`),
   );
   await expect(journal).not.toContainText('::ffff:');
   await journal.getByRole('button', { name: /Basique : 400 → 450 MAD/ }).click();

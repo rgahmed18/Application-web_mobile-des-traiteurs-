@@ -24,6 +24,15 @@ export async function login(page: Page, account = MANAGER): Promise<void> {
   await expect(welcome).toBeVisible();
 }
 
+/**
+ * Phrase contenant un nom isolé par des isolats Unicode invisibles (FSI … PDI, voir
+ * lib/format/bidi.ts) : expression qui l'accepte, isolats présents ou non.
+ */
+export function isolated(before: string, name: string, after: string): RegExp {
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`${escape(before)}\u2068?${escape(name)}\u2069?${escape(after)}`);
+}
+
 /** Suffixe unique : les parcours peuvent être rejoués sur la même base. */
 export function uniqueSuffix(): string {
   return Date.now().toString(36).slice(-6);

@@ -43,7 +43,11 @@ export function SpaceBrand() {
           {initialsOf(name)}
         </span>
       )}
-      <span className="truncate text-lg font-semibold" dir="auto">
+      <span
+        className="line-clamp-2 min-w-0 text-lg leading-tight font-semibold break-words"
+        dir="auto"
+        title={name}
+      >
         {name}
       </span>
     </div>

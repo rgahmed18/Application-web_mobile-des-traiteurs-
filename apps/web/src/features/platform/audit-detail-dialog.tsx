@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatDateTime } from '@/lib/format/date';
+import { isolate } from '@/lib/format/bidi';
 
 import { useActionLabel } from './action-label';
 import { useAuditDescriber } from './audit-summary';
@@ -42,7 +43,8 @@ export function AuditDetailDialog({
       t('detail.who'),
       entry.actor
         ? [entry.actor.name ?? t('hiddenName'), entry.actor.role && describe.role(entry.actor.role)]
-            .filter(Boolean)
+            .filter((part): part is string => Boolean(part))
+            .map(isolate)
             .join(' · ')
         : t('system'),
     ],

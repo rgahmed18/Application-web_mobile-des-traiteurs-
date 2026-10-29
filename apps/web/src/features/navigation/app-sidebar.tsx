@@ -16,7 +16,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { usePermission } from '@/features/auth/session-provider';
+import { usePermission, useSession } from '@/features/auth/session-provider';
 
 import { isNavItemActive, NAV_ITEMS } from './nav-items';
 import { TraiteurBrand } from './traiteur-brand';
@@ -29,7 +29,11 @@ export function AppSidebar({ className }: { className?: string }) {
   const can = usePermission();
   const { isMobile, setOpenMobile } = useSidebar();
   const rtl = locale === 'ar';
-  const items = NAV_ITEMS.filter((item) => !item.permission || can(item.permission));
+  const { context } = useSession();
+  const superAdmin = context?.role === 'SUPER_ADMIN';
+  const items = NAV_ITEMS.filter(
+    (item) => (!item.permission || can(item.permission)) && !(item.staffOnly && superAdmin),
+  );
 
   return (
     <Sidebar

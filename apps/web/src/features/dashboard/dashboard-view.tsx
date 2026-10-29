@@ -168,7 +168,16 @@ export function DashboardView() {
   return (
     <>
       <PageHeader
-        title={user ? t('welcome', { name: user.firstName }) : t('title')}
+        title={
+          user
+            ? t('welcome', {
+                // Super admin entré chez le traiteur : son nom complet, comme dans la console
+                name: user.isSuperAdmin
+                  ? `${user.firstName} ${user.lastName}`.trim()
+                  : user.firstName,
+              })
+            : t('title')
+        }
         description={t('subtitle')}
       />
       {canRead && (

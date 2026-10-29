@@ -194,7 +194,12 @@ export function PlatformDashboardView() {
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatDateTime(row.at)}
-                        {row.actorName && ` · ${row.actorName}`}
+                        {row.actorName && (
+                          <>
+                            {' · '}
+                            <bdi>{row.actorName}</bdi>
+                          </>
+                        )}
                       </span>
                     </li>
                   ))}

@@ -30,6 +30,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Permission nécessaire pour voir l'entrée (aucune = toujours visible). */
   permission?: PermissionKey;
+  /** Réservé au personnel : caché au super admin entré chez le traiteur (ex. ses missions). */
+  staffOnly?: boolean;
 }
 
 /** Menu du back-office, dans l'ordre d'affichage. */
@@ -41,6 +43,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     href: '/admin/missions',
     icon: ClipboardCheckIcon,
     permission: 'assignments.read_own',
+    staffOnly: true,
   },
   { labelKey: 'catalog', href: '/admin/catalog', icon: UtensilsIcon, permission: 'catalog.read' },
   { labelKey: 'orders', href: '/admin/orders', icon: ClipboardListIcon, permission: 'orders.read' },

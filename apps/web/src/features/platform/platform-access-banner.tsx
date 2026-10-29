@@ -11,6 +11,7 @@ import { useSession } from '@/features/auth/session-provider';
 import { refreshAccessToken, sessionStore } from '@/features/auth/session-store';
 import { ReasonDialog } from '@/features/orders/order-dialogs';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { isolate } from '@/lib/format/bidi';
 
 /** Hauteur du bandeau : la barre du haut et le menu latéral sont décalés d'autant. */
 export const PLATFORM_BANNER_CLASS = 'h-12';
@@ -79,14 +80,14 @@ export function PlatformAccessBanner() {
         <ShieldAlertIcon className="size-5 shrink-0" aria-hidden />
         <p className="min-w-0 flex-1 truncate text-sm font-semibold" dir="auto">
           <span className="hidden sm:inline">
-            {t('insideLong', { name: platformAccess.traiteurName })}
+            {t('insideLong', { name: isolate(platformAccess.traiteurName) })}
           </span>
           <span className="sm:hidden">
-            {t('insideShort', { name: platformAccess.traiteurName })}
+            {t('insideShort', { name: isolate(platformAccess.traiteurName) })}
           </span>
           <span className="hidden font-normal lg:inline">
             {' '}
-            · {t('reason', { reason: platformAccess.reason })}
+            · {t('reason', { reason: isolate(platformAccess.reason) })}
           </span>
         </p>
         <span

@@ -7,7 +7,9 @@ export default function AuthLayout({ children }: LayoutProps<'/admin'>) {
   return (
     <div className="flex min-h-svh flex-col bg-muted/40">
       <header className="flex items-center justify-between gap-4 p-4">
-        <SpaceBrand />
+        <div className="min-w-0 flex-1">
+          <SpaceBrand />
+        </div>
         <LanguageSwitcher />
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pb-10 sm:items-center">

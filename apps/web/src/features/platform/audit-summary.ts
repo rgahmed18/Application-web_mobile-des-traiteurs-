@@ -13,6 +13,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useCallback } from 'react';
 
 import { formatDate, formatDateTime } from '@/lib/format/date';
+import { isolate } from '@/lib/format/bidi';
 import { currencyLabel, formatAmount, formatMoney } from '@/lib/format/money';
 
 type Change = Record<string, unknown> | null;
@@ -115,7 +116,7 @@ export function useAuditDescriber() {
   const summary = useCallback(
     (entry: PlatformAuditEntry): string | null => {
       const { before, after } = entry;
-      const traiteur = entry.traiteur?.name ?? t('noTraiteur');
+      const traiteur = isolate(entry.traiteur?.name ?? t('noTraiteur'));
       switch (entry.action) {
         case 'platform.permission_default_changed':
           return t('summary.permission', {

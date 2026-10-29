@@ -111,9 +111,10 @@ function TraiteurDetail({ detail }: { detail: PlatformTraiteurDetail }) {
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        {detail.city ?? '—'} · <span dir="ltr">{detail.phone}</span> ·{' '}
-        <span dir="ltr">{detail.email}</span> ·{' '}
-        {t('createdOn', { date: formatDate(detail.createdAt) })}
+        {/* Chaque élément isolé : une ville en arabe ne déplace ni le téléphone ni l'email */}
+        <bdi>{detail.city ?? '—'}</bdi> · <bdi dir="ltr">{detail.phone}</bdi> ·{' '}
+        <bdi dir="ltr">{detail.email}</bdi> ·{' '}
+        <bdi>{t('createdOn', { date: formatDate(detail.createdAt) })}</bdi>
       </p>
 
       {detail.status === 'SUSPENDED' && (
@@ -328,7 +329,12 @@ function TraiteurDetail({ detail }: { detail: PlatformTraiteurDetail }) {
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatDateTime(entry.at)}
-                        {entry.actorName && ` · ${entry.actorName}`}
+                        {entry.actorName && (
+                          <>
+                            {' · '}
+                            <bdi>{entry.actorName}</bdi>
+                          </>
+                        )}
                       </span>
                     </li>
                   ))}
