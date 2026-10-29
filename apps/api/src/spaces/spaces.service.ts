@@ -15,6 +15,7 @@ import { tenantUrlFromTemplate } from './tenant-url';
 
 /** Résolutions gardées 30 secondes : la page de connexion et le serveur web les demandent souvent. */
 const CACHE_TTL_MS = 30_000;
+const CUSTOM_DOMAIN = 'custom_domain';
 const CACHE_MAX_ENTRIES = 1_000;
 
 const traiteurSelect = {
@@ -88,22 +89,58 @@ export class SpacesService {
     return this.lookup({ kind: 'subdomain', slug });
   }
 
-  /** Adresse publique du back-office d'un traiteur : liens d'invitation et de devis. */
+  /**
+   * Adresse publique du back-office d'un traiteur : liens d'invitation et de devis. Son domaine
+   * personnalisé s'il est vérifié, actif et inclus dans son offre ; sinon son sous-domaine.
+   */
   async tenantUrl(traiteurId: string): Promise<string> {
     const traiteur = await this.prisma.traiteur.findUniqueOrThrow({
       where: { id: traiteurId },
-      select: { slug: true },
+      select: {
+        slug: true,
+        domains: {
+          where: { status: 'ACTIVE' },
+          orderBy: { verifiedAt: 'asc' },
+          take: 1,
+          select: { hostname: true },
+        },
+        featureFlags: { where: { key: CUSTOM_DOMAIN, enabled: true }, select: { key: true } },
+      },
     });
+    const domain = traiteur.domains[0];
+    if (domain && traiteur.featureFlags.length > 0) return `https://${domain.hostname}`;
     return tenantUrlFromTemplate(this.urlTemplate, traiteur.slug);
   }
 
-  private async lookup(kind: Exclude<HostKind, { kind: 'platform' }>): Promise<Space | null> {
-    // Domaines personnalisés : ajoutés avec leur vérification (console)
-    if (kind.kind !== 'subdomain') return null;
-    const traiteur = await this.prisma.traiteur.findUnique({
-      where: { slug: kind.slug },
-      select: traiteurSelect,
+  /**
+   * Traiteur d'un domaine personnalisé : seulement vérifié et actif, et avec la fonctionnalité
+   * « Domaine personnalisé » active (offre Premium). Sinon : « Espace introuvable ».
+   */
+  private async customDomainTraiteur(hostname: string) {
+    const domain = await this.prisma.traiteurDomain.findUnique({
+      where: { hostname },
+      select: {
+        status: true,
+        traiteur: {
+          select: {
+            ...traiteurSelect,
+            featureFlags: { where: { key: CUSTOM_DOMAIN, enabled: true }, select: { key: true } },
+          },
+        },
+      },
     });
+    if (domain?.status !== 'ACTIVE' || domain.traiteur.featureFlags.length === 0) return null;
+    return domain.traiteur;
+  }
+
+  private async lookup(kind: Exclude<HostKind, { kind: 'platform' }>): Promise<Space | null> {
+    const traiteur =
+      kind.kind === 'subdomain'
+        ? await this.prisma.traiteur.findUnique({
+            where: { slug: kind.slug },
+            select: traiteurSelect,
+          })
+        : await this.customDomainTraiteur(kind.hostname);
     if (!traiteur || traiteur.status === 'CANCELLED') return null;
     return {
       kind: 'traiteur',

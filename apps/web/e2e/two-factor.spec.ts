@@ -85,6 +85,10 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await row.getByRole('link', { name: `Saveurs ${suffix}` }).click();
   const detail = page.getByTestId('traiteur-detail');
   await expect(detail.getByRole('heading', { level: 1 })).toHaveText(`Saveurs ${suffix}`);
+  // Domaine personnalisé : réservé à l'offre Premium (fonctionnalité absente ici)
+  await expect(page.getByTestId('traiteur-domains')).toContainText(
+    'La fonctionnalité « Domaine personnalisé » n’est pas active',
+  );
   await detail.getByRole('button', { name: 'Suspendre' }).click();
   const suspendDialog = page.getByRole('dialog', { name: /Suspendre Saveurs/ });
   await suspendDialog.getByLabel('Motif (conservé dans l’historique)').fill('Abonnement impayé');

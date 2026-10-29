@@ -186,6 +186,14 @@ export function useAuditDescriber() {
             until: until ? formatDateTime(until) : '—',
           });
         }
+        case 'platform.domain_added':
+        case 'platform.domain_verified':
+        case 'platform.domain_disabled':
+        case 'platform.domain_removed':
+          return t('summary.domain', {
+            traiteur,
+            hostname: str(after, 'hostname') ?? str(before, 'hostname') ?? '—',
+          });
         case 'platform.access_ended':
           return t('summary.accessEnded', {
             traiteur,

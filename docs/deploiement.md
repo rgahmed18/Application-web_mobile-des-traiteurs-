@@ -648,6 +648,24 @@ Les traiteurs suivants se créent depuis la console (Traiteurs › Nouveau trait
 L'administrateur complète ensuite les paramètres (Entreprise, Documents, Disponibilités) et
 invite son équipe depuis le back-office.
 
+### 14.1 Domaine personnalisé d'un traiteur (offre Premium)
+
+Un traiteur Premium (fonctionnalité « Domaine personnalisé ») peut servir son back-office sur
+son propre domaine, par exemple `gestion.dardiafa.ma` :
+
+1. Console › Traiteurs › fiche du traiteur › **Domaine personnalisé** › saisissez le domaine ›
+   **Ajouter**. Il est « en attente de vérification » : il n'est **pas** servi.
+2. Chez le registraire de ce domaine, le traiteur (ou vous) crée les deux enregistrements
+   affichés : un **CNAME** du domaine vers `dar-diafa.DOMAINE`, et un **TXT**
+   `_gestion-traiteurs.<son domaine>` avec la valeur indiquée (preuve qu'il en est propriétaire).
+3. **Vérifier** : si le TXT est trouvé, le domaine devient **actif**. À la première visite,
+   Caddy demande à l'API si l'adresse est autorisée (`/api/v1/public/spaces/tls-check`) puis
+   obtient le certificat HTTPS. Les liens d'invitation et de devis utilisent alors ce domaine.
+
+Un domaine non vérifié, coupé, ou d'un traiteur dont la fonctionnalité est désactivée affiche
+« Espace introuvable » et **n'obtient jamais de certificat**. Chaque étape est tracée dans le
+journal d'audit (`platform.domain_*`).
+
 ## 15. Checklist avant la mise en production
 
 Imprimez cette liste et cochez chaque ligne **sur le serveur de production** avant d'ouvrir
@@ -689,6 +707,10 @@ le service au traiteur pilote.
 
 - [ ] Certificat valide : `curl.exe -sI https://app.DOMAINE/admin/login` → `HTTP/1.1 200` ou
       `HTTP/2 200`, sans erreur de certificat
+- [ ] Traiteur pilote sur son adresse : `curl.exe -sI https://dar-diafa.DOMAINE/admin/login` →
+      `200`, certificat valide (obtenu à la première visite)
+- [ ] Adresse inventée : `curl.exe -sI https://nimporte-quoi.DOMAINE/` → **erreur TLS** (aucun
+      certificat délivré pour une adresse qui ne sert aucun espace)
 - [ ] Redirection : `curl.exe -sI http://app.DOMAINE/` → `308 Permanent Redirect` vers `https://`
 - [ ] Note **A** ou **A+** sur https://www.ssllabs.com/ssltest/ (saisissez `app.DOMAINE`)
 

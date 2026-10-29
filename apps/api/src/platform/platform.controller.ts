@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -19,6 +20,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  type PlatformDomainCreateInput,
+  platformDomainCreateSchema,
+  type PlatformDomains,
+  platformDomainsSchema,
   PLATFORM_MATRIX_ROLES,
   type PlatformPermissionMatrix,
   platformPermissionMatrixSchema,
@@ -67,6 +72,7 @@ import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
 import { PlatformAuditService } from './platform-audit.service';
 import { PlatformDashboardService } from './platform-dashboard.service';
+import { PlatformDomainsService } from './platform-domains.service';
 import { PlatformPermissionsService } from './platform-permissions.service';
 import { PlatformPlansService } from './platform-plans.service';
 import { PlatformTraiteurAdminService } from './platform-traiteur-admin.service';
@@ -86,6 +92,7 @@ export class PlatformController {
     private readonly plans: PlatformPlansService,
     private readonly audit: PlatformAuditService,
     private readonly permissionMatrix: PlatformPermissionsService,
+    private readonly domains: PlatformDomainsService,
   ) {}
 
   @Get('dashboard')
@@ -266,6 +273,67 @@ export class PlatformController {
   @ApiOkResponse({ schema: zodToOpenApi(platformAuditOptionsSchema, 'output') })
   auditOptions(): Promise<PlatformAuditOptions> {
     return this.audit.options();
+  }
+
+  @Get('traiteurs/:id/domains')
+  @ApiOperation({ summary: 'Domaines personnalisés du traiteur (offre Premium) et cible DNS' })
+  @ApiOkResponse({ schema: zodToOpenApi(platformDomainsSchema, 'output') })
+  listDomains(@Param('id', uuidParam) id: string): Promise<PlatformDomains> {
+    return this.domains.list(id);
+  }
+
+  @Post('traiteurs/:id/domains')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Ajoute un domaine personnalisé (en attente de vérification par DNS TXT)',
+  })
+  @ApiBody({ schema: zodToOpenApi(platformDomainCreateSchema) })
+  @ApiOkResponse({ schema: zodToOpenApi(platformDomainsSchema, 'output') })
+  addDomain(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Body(new ZodValidationPipe(platformDomainCreateSchema)) body: PlatformDomainCreateInput,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformDomains> {
+    return this.domains.add(user, id, body.hostname, client);
+  }
+
+  @Post('traiteurs/:id/domains/:domainId/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Vérifie l’enregistrement TXT ; trouvé : domaine actif (servi)' })
+  @ApiOkResponse({ schema: zodToOpenApi(platformDomainsSchema, 'output') })
+  verifyDomain(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Param('domainId', uuidParam) domainId: string,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformDomains> {
+    return this.domains.verify(user, id, domainId, client);
+  }
+
+  @Post('traiteurs/:id/domains/:domainId/disable')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Coupe le domaine : plus servi (une vérification le réactive)' })
+  @ApiOkResponse({ schema: zodToOpenApi(platformDomainsSchema, 'output') })
+  disableDomain(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Param('domainId', uuidParam) domainId: string,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformDomains> {
+    return this.domains.disable(user, id, domainId, client);
+  }
+
+  @Delete('traiteurs/:id/domains/:domainId')
+  @ApiOperation({ summary: 'Supprime le domaine personnalisé' })
+  @ApiOkResponse({ schema: zodToOpenApi(platformDomainsSchema, 'output') })
+  removeDomain(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Param('domainId', uuidParam) domainId: string,
+    @Client() client: ClientInfo,
+  ): Promise<PlatformDomains> {
+    return this.domains.remove(user, id, domainId, client);
   }
 
   @Get('permissions')

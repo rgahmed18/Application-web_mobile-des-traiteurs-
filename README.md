@@ -513,6 +513,12 @@ par le serveur, jamais choisi par le navigateur :
   un accès Internet pour le DNS). Pour le développement seulement, `DEMO_SPACE_SELECTION=true`
   (API et web) ajoute sur la console « ?traiteur=<identifiant> » et une liste de choix ; refusé
   au démarrage si `NODE_ENV=production`, donc jamais avec `next start`.
+- **Domaine personnalisé** (offre Premium, fonctionnalité « Domaine personnalisé ») : ajouté
+  depuis la fiche du traiteur dans la console, prouvé par un enregistrement DNS TXT
+  (`_gestion-traiteurs.<domaine>`), puis actif. Seul un domaine vérifié, actif, d'un traiteur
+  dont la fonctionnalité est active est servi et reçoit un certificat (Caddy « on-demand TLS »,
+  `ask` → `/api/v1/public/spaces/tls-check`) ; sinon « Espace introuvable ». Les liens envoyés
+  utilisent alors ce domaine (`TraiteurDomain`, journal `platform.domain_*`).
 - Nettoyage des inscriptions client créées par erreur avant cette correction : commande
   `leaked-client-memberships` (docs/deploiement.md).
 

@@ -358,3 +358,44 @@ export type PlatformPermissionMatrix = z.infer<typeof platformPermissionMatrixSc
 /** Une case : égale à la valeur du catalogue, elle redevient une case du catalogue. */
 export const platformPermissionUpdateSchema = z.object({ granted: z.boolean() });
 export type PlatformPermissionUpdateInput = z.infer<typeof platformPermissionUpdateSchema>;
+
+// ─────────────────────────── Domaines personnalisés ───────────────────────────
+
+/**
+ * Domaine personnalisé d'un traiteur (fonctionnalité « Domaine personnalisé », offre Premium) :
+ * servi, et certificat HTTPS délivré, seulement une fois vérifié par un enregistrement DNS TXT
+ * et actif. PENDING : en attente de vérification ; ACTIVE : vérifié et servi ; DISABLED : coupé.
+ */
+export const TRAITEUR_DOMAIN_STATUSES = ['PENDING', 'ACTIVE', 'DISABLED'] as const;
+export const traiteurDomainStatusSchema = z.enum(TRAITEUR_DOMAIN_STATUSES);
+export type TraiteurDomainStatus = z.infer<typeof traiteurDomainStatusSchema>;
+
+/** Enregistrement TXT à créer : « _gestion-traiteurs.<domaine> » = « gestion-traiteurs-verification=<jeton> ». */
+export const DOMAIN_VERIFICATION_LABEL = '_gestion-traiteurs';
+export const DOMAIN_VERIFICATION_PREFIX = 'gestion-traiteurs-verification=';
+
+export const platformDomainSchema = z.object({
+  id: z.uuid(),
+  hostname: z.string(),
+  status: traiteurDomainStatusSchema,
+  verification: z.object({ name: z.string(), value: z.string() }),
+  verifiedAt: z.iso.datetime().nullable(),
+  lastCheckedAt: z.iso.datetime().nullable(),
+  lastCheckError: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export type PlatformDomain = z.infer<typeof platformDomainSchema>;
+
+export const platformDomainsSchema = z.object({
+  /** Fonctionnalité « Domaine personnalisé » active pour ce traiteur. */
+  featureEnabled: z.boolean(),
+  /** Cible DNS : CNAME du domaine vers cette adresse (sous-domaine du traiteur). */
+  target: z.string(),
+  domains: z.array(platformDomainSchema),
+});
+export type PlatformDomains = z.infer<typeof platformDomainsSchema>;
+
+export const platformDomainCreateSchema = z.object({
+  hostname: z.string().trim().toLowerCase().min(3).max(253),
+});
+export type PlatformDomainCreateInput = z.infer<typeof platformDomainCreateSchema>;

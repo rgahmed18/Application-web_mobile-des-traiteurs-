@@ -8,6 +8,8 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  type PlatformDomains,
+  platformDomainsSchema,
   type PlatformPermissionMatrix,
   platformPermissionMatrixSchema,
   type PlatformAuditOptions,
@@ -180,5 +182,39 @@ export function useSetPlatformPermission() {
         schema: platformPermissionMatrixSchema,
       }),
     onSuccess: (matrix) => queryClient.setQueryData(permissionsKey, matrix),
+  });
+}
+
+const domainsKey = (traiteurId: string) => [...platformKeys.all, 'domains', traiteurId] as const;
+
+/** Domaines personnalisés d'un traiteur (offre Premium) et cible DNS. */
+export function usePlatformDomains(traiteurId: string): UseQueryResult<PlatformDomains> {
+  return useQuery({
+    queryKey: domainsKey(traiteurId),
+    queryFn: ({ signal }) =>
+      apiRequest(`/platform/traiteurs/${traiteurId}/domains`, {
+        schema: platformDomainsSchema,
+        signal,
+      }),
+  });
+}
+
+/** Ajout, vérification DNS, coupure ou suppression d'un domaine personnalisé. */
+export function useDomainAction(traiteurId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (action: {
+      method: 'POST' | 'DELETE';
+      path: string;
+      body?: Record<string, unknown>;
+    }) =>
+      apiRequest(`/platform/traiteurs/${traiteurId}/domains${action.path}`, {
+        method: action.method,
+        body: action.body,
+        schema: platformDomainsSchema,
+      }),
+    onSuccess: (domains) => queryClient.setQueryData(domainsKey(traiteurId), domains),
+    // Vérification refusée : la date et la raison du dernier essai sont enregistrées
+    onError: () => queryClient.invalidateQueries({ queryKey: domainsKey(traiteurId) }),
   });
 }

@@ -27,6 +27,10 @@ const KNOWN_ACTIONS = [
   'platform_access_ended',
   'platform_access_request',
   'platform_permission_default_changed',
+  'platform_domain_added',
+  'platform_domain_verified',
+  'platform_domain_disabled',
+  'platform_domain_removed',
 ] as const;
 type KnownAction = (typeof KNOWN_ACTIONS)[number];
 

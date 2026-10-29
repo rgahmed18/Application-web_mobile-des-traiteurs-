@@ -16,6 +16,7 @@ import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SpacesService } from '../spaces/spaces.service';
 import { PlatformTraiteursService } from './platform-traiteurs.service';
 
 type Tx = Prisma.TransactionClient;
@@ -36,6 +37,10 @@ const HISTORY_ACTIONS = [
   'platform.access_started',
   'platform.access_extended',
   'platform.access_ended',
+  'platform.domain_added',
+  'platform.domain_verified',
+  'platform.domain_disabled',
+  'platform.domain_removed',
 ];
 
 /**
@@ -50,6 +55,7 @@ export class PlatformTraiteurAdminService {
     private readonly audit: AuditService,
     private readonly features: FeaturesService,
     private readonly traiteurs: PlatformTraiteursService,
+    private readonly spaces: SpacesService,
   ) {}
 
   async detail(traiteurId: string): Promise<PlatformTraiteurDetail> {
@@ -124,6 +130,8 @@ export class PlatformTraiteurAdminService {
       });
     });
     await this.features.invalidate(traiteurId);
+    // Domaine personnalisé servi ou non selon la fonctionnalité : effet immédiat
+    this.spaces.invalidate();
     return this.detail(traiteurId);
   }
 
@@ -151,6 +159,8 @@ export class PlatformTraiteurAdminService {
       });
     });
     await this.features.invalidate(traiteurId);
+    // Domaine personnalisé servi ou non selon la fonctionnalité : effet immédiat
+    this.spaces.invalidate();
     return this.detail(traiteurId);
   }
 

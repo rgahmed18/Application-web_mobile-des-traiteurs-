@@ -299,6 +299,7 @@ model Traiteur {
   equipmentCategories EquipmentCategory[]
   equipmentItems      EquipmentItem[]
   platformAccesses    PlatformAccess[]
+  domains             TraiteurDomain[]
   buffetTypes         BuffetType[]
   buffets             Buffet[]
   buffetDishes        BuffetDish[]
@@ -366,6 +367,26 @@ model AccountActivation {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Domaine personnalisé d'un traiteur (offre Premium) : servi, et certificat HTTPS délivré,
+// seulement une fois vérifié (enregistrement DNS TXT) et actif. PENDING : ajouté, pas encore
+// vérifié ; ACTIVE : vérifié et servi ; DISABLED : coupé depuis la console (CHECK en SQL).
+model TraiteurDomain {
+  id                String    @id @default(uuid()) @db.Uuid
+  traiteurId        String    @db.Uuid
+  hostname          String    @unique
+  status            String    @default("PENDING")
+  verificationToken String
+  verifiedAt        DateTime?
+  lastCheckedAt     DateTime?
+  lastCheckError    String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  traiteur Traiteur @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+
+  @@index([traiteurId])
 }
 
 // Accès d'un super admin chez un traiteur (dépannage) : motif obligatoire, 2 heures, prolongeable

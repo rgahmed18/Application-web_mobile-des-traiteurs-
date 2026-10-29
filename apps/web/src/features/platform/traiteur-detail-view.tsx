@@ -37,6 +37,7 @@ import { useActionLabel } from './action-label';
 import { AdminLinkDialog } from './admin-link-dialog';
 import { usePlatformTraiteur, useResendAdminInvitation, useTraiteurAction } from './platform-api';
 import { TraiteurStatusBadge } from './platform-dashboard-view';
+import { TraiteurDomainsCard } from './traiteur-domains-card';
 
 const PLATFORM_TIMEZONE = 'Africa/Casablanca';
 
@@ -307,6 +308,7 @@ function TraiteurDetail({ detail }: { detail: PlatformTraiteurDetail }) {
               )}
             </CardContent>
           </Card>
+          <TraiteurDomainsCard traiteurId={detail.id} />
           <Card>
             <CardHeader>
               <CardTitle>{t('historyTitle')}</CardTitle>

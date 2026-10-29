@@ -298,7 +298,11 @@
       "PLATFORM_ACCESS_ENDED": "انتهى الولوج عند الممون: العودة إلى لوحة المنصة.",
       "PLATFORM_ACCESS_REQUIRED": "مخصص للمشرف العام الداخل عند ممون.",
       "PERMISSION_NOT_FOUND": "الصلاحية غير موجودة.",
-      "SPACE_NOT_FOUND": "الفضاء غير موجود: تحقق من العنوان."
+      "SPACE_NOT_FOUND": "الفضاء غير موجود: تحقق من العنوان.",
+      "DOMAIN_INVALID": "نطاق غير صالح: اسم مثل « traiteur-exemple.ma »، خارج عناوين المنصة.",
+      "DOMAIN_TAKEN": "هذا النطاق مسجل مسبقاً.",
+      "DOMAIN_FEATURE_REQUIRED": "وظيفة « نطاق خاص » غير مفعلة لهذا الممون.",
+      "DOMAIN_NOT_VERIFIED": "تعذر التحقق: سجل TXT غير موجود أو مختلف (قد يستغرق انتشار DNS حتى 24 ساعة)."
     },
     "noBackofficeAccessTraiteur": "هذا الحساب لا يملك صلاحية الولوج إلى فضاء تسيير {name}. تحقق من عنوان الولوج الخاص بالممون.",
     "noBackofficeAccessPlatform": "هذا الحساب لا يملك صلاحية الولوج إلى لوحة المنصة. سجّل الدخول من عنوان الممون الخاص بك."
@@ -1961,7 +1965,11 @@
       "platform_access_extended": "تمديد ولوج المنصة",
       "platform_access_ended": "خروج المنصة",
       "platform_access_request": "تعديل من طرف المنصة",
-      "platform_permission_default_changed": "تعديل صلاحية افتراضية"
+      "platform_permission_default_changed": "تعديل صلاحية افتراضية",
+      "platform_domain_added": "إضافة نطاق خاص",
+      "platform_domain_verified": "التحقق من نطاق خاص",
+      "platform_domain_disabled": "إيقاف نطاق خاص",
+      "platform_domain_removed": "حذف نطاق خاص"
     },
     "traiteurs": {
       "title": "الممونون",
@@ -2167,7 +2175,8 @@
         "trial": "{traiteur}: نهاية التجربة {before} ← {after}",
         "created": "{traiteur}: العرض {plan}، {days, plural, =0 {بدون تجربة} one {تجربة يوم واحد} two {تجربة يومين} few {تجربة # أيام} many {تجربة # يوماً} other {تجربة # يوم}}",
         "access": "{traiteur} — السبب: {reason} (إلى غاية {until})",
-        "accessEnded": "{traiteur}: {how}"
+        "accessEnded": "{traiteur}: {how}",
+        "domain": "{traiteur}: {hostname}"
       },
       "detail": {
         "when": "متى",
@@ -2199,7 +2208,8 @@
         "method": "الطريقة",
         "path": "العنوان",
         "userId": "الحساب",
-        "adminMembershipId": "المسؤول"
+        "adminMembershipId": "المسؤول",
+        "hostname": "النطاق"
       }
     },
     "permissions": {
@@ -2221,6 +2231,33 @@
         "LIVREUR": "موزع",
         "CLIENT": "زبون"
       }
+    },
+    "domains": {
+      "title": "نطاق خاص",
+      "hint": "العرض المتميز: فضاء تسيير الممون على نطاقه الخاص. لا يُفعَّل، مع شهادة HTTPS، إلا بعد التحقق.",
+      "featureOff": "وظيفة « نطاق خاص » غير مفعلة لهذا الممون (العرض المتميز): لا يُعرض أي نطاق.",
+      "status": {
+        "PENDING": "في انتظار التحقق",
+        "ACTIVE": "نشط",
+        "DISABLED": "موقوف"
+      },
+      "instructions": "لدى مسجل النطاق، أنشئ هذين السجلين في DNS، ثم اضغط على « تحقق »:",
+      "cnameLabel": "CNAME {name} نحو",
+      "txtName": "TXT: الاسم",
+      "txtValue": "TXT: القيمة",
+      "copy": "نسخ: {label}",
+      "copied": "تم النسخ",
+      "lastCheck": "آخر تحقق في {date}: {error}",
+      "verifiedOn": "تم التحقق في {date}. تُستخرج شهادة HTTPS عند أول زيارة.",
+      "verify": "تحقق",
+      "verified": "تم التحقق من النطاق: أصبح نشطاً",
+      "disable": "إيقاف",
+      "disabled": "تم إيقاف النطاق",
+      "remove": "حذف",
+      "removed": "تم حذف النطاق",
+      "newDomain": "نطاق جديد",
+      "add": "إضافة",
+      "added": "تمت إضافة النطاق: في انتظار التحقق"
     }
   },
   "space": {

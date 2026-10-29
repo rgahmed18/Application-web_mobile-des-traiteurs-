@@ -298,7 +298,11 @@
       "PLATFORM_ACCESS_ENDED": "Accès au traiteur terminé : retour à la console.",
       "PLATFORM_ACCESS_REQUIRED": "Réservé au super admin entré chez un traiteur.",
       "PERMISSION_NOT_FOUND": "Permission introuvable.",
-      "SPACE_NOT_FOUND": "Espace introuvable : vérifiez l’adresse."
+      "SPACE_NOT_FOUND": "Espace introuvable : vérifiez l’adresse.",
+      "DOMAIN_INVALID": "Domaine invalide : un nom comme « traiteur-exemple.ma », hors des adresses de la plateforme.",
+      "DOMAIN_TAKEN": "Ce domaine est déjà enregistré.",
+      "DOMAIN_FEATURE_REQUIRED": "La fonctionnalité « Domaine personnalisé » n’est pas active pour ce traiteur.",
+      "DOMAIN_NOT_VERIFIED": "Vérification impossible : enregistrement TXT absent ou différent (la propagation DNS peut prendre jusqu’à 24 h)."
     },
     "noBackofficeAccessTraiteur": "Ce compte n’a pas accès à l’espace de gestion de {name}. Vérifiez l’adresse de connexion de votre traiteur.",
     "noBackofficeAccessPlatform": "Ce compte n’a pas accès à la console de la plateforme. Connectez-vous depuis l’adresse de votre traiteur."
@@ -1961,7 +1965,11 @@
       "platform_access_extended": "Accès de la plateforme prolongé",
       "platform_access_ended": "Sortie de la plateforme",
       "platform_access_request": "Modification par la plateforme",
-      "platform_permission_default_changed": "Permission par défaut modifiée"
+      "platform_permission_default_changed": "Permission par défaut modifiée",
+      "platform_domain_added": "Domaine personnalisé ajouté",
+      "platform_domain_verified": "Domaine personnalisé vérifié",
+      "platform_domain_disabled": "Domaine personnalisé coupé",
+      "platform_domain_removed": "Domaine personnalisé supprimé"
     },
     "traiteurs": {
       "title": "Traiteurs",
@@ -2167,7 +2175,8 @@
         "trial": "{traiteur} : fin de l’essai {before} → {after}",
         "created": "{traiteur} : offre {plan}, {days, plural, =0 {sans essai} one {essai de # jour} other {essai de # jours}}",
         "access": "{traiteur} — motif : {reason} (jusqu’au {until})",
-        "accessEnded": "{traiteur} : {how}"
+        "accessEnded": "{traiteur} : {how}",
+        "domain": "{traiteur} : {hostname}"
       },
       "detail": {
         "when": "Quand",
@@ -2199,7 +2208,8 @@
         "method": "Méthode",
         "path": "Adresse",
         "userId": "Compte",
-        "adminMembershipId": "Administrateur"
+        "adminMembershipId": "Administrateur",
+        "hostname": "Domaine"
       }
     },
     "permissions": {
@@ -2221,6 +2231,33 @@
         "LIVREUR": "Livreur",
         "CLIENT": "Client"
       }
+    },
+    "domains": {
+      "title": "Domaine personnalisé",
+      "hint": "Offre Premium : le back-office du traiteur sur son propre domaine. Servi, avec un certificat HTTPS, seulement une fois vérifié.",
+      "featureOff": "La fonctionnalité « Domaine personnalisé » n’est pas active pour ce traiteur (offre Premium) : aucun domaine n’est servi.",
+      "status": {
+        "PENDING": "En attente de vérification",
+        "ACTIVE": "Actif",
+        "DISABLED": "Coupé"
+      },
+      "instructions": "Chez le registraire du domaine, créez ces deux enregistrements DNS, puis cliquez sur « Vérifier » :",
+      "cnameLabel": "CNAME {name} vers",
+      "txtName": "TXT : nom",
+      "txtValue": "TXT : valeur",
+      "copy": "Copier : {label}",
+      "copied": "Copié",
+      "lastCheck": "Dernière vérification le {date} : {error}",
+      "verifiedOn": "Vérifié le {date}. Certificat HTTPS obtenu à la première visite.",
+      "verify": "Vérifier",
+      "verified": "Domaine vérifié : il est servi",
+      "disable": "Couper",
+      "disabled": "Domaine coupé : il n’est plus servi",
+      "remove": "Supprimer",
+      "removed": "Domaine supprimé",
+      "newDomain": "Nouveau domaine",
+      "add": "Ajouter",
+      "added": "Domaine ajouté : en attente de vérification"
     }
   },
   "space": {
