@@ -15,3 +15,10 @@ process.env.DEMO_SPACE_SELECTION = 'true';
 process.env.CORS_ORIGINS = [process.env.CORS_ORIGINS, 'http://*.localhost:3001']
   .filter(Boolean)
   .join(',');
+
+// Espaces : toujours les valeurs de développement (localhost), jamais celles de la démo sur le
+// réseau local (TENANT_BASE_DOMAIN=<IP>.nip.io dans .env) dont les tests ne doivent pas dépendre.
+process.env.TENANT_BASE_DOMAIN = 'localhost';
+process.env.PLATFORM_HOSTNAMES = 'localhost';
+process.env.TENANT_URL_TEMPLATE = 'http://{slug}.localhost:3001';
+process.env.PUBLIC_WEB_URL = 'http://localhost:3001';
