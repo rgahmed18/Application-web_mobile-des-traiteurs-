@@ -188,6 +188,9 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  // À chaque chargement de page et avant l'expiration du jeton : plusieurs membres d'une même
+  // équipe partagent souvent une adresse IP (box du traiteur). Le jeton rotatif protège déjà.
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotation du refresh token' })
   @ApiBody({ schema: zodToOpenApi(refreshTokenSchema) })
@@ -201,6 +204,7 @@ export class AuthController {
 
   @Public()
   @Post('logout')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Déconnexion (révoque la session)' })
   @ApiBody({ schema: zodToOpenApi(refreshTokenSchema) })
@@ -210,6 +214,8 @@ export class AuthController {
   }
 
   @Get('me')
+  // Route authentifiée, appelée à chaque ouverture de session : limite large (IP partagée)
+  @Throttle({ default: { limit: 300, ttl: 60_000 } })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Utilisateur courant, contexte et permissions effectives' })
   @ApiOkResponse({ schema: zodToOpenApi(meSchema, 'output') })
