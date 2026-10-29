@@ -18,6 +18,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useEffect } from 'react';
 
 import { PageHeader } from '@/components/layout/page-header';
+import { DraftsCard } from '@/features/drafts/drafts-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePermission, useSession } from '@/features/auth/session-provider';
@@ -180,6 +181,7 @@ export function DashboardView() {
         }
         description={t('subtitle')}
       />
+      <DraftsCard />
       {canRead && (
         <>
           {data && data.staffAlerts.declined + data.staffAlerts.unconfirmed > 0 && (

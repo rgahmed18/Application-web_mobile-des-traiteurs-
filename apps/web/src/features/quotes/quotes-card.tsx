@@ -41,6 +41,7 @@ import { formatMoney } from '@/lib/format/money';
 import { cn } from '@/lib/utils';
 
 import { ManualAcceptanceDialog, QuoteDraftDialog, QuoteLinkDialog } from './quote-dialogs';
+import { draftParam } from '@/features/drafts/draft-param';
 import {
   useCreateQuote,
   useOrderQuotes,
@@ -83,6 +84,14 @@ export function QuotesCard({ order, timeZone }: { order: Order; timeZone: string
   const renew = useRenewQuoteLink(order.id);
   const revoke = useRevokeQuoteLink(order.id);
   const [dialog, setDialog] = useState<DialogState>(null);
+  // Reprise d'un brouillon de devis (lien du tableau de bord) : le devis en cours de préparation
+  const [draftKey, setDraftKey] = useState(draftParam);
+  const draftQuote =
+    draftKey === `quote:${order.id}`
+      ? quotes.data?.find((quote) => quote.status === 'DRAFT')
+      : undefined;
+  const shownDialog: DialogState =
+    dialog ?? (draftQuote ? { kind: 'draft', quote: draftQuote } : null);
   const today = todayInTimeZone(timeZone);
   const manage = can('quotes.manage');
 
@@ -320,12 +329,15 @@ export function QuotesCard({ order, timeZone }: { order: Order; timeZone: string
         )}
       </CardContent>
 
-      {dialog?.kind === 'draft' && (
+      {shownDialog?.kind === 'draft' && (
         <QuoteDraftDialog
           orderId={order.id}
-          quote={dialog.quote}
+          quote={shownDialog.quote}
           today={today}
-          onClose={() => setDialog(null)}
+          onClose={() => {
+            setDialog(null);
+            setDraftKey(null);
+          }}
         />
       )}
       {dialog?.kind === 'link' && (

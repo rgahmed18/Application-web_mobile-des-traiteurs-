@@ -1,6 +1,6 @@
 'use client';
 
-import type { CatalogSettings, Package } from '@traiteur/shared';
+import { type CatalogSettings, type Package, draftFormKey } from '@traiteur/shared';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 
 import { useSavePackage } from '../catalog-api';
 import { FormActions, FormHeader, FormSection } from '../components/form-layout';
@@ -53,6 +55,19 @@ export function PackageForm({ settings, pkg, mode }: PackageFormProps) {
       ? packageToFormValues(pkg, settings, mode === 'duplicate' ? tc('copySuffix') : undefined)
       : EMPTY_PACKAGE_FORM,
   );
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey:
+      mode === 'edit' && pkg
+        ? draftFormKey('package', pkg.id)
+        : mode === 'create'
+          ? draftFormKey('package', 'new')
+          : null,
+    form,
+    label: () => form.getValues('name.fr') || null,
+    baseVersion: mode === 'edit' && pkg ? pkg.updatedAt : null,
+  });
+
   const [price, taxRate, nameFr] = useWatch({
     control: form.control,
     name: ['pricePerPerson', 'taxRateBps', 'name.fr'],
@@ -65,6 +80,7 @@ export function PackageForm({ settings, pkg, mode }: PackageFormProps) {
     try {
       await save.mutateAsync({ id: mode === 'edit' && pkg ? pkg.id : null, input });
       setSaved(true);
+      await draft.clear();
       toast.success(t(mode === 'edit' ? 'packages.saved' : 'packages.created'));
       router.push(LIST_PATH);
     } catch (error) {
@@ -75,6 +91,7 @@ export function PackageForm({ settings, pkg, mode }: PackageFormProps) {
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
+      <FormDraftNotice draft={draft} />
       <FormHeader
         title={t(mode === 'edit' ? 'packages.editTitle' : 'packages.newTitle')}
         backHref={LIST_PATH}

@@ -5,6 +5,7 @@ import {
   type Quote,
   type QuoteLink,
   quoteUpdateSchema,
+  draftFormKey,
 } from '@traiteur/shared';
 import { CopyIcon, MailIcon, MessageCircleIcon, MessageSquareTextIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -35,6 +36,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatDateTime, formatLocalDate } from '@/lib/format/date';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
 import { useAcceptQuoteManually, useUpdateQuote } from './quotes-api';
@@ -73,10 +76,18 @@ export function QuoteDraftDialog({
     locale: quote.locale,
     notes: quote.notes ?? '',
   });
+  // Brouillon côté serveur (un par commande : la fenêtre du devis en cours)
+  const draft = useFormDraft({
+    formKey: draftFormKey('quote', orderId),
+    form,
+    label: () => quote.reference,
+    baseVersion: null,
+  });
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
       await update.mutateAsync({ id: quote.id, input });
+      await draft.clear();
       toast.success(t('draft.saved'));
       onClose();
     } catch (error) {
@@ -93,6 +104,7 @@ export function QuoteDraftDialog({
       submitting={form.formState.isSubmitting}
       onSubmit={onSubmit}
     >
+      <FormDraftNotice draft={draft} />
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           control={form.control}

@@ -33,6 +33,7 @@ import { formatDate } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
 
 import { ClientFormDialog } from './client-form-dialog';
+import { draftParam } from '@/features/drafts/draft-param';
 import { clientName, useClients } from './clients-api';
 
 const PAGE_SIZE = 20;
@@ -49,7 +50,8 @@ export function ClientList() {
   const [sort, setSort] = useState<Sort>('name');
   const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
-  const [creating, setCreating] = useState(false);
+  // Reprise d'un brouillon de nouveau client (lien du tableau de bord)
+  const [creating, setCreating] = useState(() => draftParam() === 'client:new');
   const debouncedSearch = useDebouncedValue(search.trim());
 
   const clients = useClients({

@@ -1,6 +1,6 @@
 'use client';
 
-import type { Buffet, CatalogSettings } from '@traiteur/shared';
+import { type Buffet, type CatalogSettings, draftFormKey } from '@traiteur/shared';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -23,6 +23,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 
 import { useSaveBuffet } from '../catalog-api';
 import { FormActions, FormHeader, FormSection } from '../components/form-layout';
@@ -53,6 +55,14 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
     buffetFormSchema,
     buffet ? buffetToFormValues(buffet, settings) : EMPTY_BUFFET_FORM,
   );
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey: buffet ? draftFormKey('buffet', buffet.id) : draftFormKey('buffet', 'new'),
+    form,
+    label: () => form.getValues('name.fr') || null,
+    baseVersion: buffet?.updatedAt ?? null,
+  });
+
   const [price, taxRate, nameFr, pricingUnit] = useWatch({
     control: form.control,
     name: ['price', 'taxRateBps', 'name.fr', 'pricingUnit'],
@@ -63,6 +73,7 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
     try {
       await save.mutateAsync({ id: buffet?.id ?? null, input });
       setSaved(true);
+      await draft.clear();
       toast.success(t(buffet ? 'buffets.saved' : 'buffets.created'));
       router.push(LIST_PATH);
     } catch (error) {
@@ -73,6 +84,7 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
+      <FormDraftNotice draft={draft} />
       <FormHeader
         title={t(buffet ? 'buffets.editTitle' : 'buffets.newTitle')}
         backHref={LIST_PATH}

@@ -1,6 +1,6 @@
 'use client';
 
-import type { CatalogSettings, Equipment } from '@traiteur/shared';
+import { type CatalogSettings, type Equipment, draftFormKey } from '@traiteur/shared';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -21,6 +21,8 @@ import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { currencyLabel } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 
 import { useSaveEquipment } from '../catalog-api';
 import { FormActions, FormHeader, FormSection } from '../components/form-layout';
@@ -55,6 +57,14 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
     equipmentFormSchema,
     item ? equipmentToFormValues(item, settings) : EMPTY_EQUIPMENT_FORM,
   );
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey: item ? draftFormKey('equipment', item.id) : draftFormKey('equipment', 'new'),
+    form,
+    label: () => form.getValues('name.fr') || null,
+    baseVersion: item?.updatedAt ?? null,
+  });
+
   const [price, taxRate, nameFr] = useWatch({
     control: form.control,
     name: ['price', 'taxRateBps', 'name.fr'],
@@ -64,6 +74,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
     try {
       await save.mutateAsync({ id: item?.id ?? null, input });
       setSaved(true);
+      await draft.clear();
       toast.success(t(item ? 'equipment.saved' : 'equipment.created'));
       router.push(LIST_PATH);
     } catch (error) {
@@ -74,6 +85,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
+      <FormDraftNotice draft={draft} />
       <FormHeader
         title={t(item ? 'equipment.editTitle' : 'equipment.newTitle')}
         backHref={LIST_PATH}

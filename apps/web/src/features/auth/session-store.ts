@@ -377,3 +377,11 @@ export function isPlatformSession(session: Pick<SessionState, 'context'>): boole
 export function hasPermission(session: SessionState, permission: PermissionKey): boolean {
   return session.context?.role === 'SUPER_ADMIN' || session.permissions.has(permission);
 }
+
+/**
+ * Jeton d'accès en mémoire, sans rafraîchissement : pour un envoi au moment où la page se ferme
+ * (fetch « keepalive »), quand aucune attente n'est possible.
+ */
+export function currentAccessToken(): string | null {
+  return accessToken && Date.now() < expiresAt ? accessToken : null;
+}

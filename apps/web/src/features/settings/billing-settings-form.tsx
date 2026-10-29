@@ -6,6 +6,7 @@ import {
   COMMON_TAX_RATES_BPS,
   CREDIT_NOTE_NUMBERINGS,
   formatTaxRate,
+  draftFormKey,
 } from '@traiteur/shared';
 import { ImageIcon, Trash2Icon, UploadIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -30,6 +31,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { FormSection } from '@/features/catalog/components/form-layout';
 import { toInteger } from '@/features/catalog/forms/form-values';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
 import {
@@ -216,11 +219,19 @@ function BillingForm({
   const describeError = useErrorMessage();
   const save = useSaveBillingSettings();
   const form = useZodForm(formSchema, toFormValues(settings));
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey: draftFormKey('settings', 'billing'),
+    form,
+    label: () => null,
+    baseVersion: null,
+  });
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
       const saved = await save.mutateAsync(input);
       form.reset(toFormValues(saved));
+      await draft.clear();
       toast.success(t('saved'));
     } catch (error) {
       toast.error(describeError(error));
@@ -245,6 +256,7 @@ function BillingForm({
       className="flex flex-col gap-6"
       data-testid={`billing-settings-${section}`}
     >
+      <FormDraftNotice draft={draft} />
       <UnsavedChangesGuard when={form.formState.isDirty} />
       {section === 'documents' && (
         <>

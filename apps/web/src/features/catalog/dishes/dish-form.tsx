@@ -1,6 +1,12 @@
 'use client';
 
-import { ALLERGENS, type CatalogSettings, type Dish, DISH_UNITS } from '@traiteur/shared';
+import {
+  ALLERGENS,
+  type CatalogSettings,
+  type Dish,
+  DISH_UNITS,
+  draftFormKey,
+} from '@traiteur/shared';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -21,6 +27,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 
 import { useCategories, useSaveDish } from '../catalog-api';
 import { FormActions, FormHeader, FormSection } from '../components/form-layout';
@@ -58,6 +66,19 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
       ? dishToFormValues(dish, settings, mode === 'duplicate' ? tc('copySuffix') : undefined)
       : EMPTY_DISH_FORM,
   );
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey:
+      mode === 'edit' && dish
+        ? draftFormKey('dish', dish.id)
+        : mode === 'create'
+          ? draftFormKey('dish', 'new')
+          : null,
+    form,
+    label: () => form.getValues('name.fr') || null,
+    baseVersion: mode === 'edit' && dish ? dish.updatedAt : null,
+  });
+
   const [price, taxRate, nameFr] = useWatch({
     control: form.control,
     name: ['price', 'taxRateBps', 'name.fr'],
@@ -67,6 +88,7 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
     try {
       await save.mutateAsync({ id: mode === 'edit' && dish ? dish.id : null, input });
       setSaved(true);
+      await draft.clear();
       toast.success(t(mode === 'edit' ? 'dishes.saved' : 'dishes.created'));
       router.push(LIST_PATH);
     } catch (error) {
@@ -77,6 +99,7 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
+      <FormDraftNotice draft={draft} />
       <FormHeader
         title={t(mode === 'edit' ? 'dishes.editTitle' : 'dishes.newTitle')}
         backHref={LIST_PATH}

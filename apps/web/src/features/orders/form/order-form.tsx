@@ -8,6 +8,7 @@ import {
   type Order,
   orderEditPolicy,
   type OrderEditPolicy,
+  draftFormKey,
 } from '@traiteur/shared';
 import { InfoIcon } from 'lucide-react';
 import Link from 'next/link';
@@ -35,6 +36,8 @@ import { usePermission } from '@/features/auth/session-provider';
 import { FormHeader, FormSection } from '@/features/catalog/components/form-layout';
 import { useClient } from '@/features/clients/clients-api';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 import { useCatalogList, useEquipmentAvailability } from '@/features/catalog/catalog-api';
 import { useLocalized } from '@/features/catalog/use-localized';
@@ -118,6 +121,15 @@ export function OrderForm({
     orderFormSchema,
     order ? orderToFormValues(order) : emptyOrderForm(initialDate, initialClientId),
   );
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion.
+  // Repris, il garde la version de départ : la commande modifiée entre-temps par quelqu'un
+  // d'autre est signalée (conflit de version), jamais écrasée.
+  const draft = useFormDraft({
+    formKey: draftFormKey('order', order?.id ?? 'new'),
+    form,
+    label: () => (order ? order.reference : null),
+    baseVersion: order ? String(order.version) : null,
+  });
   const [clientId, eventDate, startTime, endTime, endsNextDay, setupHours, returnHours, lines] =
     useWatch({
       control: form.control,
@@ -228,7 +240,7 @@ export function OrderForm({
           id: order.id,
           input: {
             ...fields,
-            version: order.version,
+            version: draft.expectedVersion ? Number(draft.expectedVersion) : order.version,
             reason: options.reason ?? null,
             forceAvailability: options.forceAvailability ?? false,
             stockOverrideReason: options.stockOverrideReason ?? null,
@@ -244,6 +256,7 @@ export function OrderForm({
         toast.success(tf('created', { reference: result.reference }));
       }
       setSaved(true);
+      await draft.clear();
       router.push(`/admin/orders/${result.id}`);
     } catch (error) {
       const availability = availabilityConflict(error);
@@ -307,6 +320,7 @@ export function OrderForm({
         title={order ? tf('editTitle', { reference: order.reference }) : tf('newTitle')}
         backHref={backHref}
       />
+      <FormDraftNotice draft={draft} />
       {statusHint && (
         <p className="flex items-start gap-2 rounded-lg border bg-muted/50 p-3">
           <InfoIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />

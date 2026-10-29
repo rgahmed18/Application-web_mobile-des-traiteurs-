@@ -19,6 +19,7 @@ import { StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useLocalized } from '../use-localized';
 import { ServiceFormDialog } from './service-form';
+import { draftParam } from '@/features/drafts/draft-param';
 
 type Editing = { service?: ExtraService } | null;
 
@@ -30,7 +31,13 @@ export function ServiceList() {
   const settings = useCatalogSettings();
   const [archived, setArchived] = useState(false);
   const services = useExtraServices(archived);
-  const [editing, setEditing] = useState<Editing>(null);
+  const [editing, setEditing] = useState<Editing>(() =>
+    draftParam() === 'service:new' ? { service: undefined } : null,
+  );
+  // Reprise d'un brouillon de modification : la fenêtre s'ouvre dès que le service est chargé
+  const [draftKey, setDraftKey] = useState(draftParam);
+  const draftService = services.data?.find((service) => draftKey === `service:${service.id}`);
+  const shown: Editing = editing ?? (draftService ? { service: draftService } : null);
 
   const ttcMode = settings.data?.priceEntryMode !== 'HT';
   const items = services.data ?? [];
@@ -126,12 +133,15 @@ export function ServiceList() {
         </ul>
       )}
 
-      {editing && settings.data && (
+      {shown && settings.data && (
         <ServiceFormDialog
-          key={editing.service?.id ?? 'new'}
+          key={shown.service?.id ?? 'new'}
           settings={settings.data}
-          service={editing.service}
-          onClose={() => setEditing(null)}
+          service={shown.service}
+          onClose={() => {
+            setEditing(null);
+            setDraftKey(null);
+          }}
         />
       )}
     </div>

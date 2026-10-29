@@ -6,6 +6,7 @@ import {
   extraServiceInputSchema,
   PRICING_UNITS,
   pricingUnitSchema,
+  draftFormKey,
 } from '@traiteur/shared';
 import { useTranslations } from 'next-intl';
 import { Controller, useWatch } from 'react-hook-form';
@@ -23,6 +24,8 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
 import { useSaveExtraService } from '../catalog-api';
@@ -99,11 +102,19 @@ export function ServiceFormDialog({ settings, service, onClose }: ServiceFormDia
   const describeError = useErrorMessage();
   const save = useSaveExtraService();
   const form = useZodForm(serviceFormSchema, toFormValues(service, settings));
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey: draftFormKey('service', service?.id ?? 'new'),
+    form,
+    label: () => form.getValues('name.fr') || null,
+    baseVersion: service?.updatedAt ?? null,
+  });
   const [price, taxRate] = useWatch({ control: form.control, name: ['price', 'taxRateBps'] });
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
       await save.mutateAsync({ id: service?.id ?? null, input });
+      await draft.clear();
       toast.success(t('services.saved'));
       onClose();
     } catch (error) {
@@ -120,6 +131,7 @@ export function ServiceFormDialog({ settings, service, onClose }: ServiceFormDia
       submitting={form.formState.isSubmitting}
       onSubmit={onSubmit}
     >
+      <FormDraftNotice draft={draft} />
       <LocalizedTextFields
         control={form.control}
         name="name"

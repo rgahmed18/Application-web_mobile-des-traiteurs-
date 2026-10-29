@@ -46,6 +46,7 @@ import { useZodForm } from '@/lib/forms/use-zod-form';
 import { useLocalized } from '@/features/catalog/use-localized';
 
 import { ClientFormDialog } from './client-form-dialog';
+import { draftParam } from '@/features/drafts/draft-param';
 import { clientName, useClient, useRemoveAddress, useSaveAddress } from './clients-api';
 
 /** Lien WhatsApp : chiffres seuls, indicatif compris (wa.me/212612345678). */
@@ -289,7 +290,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   const can = usePermission();
   const timeZone = useTimeZone();
   const client = useClient(clientId);
-  const [editing, setEditing] = useState(false);
+  // Reprise d'un brouillon de modification (lien du tableau de bord)
+  const [editing, setEditing] = useState(() => draftParam() === `client:${clientId}`);
 
   if (client.isPending) {
     return (

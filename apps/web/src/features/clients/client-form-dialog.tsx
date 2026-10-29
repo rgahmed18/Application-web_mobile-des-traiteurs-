@@ -6,6 +6,7 @@ import {
   clientCreateSchema,
   clientUpdateSchema,
   localeSchema,
+  draftFormKey,
 } from '@traiteur/shared';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -26,6 +27,8 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { isApiError } from '@/lib/api/errors';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
 import { useCreateClient, useUpdateClient } from './clients-api';
@@ -234,10 +237,18 @@ function CreateClientDialog({
     addressLine: '',
     city: '',
   });
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey: draftFormKey('client', 'new'),
+    form,
+    label: () => `${form.getValues('firstName')} ${form.getValues('lastName')}`.trim() || null,
+    baseVersion: null,
+  });
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
       const created = await create.mutateAsync(input);
+      await draft.clear();
       toast.success(t('form.created'));
       onSaved?.(created);
       onClose();
@@ -267,6 +278,7 @@ function CreateClientDialog({
       submitting={form.formState.isSubmitting}
       onSubmit={onSubmit}
     >
+      <FormDraftNotice draft={draft} />
       <FormField
         control={form.control}
         name="phone"
@@ -320,10 +332,18 @@ function EditClientDialog({
     companyName: client.companyName ?? '',
     companyIce: client.companyIce ?? '',
   });
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey: draftFormKey('client', client.id),
+    form,
+    label: () => `${client.firstName} ${client.lastName}`.trim() || null,
+    baseVersion: null,
+  });
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
       const saved = await update.mutateAsync({ id: client.id, input });
+      await draft.clear();
       toast.success(t('form.saved'));
       onSaved?.(saved);
       onClose();
@@ -341,6 +361,7 @@ function EditClientDialog({
       submitting={form.formState.isSubmitting}
       onSubmit={onSubmit}
     >
+      <FormDraftNotice draft={draft} />
       <CommonFields control={form.control} />
     </FormDialog>
   );

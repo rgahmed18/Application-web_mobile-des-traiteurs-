@@ -2435,5 +2435,30 @@
     "demoHint": "En production, l’espace vient de l’adresse (sous-domaine du traiteur). Changer d’espace impose de se reconnecter.",
     "demoPlatform": "Console de la plateforme",
     "demoCurrent": "actuel"
+  },
+  "drafts": {
+    "pending": "Vous avez un brouillon non terminé du {date} à {time}.",
+    "conflict": "Attention : cet élément a été modifié depuis votre brouillon. Si vous le reprenez, l’enregistrement sera refusé tant que vous n’aurez pas vérifié la version actuelle : le travail de l’autre personne n’est jamais écrasé.",
+    "resume": "Reprendre",
+    "discard": "Supprimer",
+    "saving": "Enregistrement du brouillon…",
+    "saved": "Brouillon enregistré à {time}",
+    "failed": "Brouillon non enregistré — nouvel essai automatique",
+    "title": "Brouillons non terminés",
+    "empty": "Aucun brouillon.",
+    "openDraft": "Reprendre",
+    "deleted": "Brouillon supprimé",
+    "forms": {
+      "order": "Commande",
+      "quote": "Devis",
+      "client": "Client",
+      "dish": "Plat",
+      "package": "Formule",
+      "service": "Service",
+      "equipment": "Matériel",
+      "buffet": "Buffet",
+      "settings": "Paramètres"
+    },
+    "newItem": "nouveau"
   }
 }

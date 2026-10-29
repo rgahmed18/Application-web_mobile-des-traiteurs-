@@ -7,6 +7,7 @@ import {
   companySettingsSchema,
   ISO_WEEKDAYS,
   type PricingSettings,
+  draftFormKey,
 } from '@traiteur/shared';
 import { CheckIcon, TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -35,6 +36,8 @@ import { Switch } from '@/components/ui/switch';
 import { FormSection } from '@/features/catalog/components/form-layout';
 import { toInteger } from '@/features/catalog/forms/form-values';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 import { cn } from '@/lib/utils';
 
@@ -110,9 +113,17 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
   const describeError = useErrorMessage();
   const save = useSaveCompanySettings();
   const form = useZodForm(companyFormSchema, companyValues(settings));
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey: draftFormKey('settings', 'company'),
+    form,
+    label: () => null,
+    baseVersion: null,
+  });
   const onSubmit = form.handleSubmit(async (input) => {
     try {
       form.reset(companyValues(await save.mutateAsync(input)));
+      await draft.clear();
       toast.success(t('saved'));
     } catch (error) {
       toast.error(describeError(error));
@@ -125,6 +136,7 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
       className="flex flex-col gap-4"
       data-testid="company-settings"
     >
+      <FormDraftNotice draft={draft} />
       <UnsavedChangesGuard when={form.formState.isDirty} />
       <FormSection title={t('title')} description={t('hint')}>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -231,12 +243,20 @@ function AvailabilityForm({ settings }: { settings: AvailabilitySettings }) {
   const describeError = useErrorMessage();
   const save = useSaveAvailabilitySettings();
   const form = useZodForm(availabilityFormSchema, availabilityValues(settings));
+  // Brouillon côté serveur : enregistré toutes les quelques secondes, repris à la reconnexion
+  const draft = useFormDraft({
+    formKey: draftFormKey('settings', 'availability'),
+    form,
+    label: () => null,
+    baseVersion: null,
+  });
   const limited = form.watch('limited');
   const redact = form.watch('redact');
   const closed = form.watch('closedWeekdays');
   const onSubmit = form.handleSubmit(async (input) => {
     try {
       form.reset(availabilityValues(await save.mutateAsync(input)));
+      await draft.clear();
       toast.success(t('saved'));
     } catch (error) {
       toast.error(describeError(error));
@@ -254,6 +274,7 @@ function AvailabilityForm({ settings }: { settings: AvailabilitySettings }) {
       className="flex flex-col gap-4"
       data-testid="availability-settings"
     >
+      <FormDraftNotice draft={draft} />
       <UnsavedChangesGuard when={form.formState.isDirty} />
       <FormSection title={t('capacityTitle')} description={t('capacityHint')}>
         <SwitchRow
