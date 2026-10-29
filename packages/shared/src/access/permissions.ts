@@ -44,7 +44,7 @@ export const PERMISSIONS = [
   { key: 'invoices.issue', module: 'invoices', description: 'Émettre une facture', isTenantEditable: false, defaultRoles: [ADMIN] },
   { key: 'invoices.credit_note', module: 'invoices', description: 'Émettre un avoir', isTenantEditable: false, defaultRoles: [ADMIN] },
   // Paiements
-  { key: 'payments.read', module: 'payments', description: 'Consulter les paiements', isTenantEditable: true, defaultRoles: [ADMIN] },
+  { key: 'payments.read', module: 'payments', description: 'Consulter les paiements', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
   { key: 'payments.record', module: 'payments', description: 'Enregistrer un paiement', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
   { key: 'payments.refund', module: 'payments', description: 'Rembourser un paiement', isTenantEditable: false, defaultRoles: [ADMIN] },
   // Personnel et livraisons
@@ -74,6 +74,38 @@ export const PERMISSIONS = [
 export type PermissionKey = (typeof PERMISSIONS)[number]['key'];
 
 export const PERMISSION_KEYS: readonly PermissionKey[] = PERMISSIONS.map((p) => p.key);
+
+/**
+ * Droit d'agir → droit de consulter qu'il suppose : accorder le premier sans le second est
+ * incohérent (ex. « Enregistrer un paiement » sans « Consulter les paiements »). Les grilles
+ * (console et traiteur) l'affichent en avertissement ; la matrice du catalogue n'en a aucun.
+ */
+export const PERMISSION_REQUIRES: Readonly<Partial<Record<PermissionKey, PermissionKey>>> = {
+  'catalog.write': 'catalog.read',
+  'orders.write': 'orders.read',
+  'orders.edit_confirmed': 'orders.write',
+  'orders.cancel': 'orders.read',
+  'calendar.manage': 'calendar.read',
+  'quotes.manage': 'quotes.read',
+  'invoices.issue': 'invoices.read',
+  'invoices.credit_note': 'invoices.read',
+  'payments.record': 'payments.read',
+  'payments.refund': 'payments.read',
+  'staff.manage': 'staff.read',
+  'assignments.update_own': 'assignments.read_own',
+  'clients.write': 'clients.read',
+  'conversations.reply': 'conversations.read',
+  'subscription.manage': 'subscription.read',
+};
+
+/** Droits accordés sans le droit de consulter qu'ils supposent. */
+export function permissionInconsistencies(
+  isGranted: (key: PermissionKey) => boolean,
+): { key: PermissionKey; needed: PermissionKey }[] {
+  return (Object.entries(PERMISSION_REQUIRES) as [PermissionKey, PermissionKey][])
+    .filter(([key, needed]) => isGranted(key) && !isGranted(needed))
+    .map(([key, needed]) => ({ key, needed }));
+}
 
 export interface RolePermissionRule {
   permissionKey: string;

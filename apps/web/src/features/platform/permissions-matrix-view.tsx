@@ -1,7 +1,12 @@
 'use client';
 
-import type { PlatformPermissionMatrix, TenantRole } from '@traiteur/shared';
-import { LockIcon } from 'lucide-react';
+import {
+  type PermissionKey,
+  permissionInconsistencies,
+  type PlatformPermissionMatrix,
+  type TenantRole,
+} from '@traiteur/shared';
+import { LockIcon, TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Fragment, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -15,6 +20,15 @@ import { useErrorMessage } from '@/lib/api/use-error-message';
 import { usePlatformPermissions, useSetPlatformPermission } from './platform-api';
 
 type MatrixPermission = PlatformPermissionMatrix['permissions'][number];
+
+/** Permission absente de la matrice (catalogue en retard sur la base) : libellé par sa clé. */
+const fallback = (key: PermissionKey): MatrixPermission => ({
+  key,
+  module: '',
+  description: key,
+  isTenantEditable: true,
+  cells: {} as MatrixPermission['cells'],
+});
 
 /**
  * Matrice des permissions par défaut, pour tous les traiteurs : chaque case prend effet tout de
@@ -51,6 +65,13 @@ export function PermissionsMatrixView() {
     return tp.has(key) ? tp(key) : module;
   };
   const roleLabel = (role: TenantRole) => t(`roles.${role}`);
+  // Droit d'agir sans le droit de consulter qu'il suppose (ex. enregistrer sans consulter)
+  const cells = new Map(matrix.data.permissions.map((permission) => [permission.key, permission]));
+  const warnings = roles.flatMap((role) =>
+    permissionInconsistencies((key) => cells.get(key)?.cells[role].granted ?? false).map(
+      ({ key, needed }) => ({ role, key, needed }),
+    ),
+  );
   const editedCount = matrix.data.permissions.reduce(
     (count, permission) =>
       count +
@@ -86,6 +107,23 @@ export function PermissionsMatrixView() {
         <p>{t('warning')}</p>
         <p>{t('legend')}</p>
       </div>
+      {warnings.length > 0 && (
+        <ul
+          className="flex flex-col gap-1 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200"
+          data-testid="permissions-inconsistencies"
+        >
+          {warnings.map((warning) => (
+            <li key={`${warning.role}-${warning.key}`} className="flex items-start gap-2">
+              <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {t('inconsistent', {
+                role: roleLabel(warning.role),
+                permission: permissionLabel(cells.get(warning.key) ?? fallback(warning.key)),
+                needed: permissionLabel(cells.get(warning.needed) ?? fallback(warning.needed)),
+              })}
+            </li>
+          ))}
+        </ul>
+      )}
       <p className="text-sm text-muted-foreground" data-testid="permissions-edited-count">
         {t('editedCount', { count: editedCount })}
       </p>

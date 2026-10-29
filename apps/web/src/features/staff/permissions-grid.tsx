@@ -1,6 +1,10 @@
 'use client';
 
-import { type PermissionsMatrix, type StaffMemberRole } from '@traiteur/shared';
+import {
+  PERMISSION_REQUIRES,
+  type PermissionsMatrix,
+  type StaffMemberRole,
+} from '@traiteur/shared';
 import { LockIcon, RotateCcwIcon, SaveIcon, TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Fragment, useMemo, useState } from 'react';
@@ -40,20 +44,6 @@ const moduleLabel = (module: string) =>
 type Draft = Record<string, boolean>;
 const cell = (role: string, key: string) => `${role}|${key}`;
 
-/** Paires « modifier » → « consulter » : accorder la première sans la seconde est incohérent. */
-const REQUIRES: Record<string, string> = {
-  'catalog.write': 'catalog.read',
-  'orders.write': 'orders.read',
-  'orders.edit_confirmed': 'orders.write',
-  'orders.cancel': 'orders.read',
-  'calendar.manage': 'calendar.read',
-  'quotes.manage': 'quotes.read',
-  'staff.manage': 'staff.read',
-  'assignments.update_own': 'assignments.read_own',
-  'clients.write': 'clients.read',
-  'conversations.reply': 'conversations.read',
-};
-
 /**
  * Grille rôles × permissions du personnel, groupée par module. Une case égale à la valeur
  * par défaut ne laisse aucune surcharge ; les permissions critiques sont verrouillées.
@@ -90,7 +80,7 @@ export function PermissionsGrid() {
   });
   const byKey = new Map(data.permissions.map((permission) => [permission.key, permission]));
   const warnings = data.roles.flatMap((role) =>
-    Object.entries(REQUIRES).flatMap(([key, needed]) => {
+    Object.entries(PERMISSION_REQUIRES).flatMap(([key, needed]) => {
       const permission = byKey.get(key);
       const required = byKey.get(needed);
       return permission && required && value(role, permission) && !value(role, required)

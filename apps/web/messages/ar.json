@@ -2393,7 +2393,8 @@
         "EQUIPE": "الفريق",
         "LIVREUR": "موزع",
         "CLIENT": "زبون"
-      }
+      },
+      "inconsistent": "{role}: « {permission} » ممنوحة بدون « {needed} »."
     },
     "domains": {
       "title": "نطاق خاص",

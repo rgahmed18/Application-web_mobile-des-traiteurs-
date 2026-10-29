@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PERMISSIONS, resolveEffectivePermissions } from './permissions';
+import { permissionInconsistencies, PERMISSIONS, resolveEffectivePermissions } from './permissions';
 
 describe('catalogue PERMISSIONS', () => {
   it('a des clés uniques', () => {
@@ -70,5 +70,26 @@ describe('resolveEffectivePermissions', () => {
       critical,
     );
     expect(result.size).toBe(0);
+  });
+});
+
+describe('cohérence de la matrice par défaut', () => {
+  it('aucun rôle n’a un droit d’agir sans le droit de consulter qu’il suppose', () => {
+    const roles = [...new Set(PERMISSIONS.flatMap((p) => p.defaultRoles))];
+    const problems = roles.flatMap((role) =>
+      permissionInconsistencies((key) =>
+        PERMISSIONS.some(
+          (p) => p.key === key && (p.defaultRoles as readonly string[]).includes(role),
+        ),
+      ).map(({ key, needed }) => `${role} : ${key} sans ${needed}`),
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it('l’employé consulte les paiements qu’il enregistre', () => {
+    const roles = (key: string) =>
+      PERMISSIONS.find((p) => p.key === key)?.defaultRoles as readonly string[] | undefined;
+    expect(roles('payments.record')).toContain('EMPLOYE');
+    expect(roles('payments.read')).toContain('EMPLOYE');
   });
 });

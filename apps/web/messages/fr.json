@@ -2393,7 +2393,8 @@
         "EQUIPE": "Équipe",
         "LIVREUR": "Livreur",
         "CLIENT": "Client"
-      }
+      },
+      "inconsistent": "{role} : « {permission} » est accordée sans « {needed} »."
     },
     "domains": {
       "title": "Domaine personnalisé",

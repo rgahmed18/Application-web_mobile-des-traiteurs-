@@ -160,6 +160,19 @@ test('super admin : double authentification imposée, console de la plateforme, 
   await teamCatalog.click();
   await expect(teamCatalog).not.toBeChecked();
   await expect(editedCount).toContainText('Aucune case modifiée');
+  // Incohérence signalée : enregistrer un paiement sans pouvoir consulter les paiements
+  const employeePayments = page.getByRole('checkbox', {
+    name: 'Consulter les paiements — Employé',
+  });
+  await expect(employeePayments).toBeChecked();
+  await expect(page.getByTestId('permissions-inconsistencies')).toHaveCount(0);
+  await employeePayments.click();
+  await expect(page.getByTestId('permissions-inconsistencies')).toContainText(
+    'Employé : « Enregistrer un paiement » est accordée sans « Consulter les paiements ».',
+  );
+  await employeePayments.click();
+  await expect(employeePayments).toBeChecked();
+  await expect(page.getByTestId('permissions-inconsistencies')).toHaveCount(0);
 
   // ─── Offres : nouveau prix en vigueur, historique conservé ───
   await page.getByRole('link', { name: 'Offres et fonctionnalités' }).first().click();
