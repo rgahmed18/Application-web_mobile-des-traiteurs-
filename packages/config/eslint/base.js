@@ -12,6 +12,7 @@ export const ignores = globalIgnores([
   '**/.turbo/**',
   '**/.next/**',
   '**/.next-e2e/**',
+  '**/.next-typegen/**',
   '**/.expo/**',
   '**/generated/**',
   '**/next-env.d.ts',

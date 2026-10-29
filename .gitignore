@@ -8,6 +8,7 @@ dist-seed/
 build/
 .next/
 .next-e2e/
+.next-typegen/
 out/
 .expo/
 web-build/

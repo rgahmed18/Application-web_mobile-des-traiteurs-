@@ -2,6 +2,7 @@ pnpm-lock.yaml
 **/dist
 **/.next
 **/.next-e2e
+**/.next-typegen
 **/.expo
 **/.turbo
 **/coverage
