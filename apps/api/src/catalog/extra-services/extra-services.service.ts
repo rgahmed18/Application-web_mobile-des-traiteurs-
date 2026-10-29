@@ -5,6 +5,7 @@ import {
   type ExtraService,
   type ExtraServiceInput,
   resolveTaxRate,
+  type AuditAction,
 } from '@traiteur/shared';
 
 import { AuditService } from '../../audit/audit.service';
@@ -173,7 +174,7 @@ export class ExtraServicesService {
     user: AuthenticatedUser,
     id: string,
     archivedAt: Date | null,
-    action: string,
+    action: AuditAction,
     client: ClientInfo,
   ): Promise<ExtraService> {
     const traiteurId = requireTraiteurId(user);

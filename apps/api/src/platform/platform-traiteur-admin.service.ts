@@ -7,6 +7,7 @@ import {
   type PlatformPlanChangeInput,
   type PlatformTraiteurDetail,
   zonedDayRange,
+  type AuditAction,
 } from '@traiteur/shared';
 
 import { FeaturesService } from '../access/features.service';
@@ -275,7 +276,7 @@ export class PlatformTraiteurAdminService {
     tx: Tx,
     user: AuthenticatedUser,
     traiteurId: string,
-    action: string,
+    action: AuditAction,
     client: ClientInfo,
     change: { before: Prisma.InputJsonValue; after: Prisma.InputJsonValue },
   ): Promise<void> {

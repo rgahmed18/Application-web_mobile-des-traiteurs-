@@ -7,10 +7,11 @@ import {
   type NestInterceptor,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { catchError, concatMap, from, map, type Observable, throwError } from 'rxjs';
+import { catchError, concatMap, from, map, Observable, of, throwError } from 'rxjs';
 
 import type { AuthenticatedRequest } from '../auth/auth-user';
 import { getClientInfo } from '../common/http/client-info';
+import { type AuditRequestContext, auditRequestContext } from './audit-context';
 import { AuditService } from './audit.service';
 
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -19,7 +20,9 @@ const SELF_AUDITED = /\/platform\/access\/(extend|leave)$/;
 
 /**
  * Super admin entré chez un traiteur : chaque modification (POST, PUT, PATCH, DELETE) est tracée
- * dans le journal du traiteur (méthode, route, statut), qu'elle réussisse ou échoue.
+ * dans le journal du traiteur, qu'elle réussisse ou échoue. Une action réussie qui a déjà son
+ * événement métier (ex. « Paramètres de l'entreprise modifiés », auteur : le super admin) n'a
+ * pas de seconde ligne ; sinon une ligne « requête de la plateforme » (méthode, route, statut).
  */
 @Injectable()
 export class PlatformAccessAuditInterceptor implements NestInterceptor {
@@ -58,9 +61,18 @@ export class PlatformAccessAuditInterceptor implements NestInterceptor {
           }),
       );
 
-    return next.handle().pipe(
+    const requestContext: AuditRequestContext = { businessEventRecorded: false };
+    // Le traitement de la requête s'exécute dans le contexte : AuditService y note ses événements
+    const handled = new Observable<unknown>((subscriber) =>
+      auditRequestContext.run(requestContext, () => next.handle().subscribe(subscriber)),
+    );
+    return handled.pipe(
       concatMap((value: unknown) =>
-        record(context.switchToHttp().getResponse<Response>().statusCode).pipe(map(() => value)),
+        requestContext.businessEventRecorded
+          ? of(value)
+          : record(context.switchToHttp().getResponse<Response>().statusCode).pipe(
+              map(() => value),
+            ),
       ),
       catchError((error: unknown) =>
         record(error instanceof HttpException ? error.getStatus() : 500).pipe(

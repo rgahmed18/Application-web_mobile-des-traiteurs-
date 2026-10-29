@@ -1,3 +1,4 @@
+import { AUDIT_ACTIONS, auditActionKey } from '@traiteur/shared';
 import { describe, expect, it } from 'vitest';
 
 import ar from '../../messages/ar.json';
@@ -47,5 +48,21 @@ describe('fichiers de traduction', () => {
         placeholdersOf(String(valueAt(fr, key))),
       );
     }
+  });
+});
+
+describe('journal d’audit : aucune action sans libellé', () => {
+  it('chaque type d’action du registre a un libellé lisible en français et en arabe', () => {
+    const missing = AUDIT_ACTIONS.flatMap((action) => {
+      const key = `platform.actions.${auditActionKey(action)}`;
+      return [fr, ar]
+        .map((messages, index) => ({ messages, locale: index === 0 ? 'fr' : 'ar' }))
+        .filter(({ messages }) => {
+          const label = valueAt(messages, key);
+          return typeof label !== 'string' || label.trim() === '' || label.includes('.');
+        })
+        .map(({ locale }) => `${locale} : ${action}`);
+    });
+    expect(missing).toEqual([]);
   });
 });

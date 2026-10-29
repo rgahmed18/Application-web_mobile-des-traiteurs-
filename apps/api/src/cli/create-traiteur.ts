@@ -13,7 +13,7 @@
  */
 import { parseArgs } from 'node:util';
 
-import { phoneSchema, SUBSCRIPTION_PLANS } from '@traiteur/shared';
+import { type AuditAction, phoneSchema, SUBSCRIPTION_PLANS } from '@traiteur/shared';
 import { z } from 'zod';
 
 import { syncPermissionCatalog } from '../access/permission-catalog';
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
       await tx.auditLog.create({
         data: {
           traiteurId: created.traiteur.id,
-          action: 'traiteur.created',
+          action: 'traiteur.created' satisfies AuditAction,
           entityType: 'Traiteur',
           entityId: created.traiteur.id,
           after: { slug: args.slug, plan: args.plan, adminMembershipId: created.membershipId },

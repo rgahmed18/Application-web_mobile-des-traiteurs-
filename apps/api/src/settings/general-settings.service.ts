@@ -4,6 +4,7 @@ import type {
   CompanySettings,
   PricingSettings,
   PricingSettingsInput,
+  AuditAction,
 } from '@traiteur/shared';
 
 import { AuditService } from '../audit/audit.service';
@@ -106,7 +107,7 @@ export class GeneralSettingsService {
     user: AuthenticatedUser,
     select: TSelect,
     data: Prisma.TraiteurUpdateInput,
-    action: string,
+    action: AuditAction,
     client: ClientInfo,
   ): Promise<Prisma.TraiteurGetPayload<{ select: TSelect }>> {
     const traiteurId = requireTraiteurId(user);

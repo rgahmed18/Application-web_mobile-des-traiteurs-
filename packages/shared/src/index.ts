@@ -1,5 +1,6 @@
 export * from './access/features';
 export * from './access/permissions';
+export * from './audit/audit-actions';
 export * from './auth/auth.schemas';
 export * from './auth/two-factor.schemas';
 export * from './auth/activation.schemas';

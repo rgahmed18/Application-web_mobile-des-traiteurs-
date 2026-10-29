@@ -19,7 +19,7 @@
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 
-import { ACTIVATION_TTL_HOURS, phoneSchema } from '@traiteur/shared';
+import { type AuditAction, ACTIVATION_TTL_HOURS, phoneSchema } from '@traiteur/shared';
 import { z } from 'zod';
 
 import { newLinkToken } from '../common/link-token';
@@ -143,7 +143,7 @@ async function create(prisma: PrismaClient, argv: string[]): Promise<void> {
     await tx.auditLog.create({
       data: {
         traiteurId: null,
-        action: 'super_admin.created',
+        action: 'super_admin.created' satisfies AuditAction,
         entityType: 'User',
         entityId: created.id,
         after: {
@@ -224,7 +224,7 @@ async function resetTwoFactor(prisma: PrismaClient, argv: string[]): Promise<voi
     await tx.auditLog.create({
       data: {
         traiteurId: null,
-        action: 'super_admin.2fa_reset',
+        action: 'super_admin.2fa_reset' satisfies AuditAction,
         entityType: 'User',
         entityId: user.id,
         after: {

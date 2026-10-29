@@ -11,6 +11,7 @@ import {
   type PackagePage,
   resolveTaxRate,
   slugify,
+  type AuditAction,
 } from '@traiteur/shared';
 
 import { AuditService } from '../../audit/audit.service';
@@ -339,7 +340,7 @@ export class PackagesService {
     user: AuthenticatedUser,
     id: string,
     archivedAt: Date | null,
-    action: string,
+    action: AuditAction,
     client: ClientInfo,
   ): Promise<Package> {
     const traiteurId = requireTraiteurId(user);

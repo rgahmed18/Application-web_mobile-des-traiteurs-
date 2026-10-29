@@ -10,6 +10,7 @@ import {
   type PlatformDomains,
   type SpaceHostConfig,
   type TraiteurDomainStatus,
+  type AuditAction,
 } from '@traiteur/shared';
 
 import { FeaturesService } from '../access/features.service';
@@ -213,7 +214,7 @@ export class PlatformDomainsService {
     tx: Prisma.TransactionClient,
     user: AuthenticatedUser,
     traiteurId: string,
-    action: string,
+    action: AuditAction,
     domain: TraiteurDomain,
     client: ClientInfo,
     before?: TraiteurDomain,

@@ -692,12 +692,23 @@ describe('Console de la plateforme (application complète)', () => {
         .set(auth(session.accessToken))
         .expect(403);
 
-      // Une modification : tracée avec méthode, chemin et statut
+      // Une modification réussie : une seule ligne, l'événement métier, au nom du super admin
       await request(server())
         .post('/api/v1/catalog/categories')
         .set(auth(session.accessToken))
         .send({ name: { fr: 'Ajoutée par la plateforme' }, description: null, isActive: true })
         .expect(201);
+      const created = await prisma.auditLog.findFirstOrThrow({
+        where: { traiteurId: traiteur.id, action: 'catalog.category.created' },
+      });
+      expect(created.actorRole).toBe('SUPER_ADMIN');
+
+      // Une modification refusée (aucun événement métier) : ligne « requête de la plateforme »
+      await request(server())
+        .post('/api/v1/catalog/categories')
+        .set(auth(session.accessToken))
+        .send({ name: {} })
+        .expect(400);
       const logged = await prisma.auditLog.findFirstOrThrow({
         where: { traiteurId: traiteur.id, action: 'platform.access_request' },
       });
@@ -705,8 +716,13 @@ describe('Console de la plateforme (application complète)', () => {
       expect(logged.after).toMatchObject({
         method: 'POST',
         path: '/api/v1/catalog/categories',
-        status: 201,
+        status: 400,
       });
+      expect(
+        await prisma.auditLog.count({
+          where: { traiteurId: traiteur.id, action: 'platform.access_request' },
+        }),
+      ).toBe(1);
 
       // Prolonger : nouveau motif, 2 heures à partir de maintenant
       await request(server())

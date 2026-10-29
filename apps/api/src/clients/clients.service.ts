@@ -9,6 +9,7 @@ import {
   type ClientSummary,
   type ClientUpdateInput,
   FIRM_ORDER_STATUSES,
+  type AuditAction,
 } from '@traiteur/shared';
 
 import { AuditService } from '../audit/audit.service';
@@ -472,7 +473,7 @@ export class ClientsService {
   private async auditAddress(
     tx: Db,
     user: AuthenticatedUser,
-    action: string,
+    action: AuditAction,
     clientId: string,
     before: ClientAddressInput | null,
     after: ClientAddressInput | null,

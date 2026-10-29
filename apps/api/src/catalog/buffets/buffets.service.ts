@@ -12,6 +12,7 @@ import {
   localizedTextSchema,
   resolveTaxRate,
   slugify,
+  type AuditAction,
 } from '@traiteur/shared';
 import { z } from 'zod';
 
@@ -326,7 +327,7 @@ export class BuffetsService {
     user: AuthenticatedUser,
     id: string,
     archivedAt: Date | null,
-    action: string,
+    action: AuditAction,
     client: ClientInfo,
   ): Promise<Buffet> {
     const traiteurId = requireTraiteurId(user);

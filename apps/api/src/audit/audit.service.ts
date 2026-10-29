@@ -1,15 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import type { AuditAction } from '@traiteur/shared';
 
 import type { AuthenticatedUser } from '../auth/auth-user';
 import type { ClientInfo } from '../common/http/client-info';
 import { normalizeIpAddress } from '../common/http/ip-address';
+import { auditRequestContext } from './audit-context';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface AuditEntry {
   traiteurId: string | null;
   actor: AuthenticatedUser | null; // null = action système
-  action: string; // ex. "invoice.issued"
+  /** Type d'action du registre partagé (libellé FR/AR garanti dans le back-office). */
+  action: AuditAction;
   entityType: string; // ex. "Invoice"
   entityId?: string | null;
   before?: Prisma.InputJsonValue;
@@ -26,6 +29,11 @@ export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
   async record(entry: AuditEntry, tx?: Prisma.TransactionClient): Promise<void> {
+    // Requête du super admin chez un traiteur : l'événement métier suffit (voir l'intercepteur)
+    const requestContext = auditRequestContext.getStore();
+    if (requestContext && entry.action !== 'platform.access_request') {
+      requestContext.businessEventRecorded = true;
+    }
     await (tx ?? this.prisma).auditLog.create({
       data: {
         traiteurId: entry.traiteurId,

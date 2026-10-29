@@ -37,6 +37,53 @@ const bool = (change: Change, key: string): boolean | null => {
 };
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
+const REQUEST_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
+const REQUEST_SECTIONS = [
+  'catalog',
+  'catalog_categories',
+  'catalog_dishes',
+  'catalog_packages',
+  'catalog_services',
+  'catalog_buffets',
+  'catalog_equipment',
+  'catalog_lists',
+  'calendar',
+  'cash_desk',
+  'clients',
+  'orders',
+  'quotes',
+  'invoices',
+  'payments',
+  'staff',
+  'assignments',
+  'settings',
+  'settings_billing',
+  'settings_permissions',
+  'me_account',
+  'me_missions',
+  'me_two_factor',
+  'uploads',
+] as const;
+type RequestSection = (typeof REQUEST_SECTIONS)[number] | 'other';
+
+/**
+ * Rubrique d'une requête de la plateforme d'après son chemin, sans identifiants :
+ * « /api/v1/catalog/dishes/<id>/archive » → « catalog_dishes ».
+ */
+export function requestSection(path: string): RequestSection {
+  const parts = path
+    .replace(/^\/api\/v\d+\//, '')
+    .split('/')
+    .filter((part) => part && !/^[0-9a-f-]{20,}$/i.test(part));
+  const [first = '', second = ''] = parts;
+  const key = (
+    ['catalog', 'settings', 'me'].includes(first) && second ? `${first}_${second}` : first
+  ).replaceAll('-', '_');
+  if (isOneOf(REQUEST_SECTIONS, key)) return key;
+  const fallback = first.replaceAll('-', '_');
+  return isOneOf(REQUEST_SECTIONS, fallback) ? fallback : 'other';
+}
+
 /** « 400 » pour un montant rond, sinon « 400,50 » (devise ajoutée une fois, après la flèche). */
 function compactAmount(cents: number): string {
   return formatAmount(cents).replace(/,00$/, '');
@@ -185,6 +232,20 @@ export function useAuditDescriber() {
             traiteur,
             reason: str(after, 'reason') ?? '—',
             until: until ? formatDateTime(until) : '—',
+          });
+        }
+        case 'platform.access_request': {
+          // Requête sans événement métier propre (ex. refusée) : rubrique, nature, résultat
+          const method = str(after, 'method') ?? 'POST';
+          const status = num(after, 'status') ?? 0;
+          const section = requestSection(str(after, 'path') ?? '');
+          return t('request.title', {
+            section: t(`request.names.${section}`),
+            verb: t(`request.verbs.${isOneOf(REQUEST_METHODS, method) ? method : 'POST'}`),
+            result:
+              status > 0 && status < 400
+                ? t('request.result.ok')
+                : t('request.result.failed', { status }),
           });
         }
         case 'platform.domain_added':

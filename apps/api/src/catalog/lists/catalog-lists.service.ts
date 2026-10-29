@@ -46,7 +46,7 @@ interface ListChanges {
 /** Accès à la table d'une liste ; le reste de la logique est commun. */
 interface ListRepository {
   entityType: string;
-  auditPrefix: string;
+  auditPrefix: `catalog.${'event_type' | 'range' | 'equipment_category' | 'buffet_type'}`;
   /** La liste doit garder au moins un élément disponible (ex. pour créer une commande). */
   keepsOneAvailable: boolean;
   findMany(db: Db, traiteurId: string): Promise<ListRow[]>;
@@ -586,7 +586,7 @@ export class CatalogListsService {
     tx: Db,
     user: AuthenticatedUser,
     repository: ListRepository,
-    verb: string,
+    verb: 'created' | 'updated' | 'archived' | 'restored' | 'deleted',
     id: string,
     before: CatalogListItem | null,
     after: CatalogListItem | null,

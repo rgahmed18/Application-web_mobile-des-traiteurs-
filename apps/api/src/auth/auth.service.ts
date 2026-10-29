@@ -22,6 +22,7 @@ import {
   type TwoFactorSetupInfo,
   type TwoFactorStatus,
   type TwoFactorVerifyInput,
+  type AuditAction,
 } from '@traiteur/shared';
 
 import { PermissionsService } from '../access/permissions.service';
@@ -924,7 +925,7 @@ export class AuthService {
     user: User,
     client: ClientInfo,
     now: Date,
-    action = 'auth.login_failed',
+    action: AuditAction = 'auth.login_failed',
   ): Promise<void> {
     const { failedLoginCount } = await this.prisma.user.update({
       where: { id: user.id },
@@ -953,7 +954,7 @@ export class AuthService {
 
   /** Événement de sécurité dans le journal d'audit (niveau plateforme : identité globale). */
   private auditAuth(
-    action: string,
+    action: AuditAction,
     user: User,
     client: ClientInfo,
     after: Record<string, string | number | null>,

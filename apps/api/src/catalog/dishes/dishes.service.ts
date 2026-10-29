@@ -12,6 +12,7 @@ import {
   type DishPage,
   resolveTaxRate,
   slugify,
+  type AuditAction,
 } from '@traiteur/shared';
 
 import { AuditService } from '../../audit/audit.service';
@@ -271,7 +272,7 @@ export class DishesService {
     user: AuthenticatedUser,
     id: string,
     archivedAt: Date | null,
-    action: string,
+    action: AuditAction,
     client: ClientInfo,
   ): Promise<Dish> {
     const traiteurId = requireTraiteurId(user);

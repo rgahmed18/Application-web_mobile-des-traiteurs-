@@ -1,3 +1,5 @@
+import type { AuditAction } from '@traiteur/shared';
+
 import type { PrismaClient } from '../generated/prisma/client';
 
 /**
@@ -105,7 +107,7 @@ export async function removeLeakedClientMemberships(
           traiteurId: entry.traiteurId,
           actorUserId: null,
           actorRole: null,
-          action: 'membership.leaked_client_removed',
+          action: 'membership.leaked_client_removed' satisfies AuditAction,
           entityType: 'Membership',
           entityId: entry.membershipId,
           before: {
