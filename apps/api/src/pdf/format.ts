@@ -1,5 +1,6 @@
 import {
   formatAmount,
+  formatMoney,
   formatTaxRate,
   MONEY_CURRENCY_LABEL,
   MONEY_GROUP_SEPARATOR,
@@ -19,7 +20,9 @@ export { formatAmount };
 
 /** « ⟦22 700,00⟧ MAD » ou « ⟦22 700,00⟧ د.م. » (la devise reste hors du passage gauche-droite). */
 export function money(cents: number, locale: DocLocale): string {
-  return `${ltr(formatAmount(cents))}${MONEY_GROUP_SEPARATOR}${MONEY_CURRENCY_LABEL[locale]}`;
+  // Arabe : montant et devise isolés par la fonction unique (le point de « د.م. » reste en place)
+  if (locale === 'ar') return formatMoney(cents, 'ar');
+  return `${ltr(formatAmount(cents))}${MONEY_GROUP_SEPARATOR}${MONEY_CURRENCY_LABEL.fr}`;
 }
 
 /** Montant seul, pour une colonne de tableau. */

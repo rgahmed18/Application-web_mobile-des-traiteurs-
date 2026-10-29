@@ -10,12 +10,12 @@ describe('formatMoney', () => {
     expect(formatMoney(5, 'fr')).toBe('0,05\u00A0MAD');
   });
 
-  it('garde les chiffres occidentaux en arabe, avec « د.م. »', () => {
-    expect(formatMoney(3_859_951, 'ar')).toBe('38\u00A0599,51\u00A0د.م.');
+  it('garde les chiffres occidentaux en arabe, montant et « د.م. » isolés', () => {
+    expect(formatMoney(3_859_951, 'ar')).toBe('\u206638\u00A0599,51\u2069\u00A0\u2067د.م.\u2069');
   });
 
-  it('ne contient aucune marque de direction invisible', () => {
-    expect(formatMoney(123_456_789, 'ar')).not.toMatch(/[‎‏؜]/);
+  it('isolats seulement, jamais de marque de direction (identique serveur et navigateur)', () => {
+    expect(formatMoney(123_456_789, 'ar')).not.toMatch(/[\u200E\u200F\u061C]/);
   });
 
   it('gère les montants négatifs (avoirs) et les grands montants', () => {

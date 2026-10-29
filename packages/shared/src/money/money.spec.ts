@@ -352,10 +352,22 @@ describe('formatTaxRate', () => {
 
 describe('formatMoney (format unique : interface, PDF)', () => {
   it('espace insécable entre les milliers, virgule décimale, devise après le montant', () => {
-    expect(formatMoney(150_000)).toBe('1 500,00 MAD');
-    expect(formatMoney(150_000, 'ar')).toBe('1 500,00 د.م.');
-    expect(formatAmount(-3_000_000)).toBe('-30 000,00');
-    expect(formatAmount(12_345_678_900)).toBe('123 456 789,00');
+    expect(formatMoney(150_000)).toBe('1\u00A0500,00\u00A0MAD');
+    expect(formatMoney(150_000, 'ar')).toBe('\u20661\u00A0500,00\u2069\u00A0\u2067د.م.\u2069');
+    expect(formatAmount(-3_000_000)).toBe('-30\u00A0000,00');
+    expect(formatAmount(12_345_678_900)).toBe('123\u00A0456\u00A0789,00');
     expect(formatAmount(5)).toBe('0,05');
+  });
+
+  it('arabe : montant et devise isolés, le point de « د.م. » ne change jamais de côté', () => {
+    const ar = formatMoney(0, 'ar');
+    // Ce qui est lu, sans les isolats invisibles : le montant puis la devise, point final compris
+    expect(ar.replace(/[\u2066-\u2069]/g, '')).toBe('0,00\u00A0د.م.');
+    // Montant isolé de gauche à droite, devise isolée de droite à gauche, chaque isolat refermé
+    expect(ar).toMatch(/^\u2066[^\u2066-\u2069]+\u2069\u00A0\u2067د\.م\.\u2069$/);
+    // Jamais de marque de direction (LRM, RLM, ALM) : elles diffèrent entre moteurs
+    expect(ar).not.toMatch(/[\u200E\u200F\u061C]/);
+    // Français : aucun caractère de direction
+    expect(formatMoney(150_000)).not.toMatch(/[\u2066-\u2069]/);
   });
 });

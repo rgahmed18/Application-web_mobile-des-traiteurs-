@@ -300,9 +300,26 @@ export function formatAmount(amountCents: number): string {
   return `${sign}${units},${(absolute % 100).toString().padStart(2, '0')}`;
 }
 
-/** 150000 → « 1 500,00 MAD » ou « 1 500,00 د.م. ». */
+/** Isolats bidirectionnels Unicode (invisibles) : gauche-à-droite, droite-à-gauche, fin. */
+export const BIDI_LTR_ISOLATE = '⁦';
+export const BIDI_RTL_ISOLATE = '⁧';
+export const BIDI_POP_ISOLATE = '⁩';
+
+/**
+ * 150000 → « 1 500,00 MAD » ou « 1 500,00 د.م. ».
+ * En arabe, le montant et la devise sont chacun isolés (isolats Unicode, invisibles et identiques
+ * sur le serveur, le navigateur et dans les PDF) : sans cela, le point final de « د.م. » est un
+ * caractère neutre qui change de côté selon le sens de la ligne (« .د.م 0,00 »).
+ */
 export function formatMoney(amountCents: number, locale: MoneyLocale = 'fr'): string {
-  return `${formatAmount(amountCents)}${MONEY_GROUP_SEPARATOR}${MONEY_CURRENCY_LABEL[locale]}`;
+  const amount = formatAmount(amountCents);
+  if (locale === 'ar') {
+    return (
+      `${BIDI_LTR_ISOLATE}${amount}${BIDI_POP_ISOLATE}${MONEY_GROUP_SEPARATOR}` +
+      `${BIDI_RTL_ISOLATE}${MONEY_CURRENCY_LABEL.ar}${BIDI_POP_ISOLATE}`
+    );
+  }
+  return `${amount}${MONEY_GROUP_SEPARATOR}${MONEY_CURRENCY_LABEL.fr}`;
 }
 
 /** Formate un taux en points de base (ex. 2000 → « 20 % »). */

@@ -1,4 +1,10 @@
-import { formatAmount, formatMoney, MONEY_CURRENCY_LABEL } from '@traiteur/shared';
+import {
+  BIDI_POP_ISOLATE,
+  BIDI_RTL_ISOLATE,
+  formatAmount,
+  formatMoney,
+  MONEY_CURRENCY_LABEL,
+} from '@traiteur/shared';
 
 import type { UiLocale } from '@/i18n/config';
 
@@ -9,9 +15,14 @@ import type { UiLocale } from '@/i18n/config';
  */
 export { formatAmount, formatMoney };
 
-/** Libellé de la devise seul (suffixe des champs de saisie). */
+/**
+ * Libellé de la devise seul (suffixe des champs de saisie). En arabe, isolé de droite à gauche :
+ * le point final de « د.م. » reste en place, même dans un champ écrit de gauche à droite.
+ */
 export function currencyLabel(locale: UiLocale): string {
-  return MONEY_CURRENCY_LABEL[locale];
+  return locale === 'ar'
+    ? `${BIDI_RTL_ISOLATE}${MONEY_CURRENCY_LABEL.ar}${BIDI_POP_ISOLATE}`
+    : MONEY_CURRENCY_LABEL.fr;
 }
 
 /** Partie entière avec points de milliers facultatifs : « 1.250.000 » ou « 1250000 ». */
