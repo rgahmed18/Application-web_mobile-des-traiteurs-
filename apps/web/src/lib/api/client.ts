@@ -15,6 +15,8 @@ export interface AuthHooks {
   getAccessToken: () => Promise<string | null>;
   /** Force un rafraîchissement ; retourne le nouveau token, ou null si la session est perdue. */
   refreshAccessToken: () => Promise<string | null>;
+  /** Refus de l'API (403) : un compte, un accès ou un traiteur suspendu termine la session. */
+  onAccessDenied?: (code: string) => Promise<void>;
 }
 
 let authHooks: AuthHooks | null = null;
@@ -83,7 +85,13 @@ export async function apiRequest<TSchema extends z.ZodType>(
     if (token) response = await send(url, init, token);
   }
 
-  if (!response.ok) throw await toApiError(response);
+  if (!response.ok) {
+    const error = await toApiError(response);
+    if (response.status === 403 && !accessToken && authHooks?.onAccessDenied) {
+      void authHooks.onAccessDenied(error.code);
+    }
+    throw error;
+  }
   if (response.status === 204) return schema.parse(undefined);
 
   let payload: unknown;

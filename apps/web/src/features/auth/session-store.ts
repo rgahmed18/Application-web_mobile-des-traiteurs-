@@ -18,6 +18,13 @@ import { z } from 'zod';
 
 import { apiRequest, configureApiAuth, sessionRequest } from '@/lib/api/client';
 
+import {
+  openSessionChannel,
+  type SessionChannel,
+  type SessionEndCause,
+  type SessionMessage,
+} from './session-channel';
+
 /**
  * Session du back-office, en mémoire uniquement.
  * L'access token n'est jamais écrit dans le stockage du navigateur (localStorage, cookie lisible) :
@@ -25,8 +32,69 @@ import { apiRequest, configureApiAuth, sessionRequest } from '@/lib/api/client';
  * restaurée par /api/session/refresh grâce au cookie httpOnly.
  */
 export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
-/** Pourquoi la session s'est terminée : la page de connexion affiche le message adapté. */
-export type SessionEndReason = 'logout' | 'expired' | null;
+/**
+ * Pourquoi la session s'est terminée : la page de connexion affiche le message adapté.
+ * « remote-logout » : déconnexion faite dans un autre onglet du même espace.
+ */
+export type SessionEndReason = 'logout' | 'remote-logout' | 'expired' | 'suspended' | null;
+
+/** Réponses de l'API qui signifient que le compte, son accès ou le traiteur est suspendu. */
+const SUSPENDED_CODES = new Set([
+  'ACCOUNT_DISABLED',
+  'MEMBERSHIP_INACTIVE',
+  'TRAITEUR_UNAVAILABLE',
+]);
+
+/** Tâches à faire avant la fin de session (enregistrer les brouillons), durée bornée. */
+type BeforeEndHook = () => Promise<void>;
+const beforeEndHooks = new Set<BeforeEndHook>();
+const BEFORE_END_TIMEOUT_MS = 3_000;
+
+async function runBeforeEndHooks(): Promise<void> {
+  if (!accessToken || beforeEndHooks.size === 0) return;
+  const hooks = [...beforeEndHooks].map((hook) => hook().catch(() => undefined));
+  await Promise.race([
+    Promise.all(hooks),
+    new Promise((resolve) => setTimeout(resolve, BEFORE_END_TIMEOUT_MS)),
+  ]);
+}
+
+/** Canal des onglets du même espace, ouvert au premier usage dans le navigateur. */
+let channel: SessionChannel | null = null;
+function tabs(): SessionChannel | null {
+  if (typeof window === 'undefined') return null;
+  channel ??= openSessionChannel((message) => void onTabMessage(message));
+  return channel;
+}
+
+async function onTabMessage(message: SessionMessage): Promise<void> {
+  if (message.type === 'changed') {
+    // Super admin entré chez un traiteur ou revenu à la console dans un autre onglet
+    window.location.reload();
+    return;
+  }
+  if (message.type === 'started') {
+    if (state.status === 'anonymous') await refreshAccessToken();
+    return;
+  }
+  if (state.status !== 'authenticated') return;
+  // Fin de session dans un autre onglet : enregistrer d'abord les saisies en cours
+  await runBeforeEndHooks();
+  clearSession(message.cause === 'logout' ? 'remote-logout' : message.cause);
+}
+
+/** Termine la session ici et dans tous les onglets du même espace. */
+async function endEverywhere(cause: SessionEndCause): Promise<void> {
+  if (state.status !== 'authenticated') return;
+  await runBeforeEndHooks();
+  clearSession(cause);
+  tabs()?.post({ type: 'ended', cause });
+}
+
+/** Code d'erreur d'une réponse de l'API (pour distinguer une suspension d'une expiration). */
+function errorCode(error: unknown): string | null {
+  return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : null;
+}
 
 /** Traiteur de la session (marque blanche du back-office) ; null dans la console. */
 export interface SessionTraiteur {
@@ -113,6 +181,7 @@ async function applySession(session: ClientSession): Promise<void> {
   scheduleRefresh();
   // Permissions effectives lues en base (rôle + surcharges du traiteur)
   const me = await apiRequest('/auth/me', { schema: meSchema, accessToken: session.accessToken });
+  const wasAnonymous = state.status !== 'authenticated';
   setState({
     status: 'authenticated',
     user: me.user,
@@ -122,17 +191,35 @@ async function applySession(session: ClientSession): Promise<void> {
     permissions: new Set(me.permissions),
     endReason: null,
   });
+  // Session ouverte : les autres onglets sans session la reprennent
+  if (wasAnonymous) tabs()?.post({ type: 'started' });
+}
+
+/**
+ * Une seule rotation à la fois, dans tout le navigateur : deux onglets qui présenteraient le même
+ * refresh token en même temps seraient pris pour une réutilisation (famille révoquée).
+ */
+function acrossTabs<T>(task: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== 'undefined' && 'locks' in navigator) {
+    return navigator.locks.request('gt-session-refresh', task);
+  }
+  return task();
 }
 
 /** Rotation du refresh token ; une seule à la fois même si plusieurs requêtes la demandent. */
 export function refreshAccessToken(): Promise<string | null> {
   refreshInFlight ??= (async () => {
     try {
-      const session = await sessionRequest('/refresh', clientSessionSchema);
+      const session = await acrossTabs(() => sessionRequest('/refresh', clientSessionSchema));
       await applySession(session);
       return accessToken;
-    } catch {
-      clearSession(state.status === 'authenticated' ? 'expired' : null);
+    } catch (error) {
+      if (state.status === 'authenticated') {
+        // Session expirée ou révoquée, ou compte suspendu : tous les onglets de l'espace
+        await endEverywhere(SUSPENDED_CODES.has(errorCode(error) ?? '') ? 'suspended' : 'expired');
+      } else {
+        clearSession(null);
+      }
       return null;
     } finally {
       refreshInFlight = null;
@@ -141,13 +228,21 @@ export function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
+/** Compte, accès ou traiteur suspendu (403 de l'API) : fin de session partout. */
+async function onAccessDenied(code: string): Promise<void> {
+  if (!SUSPENDED_CODES.has(code) || state.status !== 'authenticated') return;
+  await endEverywhere('suspended');
+  // Cookie de session effacé (la session ne peut de toute façon plus servir)
+  await sessionRequest('/logout', z.void()).catch(() => undefined);
+}
+
 async function getAccessToken(): Promise<string | null> {
   if (!accessToken) return refreshInFlight ? refreshInFlight : null;
   if (Date.now() > expiresAt - 10_000) return refreshAccessToken();
   return accessToken;
 }
 
-configureApiAuth({ getAccessToken, refreshAccessToken });
+configureApiAuth({ getAccessToken, refreshAccessToken, onAccessDenied });
 
 export const sessionStore = {
   subscribe: (listener: () => void): (() => void) => {
@@ -161,7 +256,17 @@ export const sessionStore = {
   restore(): void {
     if (restoreStarted) return;
     restoreStarted = true;
+    tabs();
     void refreshAccessToken();
+  },
+
+  /**
+   * Tâche à faire avant toute fin de session, ici ou dans un autre onglet (enregistrer un
+   * brouillon). Retourne la fonction de désinscription.
+   */
+  beforeEnd(hook: BeforeEndHook): () => void {
+    beforeEndHooks.add(hook);
+    return () => beforeEndHooks.delete(hook);
   },
 
   async loginWithPassword(
@@ -224,6 +329,7 @@ export const sessionStore = {
       { traiteurId, reason },
       await getAccessToken(),
     );
+    tabs()?.post({ type: 'changed' });
   },
 
   /** Prolonge l'accès en cours de 2 heures (nouveau motif). */
@@ -241,18 +347,23 @@ export const sessionStore = {
    * déjà expiré : le rafraîchissement ramène de lui-même à la console.
    */
   async leaveTraiteur(): Promise<void> {
+    await runBeforeEndHooks();
     try {
       await sessionRequest('/platform/leave', clientSessionSchema, {}, await getAccessToken());
     } catch (error) {
       if (!(await refreshAccessToken()) || state.platformAccess) throw error;
     }
+    tabs()?.post({ type: 'changed' });
   },
 
+  /** Déconnexion : brouillons enregistrés, puis fin de session dans tous les onglets. */
   async logout(): Promise<void> {
+    await runBeforeEndHooks();
     try {
       await sessionRequest('/logout', z.void());
     } finally {
       clearSession('logout');
+      tabs()?.post({ type: 'ended', cause: 'logout' });
     }
   },
 };

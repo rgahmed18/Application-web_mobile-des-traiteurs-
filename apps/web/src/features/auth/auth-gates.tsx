@@ -60,9 +60,18 @@ export function RequireSession({
 
   useEffect(() => {
     if (session.status !== 'anonymous') return;
-    if (session.endReason === 'expired' && !notified.current) {
+    // Fin de session ici ou dans un autre onglet du même espace : la raison est expliquée
+    const message =
+      session.endReason === 'expired'
+        ? t('sessionExpired')
+        : session.endReason === 'suspended'
+          ? t('sessionSuspended')
+          : session.endReason === 'remote-logout'
+            ? t('loggedOutElsewhere')
+            : null;
+    if (message && !notified.current) {
       notified.current = true;
-      toast.warning(t('sessionExpired'));
+      toast.warning(message);
     }
     const next = session.endReason === 'logout' ? '' : `?next=${encodeURIComponent(pathname)}`;
     router.replace(`${LOGIN_PATH}${next}`);

@@ -161,7 +161,9 @@
         "download": "Télécharger (.txt)",
         "confirmStored": "J’ai rangé ces codes en lieu sûr (gestionnaire de mots de passe et copie papier)."
       }
-    }
+    },
+    "sessionSuspended": "Votre accès a été suspendu. Contactez l’administrateur de votre établissement.",
+    "loggedOutElsewhere": "Vous avez été déconnecté (déconnexion faite dans un autre onglet)."
   },
   "dashboard": {
     "title": "Tableau de bord",

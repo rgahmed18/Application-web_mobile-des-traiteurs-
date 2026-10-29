@@ -70,3 +70,25 @@ test.describe('Espaces : le traiteur vient de l’adresse', () => {
     await expect(page).toHaveURL(/\/admin\/login/);
   });
 });
+
+test.describe('Fin de session dans tous les onglets du même espace', () => {
+  test('déconnexion dans un onglet : l’autre revient aussitôt à la connexion du traiteur', async ({
+    context,
+  }) => {
+    const first = await context.newPage();
+    await login(first);
+    // Deuxième onglet : session reprise grâce au cookie, sur une autre page
+    const second = await context.newPage();
+    await second.goto('/admin/orders');
+    await expect(second.getByRole('heading', { level: 1, name: 'Commandes' })).toBeVisible();
+
+    await first.getByRole('button', { name: 'Mon compte' }).click();
+    await first.getByRole('menuitem', { name: 'Se déconnecter' }).click();
+    await expect(first).toHaveURL(/\/admin\/login/);
+
+    // Sans aucune action dans le deuxième onglet : redirigé, avec la raison et la page à reprendre
+    await expect(second).toHaveURL(/\/admin\/login\?next=%2Fadmin%2Forders/);
+    await expect(second.getByText('déconnexion faite dans un autre onglet')).toBeVisible();
+    await expect(second.getByTestId('space-brand')).toHaveText(/Dar Diafa Traiteur/);
+  });
+});
