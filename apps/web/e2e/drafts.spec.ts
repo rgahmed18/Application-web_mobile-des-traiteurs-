@@ -152,4 +152,69 @@ test.describe('Brouillons des formulaires', () => {
       .click();
     await expect(card).toHaveCount(0);
   });
+  test('onglet gelé qui a manqué la déconnexion : au réveil, rien n’est montré, brouillon enregistré, connexion', async ({
+    context,
+    request,
+  }) => {
+    const dish = await dishWithoutDraft(request);
+    const draftName = `Gelé ${uniqueSuffix()}`;
+    const page = await context.newPage();
+    // Onglet gelé par Chrome : il ne reçoit plus les messages des autres onglets (simulé ici :
+    // messages perdus tant que l'onglet est « gelé »)
+    await page.addInitScript(() => {
+      const Native = window.BroadcastChannel;
+      const state = window as unknown as { gtFrozen?: boolean };
+      window.BroadcastChannel = class extends Native {
+        override set onmessage(handler: ((event: MessageEvent) => void) | null) {
+          super.onmessage = handler && ((event: MessageEvent) => !state.gtFrozen && handler(event));
+        }
+        override get onmessage(): ((event: MessageEvent) => void) | null {
+          return super.onmessage;
+        }
+      };
+    });
+    await login(page);
+    await page.goto(`/admin/catalog/dishes/${dish.id}`);
+    await expect(page.getByLabel('Nom (français)')).toHaveValue(dish.name);
+    await page.getByLabel('Nom (français)').fill(draftName);
+
+    // Gel (minuteries et tâches suspendues), sans le remettre au premier plan ensuite
+    await page.evaluate(() => {
+      (window as unknown as { gtFrozen: boolean }).gtFrozen = true;
+    });
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Page.setWebLifecycleState', { state: 'frozen' });
+
+    const other = await context.newPage();
+    await other.goto('/admin');
+    await other.getByRole('button', { name: 'Mon compte' }).click();
+    await other.getByRole('menuitem', { name: 'Se déconnecter' }).click();
+    await expect(other).toHaveURL(/\/admin\/login/);
+
+    // Réveil : l'onglet redevient actif et reprend le focus
+    await cdp.send('Page.setWebLifecycleState', { state: 'active' });
+    // Repère de session effacé par la déconnexion (cookie partagé par les onglets)
+    expect(await page.evaluate(() => document.cookie)).not.toContain('gt_session_mark');
+    // Sans interface, Chrome n'envoie pas à l'onglet les évènements d'un retour au premier plan :
+    // ceux qu'il enverrait sont émis ici
+    await page.bringToFront();
+    await page.evaluate(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('focus'));
+    });
+    await expect(page).toHaveURL(/\/admin\/login/);
+    await expect(page.getByText('déconnexion faite dans un autre onglet')).toBeVisible();
+    await expect(page.getByLabel('Nom (français)')).toHaveCount(0);
+
+    // La saisie de l'onglet gelé a été enregistrée avant la fin de session
+    await other.close();
+    await login(page);
+    const card = page.getByTestId('drafts-card');
+    await expect(card).toContainText(draftName);
+    await card
+      .getByRole('button', { name: /^Supprimer/ })
+      .first()
+      .click();
+    await expect(card).toHaveCount(0);
+  });
 });

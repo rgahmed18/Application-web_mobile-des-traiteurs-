@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { randomUUID } from 'node:crypto';
+
 import {
   type AuthSession,
   authSessionSchema,
@@ -10,6 +12,7 @@ import {
 import { type NextRequest, NextResponse } from 'next/server';
 import type { z } from 'zod';
 
+import { SESSION_MARK_COOKIE } from '@/features/auth/session-wake';
 import { serverEnv } from '@/lib/env/server';
 import { DEMO_SPACE_COOKIE, resolveSpace } from '@/lib/space/space.server';
 
@@ -104,19 +107,42 @@ export function apiUnreachable(): NextResponse {
   return jsonError(502, 'API_UNREACHABLE', "Le serveur de l'application est injoignable");
 }
 
-export function setRefreshCookie(response: NextResponse, refreshToken: string): void {
+/** Même session, continuée : rotation, entrée chez un traiteur ou retour à la console. */
+const SAME_SESSION_PATHS = /\/api\/session\/(refresh|platform\/(enter|leave))$/;
+
+/**
+ * Cookie de session (httpOnly) et repère de session lisible par les onglets (identifiant
+ * aléatoire, sans secret, voir features/auth/session-wake.ts) : conservé pour la même session,
+ * nouveau à chaque connexion.
+ */
+export function setRefreshCookie(
+  request: NextRequest,
+  response: NextResponse,
+  refreshToken: string,
+): void {
   const env = serverEnv();
+  const maxAge = env.REFRESH_COOKIE_MAX_AGE_DAYS * 24 * 60 * 60;
   response.cookies.set(REFRESH_COOKIE, refreshToken, {
     httpOnly: true,
     secure: env.REFRESH_COOKIE_SECURE,
     sameSite: 'strict',
     path: COOKIE_PATH,
-    maxAge: env.REFRESH_COOKIE_MAX_AGE_DAYS * 24 * 60 * 60,
+    maxAge,
+  });
+  const current = request.cookies.get(SESSION_MARK_COOKIE)?.value;
+  const keep = current && SAME_SESSION_PATHS.test(request.nextUrl.pathname);
+  response.cookies.set(SESSION_MARK_COOKIE, keep ? current : randomUUID(), {
+    httpOnly: false,
+    secure: env.REFRESH_COOKIE_SECURE,
+    sameSite: 'strict',
+    path: '/',
+    maxAge,
   });
 }
 
 export function clearRefreshCookie(response: NextResponse): void {
   response.cookies.set(REFRESH_COOKIE, '', { path: COOKIE_PATH, maxAge: 0 });
+  response.cookies.set(SESSION_MARK_COOKIE, '', { path: '/', maxAge: 0 });
 }
 
 /** Ce que reçoit le navigateur : la session sans le refresh token. */
@@ -211,6 +237,6 @@ async function sessionResponse(
       ? { session: session satisfies ClientSession, ...extra }
       : (session satisfies ClientSession),
   );
-  setRefreshCookie(response, refreshToken);
+  setRefreshCookie(request, response, refreshToken);
   return response;
 }

@@ -24,6 +24,7 @@ import {
   type SessionEndCause,
   type SessionMessage,
 } from './session-channel';
+import { readSessionMark, wakeAction } from './session-wake';
 
 /**
  * Session du back-office, en mémoire uniquement.
@@ -83,6 +84,56 @@ async function onTabMessage(message: SessionMessage): Promise<void> {
   clearSession(message.cause === 'logout' ? 'remote-logout' : message.cause);
 }
 
+// ─────────────────────────── Réveil de l'onglet ───────────────────────────
+
+let hiddenAt: number | null = null;
+let waking = false;
+
+/**
+ * Onglet de nouveau visible, focus, page restaurée du cache : la fin de session faite ailleurs a
+ * pu lui échapper (onglet gelé). Repère effacé ou remplacé : contenu masqué aussitôt, brouillons
+ * enregistrés (le jeton de l'onglet est encore valable), puis page de connexion. Longue absence
+ * ou page restaurée : contenu masqué le temps de revérifier la session auprès du serveur.
+ */
+async function onWake(restoredFromCache: boolean): Promise<void> {
+  const hiddenForMs = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+  hiddenAt = null;
+  if (waking) return;
+  const action = wakeAction({
+    authenticated: state.status === 'authenticated',
+    sessionMark,
+    currentMark: readSessionMark(document.cookie),
+    hiddenForMs,
+    restoredFromCache,
+  });
+  if (action === 'none') return;
+  waking = true;
+  setState({ verifying: true });
+  try {
+    if (action === 'ended') {
+      await runBeforeEndHooks();
+      clearSession('remote-logout');
+    } else {
+      // Session expirée, révoquée ou compte suspendu : fin de session dans tous les onglets
+      await refreshAccessToken();
+    }
+  } finally {
+    waking = false;
+    setState({ verifying: false });
+  }
+}
+
+function watchWake(): void {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') hiddenAt ??= Date.now();
+    else void onWake(false);
+  });
+  window.addEventListener('focus', () => void onWake(false));
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) void onWake(true);
+  });
+}
+
 /** Termine la session ici et dans tous les onglets du même espace. */
 async function endEverywhere(cause: SessionEndCause): Promise<void> {
   if (state.status !== 'authenticated') return;
@@ -111,6 +162,8 @@ export interface SessionState {
   platformAccess: PlatformAccess | null;
   permissions: ReadonlySet<string>;
   endReason: SessionEndReason;
+  /** Onglet réveillé : session en cours de vérification, contenu masqué en attendant. */
+  verifying: boolean;
 }
 
 const clientSessionSchema = authSessionSchema.omit({ refreshToken: true });
@@ -138,6 +191,7 @@ const INITIAL_STATE: SessionState = {
   platformAccess: null,
   permissions: new Set(),
   endReason: null,
+  verifying: false,
 };
 
 let state: SessionState = INITIAL_STATE;
@@ -146,6 +200,8 @@ let expiresAt = 0;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 let refreshInFlight: Promise<string | null> | null = null;
 let restoreStarted = false;
+/** Repère de la session de cet onglet (voir session-wake.ts). */
+let sessionMark: string | null = null;
 const listeners = new Set<() => void>();
 
 function setState(patch: Partial<SessionState>): void {
@@ -164,6 +220,7 @@ function clearSession(endReason: SessionEndReason): void {
   refreshTimer = null;
   accessToken = null;
   expiresAt = 0;
+  sessionMark = null;
   setState({
     status: 'anonymous',
     user: null,
@@ -178,6 +235,8 @@ function clearSession(endReason: SessionEndReason): void {
 async function applySession(session: ClientSession): Promise<void> {
   accessToken = session.accessToken;
   expiresAt = Date.now() + session.expiresIn * 1000;
+  // Repère posé par le proxy de session avec cette réponse
+  sessionMark = readSessionMark(document.cookie);
   scheduleRefresh();
   // Permissions effectives lues en base (rôle + surcharges du traiteur)
   const me = await apiRequest('/auth/me', { schema: meSchema, accessToken: session.accessToken });
@@ -257,6 +316,7 @@ export const sessionStore = {
     if (restoreStarted) return;
     restoreStarted = true;
     tabs();
+    watchWake();
     void refreshAccessToken();
   },
 

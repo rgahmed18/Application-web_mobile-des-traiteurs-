@@ -84,7 +84,16 @@ export function RequireSession({
   }, [wrongArea, area, router]);
 
   if (session.status !== 'authenticated' || wrongArea) return <SessionLoading />;
-  return children;
+  // Onglet réveillé : rien n'est montré avant la vérification de la session, sans démonter la
+  // page (une saisie en cours est conservée si la session est toujours valable)
+  return (
+    <>
+      {session.verifying && <SessionLoading />}
+      <div className="contents" hidden={session.verifying} aria-busy={session.verifying}>
+        {children}
+      </div>
+    </>
+  );
 }
 
 /** Page réservée à une permission : sinon, écran « Accès refusé ». */

@@ -1,5 +1,7 @@
-import type { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { SESSION_MARK_COOKIE } from '@/features/auth/session-wake';
 
 import { callApi, finishSession, REFRESH_COOKIE, sessionMatchesSpace } from './bff';
 
@@ -31,9 +33,30 @@ describe('callApi (WEB_TRUSTED_PROXY_HOPS par défaut : 0)', () => {
 });
 
 describe('finishSession : double authentification', () => {
-  const request = new Request('http://localhost:3001/api/session/login', {
+  const request = new NextRequest('http://localhost:3001/api/session/login', {
     method: 'POST',
-  }) as unknown as NextRequest;
+    headers: { cookie: `${SESSION_MARK_COOKIE}=ancienne-session` },
+  });
+
+  /** Session renvoyée par l'API (super admin, console). */
+  const session = () => ({
+    tokenType: 'Bearer',
+    accessToken: 'access',
+    expiresIn: 900,
+    refreshToken: 'refresh-secret',
+    user: {
+      id: '11111111-1111-4111-8111-111111111111',
+      phone: '+212600000001',
+      email: null,
+      firstName: 'Super',
+      lastName: 'Admin',
+      locale: 'fr',
+      isSuperAdmin: true,
+      hasPassword: true,
+      twoFactorEnabled: true,
+    },
+    context: { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' },
+  });
 
   it('deuxième étape demandée : relayée telle quelle, aucun cookie de session', async () => {
     const challenge = { twoFactor: 'VERIFY', challengeToken: 'x'.repeat(43), expiresIn: 600 };
@@ -43,27 +66,24 @@ describe('finishSession : double authentification', () => {
   });
 
   it('session : cookie posé, refresh token jamais renvoyé au navigateur', async () => {
-    const session = {
-      tokenType: 'Bearer',
-      accessToken: 'access',
-      expiresIn: 900,
-      refreshToken: 'refresh-secret',
-      user: {
-        id: '11111111-1111-4111-8111-111111111111',
-        phone: '+212600000001',
-        email: null,
-        firstName: 'Super',
-        lastName: 'Admin',
-        locale: 'fr',
-        isSuperAdmin: true,
-        hasPassword: true,
-        twoFactorEnabled: true,
-      },
-      context: { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' },
-    };
-    const response = await finishSession(request, Response.json(session), { kind: 'platform' });
+    const response = await finishSession(request, Response.json(session()), { kind: 'platform' });
     expect(JSON.stringify(await response.json())).not.toContain('refresh-secret');
     expect(response.cookies.get(REFRESH_COOKIE)?.value).toBe('refresh-secret');
+    // Repère lisible par les onglets : nouveau à chaque connexion, sans le refresh token
+    const mark = response.cookies.get(SESSION_MARK_COOKIE);
+    expect(mark?.value).toMatch(/^[0-9a-f-]{36}$/);
+    expect(mark?.httpOnly).toBe(false);
+  });
+
+  it('rotation : même repère de session ; déconnexion : repère effacé', async () => {
+    const refresh = new NextRequest('http://localhost:3001/api/session/refresh', {
+      method: 'POST',
+      headers: { cookie: `${SESSION_MARK_COOKIE}=meme-session` },
+    });
+    const response = await finishSession(refresh, Response.json(session()), { kind: 'platform' });
+    expect(response.cookies.get(SESSION_MARK_COOKIE)?.value).toBe('meme-session');
+    const refused = await finishSession(refresh, Response.json({}, { status: 401 }));
+    expect(refused.cookies.get(SESSION_MARK_COOKIE)?.value).toBe('');
   });
 });
 
