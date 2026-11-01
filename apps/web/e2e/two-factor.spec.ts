@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { isolated, PLATFORM_URL, totp } from './helpers';
+import { isolated, PLATFORM_URL, submitLogin, totp } from './helpers';
 
 /** Super admin du seed (base e2e recréée à chaque lancement : double authentification inactive). */
 const SUPER_ADMIN = { phone: '0600000001', password: 'Password123!' };
@@ -13,13 +13,7 @@ test('super admin : double authentification imposée, console de la plateforme, 
   page,
 }) => {
   test.setTimeout(180_000);
-  const signIn = async () => {
-    await page.goto('/admin/login');
-    await page.getByLabel('Téléphone ou email').fill(SUPER_ADMIN.phone);
-    await page.getByRole('textbox', { name: 'Mot de passe' }).fill(SUPER_ADMIN.password);
-    await page.getByRole('button', { name: 'Se connecter' }).click();
-    await expect(page.getByTestId('two-factor-step')).toBeVisible();
-  };
+  const signIn = () => submitLogin(page, SUPER_ADMIN, page.getByTestId('two-factor-step'));
 
   // ─── Première connexion : activation obligatoire avant tout accès ───
   await signIn();

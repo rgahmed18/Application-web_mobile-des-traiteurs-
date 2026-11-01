@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 
-import { type APIRequestContext, expect, type Page } from '@playwright/test';
+import { type APIRequestContext, expect, type Locator, type Page } from '@playwright/test';
 
 /** Gérant du traiteur de démonstration (prisma/seed.ts). */
 export const MANAGER = { phone: '0600000002', password: 'Password123!' };
@@ -10,18 +10,30 @@ export const MANAGER = { phone: '0600000002', password: 'Password123!' };
  * adresse : si la limitation de débit répond « Trop de tentatives », attente puis nouvel essai.
  */
 export async function login(page: Page, account = MANAGER): Promise<void> {
-  const welcome = page.getByRole('heading', { level: 1, name: /^Bonjour/ });
+  await submitLogin(page, account, page.getByRole('heading', { level: 1, name: /^Bonjour/ }));
+}
+
+/**
+ * Formulaire de connexion envoyé jusqu'à voir `next` (tableau de bord, deuxième étape…) :
+ * « Trop de tentatives » (limite par adresse IP, vite atteinte quand les parcours s'enchaînent),
+ * attente puis nouvel essai.
+ */
+export async function submitLogin(
+  page: Page,
+  account: { phone: string; password: string },
+  next: Locator,
+): Promise<void> {
   const throttled = page.getByText(/Trop de tentatives/);
   for (let attempt = 1; ; attempt += 1) {
     await page.goto('/admin/login');
     await page.getByLabel('Téléphone ou email').fill(account.phone);
     await page.getByRole('textbox', { name: 'Mot de passe' }).fill(account.password);
     await page.getByRole('button', { name: 'Se connecter' }).click();
-    await expect(welcome.or(throttled).first()).toBeVisible();
+    await expect(next.or(throttled).first()).toBeVisible();
     if (!(await throttled.isVisible()) || attempt === 4) break;
     await page.waitForTimeout(20_000);
   }
-  await expect(welcome).toBeVisible();
+  await expect(next).toBeVisible();
 }
 
 /**
