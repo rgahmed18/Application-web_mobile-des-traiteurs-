@@ -33,6 +33,7 @@ import { zodToOpenApi } from '../../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../../common/zod/zod-validation.pipe';
 import { uuidParam } from '../../common/http/uuid-param';
 import { ExtraServicesService } from './extra-services.service';
+import { ExpectedVersion } from '../../common/http/edit-version';
 
 const serviceResponse = { schema: zodToOpenApi(extraServiceSchema, 'output') };
 
@@ -73,8 +74,9 @@ export class ExtraServicesController {
     @Param('id', uuidParam) id: string,
     @Body(new ZodValidationPipe(extraServiceInputSchema)) body: ExtraServiceInput,
     @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<ExtraService> {
-    return this.services.update(user, id, body, client);
+    return this.services.update(user, id, body, client, expectedVersion);
   }
 
   @Post(':id/archive')

@@ -37,6 +37,7 @@ import {
 } from '../catalog-common';
 import { MediaService } from '../media/media.service';
 import { equipmentUsage } from './equipment-usage';
+import { lockEditVersion } from '../../common/http/edit-version';
 
 type Db = Prisma.TransactionClient;
 
@@ -204,6 +205,7 @@ export class EquipmentService {
     id: string,
     input: EquipmentInput,
     client: ClientInfo,
+    expectedVersion: string | null = null,
   ): Promise<Equipment> {
     const traiteurId = requireTraiteurId(user);
     const preparedImage = input.imageKey
@@ -211,6 +213,7 @@ export class EquipmentService {
       : null;
     return this.prisma.$transaction(async (tx) => {
       const settings = await loadCatalogSettings(tx, traiteurId);
+      await lockEditVersion(tx, 'EquipmentItem', traiteurId, id, expectedVersion);
       const existing = await tx.equipmentItem.findFirst({
         where: { id, traiteurId },
         include: equipmentInclude,

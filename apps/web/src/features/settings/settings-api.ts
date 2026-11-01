@@ -40,9 +40,20 @@ function useBillingMutation<TVariables>(
   });
 }
 
+/** Enregistrement d'une section : version chargée présentée (If-Match), sauf « Mon compte ». */
+interface SettingsSave<TInput> {
+  input: TInput;
+  version?: string | null;
+}
+
 export function useSaveBillingSettings() {
-  return useBillingMutation((input: BillingSettingsInput) =>
-    apiRequest('/settings/billing', { method: 'PUT', body: input, schema: billingSettingsSchema }),
+  return useBillingMutation(({ input, version }: SettingsSave<BillingSettingsInput>) =>
+    apiRequest('/settings/billing', {
+      method: 'PUT',
+      body: input,
+      schema: billingSettingsSchema,
+      ifMatch: version,
+    }),
   );
 }
 
@@ -69,7 +80,8 @@ function settingsResource<TSchema extends z.ZodType>(path: string, schema: TSche
     useSave: <TInput>(options: { invalidateAll?: boolean } = {}) => {
       const queryClient = useQueryClient();
       return useMutation({
-        mutationFn: (input: TInput) => apiRequest(path, { method: 'PUT', body: input, schema }),
+        mutationFn: ({ input, version }: SettingsSave<TInput>) =>
+          apiRequest(path, { method: 'PUT', body: input, schema, ifMatch: version }),
         onSuccess: async (saved) => {
           queryClient.setQueryData(key, saved);
           // Calendrier, disponibilité, catalogue : tout ce qui dépend du réglage est relu

@@ -72,7 +72,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      await save.mutateAsync({ id: item?.id ?? null, input });
+      await save.mutateAsync({ id: item?.id ?? null, input, version: draft.expectedVersion });
       setSaved(true);
       await draft.clear();
       toast.success(t(item ? 'equipment.saved' : 'equipment.created'));

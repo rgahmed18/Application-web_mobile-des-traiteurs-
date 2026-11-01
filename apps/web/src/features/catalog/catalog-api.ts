@@ -269,31 +269,41 @@ export function useReorderCategories() {
   });
 }
 
+/** Enregistrement d'un élément : version chargée présentée à la modification (If-Match). */
+interface CatalogSave<TInput> {
+  id: string | null;
+  input: TInput;
+  version?: string | null;
+}
+
 export function useSaveDish() {
-  return useCatalogMutation(({ id, input }: { id: string | null; input: DishInput }) =>
+  return useCatalogMutation(({ id, input, version }: CatalogSave<DishInput>) =>
     apiRequest(id ? `/catalog/dishes/${id}` : '/catalog/dishes', {
       method: id ? 'PUT' : 'POST',
       body: input,
+      ifMatch: id ? version : null,
       schema: dishSchema,
     }),
   );
 }
 
 export function useSavePackage() {
-  return useCatalogMutation(({ id, input }: { id: string | null; input: PackageInput }) =>
+  return useCatalogMutation(({ id, input, version }: CatalogSave<PackageInput>) =>
     apiRequest(id ? `/catalog/packages/${id}` : '/catalog/packages', {
       method: id ? 'PUT' : 'POST',
       body: input,
+      ifMatch: id ? version : null,
       schema: packageSchema,
     }),
   );
 }
 
 export function useSaveExtraService() {
-  return useCatalogMutation(({ id, input }: { id: string | null; input: ExtraServiceInput }) =>
+  return useCatalogMutation(({ id, input, version }: CatalogSave<ExtraServiceInput>) =>
     apiRequest(id ? `/catalog/services/${id}` : '/catalog/services', {
       method: id ? 'PUT' : 'POST',
       body: input,
+      ifMatch: id ? version : null,
       schema: extraServiceSchema,
     }),
   );
@@ -367,20 +377,22 @@ export function useReorderCatalogList(list: CatalogList) {
 }
 
 export function useSaveEquipment() {
-  return useCatalogMutation(({ id, input }: { id: string | null; input: EquipmentInput }) =>
+  return useCatalogMutation(({ id, input, version }: CatalogSave<EquipmentInput>) =>
     apiRequest(id ? `/catalog/equipment/${id}` : '/catalog/equipment', {
       method: id ? 'PUT' : 'POST',
       body: input,
+      ifMatch: id ? version : null,
       schema: equipmentSchema,
     }),
   );
 }
 
 export function useSaveBuffet() {
-  return useCatalogMutation(({ id, input }: { id: string | null; input: BuffetInput }) =>
+  return useCatalogMutation(({ id, input, version }: CatalogSave<BuffetInput>) =>
     apiRequest(id ? `/catalog/buffets/${id}` : '/catalog/buffets', {
       method: id ? 'PUT' : 'POST',
       body: input,
+      ifMatch: id ? version : null,
       schema: buffetSchema,
     }),
   );

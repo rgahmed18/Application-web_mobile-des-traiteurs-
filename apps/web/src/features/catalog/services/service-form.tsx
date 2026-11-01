@@ -113,7 +113,7 @@ export function ServiceFormDialog({ settings, service, onClose }: ServiceFormDia
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      await save.mutateAsync({ id: service?.id ?? null, input });
+      await save.mutateAsync({ id: service?.id ?? null, input, version: draft.expectedVersion });
       await draft.clear();
       toast.success(t('services.saved'));
       onClose();

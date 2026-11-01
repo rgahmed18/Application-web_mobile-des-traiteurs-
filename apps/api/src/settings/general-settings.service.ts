@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  AvailabilitySettings,
-  CompanySettings,
-  PricingSettings,
-  PricingSettingsInput,
-  AuditAction,
+import {
+  availabilitySettingsVersion,
+  companySettingsVersion,
+  pricingSettingsVersion,
+  type AvailabilitySettings,
+  type CompanySettings,
+  type PricingSettings,
+  type PricingSettingsInput,
+  type AuditAction,
 } from '@traiteur/shared';
 
 import { AuditService } from '../audit/audit.service';
@@ -13,6 +16,7 @@ import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { assertEditVersion, lockRow } from '../common/http/edit-version';
 
 const companySelect = {
   name: true,
@@ -58,8 +62,12 @@ export class GeneralSettingsService {
     user: AuthenticatedUser,
     input: CompanySettings,
     client: ClientInfo,
+    expectedVersion: string | null = null,
   ): Promise<CompanySettings> {
-    return this.write(user, companySelect, input, 'settings.company_updated', client);
+    return this.write(user, companySelect, input, 'settings.company_updated', client, {
+      expected: expectedVersion,
+      of: companySettingsVersion,
+    });
   }
 
   availability(user: AuthenticatedUser): Promise<AvailabilitySettings> {
@@ -70,8 +78,12 @@ export class GeneralSettingsService {
     user: AuthenticatedUser,
     input: AvailabilitySettings,
     client: ClientInfo,
+    expectedVersion: string | null = null,
   ): Promise<AvailabilitySettings> {
-    return this.write(user, availabilitySelect, input, 'settings.availability_updated', client);
+    return this.write(user, availabilitySelect, input, 'settings.availability_updated', client, {
+      expected: expectedVersion,
+      of: availabilitySettingsVersion,
+    });
   }
 
   pricing(user: AuthenticatedUser): Promise<PricingSettings> {
@@ -87,8 +99,12 @@ export class GeneralSettingsService {
     user: AuthenticatedUser,
     input: PricingSettingsInput,
     client: ClientInfo,
+    expectedVersion: string | null = null,
   ): Promise<PricingSettings> {
-    return this.write(user, pricingSelect, input, 'settings.pricing_updated', client);
+    return this.write(user, pricingSelect, input, 'settings.pricing_updated', client, {
+      expected: expectedVersion,
+      of: pricingSettingsVersion,
+    });
   }
 
   // ─────────────────────────── Interne ───────────────────────────
@@ -109,10 +125,17 @@ export class GeneralSettingsService {
     data: Prisma.TraiteurUpdateInput,
     action: AuditAction,
     client: ClientInfo,
+    version: {
+      expected: string | null;
+      of: (current: Prisma.TraiteurGetPayload<{ select: TSelect }>) => string;
+    },
   ): Promise<Prisma.TraiteurGetPayload<{ select: TSelect }>> {
     const traiteurId = requireTraiteurId(user);
     return this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'Traiteur', traiteurId);
       const before = await tx.traiteur.findUniqueOrThrow({ where: { id: traiteurId }, select });
+      // Section modifiée entre-temps par quelqu'un d'autre : refus, jamais d'écrasement
+      assertEditVersion(version.of(before), version.expected);
       const after = await tx.traiteur.update({ where: { id: traiteurId }, data, select });
       await this.audit.record(
         {

@@ -36,6 +36,7 @@ import { uuidParam } from '../../common/http/uuid-param';
 import { zodToOpenApi } from '../../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../../common/zod/zod-validation.pipe';
 import { BuffetsService } from './buffets.service';
+import { ExpectedVersion } from '../../common/http/edit-version';
 
 const buffetResponse = { schema: zodToOpenApi(buffetSchema, 'output') };
 
@@ -84,8 +85,9 @@ export class BuffetsController {
     @Param('id', uuidParam) id: string,
     @Body(new ZodValidationPipe(buffetInputSchema)) body: BuffetInput,
     @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<Buffet> {
-    return this.buffets.update(user, id, body, client);
+    return this.buffets.update(user, id, body, client, expectedVersion);
   }
 
   @Post(':id/archive')

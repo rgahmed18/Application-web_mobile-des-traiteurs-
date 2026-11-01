@@ -7,6 +7,7 @@ import {
   CREDIT_NOTE_NUMBERINGS,
   formatTaxRate,
   draftFormKey,
+  billingSettingsVersion,
 } from '@traiteur/shared';
 import { ImageIcon, Trash2Icon, UploadIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -224,12 +225,12 @@ function BillingForm({
     formKey: draftFormKey('settings', 'billing'),
     form,
     label: () => null,
-    baseVersion: null,
+    baseVersion: billingSettingsVersion(settings),
   });
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      const saved = await save.mutateAsync(input);
+      const saved = await save.mutateAsync({ input, version: draft.expectedVersion });
       form.reset(toFormValues(saved));
       await draft.clear();
       toast.success(t('saved'));

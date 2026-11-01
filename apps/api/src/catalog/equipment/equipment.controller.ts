@@ -40,6 +40,7 @@ import { uuidParam } from '../../common/http/uuid-param';
 import { zodToOpenApi } from '../../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../../common/zod/zod-validation.pipe';
 import { EquipmentService } from './equipment.service';
+import { ExpectedVersion } from '../../common/http/edit-version';
 
 const equipmentResponse = { schema: zodToOpenApi(equipmentSchema, 'output') };
 
@@ -106,8 +107,9 @@ export class EquipmentController {
     @Param('id', uuidParam) id: string,
     @Body(new ZodValidationPipe(equipmentInputSchema)) body: EquipmentInput,
     @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<Equipment> {
-    return this.equipment.update(user, id, body, client);
+    return this.equipment.update(user, id, body, client, expectedVersion);
   }
 
   @Post(':id/archive')

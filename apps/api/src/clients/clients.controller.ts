@@ -22,6 +22,7 @@ import { uuidParam } from '../common/http/uuid-param';
 import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
 import { ClientsService } from './clients.service';
+import { ExpectedVersion } from '../common/http/edit-version';
 
 const clientResponse = { schema: zodToOpenApi(clientSchema, 'output') };
 
@@ -73,8 +74,9 @@ export class ClientsController {
     @Param('id', uuidParam) id: string,
     @Body(new ZodValidationPipe(clientUpdateSchema)) body: ClientUpdateInput,
     @ClientMeta() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<Client> {
-    return this.clients.update(user, id, body, client);
+    return this.clients.update(user, id, body, client, expectedVersion);
   }
 
   @Post(':id/addresses')

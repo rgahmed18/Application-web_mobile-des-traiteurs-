@@ -25,6 +25,7 @@ import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
 import { AccountService } from './account.service';
 import { GeneralSettingsService } from './general-settings.service';
+import { ExpectedVersion } from '../common/http/edit-version';
 
 @ApiTags('settings')
 @ApiBearerAuth()
@@ -48,8 +49,9 @@ export class GeneralSettingsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(companySettingsSchema)) body: CompanySettings,
     @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<CompanySettings> {
-    return this.settings.updateCompany(user, body, client);
+    return this.settings.updateCompany(user, body, client, expectedVersion);
   }
 
   @Get('availability')
@@ -70,8 +72,9 @@ export class GeneralSettingsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(availabilitySettingsSchema)) body: AvailabilitySettings,
     @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<AvailabilitySettings> {
-    return this.settings.updateAvailability(user, body, client);
+    return this.settings.updateAvailability(user, body, client, expectedVersion);
   }
 
   @Get('pricing')
@@ -92,8 +95,9 @@ export class GeneralSettingsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(pricingSettingsInputSchema)) body: PricingSettingsInput,
     @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<PricingSettings> {
-    return this.settings.updatePricing(user, body, client);
+    return this.settings.updatePricing(user, body, client, expectedVersion);
   }
 }
 

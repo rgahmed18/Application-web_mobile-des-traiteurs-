@@ -69,7 +69,7 @@ function ProfileForm({ account }: { account: Account }) {
   const form = useZodForm(accountUpdateSchema, profileValues(account));
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      const saved = await save.mutateAsync(input);
+      const saved = await save.mutateAsync({ input });
       form.reset(profileValues(saved));
       // Nom affiché dans le menu : relu avec la session ; langue : appliquée tout de suite
       await refreshAccessToken();

@@ -33,6 +33,7 @@ import {
   uniqueSlug,
 } from '../catalog-common';
 import { MediaService } from '../media/media.service';
+import { lockEditVersion } from '../../common/http/edit-version';
 
 const listRefSelect = { id: true, code: true, name: true, archivedAt: true } as const;
 
@@ -242,6 +243,7 @@ export class PackagesService {
     id: string,
     input: PackageInput,
     client: ClientInfo,
+    expectedVersion: string | null = null,
   ): Promise<Package> {
     const traiteurId = requireTraiteurId(user);
     // Copie éventuelle de la photo sur le stockage : avant la transaction, jamais pendant
@@ -250,6 +252,7 @@ export class PackagesService {
       : null;
     return this.prisma.$transaction(async (tx) => {
       const settings = await loadCatalogSettings(tx, traiteurId);
+      await lockEditVersion(tx, 'Package', traiteurId, id, expectedVersion);
       const existing = await tx.package.findFirst({
         where: { id, traiteurId },
         include: packageInclude,

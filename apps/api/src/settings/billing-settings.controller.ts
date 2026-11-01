@@ -23,6 +23,7 @@ import { Client, type ClientInfo } from '../common/http/client-info';
 import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
 import { BillingSettingsService } from './billing-settings.service';
+import { ExpectedVersion } from '../common/http/edit-version';
 
 const response = { schema: zodToOpenApi(billingSettingsSchema, 'output') };
 
@@ -47,8 +48,9 @@ export class BillingSettingsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(billingSettingsInputSchema)) body: BillingSettingsInput,
     @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<BillingSettings> {
-    return this.settings.update(user, body, client);
+    return this.settings.update(user, body, client, expectedVersion);
   }
 
   @Post('logo')

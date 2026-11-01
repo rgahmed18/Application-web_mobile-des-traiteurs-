@@ -112,7 +112,7 @@ export function useFormDraft<TValues extends FieldValues>({
       .then((draft) => {
         if (cancelled) return;
         setFound({ key: formKey, draft });
-        saver.setReady(draft === null);
+        saver.setReady(draft === null, form.formState.isDirty);
       })
       .catch(() => {
         if (!cancelled) saver.setReady(true);
@@ -120,7 +120,7 @@ export function useFormDraft<TValues extends FieldValues>({
     return () => {
       cancelled = true;
     };
-  }, [formKey, saver]);
+  }, [form, formKey, saver]);
 
   // Saisie : enregistrement quelques secondes après la dernière modification
   useEffect(() => {
@@ -170,7 +170,10 @@ export function useFormDraft<TValues extends FieldValues>({
     if (key) await deleteDraft(key).catch(() => undefined);
   }, [saver]);
 
-  const clear = useCallback(() => saver.clear(), [saver]);
+  const clear = useCallback(async () => {
+    await saver.clear();
+    setResumedVersion(undefined);
+  }, [saver]);
 
   const conflict =
     pending !== null &&

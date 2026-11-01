@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { localizedTextSchema } from '../i18n/localized-text';
 import { MAX_TAX_RATE_BPS } from '../money/money';
 import { localDateSchema } from '../time/zoned';
+import { fieldsVersion } from '../editing/edit-version';
 
 // ─────────────────────────── Énumérations ───────────────────────────
 
@@ -164,3 +165,8 @@ export const billingSettingsSchema = billingSettingsInputSchema.extend({
   hasLogo: z.boolean(),
 });
 export type BillingSettings = z.infer<typeof billingSettingsSchema>;
+
+/** Version de la section (verrouillage optimiste) : empreinte de ses champs modifiables. */
+export function billingSettingsVersion(settings: Record<string, unknown>): string {
+  return fieldsVersion(Object.keys(billingSettingsInputSchema.shape), settings);
+}

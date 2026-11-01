@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import {
   type BillingSettings,
   type BillingSettingsInput,
+  billingSettingsVersion,
   parseLocalizedText,
 } from '@traiteur/shared';
 import sharp from 'sharp';
@@ -16,6 +17,7 @@ import { requireTraiteurId } from '../common/tenant';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PRIVATE_PREFIX, StorageService } from '../storage/storage.service';
+import { assertEditVersion, lockRow } from '../common/http/edit-version';
 
 const select = {
   depositPercentBps: true,
@@ -72,10 +74,14 @@ export class BillingSettingsService {
     user: AuthenticatedUser,
     input: BillingSettingsInput,
     client: ClientInfo,
+    expectedVersion: string | null = null,
   ): Promise<BillingSettings> {
     const traiteurId = requireTraiteurId(user);
     return this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'Traiteur', traiteurId);
       const before = await tx.traiteur.findUniqueOrThrow({ where: { id: traiteurId }, select });
+      // Section modifiée entre-temps par quelqu'un d'autre : refus, jamais d'écrasement
+      assertEditVersion(billingSettingsVersion(this.toSettings(before)), expectedVersion);
       const after = await tx.traiteur.update({
         where: { id: traiteurId },
         data: {

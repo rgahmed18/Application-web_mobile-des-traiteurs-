@@ -78,7 +78,11 @@ export function PackageForm({ settings, pkg, mode }: PackageFormProps) {
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      await save.mutateAsync({ id: mode === 'edit' && pkg ? pkg.id : null, input });
+      await save.mutateAsync({
+        id: mode === 'edit' && pkg ? pkg.id : null,
+        input,
+        version: draft.expectedVersion,
+      });
       setSaved(true);
       await draft.clear();
       toast.success(t(mode === 'edit' ? 'packages.saved' : 'packages.created'));

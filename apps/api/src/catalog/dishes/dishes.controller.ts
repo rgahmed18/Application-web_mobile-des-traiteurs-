@@ -36,6 +36,7 @@ import { zodToOpenApi } from '../../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../../common/zod/zod-validation.pipe';
 import { uuidParam } from '../../common/http/uuid-param';
 import { DishesService } from './dishes.service';
+import { ExpectedVersion } from '../../common/http/edit-version';
 
 const dishResponse = { schema: zodToOpenApi(dishSchema, 'output') };
 
@@ -87,8 +88,9 @@ export class DishesController {
     @Param('id', uuidParam) id: string,
     @Body(new ZodValidationPipe(dishInputSchema)) body: DishInput,
     @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<Dish> {
-    return this.dishes.update(user, id, body, client);
+    return this.dishes.update(user, id, body, client, expectedVersion);
   }
 
   @Post(':id/archive')

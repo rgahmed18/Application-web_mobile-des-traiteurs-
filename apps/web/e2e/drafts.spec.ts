@@ -15,7 +15,9 @@ async function dishWithoutDraft(api: APIRequestContext): Promise<{ id: string; n
   return { id: dish.id, name: dish.name.fr };
 }
 
-async function typeName(page: Page, name: string) {
+/** Saisie du nom, une fois le plat affiché (comme une personne), puis brouillon enregistré. */
+async function typeName(page: Page, name: string, current: string) {
+  await expect(page.getByLabel('Nom (français)')).toHaveValue(current);
   await page.getByLabel('Nom (français)').fill(name);
   await expect(page.getByTestId('draft-status')).toContainText('Brouillon enregistré à');
 }
@@ -31,10 +33,14 @@ test.describe('Brouillons des formulaires', () => {
     await login(page);
     await page.goto(`/admin/catalog/dishes/${dish.id}`);
     // Saisie non encore enregistrée (moins de 3 s) : la fin de session l'enregistre d'abord
+    await expect(page.getByLabel('Nom (français)')).toHaveValue(dish.name);
     await page.getByLabel('Nom (français)').fill(draftName);
 
     const other = await context.newPage();
     await other.goto('/admin');
+    // Onglet de saisie au premier plan : Chrome sous charge gèle les onglets en arrière-plan
+    // (minuteries et messages suspendus), ce qui rendrait le parcours aléatoire
+    await page.bringToFront();
     await other.getByRole('button', { name: 'Mon compte' }).click();
     await other.getByRole('menuitem', { name: 'Se déconnecter' }).click();
     await expect(page).toHaveURL(/\/admin\/login/);
@@ -65,7 +71,7 @@ test.describe('Brouillons des formulaires', () => {
     await expect(page.getByTestId('drafts-card')).toHaveCount(0);
   });
 
-  test('élément modifié par quelqu’un d’autre : conflit signalé, brouillon supprimable', async ({
+  test('élément modifié par quelqu’un d’autre : conflit signalé, enregistrement refusé sans écraser', async ({
     page: editor,
     context,
     request,
@@ -73,7 +79,8 @@ test.describe('Brouillons des formulaires', () => {
     const dish = await dishWithoutDraft(request);
     await login(editor);
     await editor.goto(`/admin/catalog/dishes/${dish.id}`);
-    await typeName(editor, `Conflit ${uniqueSuffix()}`);
+    const draftName = `Conflit ${uniqueSuffix()}`;
+    await typeName(editor, draftName, dish.name);
 
     // Une autre personne modifie le plat entre-temps
     const headers = await apiLogin(request);
@@ -93,11 +100,27 @@ test.describe('Brouillons des formulaires', () => {
     );
     // Rien n'est écrasé : le formulaire montre la version actuelle tant qu'on ne reprend pas
     await expect(page.getByLabel('Nom (français)')).toHaveValue(dish.name);
-    await page.getByTestId('draft-banner').getByRole('button', { name: 'Supprimer' }).click();
-    await expect(page.getByTestId('draft-banner')).toHaveCount(0);
+
+    // Repris quand même : l'enregistrement est refusé, le plat reste tel que l'autre l'a laissé
+    await page.getByTestId('draft-banner').getByRole('button', { name: 'Reprendre' }).click();
+    await expect(page.getByLabel('Nom (français)')).toHaveValue(draftName);
+    await page.getByRole('button', { name: 'Enregistrer' }).click();
+    await expect(page.getByText('Modifié entre-temps par quelqu’un d’autre').first()).toBeVisible();
+    const current = await request.get(`${API}/catalog/dishes/${dish.id}`, { headers });
+    expect(((await current.json()) as { name: { fr: string } }).name.fr).toBe(dish.name);
+
+    // Nouvelle ouverture : brouillon supprimé depuis le bandeau
+    const again = await context.newPage();
+    await again.goto(`/admin/catalog/dishes/${dish.id}`);
+    await again.getByTestId('draft-banner').getByRole('button', { name: 'Supprimer' }).click();
+    await expect(again.getByTestId('draft-banner')).toHaveCount(0);
     await expect
+      // Connexion réutilisée fermée entre-temps par le serveur (keep-alive) : nouvel essai
       .poll(async () =>
-        (await request.get(`${API}/me/drafts/dish:${dish.id}`, { headers })).status(),
+        request
+          .get(`${API}/me/drafts/dish:${dish.id}`, { headers })
+          .then((response) => response.status())
+          .catch(() => 0),
       )
       .toBe(404);
   });
@@ -114,6 +137,7 @@ test.describe('Brouillons des formulaires', () => {
     });
     await login(page);
     await page.goto(`/admin/catalog/dishes/${dish.id}`);
+    await expect(page.getByLabel('Nom (français)')).toHaveValue(dish.name);
     await page.getByLabel('Nom (français)').pressSequentially('Saisie rapide', { delay: 40 });
     await expect(page.getByTestId('draft-status')).toContainText('Brouillon enregistré à');
     expect(saves).toHaveLength(1);

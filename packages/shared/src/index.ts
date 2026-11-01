@@ -16,6 +16,7 @@ export * from './platform/platform.schemas';
 export * from './spaces/space-host';
 export * from './spaces/space.schemas';
 export * from './documents';
+export * from './editing/edit-version';
 export * from './drafts/draft.schemas';
 export * from './enums';
 export * from './i18n/localized-text';

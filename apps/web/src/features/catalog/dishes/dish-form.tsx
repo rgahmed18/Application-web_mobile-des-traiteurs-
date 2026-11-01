@@ -86,7 +86,11 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      await save.mutateAsync({ id: mode === 'edit' && dish ? dish.id : null, input });
+      await save.mutateAsync({
+        id: mode === 'edit' && dish ? dish.id : null,
+        input,
+        version: draft.expectedVersion,
+      });
       setSaved(true);
       await draft.clear();
       toast.success(t(mode === 'edit' ? 'dishes.saved' : 'dishes.created'));

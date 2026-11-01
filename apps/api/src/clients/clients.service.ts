@@ -8,6 +8,7 @@ import {
   type ClientPage,
   type ClientSummary,
   type ClientUpdateInput,
+  clientEditVersion,
   FIRM_ORDER_STATUSES,
   type AuditAction,
 } from '@traiteur/shared';
@@ -19,6 +20,7 @@ import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { assertEditVersion, lockRow } from '../common/http/edit-version';
 
 type Db = Prisma.TransactionClient;
 
@@ -235,10 +237,14 @@ export class ClientsService {
     id: string,
     input: ClientUpdateInput,
     client: ClientInfo,
+    expectedVersion: string | null = null,
   ): Promise<Client> {
     const traiteurId = requireTraiteurId(user);
     return this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'Membership', id);
       const before = await this.findClient(tx, traiteurId, id);
+      // Fiche modifiée entre-temps par quelqu'un d'autre : refus, jamais d'écrasement
+      assertEditVersion(clientEditVersion(before), expectedVersion);
       const after = await tx.membership.update({
         where: { id: before.id },
         data: {

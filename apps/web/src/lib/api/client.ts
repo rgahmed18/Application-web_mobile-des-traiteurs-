@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { EDIT_VERSION_HEADER } from '@traiteur/shared';
 
 import { publicEnv } from '@/lib/env/public';
 
@@ -37,6 +38,11 @@ export interface ApiRequestOptions<TSchema extends z.ZodType> {
   signal?: AbortSignal;
   /** Jeton imposé (utilisé par le store de session) ; sinon celui de la session. */
   accessToken?: string;
+  /**
+   * Version de l'élément chargé (verrouillage optimiste, en-tête If-Match) : l'API refuse (409
+   * EDIT_CONFLICT) s'il a été modifié entre-temps.
+   */
+  ifMatch?: string | null;
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
@@ -64,15 +70,18 @@ async function send(url: string, init: RequestInit, accessToken: string | null):
 
 export async function apiRequest<TSchema extends z.ZodType>(
   path: string,
-  { method = 'GET', body, query, schema, signal, accessToken }: ApiRequestOptions<TSchema>,
+  { method = 'GET', body, query, schema, signal, accessToken, ifMatch }: ApiRequestOptions<TSchema>,
 ): Promise<z.infer<TSchema>> {
   const url = buildUrl(path, query);
   // Fichier envoyé tel quel (multipart) ; sinon corps JSON
   const isForm = body instanceof FormData;
+  const headers: Record<string, string> = {};
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
+  if (ifMatch) headers[EDIT_VERSION_HEADER] = `"${ifMatch}"`;
   const init: RequestInit = {
     method,
     signal,
-    headers: body === undefined || isForm ? undefined : { 'Content-Type': 'application/json' },
+    headers,
     body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   };
 

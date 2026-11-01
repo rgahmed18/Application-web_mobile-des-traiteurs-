@@ -36,6 +36,7 @@ import { zodToOpenApi } from '../../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../../common/zod/zod-validation.pipe';
 import { uuidParam } from '../../common/http/uuid-param';
 import { PackagesService } from './packages.service';
+import { ExpectedVersion } from '../../common/http/edit-version';
 
 const packageResponse = { schema: zodToOpenApi(packageSchema, 'output') };
 
@@ -91,8 +92,9 @@ export class PackagesController {
     @Param('id', uuidParam) id: string,
     @Body(new ZodValidationPipe(packageInputSchema)) body: PackageInput,
     @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
   ): Promise<Package> {
-    return this.packages.update(user, id, body, client);
+    return this.packages.update(user, id, body, client, expectedVersion);
   }
 
   @Post(':id/archive')

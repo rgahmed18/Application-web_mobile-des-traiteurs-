@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { phoneSchema } from '../auth/phone';
 import { booleanQuery, paginatedSchema } from '../catalog/catalog.schemas';
 import { localeSchema } from '../i18n/localized-text';
+import { fieldsVersion } from '../editing/edit-version';
 
 /**
  * Clients d'un traiteur. Le compte (User) est global ; les coordonnées affichées et modifiables
@@ -52,6 +53,14 @@ export type ClientCreateInput = z.infer<typeof clientCreateSchema>;
 /** Le téléphone identifie le compte : il n'est pas modifiable par le traiteur. */
 export const clientUpdateSchema = clientFieldsSchema;
 export type ClientUpdateInput = z.infer<typeof clientUpdateSchema>;
+
+/**
+ * Version d'un client pour le verrouillage optimiste : empreinte des champs modifiables (la
+ * connexion du client ou l'ajout d'une adresse ne bloquent pas la modification de sa fiche).
+ */
+export function clientEditVersion(client: Record<string, unknown>): string {
+  return fieldsVersion(Object.keys(clientFieldsSchema.shape), client);
+}
 
 export const CLIENT_SORTS = ['name', 'createdAt', 'lastOrder', 'nextOrder', 'totalSpent'] as const;
 

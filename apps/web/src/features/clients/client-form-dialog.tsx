@@ -7,6 +7,7 @@ import {
   clientUpdateSchema,
   localeSchema,
   draftFormKey,
+  clientEditVersion,
 } from '@traiteur/shared';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -337,12 +338,16 @@ function EditClientDialog({
     formKey: draftFormKey('client', client.id),
     form,
     label: () => `${client.firstName} ${client.lastName}`.trim() || null,
-    baseVersion: null,
+    baseVersion: clientEditVersion(client),
   });
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      const saved = await update.mutateAsync({ id: client.id, input });
+      const saved = await update.mutateAsync({
+        id: client.id,
+        input,
+        version: draft.expectedVersion,
+      });
       await draft.clear();
       toast.success(t('form.saved'));
       onSaved?.(saved);

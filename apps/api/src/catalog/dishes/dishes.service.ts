@@ -34,6 +34,7 @@ import {
   uniqueSlug,
 } from '../catalog-common';
 import { MediaService } from '../media/media.service';
+import { lockEditVersion } from '../../common/http/edit-version';
 
 export const dishInclude = {
   _count: { select: { orderItems: true, quoteLines: true } },
@@ -177,6 +178,7 @@ export class DishesService {
     id: string,
     input: DishInput,
     client: ClientInfo,
+    expectedVersion: string | null = null,
   ): Promise<Dish> {
     const traiteurId = requireTraiteurId(user);
     // Copie éventuelle de la photo sur le stockage : avant la transaction, jamais pendant
@@ -185,6 +187,7 @@ export class DishesService {
       : null;
     return this.prisma.$transaction(async (tx) => {
       const settings = await loadCatalogSettings(tx, traiteurId);
+      await lockEditVersion(tx, 'Dish', traiteurId, id, expectedVersion);
       const existing = await tx.dish.findFirst({ where: { id, traiteurId }, include: dishInclude });
       if (!existing) notFound();
       await this.assertCategory(tx, traiteurId, input.categoryId);

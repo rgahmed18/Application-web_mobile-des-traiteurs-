@@ -67,8 +67,14 @@ export function useCreateClient() {
 }
 
 export function useUpdateClient() {
-  return useClientMutation(({ id, input }: { id: string; input: ClientUpdateInput }) =>
-    apiRequest(`/clients/${id}`, { method: 'PUT', body: input, schema: clientSchema }),
+  return useClientMutation(
+    ({ id, input, version }: { id: string; input: ClientUpdateInput; version: string | null }) =>
+      apiRequest(`/clients/${id}`, {
+        method: 'PUT',
+        body: input,
+        schema: clientSchema,
+        ifMatch: version,
+      }),
   );
 }
 

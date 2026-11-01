@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { passwordSchema } from '../auth/auth.schemas';
 import { phoneSchema } from '../auth/phone';
 import { PRICE_MODES } from '../money/money';
+import { fieldsVersion } from '../editing/edit-version';
 
 /**
  * Paramètres du traiteur (permission settings.manage) et compte de l'utilisateur connecté.
@@ -63,6 +64,24 @@ export const pricingSettingsSchema = pricingSettingsInputSchema.extend({
   defaultTaxRateBps: z.number().int(),
 });
 export type PricingSettings = z.infer<typeof pricingSettingsSchema>;
+
+/** Versions des sections (verrouillage optimiste) : empreinte de leurs champs modifiables. */
+export function companySettingsVersion(settings: Record<string, unknown>): string {
+  return fieldsVersion(Object.keys(companySettingsSchema.shape), settings);
+}
+
+export function availabilitySettingsVersion(settings: AvailabilitySettings): string {
+  // Jours dans l'ordre (le schéma les trie à la lecture)
+  const closedWeekdays = [...settings.closedWeekdays].sort((a, b) => a - b);
+  return fieldsVersion(Object.keys(availabilitySettingsSchema.shape), {
+    ...settings,
+    closedWeekdays,
+  });
+}
+
+export function pricingSettingsVersion(settings: Record<string, unknown>): string {
+  return fieldsVersion(Object.keys(pricingSettingsInputSchema.shape), settings);
+}
 
 // ─────────────────────────── Mon compte ───────────────────────────
 

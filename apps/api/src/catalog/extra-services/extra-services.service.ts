@@ -24,6 +24,7 @@ import {
   toLocalized,
   toLocalizedOrNull,
 } from '../catalog-common';
+import { lockEditVersion } from '../../common/http/edit-version';
 
 const serviceInclude = {
   _count: { select: { orderItems: true, quoteLines: true } },
@@ -102,10 +103,12 @@ export class ExtraServicesService {
     id: string,
     input: ExtraServiceInput,
     client: ClientInfo,
+    expectedVersion: string | null = null,
   ): Promise<ExtraService> {
     const traiteurId = requireTraiteurId(user);
     return this.prisma.$transaction(async (tx) => {
       const settings = await loadCatalogSettings(tx, traiteurId);
+      await lockEditVersion(tx, 'ExtraService', traiteurId, id, expectedVersion);
       const existing = await tx.extraService.findFirst({
         where: { id, traiteurId },
         include: serviceInclude,

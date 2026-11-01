@@ -8,6 +8,9 @@ import {
   ISO_WEEKDAYS,
   type PricingSettings,
   draftFormKey,
+  availabilitySettingsVersion,
+  companySettingsVersion,
+  pricingSettingsVersion,
 } from '@traiteur/shared';
 import { CheckIcon, TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -118,11 +121,11 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
     formKey: draftFormKey('settings', 'company'),
     form,
     label: () => null,
-    baseVersion: null,
+    baseVersion: companySettingsVersion(settings),
   });
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      form.reset(companyValues(await save.mutateAsync(input)));
+      form.reset(companyValues(await save.mutateAsync({ input, version: draft.expectedVersion })));
       await draft.clear();
       toast.success(t('saved'));
     } catch (error) {
@@ -248,14 +251,16 @@ function AvailabilityForm({ settings }: { settings: AvailabilitySettings }) {
     formKey: draftFormKey('settings', 'availability'),
     form,
     label: () => null,
-    baseVersion: null,
+    baseVersion: availabilitySettingsVersion(settings),
   });
   const limited = form.watch('limited');
   const redact = form.watch('redact');
   const closed = form.watch('closedWeekdays');
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      form.reset(availabilityValues(await save.mutateAsync(input)));
+      form.reset(
+        availabilityValues(await save.mutateAsync({ input, version: draft.expectedVersion })),
+      );
       await draft.clear();
       toast.success(t('saved'));
     } catch (error) {
@@ -411,7 +416,7 @@ function PricingForm({ settings }: { settings: PricingSettings }) {
 
   const apply = () =>
     save.mutate(
-      { priceEntryMode: mode },
+      { input: { priceEntryMode: mode }, version: pricingSettingsVersion(settings) },
       {
         onSuccess: () => {
           toast.success(t('saved'));

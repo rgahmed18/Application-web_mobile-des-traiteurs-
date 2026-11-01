@@ -238,6 +238,7 @@
       "CLIENT_EXISTS": "Ce numéro est déjà enregistré parmi vos clients.",
       "PHONE_IS_STAFF": "Ce numéro appartient à un membre de votre équipe.",
       "ORDER_VERSION_CONFLICT": "Cette commande a été modifiée entre-temps. Rechargez-la.",
+      "EDIT_CONFLICT": "Modifié entre-temps par quelqu’un d’autre : votre enregistrement n’a pas écrasé son travail. Rechargez la page pour voir la version actuelle.",
       "AVAILABILITY_CONFLICT": "Cette date est bloquée ou complète.",
       "INVALID_TRANSITION": "Ce changement de statut n’est pas possible.",
       "REASON_REQUIRED": "Un motif est obligatoire.",

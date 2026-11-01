@@ -71,7 +71,7 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
-      await save.mutateAsync({ id: buffet?.id ?? null, input });
+      await save.mutateAsync({ id: buffet?.id ?? null, input, version: draft.expectedVersion });
       setSaved(true);
       await draft.clear();
       toast.success(t(buffet ? 'buffets.saved' : 'buffets.created'));
