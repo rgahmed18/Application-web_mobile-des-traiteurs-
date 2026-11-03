@@ -71,7 +71,7 @@ test.describe('Brouillons des formulaires', () => {
     await expect(page.getByTestId('drafts-card')).toHaveCount(0);
   });
 
-  test('élément modifié par quelqu’un d’autre : conflit signalé, enregistrement refusé sans écraser', async ({
+  test('élément modifié par quelqu’un d’autre : refus sans écraser, version actuelle affichée, brouillon gardé', async ({
     page: editor,
     context,
     request,
@@ -108,6 +108,13 @@ test.describe('Brouillons des formulaires', () => {
     await expect(page.getByText('Modifié entre-temps par quelqu’un d’autre').first()).toBeVisible();
     const current = await request.get(`${API}/catalog/dishes/${dish.id}`, { headers });
     expect(((await current.json()) as { name: { fr: string } }).name.fr).toBe(dish.name);
+
+    // « Voir la version actuelle » : le plat tel que l'autre l'a laissé, brouillon toujours proposé
+    await page.getByRole('button', { name: 'Voir la version actuelle' }).click();
+    await expect(page.getByLabel('Nom (français)')).toHaveValue(dish.name);
+    await expect(page.getByTestId('draft-conflict')).toBeVisible();
+    await page.getByTestId('draft-banner').getByRole('button', { name: 'Reprendre' }).click();
+    await expect(page.getByLabel('Nom (français)')).toHaveValue(draftName);
 
     // Nouvelle ouverture : brouillon supprimé depuis le bandeau
     const again = await context.newPage();

@@ -20,7 +20,11 @@ export function BuffetEditor({ buffetId }: { buffetId: string | null }) {
           <Skeleton className="h-48 w-full" />
         </div>
       ) : (
-        <BuffetForm key={buffetId ?? 'new'} settings={settings.data} buffet={buffet.data} />
+        <BuffetForm
+          key={`${buffetId ?? 'new'}:${buffet.data?.updatedAt ?? ''}`}
+          settings={settings.data}
+          buffet={buffet.data}
+        />
       )}
     </RequirePermission>
   );

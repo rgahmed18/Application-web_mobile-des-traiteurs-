@@ -28,6 +28,7 @@ import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 
 import { useCategories, useSaveDish } from '../catalog-api';
@@ -78,6 +79,7 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
     label: () => form.getValues('name.fr') || null,
     baseVersion: mode === 'edit' && dish ? dish.updatedAt : null,
   });
+  const editConflict = useEditConflict(draft);
 
   const [price, taxRate, nameFr] = useWatch({
     control: form.control,
@@ -96,7 +98,7 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
       toast.success(t(mode === 'edit' ? 'dishes.saved' : 'dishes.created'));
       router.push(LIST_PATH);
     } catch (error) {
-      toast.error(describeError(error));
+      if (!editConflict(error)) toast.error(describeError(error));
     }
   });
 

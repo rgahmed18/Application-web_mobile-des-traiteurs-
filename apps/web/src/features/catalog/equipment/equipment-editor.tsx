@@ -20,7 +20,11 @@ export function EquipmentEditor({ equipmentId }: { equipmentId: string | null })
           <Skeleton className="h-48 w-full" />
         </div>
       ) : (
-        <EquipmentForm key={equipmentId ?? 'new'} settings={settings.data} item={item.data} />
+        <EquipmentForm
+          key={`${equipmentId ?? 'new'}:${item.data?.updatedAt ?? ''}`}
+          settings={settings.data}
+          item={item.data}
+        />
       )}
     </RequirePermission>
   );

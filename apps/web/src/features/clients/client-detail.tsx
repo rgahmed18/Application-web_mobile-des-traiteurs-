@@ -1,6 +1,11 @@
 'use client';
 
-import { type Client, type ClientAddress, clientAddressInputSchema } from '@traiteur/shared';
+import {
+  type Client,
+  type ClientAddress,
+  clientAddressInputSchema,
+  clientEditVersion,
+} from '@traiteur/shared';
 import {
   ArrowLeftIcon,
   MessageCircleIcon,
@@ -437,7 +442,13 @@ export function ClientDetail({ clientId }: { clientId: string }) {
 
       <OrderHistory clientId={data.id} />
 
-      {editing && <ClientFormDialog client={data} onClose={() => setEditing(false)} />}
+      {editing && (
+        <ClientFormDialog
+          key={clientEditVersion(data)}
+          client={data}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </div>
   );
 }

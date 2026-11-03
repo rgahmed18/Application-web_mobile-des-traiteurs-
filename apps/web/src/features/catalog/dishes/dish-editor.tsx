@@ -33,7 +33,7 @@ export function DishEditor({ dishId }: { dishId: string | null }) {
       ) : (
         <DishForm
           // Nouveau rendu si l'on passe d'un plat à un autre
-          key={sourceId ?? 'new'}
+          key={`${sourceId ?? 'new'}:${source.data?.updatedAt ?? ''}`}
           settings={settings.data}
           dish={source.data}
           mode={dishId ? 'edit' : duplicateFrom ? 'duplicate' : 'create'}

@@ -25,6 +25,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
@@ -109,6 +110,7 @@ export function ServiceFormDialog({ settings, service, onClose }: ServiceFormDia
     label: () => form.getValues('name.fr') || null,
     baseVersion: service?.updatedAt ?? null,
   });
+  const editConflict = useEditConflict(draft);
   const [price, taxRate] = useWatch({ control: form.control, name: ['price', 'taxRateBps'] });
 
   const onSubmit = form.handleSubmit(async (input) => {
@@ -118,7 +120,7 @@ export function ServiceFormDialog({ settings, service, onClose }: ServiceFormDia
       toast.success(t('services.saved'));
       onClose();
     } catch (error) {
-      toast.error(describeError(error));
+      if (!editConflict(error)) toast.error(describeError(error));
     }
   });
 

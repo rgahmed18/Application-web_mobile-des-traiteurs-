@@ -29,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { isApiError } from '@/lib/api/errors';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
@@ -340,6 +341,7 @@ function EditClientDialog({
     label: () => `${client.firstName} ${client.lastName}`.trim() || null,
     baseVersion: clientEditVersion(client),
   });
+  const editConflict = useEditConflict(draft);
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
@@ -353,7 +355,7 @@ function EditClientDialog({
       onSaved?.(saved);
       onClose();
     } catch (error) {
-      toast.error(describeError(error));
+      if (!editConflict(error)) toast.error(describeError(error));
     }
   });
 

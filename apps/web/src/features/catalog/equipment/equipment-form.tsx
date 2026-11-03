@@ -22,6 +22,7 @@ import { useErrorMessage } from '@/lib/api/use-error-message';
 import { currencyLabel } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 
 import { useSaveEquipment } from '../catalog-api';
@@ -64,6 +65,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
     label: () => form.getValues('name.fr') || null,
     baseVersion: item?.updatedAt ?? null,
   });
+  const editConflict = useEditConflict(draft);
 
   const [price, taxRate, nameFr] = useWatch({
     control: form.control,
@@ -78,7 +80,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
       toast.success(t(item ? 'equipment.saved' : 'equipment.created'));
       router.push(LIST_PATH);
     } catch (error) {
-      toast.error(describeError(error));
+      if (!editConflict(error)) toast.error(describeError(error));
     }
   });
 

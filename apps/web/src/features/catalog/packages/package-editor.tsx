@@ -33,7 +33,7 @@ export function PackageEditor({ packageId }: { packageId: string | null }) {
       ) : (
         <PackageForm
           // Nouveau rendu si l'on passe d'une formule à une autre
-          key={sourceId ?? 'new'}
+          key={`${sourceId ?? 'new'}:${source.data?.updatedAt ?? ''}`}
           settings={settings.data}
           pkg={source.data}
           mode={packageId ? 'edit' : duplicateFrom ? 'duplicate' : 'create'}

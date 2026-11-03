@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 
 import { useSaveBuffet } from '../catalog-api';
@@ -62,6 +63,7 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
     label: () => form.getValues('name.fr') || null,
     baseVersion: buffet?.updatedAt ?? null,
   });
+  const editConflict = useEditConflict(draft);
 
   const [price, taxRate, nameFr, pricingUnit] = useWatch({
     control: form.control,
@@ -77,7 +79,7 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
       toast.success(t(buffet ? 'buffets.saved' : 'buffets.created'));
       router.push(LIST_PATH);
     } catch (error) {
-      toast.error(describeError(error));
+      if (!editConflict(error)) toast.error(describeError(error));
     }
   });
 

@@ -40,6 +40,7 @@ import { FormSection } from '@/features/catalog/components/form-layout';
 import { toInteger } from '@/features/catalog/forms/form-values';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 import { cn } from '@/lib/utils';
@@ -108,7 +109,11 @@ const companyValues = (settings: CompanySettings) => ({
 
 export function CompanyTab() {
   const query = useCompanySettings();
-  return <Loaded query={query}>{(settings) => <CompanyForm settings={settings} />}</Loaded>;
+  return (
+    <Loaded query={query}>
+      {(settings) => <CompanyForm key={companySettingsVersion(settings)} settings={settings} />}
+    </Loaded>
+  );
 }
 
 function CompanyForm({ settings }: { settings: CompanySettings }) {
@@ -123,13 +128,14 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
     label: () => null,
     baseVersion: companySettingsVersion(settings),
   });
+  const editConflict = useEditConflict(draft);
   const onSubmit = form.handleSubmit(async (input) => {
     try {
       form.reset(companyValues(await save.mutateAsync({ input, version: draft.expectedVersion })));
       await draft.clear();
       toast.success(t('saved'));
     } catch (error) {
-      toast.error(describeError(error));
+      if (!editConflict(error)) toast.error(describeError(error));
     }
   });
   return (
@@ -213,7 +219,13 @@ const availabilityValues = (settings: AvailabilitySettings) => ({
 
 export function AvailabilityTab() {
   const query = useAvailabilitySettings();
-  return <Loaded query={query}>{(settings) => <AvailabilityForm settings={settings} />}</Loaded>;
+  return (
+    <Loaded query={query}>
+      {(settings) => (
+        <AvailabilityForm key={availabilitySettingsVersion(settings)} settings={settings} />
+      )}
+    </Loaded>
+  );
 }
 
 function SwitchRow({
@@ -253,6 +265,7 @@ function AvailabilityForm({ settings }: { settings: AvailabilitySettings }) {
     label: () => null,
     baseVersion: availabilitySettingsVersion(settings),
   });
+  const editConflict = useEditConflict(draft);
   const limited = form.watch('limited');
   const redact = form.watch('redact');
   const closed = form.watch('closedWeekdays');
@@ -264,7 +277,7 @@ function AvailabilityForm({ settings }: { settings: AvailabilitySettings }) {
       await draft.clear();
       toast.success(t('saved'));
     } catch (error) {
-      toast.error(describeError(error));
+      if (!editConflict(error)) toast.error(describeError(error));
     }
   });
   const toggleDay = (day: number) => {
@@ -410,6 +423,7 @@ function PricingForm({ settings }: { settings: PricingSettings }) {
   const t = useTranslations('settings.pricing');
   const describeError = useErrorMessage();
   const save = useSavePricingSettings();
+  const editConflict = useEditConflict(null);
   const [mode, setMode] = useState(settings.priceEntryMode);
   const [confirming, setConfirming] = useState(false);
   const changed = mode !== settings.priceEntryMode;
@@ -422,7 +436,9 @@ function PricingForm({ settings }: { settings: PricingSettings }) {
           toast.success(t('saved'));
           setConfirming(false);
         },
-        onError: (error) => toast.error(describeError(error)),
+        onError: (error) => {
+          if (!editConflict(error)) toast.error(describeError(error));
+        },
       },
     );
 

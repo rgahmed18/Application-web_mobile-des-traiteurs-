@@ -33,6 +33,7 @@ import { FormSection } from '@/features/catalog/components/form-layout';
 import { toInteger } from '@/features/catalog/forms/form-values';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
+import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
@@ -227,6 +228,7 @@ function BillingForm({
     label: () => null,
     baseVersion: billingSettingsVersion(settings),
   });
+  const editConflict = useEditConflict(draft);
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
@@ -235,7 +237,7 @@ function BillingForm({
       await draft.clear();
       toast.success(t('saved'));
     } catch (error) {
-      toast.error(describeError(error));
+      if (!editConflict(error)) toast.error(describeError(error));
     }
   });
 

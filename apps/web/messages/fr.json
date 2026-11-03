@@ -238,7 +238,7 @@
       "CLIENT_EXISTS": "Ce numéro est déjà enregistré parmi vos clients.",
       "PHONE_IS_STAFF": "Ce numéro appartient à un membre de votre équipe.",
       "ORDER_VERSION_CONFLICT": "Cette commande a été modifiée entre-temps. Rechargez-la.",
-      "EDIT_CONFLICT": "Modifié entre-temps par quelqu’un d’autre : votre enregistrement n’a pas écrasé son travail. Rechargez la page pour voir la version actuelle.",
+      "EDIT_CONFLICT": "Modifié entre-temps par quelqu’un d’autre : votre enregistrement n’a pas écrasé son travail. Votre saisie reste disponible en brouillon.",
       "AVAILABILITY_CONFLICT": "Cette date est bloquée ou complète.",
       "INVALID_TRANSITION": "Ce changement de statut n’est pas possible.",
       "REASON_REQUIRED": "Un motif est obligatoire.",
@@ -2439,6 +2439,7 @@
   },
   "drafts": {
     "pending": "Vous avez un brouillon non terminé du {date} à {time}.",
+    "showCurrent": "Voir la version actuelle",
     "conflict": "Attention : cet élément a été modifié depuis votre brouillon. Si vous le reprenez, l’enregistrement sera refusé tant que vous n’aurez pas vérifié la version actuelle : le travail de l’autre personne n’est jamais écrasé.",
     "resume": "Reprendre",
     "discard": "Supprimer",

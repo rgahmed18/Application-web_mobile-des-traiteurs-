@@ -37,7 +37,11 @@ export function ServiceList() {
   // Reprise d'un brouillon de modification : la fenêtre s'ouvre dès que le service est chargé
   const [draftKey, setDraftKey] = useState(draftParam);
   const draftService = services.data?.find((service) => draftKey === `service:${service.id}`);
-  const shown: Editing = editing ?? (draftService ? { service: draftService } : null);
+  const opened: Editing = editing ?? (draftService ? { service: draftService } : null);
+  // Toujours la version relue (après « Voir la version actuelle » : formulaire reconstruit)
+  const shown: Editing = opened && {
+    service: services.data?.find((service) => service.id === opened.service?.id) ?? opened.service,
+  };
 
   const ttcMode = settings.data?.priceEntryMode !== 'HT';
   const items = services.data ?? [];
@@ -135,7 +139,7 @@ export function ServiceList() {
 
       {shown && settings.data && (
         <ServiceFormDialog
-          key={shown.service?.id ?? 'new'}
+          key={`${shown.service?.id ?? 'new'}:${shown.service?.updatedAt ?? ''}`}
           settings={settings.data}
           service={shown.service}
           onClose={() => {

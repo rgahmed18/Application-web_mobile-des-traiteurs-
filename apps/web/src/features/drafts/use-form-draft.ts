@@ -39,6 +39,11 @@ export interface FormDraft {
   discard: () => Promise<void>;
   /** Après l'enregistrement réel : brouillon supprimé (une nouvelle saisie en recrée un). */
   clear: () => Promise<void>;
+  /**
+   * Conflit : saisie enregistrée en brouillon, formulaire remis sur la version chargée, puis
+   * brouillon de nouveau proposé (« Reprendre / Supprimer »).
+   */
+  showCurrent: () => Promise<void>;
 }
 
 /**
@@ -58,6 +63,8 @@ export function useFormDraft<TValues extends FieldValues>({
   const [status, setStatus] = useState<DraftSaveStatus>('idle');
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [resumedVersion, setResumedVersion] = useState<string | null | undefined>(undefined);
+  // Nouvelle recherche du brouillon (« Voir la version actuelle »)
+  const [lookup, setLookup] = useState(0);
 
   // Dernières valeurs, lues par les minuteries et les écouteurs
   const latest = useRef({ formKey, label, base: baseVersion });
@@ -120,7 +127,7 @@ export function useFormDraft<TValues extends FieldValues>({
     return () => {
       cancelled = true;
     };
-  }, [form, formKey, saver]);
+  }, [form, formKey, saver, lookup]);
 
   // Saisie : enregistrement quelques secondes après la dernière modification
   useEffect(() => {
@@ -170,6 +177,13 @@ export function useFormDraft<TValues extends FieldValues>({
     if (key) await deleteDraft(key).catch(() => undefined);
   }, [saver]);
 
+  const showCurrent = useCallback(async () => {
+    await saver.flush();
+    form.reset();
+    setResumedVersion(undefined);
+    setLookup((count) => count + 1);
+  }, [form, saver]);
+
   const clear = useCallback(async () => {
     await saver.clear();
     setResumedVersion(undefined);
@@ -190,5 +204,6 @@ export function useFormDraft<TValues extends FieldValues>({
     resume,
     discard,
     clear,
+    showCurrent,
   };
 }
