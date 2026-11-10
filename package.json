@@ -20,6 +20,7 @@
     "format:check": "prettier --check .",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
+    "demo:start": "node scripts/demo-start.mjs",
     "db:generate": "pnpm --filter @traiteur/api db:generate",
     "db:migrate": "pnpm --filter @traiteur/api db:migrate",
     "db:seed": "pnpm --filter @traiteur/api db:seed",

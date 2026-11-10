@@ -123,6 +123,38 @@ relancé par Node à chaque recompilation) : un seul compilateur TypeScript en m
 Depuis un téléphone physique, remplacez `localhost` par l'adresse IP locale de votre PC dans
 `EXPO_PUBLIC_API_URL`.
 
+### Démonstration sur le réseau local
+
+```bash
+pnpm demo:start                     # adresse IP du Wi-Fi détectée
+pnpm demo:start --ip 192.168.1.20   # adresse imposée (ou DEMO_IP=192.168.1.20)
+```
+
+Une seule commande, à relancer après chaque redémarrage du PC, pour la version de production
+(`node dist/main`, `node dist/worker`, `next start`) accessible au PC et au téléphone :
+
+1. démarre Docker Desktop au besoin, puis PostgreSQL, Redis et le stockage (attend « healthy ») ;
+2. détecte l'adresse IP du PC sur le Wi-Fi et, si elle a changé, met à jour les `.env` de
+   démonstration : dans `apps/api/.env` `CORS_ORIGINS` (origines des anciennes IP retirées, les
+   autres gardées), `PUBLIC_WEB_URL`, `TENANT_BASE_DOMAIN`, `PLATFORM_HOSTNAMES`,
+   `TENANT_URL_TEMPLATE`, `S3_PUBLIC_URL` ; dans `apps/web/.env` `PUBLIC_API_URL` et
+   `PUBLIC_MEDIA_URL` ;
+3. ajoute la règle du pare-feu Windows « Gestion Traiteurs - recette locale (dev) » (ports
+   3000, 3001 et 9000 depuis le sous-réseau local) si elle manque : Windows demande alors
+   l'autorisation d'administrateur ;
+4. arrête les serveurs de démonstration encore en marche, construit l'API et le web
+   (Turborepo : rien n'est refait si rien n'a changé), applique les migrations en attente
+   (`migrate deploy`) ;
+5. lance l'API, le worker et le web, vérifie que la page de connexion de Dar Diafa répond et
+   affiche les adresses de la console et de chaque traiteur
+   (`http://<identifiant>.<IP>.nip.io:3001/admin/login`, les mêmes sur le PC et le téléphone).
+
+La base de démonstration n'est **jamais** réinitialisée (ni reset, ni seed). Les serveurs
+tournent tant que la commande tourne : Ctrl+C les arrête ; journaux dans `.demo/logs/`
+(`api.log`, `worker.log`, `web.log`). Le téléphone doit être sur le même Wi-Fi, et le PC avoir
+un accès Internet (les noms `*.nip.io` sont résolus par le DNS public de nip.io). Les
+applications Expo ne sont pas concernées : `EXPO_PUBLIC_API_URL` reste à régler à la main.
+
 ## Comptes de démonstration
 
 Le seed crée le traiteur **Dar Diafa Traiteur** (slug `dar-diafa`, offre PRO, prix saisis TTC),
@@ -1022,6 +1054,7 @@ request :
 | Commande                                                  | Effet                                                                          |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `pnpm docker:up` / `pnpm docker:down`                     | Démarre / arrête PostgreSQL, Redis et RustFS                                   |
+| `pnpm demo:start`                                         | Démonstration sur le réseau local, version de production (voir plus haut)      |
 | `pnpm db:migrate`                                         | Crée et applique les migrations (développement)                                |
 | `pnpm db:seed`                                            | Charge les données de démonstration                                            |
 | `pnpm db:reset`                                           | Vide la base, réapplique les migrations et le seed                             |
