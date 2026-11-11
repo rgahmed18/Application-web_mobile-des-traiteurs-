@@ -311,7 +311,7 @@ export function InvitationLinkDialog({
   const role = useTranslations('staff.roles');
   const message =
     member.locale === 'ar'
-      ? `السلام عليكم ${member.firstName}، لتفعيل حسابك (${role(`${member.role}.label`)}) : ${link.url}`
+      ? `السلام عليكم ${member.firstName}، لتفعيل حسابك (${role(`${member.role}.label`)}): ${link.url}`
       : `Bonjour ${member.firstName}, pour activer votre accès (${role(`${member.role}.label`)}) : ${link.url}`;
   const whatsapp = `https://wa.me/${member.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
 

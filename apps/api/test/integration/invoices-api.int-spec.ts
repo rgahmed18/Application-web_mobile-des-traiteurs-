@@ -239,7 +239,7 @@ describe('API des factures (application complète)', () => {
     });
     expect(depositLines[0]?.label).toMatchObject({
       fr: expect.stringContaining('Acompte de 30 %') as unknown,
-      ar: expect.stringContaining('تسبيق بنسبة 30٪') as unknown,
+      ar: expect.stringContaining('عربون بنسبة 30٪') as unknown,
     });
 
     // PDF figé dès l'émission : empreinte et version du gabarit

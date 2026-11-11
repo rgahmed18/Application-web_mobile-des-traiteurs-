@@ -2,7 +2,7 @@ import { AppText, Screen } from '@traiteur/mobile-ui';
 import { getLocalizedText } from '@traiteur/shared';
 import { Stack } from 'expo-router';
 
-const welcome = { fr: 'Bienvenue', ar: 'مرحبا' };
+const welcome = { fr: 'Bienvenue', ar: 'مرحبًا' };
 
 export default function HomeScreen() {
   return (

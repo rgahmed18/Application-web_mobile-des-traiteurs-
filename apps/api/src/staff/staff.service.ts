@@ -46,7 +46,7 @@ const ROLE_LABELS: Record<StaffMemberRole, { fr: string; ar: string }> = {
   ADMIN_TRAITEUR: { fr: 'administrateur', ar: 'مسؤول' },
   EMPLOYE: { fr: 'employé (bureau)', ar: 'موظف (المكتب)' },
   EQUIPE: { fr: 'membre de l’équipe', ar: 'عضو في الفريق' },
-  LIVREUR: { fr: 'livreur', ar: 'سائق التوصيل' },
+  LIVREUR: { fr: 'livreur', ar: 'موصّل' },
 };
 
 /**

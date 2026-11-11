@@ -19,7 +19,7 @@ export function shareMessage({
   validUntil,
 }: ShareInput): string {
   return locale === 'ar'
-    ? `السلام عليكم ${firstName}، تجدون عرض السعر ${reference} على الرابط التالي: ${url} (صالح إلى غاية ${validUntil}).`
+    ? `السلام عليكم ${firstName}، تجدون عرض السعر ${reference} على الرابط التالي: ${url} (صالح حتى ${validUntil}).`
     : `Bonjour ${firstName}, voici votre devis ${reference} : ${url} (valable jusqu’au ${validUntil}).`;
 }
 
