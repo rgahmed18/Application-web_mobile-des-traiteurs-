@@ -27,6 +27,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
@@ -106,162 +107,164 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
       <FormDraftNotice draft={draft} />
-      <FormHeader
-        title={t(mode === 'edit' ? 'dishes.editTitle' : 'dishes.newTitle')}
-        backHref={LIST_PATH}
-      />
+      <DraftFields draft={draft}>
+        <FormHeader
+          title={t(mode === 'edit' ? 'dishes.editTitle' : 'dishes.newTitle')}
+          backHref={LIST_PATH}
+        />
 
-      <FormSection title={t('dishes.sectionGeneral')}>
-        <LocalizedTextFields
-          control={form.control}
-          name="name"
-          labelFr={t('fields.nameFr')}
-          labelAr={t('fields.nameAr')}
-          description={t('fields.nameHint')}
-        />
-        <LocalizedTextFields
-          control={form.control}
-          name="description"
-          labelFr={t('fields.descriptionFr')}
-          labelAr={t('fields.descriptionAr')}
-          multiline
-        />
-        <FormField
-          control={form.control}
-          name="categoryId"
-          label={t('fields.category')}
-          render={(field) => (
-            <Select
-              value={field.value === '' ? NO_CATEGORY : field.value}
-              onValueChange={(value) => field.onChange(value === NO_CATEGORY ? '' : value)}
-            >
-              <SelectTrigger id={field.id} className="w-full md:w-80">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_CATEGORY}>{t('fields.noCategory')}</SelectItem>
-                {(categories.data ?? []).map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {localized(category.name)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </FormSection>
-
-      <FormSection title={t('dishes.sectionPrice')}>
-        <PriceFields
-          control={form.control}
-          settings={settings}
-          priceName="price"
-          taxRateName="taxRateBps"
-          priceValue={price}
-          taxRateValue={taxRate}
-        />
-        <div className="grid gap-4 md:grid-cols-2">
+        <FormSection title={t('dishes.sectionGeneral')}>
+          <LocalizedTextFields
+            control={form.control}
+            name="name"
+            labelFr={t('fields.nameFr')}
+            labelAr={t('fields.nameAr')}
+            description={t('fields.nameHint')}
+          />
+          <LocalizedTextFields
+            control={form.control}
+            name="description"
+            labelFr={t('fields.descriptionFr')}
+            labelAr={t('fields.descriptionAr')}
+            multiline
+          />
           <FormField
             control={form.control}
-            name="unit"
-            label={t('dishes.unit')}
+            name="categoryId"
+            label={t('fields.category')}
             render={(field) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id={field.id} className="w-full">
+              <Select
+                value={field.value === '' ? NO_CATEGORY : field.value}
+                onValueChange={(value) => field.onChange(value === NO_CATEGORY ? '' : value)}
+              >
+                <SelectTrigger id={field.id} className="w-full md:w-80">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DISH_UNITS.map((unit) => (
-                    <SelectItem key={unit} value={unit}>
-                      {t(`units.${unit}`)}
+                  <SelectItem value={NO_CATEGORY}>{t('fields.noCategory')}</SelectItem>
+                  {(categories.data ?? []).map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {localized(category.name)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
           />
-          <FormField
+        </FormSection>
+
+        <FormSection title={t('dishes.sectionPrice')}>
+          <PriceFields
             control={form.control}
-            name="minQuantity"
-            label={t('dishes.minQuantity')}
-            description={t('dishes.minQuantityHint')}
-            render={(field, { invalid }) => (
-              <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
+            settings={settings}
+            priceName="price"
+            taxRateName="taxRateBps"
+            priceValue={price}
+            taxRateValue={taxRate}
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="unit"
+              label={t('dishes.unit')}
+              render={(field) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id={field.id} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DISH_UNITS.map((unit) => (
+                      <SelectItem key={unit} value={unit}>
+                        {t(`units.${unit}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="minQuantity"
+              label={t('dishes.minQuantity')}
+              description={t('dishes.minQuantityHint')}
+              render={(field, { invalid }) => (
+                <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
+              )}
+            />
+          </div>
+        </FormSection>
+
+        <FormSection title={t('dishes.sectionDetails')}>
+          <Controller
+            control={form.control}
+            name="imageKey"
+            render={({ field }) => (
+              <ImageUploadField
+                value={field.value}
+                onChange={field.onChange}
+                onBusyChange={setUploading}
+                alt={t('photo.alt', { name: nameFr || '…' })}
+              />
             )}
           />
-        </div>
-      </FormSection>
+          <Controller
+            control={form.control}
+            name="allergens"
+            render={({ field }) => (
+              <FieldSet>
+                <FieldLegend variant="label">{t('dishes.allergens')}</FieldLegend>
+                <FieldDescription>{t('dishes.allergensHint')}</FieldDescription>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {ALLERGENS.map((allergen) => {
+                    const id = `allergen-${allergen}`;
+                    const checked = field.value.includes(allergen);
+                    return (
+                      <Field key={allergen} orientation="horizontal">
+                        <Checkbox
+                          id={id}
+                          className="size-6"
+                          checked={checked}
+                          onCheckedChange={(value) =>
+                            field.onChange(
+                              value === true
+                                ? [...field.value, allergen]
+                                : field.value.filter((item) => item !== allergen),
+                            )
+                          }
+                        />
+                        <FieldLabel htmlFor={id} className="text-base font-normal">
+                          {t(`allergens.${allergen}`)}
+                        </FieldLabel>
+                      </Field>
+                    );
+                  })}
+                </div>
+              </FieldSet>
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="isAvailable"
+            render={({ field }) => (
+              <Field orientation="horizontal">
+                <Switch id="isAvailable" checked={field.value} onCheckedChange={field.onChange} />
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="isAvailable" className="text-base">
+                    {t('dishes.availability')}
+                  </FieldLabel>
+                  <FieldDescription>{t('dishes.availabilityHint')}</FieldDescription>
+                </div>
+              </Field>
+            )}
+          />
+        </FormSection>
 
-      <FormSection title={t('dishes.sectionDetails')}>
-        <Controller
-          control={form.control}
-          name="imageKey"
-          render={({ field }) => (
-            <ImageUploadField
-              value={field.value}
-              onChange={field.onChange}
-              onBusyChange={setUploading}
-              alt={t('photo.alt', { name: nameFr || '…' })}
-            />
-          )}
+        <FormActions
+          cancelHref={LIST_PATH}
+          submitting={form.formState.isSubmitting}
+          disabled={uploading}
         />
-        <Controller
-          control={form.control}
-          name="allergens"
-          render={({ field }) => (
-            <FieldSet>
-              <FieldLegend variant="label">{t('dishes.allergens')}</FieldLegend>
-              <FieldDescription>{t('dishes.allergensHint')}</FieldDescription>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {ALLERGENS.map((allergen) => {
-                  const id = `allergen-${allergen}`;
-                  const checked = field.value.includes(allergen);
-                  return (
-                    <Field key={allergen} orientation="horizontal">
-                      <Checkbox
-                        id={id}
-                        className="size-6"
-                        checked={checked}
-                        onCheckedChange={(value) =>
-                          field.onChange(
-                            value === true
-                              ? [...field.value, allergen]
-                              : field.value.filter((item) => item !== allergen),
-                          )
-                        }
-                      />
-                      <FieldLabel htmlFor={id} className="text-base font-normal">
-                        {t(`allergens.${allergen}`)}
-                      </FieldLabel>
-                    </Field>
-                  );
-                })}
-              </div>
-            </FieldSet>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="isAvailable"
-          render={({ field }) => (
-            <Field orientation="horizontal">
-              <Switch id="isAvailable" checked={field.value} onCheckedChange={field.onChange} />
-              <div className="flex flex-col gap-1">
-                <FieldLabel htmlFor="isAvailable" className="text-base">
-                  {t('dishes.availability')}
-                </FieldLabel>
-                <FieldDescription>{t('dishes.availabilityHint')}</FieldDescription>
-              </div>
-            </Field>
-          )}
-        />
-      </FormSection>
-
-      <FormActions
-        cancelHref={LIST_PATH}
-        submitting={form.formState.isSubmitting}
-        disabled={uploading}
-      />
+      </DraftFields>
     </form>
   );
 }

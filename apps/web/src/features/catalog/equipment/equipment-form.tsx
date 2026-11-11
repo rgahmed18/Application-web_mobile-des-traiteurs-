@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { currencyLabel } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
@@ -88,121 +89,123 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
       <FormDraftNotice draft={draft} />
-      <FormHeader
-        title={t(item ? 'equipment.editTitle' : 'equipment.newTitle')}
-        backHref={LIST_PATH}
-      />
+      <DraftFields draft={draft}>
+        <FormHeader
+          title={t(item ? 'equipment.editTitle' : 'equipment.newTitle')}
+          backHref={LIST_PATH}
+        />
 
-      <FormSection title={t('equipment.sectionGeneral')}>
-        <LocalizedTextFields
-          control={form.control}
-          name="name"
-          labelFr={t('fields.nameFr')}
-          labelAr={t('fields.nameAr')}
-          description={t('fields.nameHint')}
-        />
-        <LocalizedTextFields
-          control={form.control}
-          name="description"
-          labelFr={t('fields.descriptionFr')}
-          labelAr={t('fields.descriptionAr')}
-          multiline
-        />
-        <div className="grid gap-4 md:grid-cols-2">
-          <CatalogListSelect
+        <FormSection title={t('equipment.sectionGeneral')}>
+          <LocalizedTextFields
             control={form.control}
-            name="categoryId"
-            list="equipment-categories"
-            label={t('fields.category')}
-            noneLabel={t('fields.noCategory')}
-            kept={item?.category?.id}
+            name="name"
+            labelFr={t('fields.nameFr')}
+            labelAr={t('fields.nameAr')}
+            description={t('fields.nameHint')}
           />
-          <CatalogListSelect
+          <LocalizedTextFields
             control={form.control}
-            name="rangeId"
-            list="ranges"
-            label={t('packages.range')}
-            noneLabel={t('packages.noRange')}
-            kept={item?.range?.id}
+            name="description"
+            labelFr={t('fields.descriptionFr')}
+            labelAr={t('fields.descriptionAr')}
+            multiline
           />
-        </div>
-        <Controller
-          control={form.control}
-          name="imageKey"
-          render={({ field }) => (
-            <ImageUploadField
-              value={field.value}
-              onChange={field.onChange}
-              onBusyChange={setUploading}
-              alt={t('photo.alt', { name: nameFr || '…' })}
+          <div className="grid gap-4 md:grid-cols-2">
+            <CatalogListSelect
+              control={form.control}
+              name="categoryId"
+              list="equipment-categories"
+              label={t('fields.category')}
+              noneLabel={t('fields.noCategory')}
+              kept={item?.category?.id}
             />
-          )}
-        />
-      </FormSection>
-
-      <FormSection title={t('equipment.sectionPrice')}>
-        <PriceFields
-          control={form.control}
-          settings={settings}
-          priceName="price"
-          taxRateName="taxRateBps"
-          priceValue={price}
-          taxRateValue={taxRate}
-        />
-        <FormField
-          control={form.control}
-          name="replacementPrice"
-          label={t(ttc ? 'equipment.replacementPriceTtc' : 'equipment.replacementPriceHt')}
-          description={t('equipment.replacementPriceHint')}
-          render={(field, { invalid }) => (
-            <InputGroup className="md:w-80">
-              <InputGroupInput {...field} inputMode="decimal" dir="ltr" aria-invalid={invalid} />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText>{currencyLabel(locale)}</InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
-          )}
-        />
-      </FormSection>
-
-      <FormSection title={t('equipment.sectionStock')}>
-        <FormField
-          control={form.control}
-          name="stockQuantity"
-          label={t('equipment.stockQuantity')}
-          description={t('equipment.stockHint')}
-          render={(field, { invalid }) => (
-            <Input
-              {...field}
-              className="md:w-48"
-              inputMode="numeric"
-              dir="ltr"
-              aria-invalid={invalid}
+            <CatalogListSelect
+              control={form.control}
+              name="rangeId"
+              list="ranges"
+              label={t('packages.range')}
+              noneLabel={t('packages.noRange')}
+              kept={item?.range?.id}
             />
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="isActive"
-          render={({ field }) => (
-            <Field orientation="horizontal">
-              <Switch id="isActive" checked={field.value} onCheckedChange={field.onChange} />
-              <div className="flex flex-col gap-1">
-                <FieldLabel htmlFor="isActive" className="text-base">
-                  {t('equipment.active')}
-                </FieldLabel>
-                <FieldDescription>{t('equipment.activeHint')}</FieldDescription>
-              </div>
-            </Field>
-          )}
-        />
-      </FormSection>
+          </div>
+          <Controller
+            control={form.control}
+            name="imageKey"
+            render={({ field }) => (
+              <ImageUploadField
+                value={field.value}
+                onChange={field.onChange}
+                onBusyChange={setUploading}
+                alt={t('photo.alt', { name: nameFr || '…' })}
+              />
+            )}
+          />
+        </FormSection>
 
-      <FormActions
-        cancelHref={LIST_PATH}
-        submitting={form.formState.isSubmitting}
-        disabled={uploading}
-      />
+        <FormSection title={t('equipment.sectionPrice')}>
+          <PriceFields
+            control={form.control}
+            settings={settings}
+            priceName="price"
+            taxRateName="taxRateBps"
+            priceValue={price}
+            taxRateValue={taxRate}
+          />
+          <FormField
+            control={form.control}
+            name="replacementPrice"
+            label={t(ttc ? 'equipment.replacementPriceTtc' : 'equipment.replacementPriceHt')}
+            description={t('equipment.replacementPriceHint')}
+            render={(field, { invalid }) => (
+              <InputGroup className="md:w-80">
+                <InputGroupInput {...field} inputMode="decimal" dir="ltr" aria-invalid={invalid} />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupText>{currencyLabel(locale)}</InputGroupText>
+                </InputGroupAddon>
+              </InputGroup>
+            )}
+          />
+        </FormSection>
+
+        <FormSection title={t('equipment.sectionStock')}>
+          <FormField
+            control={form.control}
+            name="stockQuantity"
+            label={t('equipment.stockQuantity')}
+            description={t('equipment.stockHint')}
+            render={(field, { invalid }) => (
+              <Input
+                {...field}
+                className="md:w-48"
+                inputMode="numeric"
+                dir="ltr"
+                aria-invalid={invalid}
+              />
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="isActive"
+            render={({ field }) => (
+              <Field orientation="horizontal">
+                <Switch id="isActive" checked={field.value} onCheckedChange={field.onChange} />
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="isActive" className="text-base">
+                    {t('equipment.active')}
+                  </FieldLabel>
+                  <FieldDescription>{t('equipment.activeHint')}</FieldDescription>
+                </div>
+              </Field>
+            )}
+          />
+        </FormSection>
+
+        <FormActions
+          cancelHref={LIST_PATH}
+          submitting={form.formState.isSubmitting}
+          disabled={uploading}
+        />
+      </DraftFields>
     </form>
   );
 }

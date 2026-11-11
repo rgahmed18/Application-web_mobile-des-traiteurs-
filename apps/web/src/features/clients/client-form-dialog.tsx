@@ -28,6 +28,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { isApiError } from '@/lib/api/errors';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
@@ -281,36 +282,38 @@ function CreateClientDialog({
       onSubmit={onSubmit}
     >
       <FormDraftNotice draft={draft} />
-      <FormField
-        control={form.control}
-        name="phone"
-        label={t('fields.phone')}
-        description={t('fields.phoneHint')}
-        render={(field, { invalid }) => <PhoneInput {...field} aria-invalid={invalid} />}
-      />
-      <CommonFields
-        control={
-          form.control as unknown as ReturnType<
-            typeof useZodForm<typeof updateFormSchema>
-          >['control']
-        }
-      />
-      <Separator />
-      <p className="font-medium">{t('form.firstAddress')}</p>
-      <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
+      <DraftFields draft={draft}>
         <FormField
           control={form.control}
-          name="addressLine"
-          label={t('fields.address')}
-          render={(field, { invalid }) => <Input {...field} aria-invalid={invalid} />}
+          name="phone"
+          label={t('fields.phone')}
+          description={t('fields.phoneHint')}
+          render={(field, { invalid }) => <PhoneInput {...field} aria-invalid={invalid} />}
         />
-        <FormField
-          control={form.control}
-          name="city"
-          label={t('fields.city')}
-          render={(field, { invalid }) => <Input {...field} aria-invalid={invalid} />}
+        <CommonFields
+          control={
+            form.control as unknown as ReturnType<
+              typeof useZodForm<typeof updateFormSchema>
+            >['control']
+          }
         />
-      </div>
+        <Separator />
+        <p className="font-medium">{t('form.firstAddress')}</p>
+        <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
+          <FormField
+            control={form.control}
+            name="addressLine"
+            label={t('fields.address')}
+            render={(field, { invalid }) => <Input {...field} aria-invalid={invalid} />}
+          />
+          <FormField
+            control={form.control}
+            name="city"
+            label={t('fields.city')}
+            render={(field, { invalid }) => <Input {...field} aria-invalid={invalid} />}
+          />
+        </div>
+      </DraftFields>
     </FormDialog>
   );
 }
@@ -369,7 +372,9 @@ function EditClientDialog({
       onSubmit={onSubmit}
     >
       <FormDraftNotice draft={draft} />
-      <CommonFields control={form.control} />
+      <DraftFields draft={draft}>
+        <CommonFields control={form.control} />
+      </DraftFields>
     </FormDialog>
   );
 }

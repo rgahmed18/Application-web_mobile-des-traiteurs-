@@ -36,6 +36,7 @@ import { usePermission } from '@/features/auth/session-provider';
 import { FormHeader, FormSection } from '@/features/catalog/components/form-layout';
 import { useClient } from '@/features/clients/clients-api';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
@@ -321,383 +322,389 @@ export function OrderForm({
         backHref={backHref}
       />
       <FormDraftNotice draft={draft} />
-      {statusHint && (
-        <p className="flex items-start gap-2 rounded-lg border bg-muted/50 p-3">
-          <InfoIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
-          {statusHint}
-        </p>
-      )}
+      <DraftFields draft={draft}>
+        {statusHint && (
+          <p className="flex items-start gap-2 rounded-lg border bg-muted/50 p-3">
+            <InfoIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            {statusHint}
+          </p>
+        )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <div className="flex flex-col gap-6">
-          <FormSection title={tf('sections.client')}>
-            <Controller
-              control={form.control}
-              name="clientId"
-              render={({ field }) => (
-                <ClientPicker
-                  value={field.value}
-                  onChange={(id) => {
-                    field.onChange(id);
-                    void form.trigger('clientId');
-                  }}
-                  disabled={locked.client}
-                  invalid={Boolean(clientError)}
-                />
-              )}
-            />
-            {clientError && <FieldError>{tf('client.required')}</FieldError>}
-          </FormSection>
-
-          <FormSection title={tf('sections.event')}>
-            <FormField
-              control={form.control}
-              name="eventType"
-              label={tf('event.type')}
-              render={(field) => (
-                <Select value={field.value} onValueChange={field.onChange} disabled={locked.framed}>
-                  <SelectTrigger id={field.id} className="w-full sm:w-72">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {eventTypeOptions.map((type) => (
-                      <SelectItem key={type.code} value={type.code}>
-                        {localized(type.name)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="eventDate"
-                label={tf('event.date')}
-                render={(field, { invalid }) => (
-                  <Input
-                    {...field}
-                    type="date"
-                    dir="ltr"
-                    disabled={locked.date}
-                    aria-invalid={invalid}
-                  />
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="startTime"
-                label={tf('event.startTime')}
-                render={(field, { invalid }) => (
-                  <Input
-                    {...field}
-                    type="time"
-                    dir="ltr"
-                    disabled={locked.date}
-                    aria-invalid={invalid}
-                  />
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="endTime"
-                label={tf('event.endTime')}
-                render={(field, { invalid }) => (
-                  <Input
-                    {...field}
-                    type="time"
-                    dir="ltr"
-                    disabled={locked.date}
-                    aria-invalid={invalid}
-                  />
-                )}
-              />
-            </div>
-            {endTime !== '' && (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+          <div className="flex flex-col gap-6">
+            <FormSection title={tf('sections.client')}>
               <Controller
                 control={form.control}
-                name="endsNextDay"
+                name="clientId"
                 render={({ field }) => (
-                  <label className="flex items-center gap-2">
-                    <Checkbox
-                      checked={field.value}
-                      disabled={locked.date}
-                      onCheckedChange={(checked) => {
-                        field.onChange(checked === true);
-                        void form.trigger('endTime');
-                      }}
-                    />
-                    {tf('event.endsNextDay')}
-                  </label>
+                  <ClientPicker
+                    value={field.value}
+                    onChange={(id) => {
+                      field.onChange(id);
+                      void form.trigger('clientId');
+                    }}
+                    disabled={locked.client}
+                    invalid={Boolean(clientError)}
+                  />
                 )}
               />
-            )}
-            {!locked.date && <AvailabilityBanner date={eventDate} orderId={order?.id} />}
-            <FormField
-              control={form.control}
-              name="guestCount"
-              label={tf('event.guests')}
-              render={(field, { invalid }) => (
-                <Input
-                  {...field}
-                  inputMode="numeric"
-                  dir="ltr"
-                  className="sm:w-40"
-                  disabled={locked.framed}
-                  aria-invalid={invalid}
-                  onBlur={(event) => {
-                    field.onBlur();
-                    onGuestsCommitted(event.target.value);
-                  }}
-                />
-              )}
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
+              {clientError && <FieldError>{tf('client.required')}</FieldError>}
+            </FormSection>
+
+            <FormSection title={tf('sections.event')}>
               <FormField
                 control={form.control}
-                name="venueName"
-                label={tf('event.venueName')}
-                render={(field, { invalid }) => (
-                  <Input {...field} disabled={locked.free} aria-invalid={invalid} />
-                )}
-              />
-              {client.data && client.data.addresses.length > 0 && !locked.framed && (
-                <div className="flex flex-col gap-2">
-                  <span className="text-sm font-medium">{tf('event.useAddress')}</span>
+                name="eventType"
+                label={tf('event.type')}
+                render={(field) => (
                   <Select
-                    value=""
-                    onValueChange={(id) => {
-                      const address = client.data?.addresses.find((item) => item.id === id);
-                      if (!address) return;
-                      form.setValue('venueAddress', address.address, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      form.setValue('city', address.city, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={locked.framed}
                   >
-                    <SelectTrigger className="w-full" aria-label={tf('event.useAddress')}>
-                      <SelectValue placeholder={tf('event.useAddress')} />
+                    <SelectTrigger id={field.id} className="w-full sm:w-72">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {client.data.addresses.map((address) => (
-                        <SelectItem key={address.id} value={address.id}>
-                          {address.label} — {address.city}
+                      {eventTypeOptions.map((type) => (
+                        <SelectItem key={type.code} value={type.code}>
+                          {localized(type.name)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              )}
-            </div>
-            <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
-              <FormField
-                control={form.control}
-                name="venueAddress"
-                label={tf('event.venueAddress')}
-                render={(field, { invalid }) => (
-                  <Input {...field} disabled={locked.framed} aria-invalid={invalid} />
                 )}
               />
-              <FormField
-                control={form.control}
-                name="city"
-                label={tf('event.city')}
-                render={(field, { invalid }) => (
-                  <Input {...field} disabled={locked.framed} aria-invalid={invalid} />
-                )}
-              />
-            </div>
-          </FormSection>
-
-          <FormSection title={tf('sections.lines')}>
-            <LinesEditor
-              control={form.control}
-              priceMode={priceMode}
-              isVatRegistered={settings.isVatRegistered}
-              defaultTaxRateBps={settings.defaultTaxRateBps}
-              disabled={locked.framed}
-              stock={stock}
-            />
-          </FormSection>
-
-          {(hasEquipment || setupHours !== '' || returnHours !== '') && (
-            <FormSection title={tf('sections.equipment')} description={tf('equipment.hint')}>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <FormField
                   control={form.control}
-                  name="equipmentSetupHours"
-                  label={tf('equipment.setupHours')}
-                  description={tf('equipment.default', { hours: settings.equipmentSetupHours })}
+                  name="eventDate"
+                  label={tf('event.date')}
                   render={(field, { invalid }) => (
                     <Input
                       {...field}
-                      inputMode="numeric"
+                      type="date"
                       dir="ltr"
-                      className="sm:w-40"
-                      placeholder={String(settings.equipmentSetupHours)}
-                      disabled={locked.framed}
+                      disabled={locked.date}
                       aria-invalid={invalid}
                     />
                   )}
                 />
                 <FormField
                   control={form.control}
-                  name="equipmentReturnHours"
-                  label={tf('equipment.returnHours')}
-                  description={tf('equipment.default', { hours: settings.equipmentReturnHours })}
+                  name="startTime"
+                  label={tf('event.startTime')}
                   render={(field, { invalid }) => (
                     <Input
                       {...field}
-                      inputMode="numeric"
+                      type="time"
                       dir="ltr"
-                      className="sm:w-40"
-                      placeholder={String(settings.equipmentReturnHours)}
-                      disabled={locked.framed}
+                      disabled={locked.date}
+                      aria-invalid={invalid}
+                    />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="endTime"
+                  label={tf('event.endTime')}
+                  render={(field, { invalid }) => (
+                    <Input
+                      {...field}
+                      type="time"
+                      dir="ltr"
+                      disabled={locked.date}
                       aria-invalid={invalid}
                     />
                   )}
                 />
               </div>
+              {endTime !== '' && (
+                <Controller
+                  control={form.control}
+                  name="endsNextDay"
+                  render={({ field }) => (
+                    <label className="flex items-center gap-2">
+                      <Checkbox
+                        checked={field.value}
+                        disabled={locked.date}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked === true);
+                          void form.trigger('endTime');
+                        }}
+                      />
+                      {tf('event.endsNextDay')}
+                    </label>
+                  )}
+                />
+              )}
+              {!locked.date && <AvailabilityBanner date={eventDate} orderId={order?.id} />}
+              <FormField
+                control={form.control}
+                name="guestCount"
+                label={tf('event.guests')}
+                render={(field, { invalid }) => (
+                  <Input
+                    {...field}
+                    inputMode="numeric"
+                    dir="ltr"
+                    className="sm:w-40"
+                    disabled={locked.framed}
+                    aria-invalid={invalid}
+                    onBlur={(event) => {
+                      field.onBlur();
+                      onGuestsCommitted(event.target.value);
+                    }}
+                  />
+                )}
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="venueName"
+                  label={tf('event.venueName')}
+                  render={(field, { invalid }) => (
+                    <Input {...field} disabled={locked.free} aria-invalid={invalid} />
+                  )}
+                />
+                {client.data && client.data.addresses.length > 0 && !locked.framed && (
+                  <div className="flex flex-col gap-2">
+                    <span className="text-sm font-medium">{tf('event.useAddress')}</span>
+                    <Select
+                      value=""
+                      onValueChange={(id) => {
+                        const address = client.data?.addresses.find((item) => item.id === id);
+                        if (!address) return;
+                        form.setValue('venueAddress', address.address, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        form.setValue('city', address.city, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-full" aria-label={tf('event.useAddress')}>
+                        <SelectValue placeholder={tf('event.useAddress')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {client.data.addresses.map((address) => (
+                          <SelectItem key={address.id} value={address.id}>
+                            {address.label} — {address.city}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
+                <FormField
+                  control={form.control}
+                  name="venueAddress"
+                  label={tf('event.venueAddress')}
+                  render={(field, { invalid }) => (
+                    <Input {...field} disabled={locked.framed} aria-invalid={invalid} />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="city"
+                  label={tf('event.city')}
+                  render={(field, { invalid }) => (
+                    <Input {...field} disabled={locked.framed} aria-invalid={invalid} />
+                  )}
+                />
+              </div>
             </FormSection>
-          )}
 
-          <FormSection title={tf('sections.notes')}>
-            <FormField
+            <FormSection title={tf('sections.lines')}>
+              <LinesEditor
+                control={form.control}
+                priceMode={priceMode}
+                isVatRegistered={settings.isVatRegistered}
+                defaultTaxRateBps={settings.defaultTaxRateBps}
+                disabled={locked.framed}
+                stock={stock}
+              />
+            </FormSection>
+
+            {(hasEquipment || setupHours !== '' || returnHours !== '') && (
+              <FormSection title={tf('sections.equipment')} description={tf('equipment.hint')}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="equipmentSetupHours"
+                    label={tf('equipment.setupHours')}
+                    description={tf('equipment.default', { hours: settings.equipmentSetupHours })}
+                    render={(field, { invalid }) => (
+                      <Input
+                        {...field}
+                        inputMode="numeric"
+                        dir="ltr"
+                        className="sm:w-40"
+                        placeholder={String(settings.equipmentSetupHours)}
+                        disabled={locked.framed}
+                        aria-invalid={invalid}
+                      />
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="equipmentReturnHours"
+                    label={tf('equipment.returnHours')}
+                    description={tf('equipment.default', { hours: settings.equipmentReturnHours })}
+                    render={(field, { invalid }) => (
+                      <Input
+                        {...field}
+                        inputMode="numeric"
+                        dir="ltr"
+                        className="sm:w-40"
+                        placeholder={String(settings.equipmentReturnHours)}
+                        disabled={locked.framed}
+                        aria-invalid={invalid}
+                      />
+                    )}
+                  />
+                </div>
+              </FormSection>
+            )}
+
+            <FormSection title={tf('sections.notes')}>
+              <FormField
+                control={form.control}
+                name="notes"
+                label={tf('notes.client')}
+                description={tf('notes.clientHint')}
+                render={(field, { invalid }) => (
+                  <Textarea {...field} rows={3} disabled={locked.free} aria-invalid={invalid} />
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="internalNotes"
+                label={tf('notes.internal')}
+                description={tf('notes.internalHint')}
+                render={(field, { invalid }) => (
+                  <Textarea {...field} rows={3} aria-invalid={invalid} />
+                )}
+              />
+            </FormSection>
+          </div>
+
+          <div className="lg:sticky lg:top-4">
+            <TotalsPanel
               control={form.control}
-              name="notes"
-              label={tf('notes.client')}
-              description={tf('notes.clientHint')}
-              render={(field, { invalid }) => (
-                <Textarea {...field} rows={3} disabled={locked.free} aria-invalid={invalid} />
-              )}
+              setValue={form.setValue}
+              priceMode={priceMode}
+              disabled={locked.framed || lines.length === 0}
             />
-            <FormField
-              control={form.control}
-              name="internalNotes"
-              label={tf('notes.internal')}
-              description={tf('notes.internalHint')}
-              render={(field, { invalid }) => (
-                <Textarea {...field} rows={3} aria-invalid={invalid} />
-              )}
-            />
-          </FormSection>
+          </div>
         </div>
 
-        <div className="lg:sticky lg:top-4">
-          <TotalsPanel
-            control={form.control}
-            setValue={form.setValue}
-            priceMode={priceMode}
-            disabled={locked.framed || lines.length === 0}
-          />
-        </div>
-      </div>
-
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-        <Button asChild variant="outline" size="lg">
-          <Link href={backHref}>{tc('cancel')}</Link>
-        </Button>
-        {order ? (
-          <Button type="submit" size="lg" disabled={busy}>
-            {tf('actions.save')}
+        <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <Button asChild variant="outline" size="lg">
+            <Link href={backHref}>{tc('cancel')}</Link>
           </Button>
-        ) : (
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              disabled={busy}
-              onClick={() => void submit('DRAFT')}
-            >
-              {tf('actions.saveDraft')}
+          {order ? (
+            <Button type="submit" size="lg" disabled={busy}>
+              {tf('actions.save')}
             </Button>
-            <Button
-              type="submit"
-              size="lg"
-              variant={can('orders.write') ? 'outline' : 'default'}
-              disabled={busy}
-            >
-              {tf('actions.savePending')}
-            </Button>
-            {can('orders.write') && (
+          ) : (
+            <>
               <Button
                 type="button"
+                variant="outline"
                 size="lg"
                 disabled={busy}
-                onClick={() => void submit('CONFIRMED')}
+                onClick={() => void submit('DRAFT')}
               >
-                {tf('actions.saveConfirm')}
+                {tf('actions.saveDraft')}
               </Button>
-            )}
-          </>
-        )}
-      </div>
+              <Button
+                type="submit"
+                size="lg"
+                variant={can('orders.write') ? 'outline' : 'default'}
+                disabled={busy}
+              >
+                {tf('actions.savePending')}
+              </Button>
+              {can('orders.write') && (
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={busy}
+                  onClick={() => void submit('CONFIRMED')}
+                >
+                  {tf('actions.saveConfirm')}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
 
-      <ForceAvailabilityDialog
-        availability={forceRequest?.availability ?? null}
-        onCancel={() => setForceRequest(null)}
-        onConfirm={() => {
-          const retry = forceRequest?.retry;
-          setForceRequest(null);
-          retry?.();
-        }}
-      />
-      <ReasonDialog
-        open={reasonRequest !== null}
-        title={tf('reason.title')}
-        description={tf('reason.description')}
-        label={tf('reason.label')}
-        placeholder={tf('reason.placeholder')}
-        confirmLabel={tf('reason.confirm')}
-        pending={busy}
-        onCancel={() => setReasonRequest(null)}
-        onConfirm={(reason) => {
-          const retry = reasonRequest;
-          setReasonRequest(null);
-          retry?.(reason);
-        }}
-      />
-      <StockOverrideDialog
-        shortages={stockRequest?.shortages ?? null}
-        pending={busy}
-        onCancel={() => setStockRequest(null)}
-        onConfirm={(reason) => {
-          const retry = stockRequest?.retry;
-          setStockRequest(null);
-          retry?.(reason);
-        }}
-      />
-      <VersionConflictDialog
-        conflict={conflict}
-        timeZone={settings.timezone}
-        onClose={() => setConflict(null)}
-        onReload={() => {
-          setConflict(null);
-          setSaved(true);
-          onReload?.();
-        }}
-      />
-      <GuestChangeDialog
-        change={guestChange}
-        onSkip={() => setGuestChange(null)}
-        onApply={(indexes) => {
-          const to = guestChange?.to;
-          if (to !== undefined) {
-            for (const index of indexes) {
-              form.setValue(`lines.${index}.quantity`, String(to), {
-                shouldDirty: true,
-                shouldValidate: true,
-              });
+        <ForceAvailabilityDialog
+          availability={forceRequest?.availability ?? null}
+          onCancel={() => setForceRequest(null)}
+          onConfirm={() => {
+            const retry = forceRequest?.retry;
+            setForceRequest(null);
+            retry?.();
+          }}
+        />
+        <ReasonDialog
+          open={reasonRequest !== null}
+          title={tf('reason.title')}
+          description={tf('reason.description')}
+          label={tf('reason.label')}
+          placeholder={tf('reason.placeholder')}
+          confirmLabel={tf('reason.confirm')}
+          pending={busy}
+          onCancel={() => setReasonRequest(null)}
+          onConfirm={(reason) => {
+            const retry = reasonRequest;
+            setReasonRequest(null);
+            retry?.(reason);
+          }}
+        />
+        <StockOverrideDialog
+          shortages={stockRequest?.shortages ?? null}
+          pending={busy}
+          onCancel={() => setStockRequest(null)}
+          onConfirm={(reason) => {
+            const retry = stockRequest?.retry;
+            setStockRequest(null);
+            retry?.(reason);
+          }}
+        />
+        <VersionConflictDialog
+          conflict={conflict}
+          timeZone={settings.timezone}
+          onClose={() => setConflict(null)}
+          onReload={() => {
+            setConflict(null);
+            setSaved(true);
+            onReload?.();
+          }}
+        />
+        <GuestChangeDialog
+          change={guestChange}
+          onSkip={() => setGuestChange(null)}
+          onApply={(indexes) => {
+            const to = guestChange?.to;
+            if (to !== undefined) {
+              for (const index of indexes) {
+                form.setValue(`lines.${index}.quantity`, String(to), {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              }
             }
-          }
-          setGuestChange(null);
-        }}
-      />
+            setGuestChange(null);
+          }}
+        />
+      </DraftFields>
     </form>
   );
 }

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
@@ -98,104 +99,106 @@ export function PackageForm({ settings, pkg, mode }: PackageFormProps) {
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
       <FormDraftNotice draft={draft} />
-      <FormHeader
-        title={t(mode === 'edit' ? 'packages.editTitle' : 'packages.newTitle')}
-        backHref={LIST_PATH}
-      />
-
-      <FormSection title={t('packages.sectionGeneral')}>
-        <LocalizedTextFields
-          control={form.control}
-          name="name"
-          labelFr={t('fields.nameFr')}
-          labelAr={t('fields.nameAr')}
-          description={t('fields.nameHint')}
+      <DraftFields draft={draft}>
+        <FormHeader
+          title={t(mode === 'edit' ? 'packages.editTitle' : 'packages.newTitle')}
+          backHref={LIST_PATH}
         />
-        <LocalizedTextFields
-          control={form.control}
-          name="description"
-          labelFr={t('fields.descriptionFr')}
-          labelAr={t('fields.descriptionAr')}
-          multiline
-        />
-        <Controller
-          control={form.control}
-          name="imageKey"
-          render={({ field }) => (
-            <ImageUploadField
-              value={field.value}
-              onChange={field.onChange}
-              onBusyChange={setUploading}
-              alt={t('photo.alt', { name: nameFr || '…' })}
-            />
-          )}
-        />
-      </FormSection>
 
-      <FormSection title={t('packages.sectionAudience')}>
-        <AudienceFields control={form.control} pkg={pkg} />
-      </FormSection>
+        <FormSection title={t('packages.sectionGeneral')}>
+          <LocalizedTextFields
+            control={form.control}
+            name="name"
+            labelFr={t('fields.nameFr')}
+            labelAr={t('fields.nameAr')}
+            description={t('fields.nameHint')}
+          />
+          <LocalizedTextFields
+            control={form.control}
+            name="description"
+            labelFr={t('fields.descriptionFr')}
+            labelAr={t('fields.descriptionAr')}
+            multiline
+          />
+          <Controller
+            control={form.control}
+            name="imageKey"
+            render={({ field }) => (
+              <ImageUploadField
+                value={field.value}
+                onChange={field.onChange}
+                onBusyChange={setUploading}
+                alt={t('photo.alt', { name: nameFr || '…' })}
+              />
+            )}
+          />
+        </FormSection>
 
-      <FormSection title={t('packages.composition')}>
-        <CompositionEditor
-          control={form.control}
-          settings={settings}
-          summaries={summaries}
-          onSummary={addSummary}
-        />
-      </FormSection>
+        <FormSection title={t('packages.sectionAudience')}>
+          <AudienceFields control={form.control} pkg={pkg} />
+        </FormSection>
 
-      <FormSection title={t('packages.sectionPrice')}>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
-          <PriceFields
+        <FormSection title={t('packages.composition')}>
+          <CompositionEditor
             control={form.control}
             settings={settings}
-            priceName="pricePerPerson"
-            taxRateName="taxRateBps"
-            priceValue={price}
-            taxRateValue={taxRate}
-            perPerson
+            summaries={summaries}
+            onSummary={addSummary}
           />
-          <CompositionValue control={form.control} settings={settings} summaries={summaries} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="minGuests"
-            label={`${t('packages.guests')} — ${t('packages.minGuests')}`}
-            render={(field, { invalid }) => (
-              <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="maxGuests"
-            label={`${t('packages.guests')} — ${t('packages.maxGuests')}`}
-            description={t('packages.maxGuestsHint')}
-            render={(field, { invalid }) => (
-              <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
-            )}
-          />
-        </div>
-        <Controller
-          control={form.control}
-          name="isActive"
-          render={({ field }) => (
-            <Field orientation="horizontal">
-              <Switch id="isActive" checked={field.value} onCheckedChange={field.onChange} />
-              <FieldLabel htmlFor="isActive" className="text-base">
-                {t('packages.active')}
-              </FieldLabel>
-            </Field>
-          )}
-        />
-      </FormSection>
+        </FormSection>
 
-      <FormActions
-        cancelHref={LIST_PATH}
-        submitting={form.formState.isSubmitting}
-        disabled={uploading}
-      />
+        <FormSection title={t('packages.sectionPrice')}>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+            <PriceFields
+              control={form.control}
+              settings={settings}
+              priceName="pricePerPerson"
+              taxRateName="taxRateBps"
+              priceValue={price}
+              taxRateValue={taxRate}
+              perPerson
+            />
+            <CompositionValue control={form.control} settings={settings} summaries={summaries} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="minGuests"
+              label={`${t('packages.guests')} — ${t('packages.minGuests')}`}
+              render={(field, { invalid }) => (
+                <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="maxGuests"
+              label={`${t('packages.guests')} — ${t('packages.maxGuests')}`}
+              description={t('packages.maxGuestsHint')}
+              render={(field, { invalid }) => (
+                <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
+              )}
+            />
+          </div>
+          <Controller
+            control={form.control}
+            name="isActive"
+            render={({ field }) => (
+              <Field orientation="horizontal">
+                <Switch id="isActive" checked={field.value} onCheckedChange={field.onChange} />
+                <FieldLabel htmlFor="isActive" className="text-base">
+                  {t('packages.active')}
+                </FieldLabel>
+              </Field>
+            )}
+          />
+        </FormSection>
+
+        <FormActions
+          cancelHref={LIST_PATH}
+          submitting={form.formState.isSubmitting}
+          disabled={uploading}
+        />
+      </DraftFields>
     </form>
   );
 }

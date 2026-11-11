@@ -24,8 +24,13 @@ export interface FormDraftOptions<TValues extends FieldValues> {
 }
 
 export interface FormDraft {
-  /** Brouillon trouvé à l'ouverture, en attente de « Reprendre » ou « Supprimer ». */
+  /**
+   * Brouillon trouvé à l'ouverture, en attente de « Reprendre » ou « Supprimer » : les champs
+   * restent verrouillés jusque-là (DraftFields), pour qu'aucune saisie ne précède la reprise.
+   */
   pending: Draft | null;
+  /** Brouillon repris : champs venus du brouillon signalés jusqu'à l'enregistrement. */
+  restored: boolean;
   /** L'élément a été modifié depuis le début du brouillon (verrouillage optimiste). */
   conflict: boolean;
   status: DraftSaveStatus;
@@ -63,6 +68,7 @@ export function useFormDraft<TValues extends FieldValues>({
   const [status, setStatus] = useState<DraftSaveStatus>('idle');
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [resumedVersion, setResumedVersion] = useState<string | null | undefined>(undefined);
+  const [restored, setRestored] = useState(false);
   // Nouvelle recherche du brouillon (« Voir la version actuelle »)
   const [lookup, setLookup] = useState(0);
 
@@ -165,6 +171,7 @@ export function useFormDraft<TValues extends FieldValues>({
     if (!pending) return;
     form.reset(pending.data as TValues, { keepDefaultValues: true });
     setResumedVersion(pending.baseVersion);
+    setRestored(true);
     setFound(null);
     saver.markSaved();
     saver.setReady(true);
@@ -173,6 +180,7 @@ export function useFormDraft<TValues extends FieldValues>({
   const discard = useCallback(async () => {
     const key = latest.current.formKey;
     setFound(null);
+    setRestored(false);
     saver.setReady(true);
     if (key) await deleteDraft(key).catch(() => undefined);
   }, [saver]);
@@ -181,12 +189,14 @@ export function useFormDraft<TValues extends FieldValues>({
     await saver.flush();
     form.reset();
     setResumedVersion(undefined);
+    setRestored(false);
     setLookup((count) => count + 1);
   }, [form, saver]);
 
   const clear = useCallback(async () => {
     await saver.clear();
     setResumedVersion(undefined);
+    setRestored(false);
   }, [saver]);
 
   const conflict =
@@ -197,6 +207,7 @@ export function useFormDraft<TValues extends FieldValues>({
 
   return {
     pending,
+    restored,
     conflict,
     status,
     savedAt,

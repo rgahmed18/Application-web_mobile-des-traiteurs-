@@ -19,7 +19,8 @@ export function draftMoment(date: Date): { date: string; time: string } {
 
 /**
  * Au-dessus d'un formulaire : brouillon non terminé à reprendre ou supprimer (avec le conflit
- * éventuel), puis l'état de l'enregistrement automatique (« Brouillon enregistré à 14:32 »,
+ * éventuel ; champs verrouillés en attendant, voir DraftFields), rappel des champs repris après
+ * « Reprendre », puis l'état de l'enregistrement automatique (« Brouillon enregistré à 14:32 »,
  * ou « Brouillon non enregistré » tant qu'un nouvel essai est en attente).
  */
 export function FormDraftNotice({ draft }: { draft: FormDraft }) {
@@ -47,6 +48,7 @@ export function FormDraftNotice({ draft }: { draft: FormDraft }) {
             {t('conflict')}
           </p>
         )}
+        <p className="text-sm">{t('pendingLocked')}</p>
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" onClick={draft.resume}>
             {t('resume')}
@@ -68,7 +70,27 @@ export function FormDraftNotice({ draft }: { draft: FormDraft }) {
     );
   }
 
-  if (draft.status === 'idle') return null;
+  const restoredNotice = draft.restored && (
+    <p
+      role="status"
+      data-testid="draft-restored"
+      className="flex items-start gap-2 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100"
+    >
+      <FileClockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+      {t('restoredNotice')}
+    </p>
+  );
+  if (draft.status === 'idle') return restoredNotice || null;
+  return (
+    <>
+      {restoredNotice}
+      <SaveStatus draft={draft} />
+    </>
+  );
+}
+
+function SaveStatus({ draft }: { draft: FormDraft }) {
+  const t = useTranslations('drafts');
   return (
     <p
       role="status"

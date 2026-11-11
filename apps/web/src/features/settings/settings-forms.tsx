@@ -39,6 +39,7 @@ import { Switch } from '@/components/ui/switch';
 import { FormSection } from '@/features/catalog/components/form-layout';
 import { toInteger } from '@/features/catalog/forms/form-values';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
@@ -146,42 +147,48 @@ function CompanyForm({ settings }: { settings: CompanySettings }) {
       data-testid="company-settings"
     >
       <FormDraftNotice draft={draft} />
-      <UnsavedChangesGuard when={form.formState.isDirty} />
-      <FormSection title={t('title')} description={t('hint')}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="name"
-            label={t('name')}
-            render={(field, { invalid }) => <Input {...field} dir="auto" aria-invalid={invalid} />}
+      <DraftFields draft={draft}>
+        <UnsavedChangesGuard when={form.formState.isDirty} />
+        <FormSection title={t('title')} description={t('hint')}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="name"
+              label={t('name')}
+              render={(field, { invalid }) => (
+                <Input {...field} dir="auto" aria-invalid={invalid} />
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="city"
+              label={t('city')}
+              render={(field, { invalid }) => (
+                <Input {...field} dir="auto" aria-invalid={invalid} />
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              label={t('email')}
+              render={(field, { invalid }) => (
+                <Input {...field} type="email" dir="ltr" aria-invalid={invalid} />
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phone"
+              label={t('phone')}
+              render={(field, { invalid }) => <PhoneInput {...field} aria-invalid={invalid} />}
+            />
+          </div>
+          <SaveBar
+            dirty={form.formState.isDirty}
+            submitting={form.formState.isSubmitting}
+            onReset={() => form.reset(companyValues(settings))}
           />
-          <FormField
-            control={form.control}
-            name="city"
-            label={t('city')}
-            render={(field, { invalid }) => <Input {...field} dir="auto" aria-invalid={invalid} />}
-          />
-          <FormField
-            control={form.control}
-            name="email"
-            label={t('email')}
-            render={(field, { invalid }) => (
-              <Input {...field} type="email" dir="ltr" aria-invalid={invalid} />
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="phone"
-            label={t('phone')}
-            render={(field, { invalid }) => <PhoneInput {...field} aria-invalid={invalid} />}
-          />
-        </div>
-        <SaveBar
-          dirty={form.formState.isDirty}
-          submitting={form.formState.isSubmitting}
-          onReset={() => form.reset(companyValues(settings))}
-        />
-      </FormSection>
+        </FormSection>
+      </DraftFields>
     </form>
   );
 }
@@ -293,103 +300,21 @@ function AvailabilityForm({ settings }: { settings: AvailabilitySettings }) {
       data-testid="availability-settings"
     >
       <FormDraftNotice draft={draft} />
-      <UnsavedChangesGuard when={form.formState.isDirty} />
-      <FormSection title={t('capacityTitle')} description={t('capacityHint')}>
-        <SwitchRow
-          id="settings-limited"
-          checked={limited}
-          onChange={(checked) => form.setValue('limited', checked, { shouldDirty: true })}
-          label={t('limited')}
-          hint={t('limitedHint')}
-        />
-        {limited && (
-          <FormField
-            control={form.control}
-            name="maxEventsPerDay"
-            label={t('maxEventsPerDay')}
-            render={(field, { invalid }) => (
-              <Input
-                {...field}
-                inputMode="numeric"
-                dir="ltr"
-                className="max-w-32"
-                aria-invalid={invalid}
-              />
-            )}
+      <DraftFields draft={draft}>
+        <UnsavedChangesGuard when={form.formState.isDirty} />
+        <FormSection title={t('capacityTitle')} description={t('capacityHint')}>
+          <SwitchRow
+            id="settings-limited"
+            checked={limited}
+            onChange={(checked) => form.setValue('limited', checked, { shouldDirty: true })}
+            label={t('limited')}
+            hint={t('limitedHint')}
           />
-        )}
-      </FormSection>
-
-      <FormSection title={t('closedTitle')} description={t('closedHint')}>
-        <div className="flex flex-wrap gap-2" role="group" aria-label={t('closedTitle')}>
-          {ISO_WEEKDAYS.map((day) => {
-            const isClosed = closed.includes(day);
-            return (
-              <button
-                key={day}
-                type="button"
-                aria-pressed={isClosed}
-                disabled={!isClosed && closed.length >= 6}
-                onClick={() => toggleDay(day)}
-                className={cn(
-                  'flex min-w-24 items-center justify-center gap-1 rounded-lg border px-3 py-2 text-sm transition-colors disabled:opacity-50',
-                  isClosed
-                    ? 'border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
-                    : 'hover:bg-muted/50',
-                )}
-              >
-                {isClosed && <CheckIcon className="size-4" aria-hidden />}
-                {tw(String(day) as '1')}
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {closed.length === 0
-            ? t('openEveryDay')
-            : t('closedOn', {
-                days: [...closed]
-                  .sort((a, b) => a - b)
-                  .map((day) => tw(String(day) as '1'))
-                  .join(', '),
-              })}
-        </p>
-      </FormSection>
-
-      <FormSection title={t('missionsTitle')} description={t('missionsHint')}>
-        <SwitchRow
-          id="settings-redact"
-          checked={redact}
-          onChange={(checked) => form.setValue('redact', checked, { shouldDirty: true })}
-          label={t('redact')}
-          hint={t('redactHint')}
-        />
-        {redact && (
-          <FormField
-            control={form.control}
-            name="missionRedactionDays"
-            label={t('redactionDays')}
-            render={(field, { invalid }) => (
-              <Input
-                {...field}
-                inputMode="numeric"
-                dir="ltr"
-                className="max-w-32"
-                aria-invalid={invalid}
-              />
-            )}
-          />
-        )}
-      </FormSection>
-
-      <FormSection title={t('equipmentTitle')} description={t('equipmentHint')}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {(['equipmentSetupHours', 'equipmentReturnHours'] as const).map((name) => (
+          {limited && (
             <FormField
-              key={name}
               control={form.control}
-              name={name}
-              label={t(name === 'equipmentSetupHours' ? 'setupHours' : 'returnHours')}
+              name="maxEventsPerDay"
+              label={t('maxEventsPerDay')}
               render={(field, { invalid }) => (
                 <Input
                   {...field}
@@ -400,14 +325,98 @@ function AvailabilityForm({ settings }: { settings: AvailabilitySettings }) {
                 />
               )}
             />
-          ))}
-        </div>
-      </FormSection>
-      <SaveBar
-        dirty={form.formState.isDirty}
-        submitting={form.formState.isSubmitting}
-        onReset={() => form.reset(availabilityValues(settings))}
-      />
+          )}
+        </FormSection>
+
+        <FormSection title={t('closedTitle')} description={t('closedHint')}>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('closedTitle')}>
+            {ISO_WEEKDAYS.map((day) => {
+              const isClosed = closed.includes(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  aria-pressed={isClosed}
+                  disabled={!isClosed && closed.length >= 6}
+                  onClick={() => toggleDay(day)}
+                  className={cn(
+                    'flex min-w-24 items-center justify-center gap-1 rounded-lg border px-3 py-2 text-sm transition-colors disabled:opacity-50',
+                    isClosed
+                      ? 'border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+                      : 'hover:bg-muted/50',
+                  )}
+                >
+                  {isClosed && <CheckIcon className="size-4" aria-hidden />}
+                  {tw(String(day) as '1')}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {closed.length === 0
+              ? t('openEveryDay')
+              : t('closedOn', {
+                  days: [...closed]
+                    .sort((a, b) => a - b)
+                    .map((day) => tw(String(day) as '1'))
+                    .join(', '),
+                })}
+          </p>
+        </FormSection>
+
+        <FormSection title={t('missionsTitle')} description={t('missionsHint')}>
+          <SwitchRow
+            id="settings-redact"
+            checked={redact}
+            onChange={(checked) => form.setValue('redact', checked, { shouldDirty: true })}
+            label={t('redact')}
+            hint={t('redactHint')}
+          />
+          {redact && (
+            <FormField
+              control={form.control}
+              name="missionRedactionDays"
+              label={t('redactionDays')}
+              render={(field, { invalid }) => (
+                <Input
+                  {...field}
+                  inputMode="numeric"
+                  dir="ltr"
+                  className="max-w-32"
+                  aria-invalid={invalid}
+                />
+              )}
+            />
+          )}
+        </FormSection>
+
+        <FormSection title={t('equipmentTitle')} description={t('equipmentHint')}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {(['equipmentSetupHours', 'equipmentReturnHours'] as const).map((name) => (
+              <FormField
+                key={name}
+                control={form.control}
+                name={name}
+                label={t(name === 'equipmentSetupHours' ? 'setupHours' : 'returnHours')}
+                render={(field, { invalid }) => (
+                  <Input
+                    {...field}
+                    inputMode="numeric"
+                    dir="ltr"
+                    className="max-w-32"
+                    aria-invalid={invalid}
+                  />
+                )}
+              />
+            ))}
+          </div>
+        </FormSection>
+        <SaveBar
+          dirty={form.formState.isDirty}
+          submitting={form.formState.isSubmitting}
+          onReset={() => form.reset(availabilityValues(settings))}
+        />
+      </DraftFields>
     </form>
   );
 }

@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
@@ -134,58 +135,60 @@ export function ServiceFormDialog({ settings, service, onClose }: ServiceFormDia
       onSubmit={onSubmit}
     >
       <FormDraftNotice draft={draft} />
-      <LocalizedTextFields
-        control={form.control}
-        name="name"
-        labelFr={t('fields.nameFr')}
-        labelAr={t('fields.nameAr')}
-      />
-      <LocalizedTextFields
-        control={form.control}
-        name="description"
-        labelFr={t('fields.descriptionFr')}
-        labelAr={t('fields.descriptionAr')}
-        multiline
-      />
-      <PriceFields
-        control={form.control}
-        settings={settings}
-        priceName="price"
-        taxRateName="taxRateBps"
-        priceValue={price}
-        taxRateValue={taxRate}
-      />
-      <FormField
-        control={form.control}
-        name="pricingUnit"
-        label={t('services.pricingUnit')}
-        render={(field) => (
-          <Select value={field.value} onValueChange={field.onChange}>
-            <SelectTrigger id={field.id} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PRICING_UNITS.map((unit) => (
-                <SelectItem key={unit} value={unit}>
-                  {t(`pricingUnits.${unit}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      />
-      <Controller
-        control={form.control}
-        name="isActive"
-        render={({ field }) => (
-          <Field orientation="horizontal">
-            <Switch id="service-active" checked={field.value} onCheckedChange={field.onChange} />
-            <FieldLabel htmlFor="service-active" className="text-base">
-              {t('services.active')}
-            </FieldLabel>
-          </Field>
-        )}
-      />
+      <DraftFields draft={draft}>
+        <LocalizedTextFields
+          control={form.control}
+          name="name"
+          labelFr={t('fields.nameFr')}
+          labelAr={t('fields.nameAr')}
+        />
+        <LocalizedTextFields
+          control={form.control}
+          name="description"
+          labelFr={t('fields.descriptionFr')}
+          labelAr={t('fields.descriptionAr')}
+          multiline
+        />
+        <PriceFields
+          control={form.control}
+          settings={settings}
+          priceName="price"
+          taxRateName="taxRateBps"
+          priceValue={price}
+          taxRateValue={taxRate}
+        />
+        <FormField
+          control={form.control}
+          name="pricingUnit"
+          label={t('services.pricingUnit')}
+          render={(field) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger id={field.id} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRICING_UNITS.map((unit) => (
+                  <SelectItem key={unit} value={unit}>
+                    {t(`pricingUnits.${unit}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="isActive"
+          render={({ field }) => (
+            <Field orientation="horizontal">
+              <Switch id="service-active" checked={field.value} onCheckedChange={field.onChange} />
+              <FieldLabel htmlFor="service-active" className="text-base">
+                {t('services.active')}
+              </FieldLabel>
+            </Field>
+          )}
+        />
+      </DraftFields>
     </FormDialog>
   );
 }

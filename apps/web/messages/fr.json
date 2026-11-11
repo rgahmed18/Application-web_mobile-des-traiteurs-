@@ -2461,6 +2461,9 @@
       "buffet": "Buffet",
       "settings": "Paramètres"
     },
-    "newItem": "nouveau"
+    "newItem": "nouveau",
+    "pendingLocked": "Choisissez « Reprendre » ou « Supprimer » avant de modifier le formulaire.",
+    "restoredNotice": "Brouillon repris : les champs marqués « Repris » contiennent votre saisie précédente. Vérifiez-les avant d’enregistrer.",
+    "restoredField": "Repris"
   }
 }

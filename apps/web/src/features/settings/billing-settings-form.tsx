@@ -32,6 +32,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { FormSection } from '@/features/catalog/components/form-layout';
 import { toInteger } from '@/features/catalog/forms/form-values';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useEditConflict } from '@/features/drafts/use-edit-conflict';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
@@ -260,182 +261,184 @@ function BillingForm({
       data-testid={`billing-settings-${section}`}
     >
       <FormDraftNotice draft={draft} />
-      <UnsavedChangesGuard when={form.formState.isDirty} />
-      {section === 'documents' && (
-        <>
-          <FormSection title={t('schedule')}>
+      <DraftFields draft={draft}>
+        <UnsavedChangesGuard when={form.formState.isDirty} />
+        {section === 'documents' && (
+          <>
+            <FormSection title={t('schedule')}>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="depositPercent"
+                  label={t('depositPercent')}
+                  description={t('depositPercentHint')}
+                  render={(field, { invalid }) => (
+                    <Input {...field} inputMode="decimal" dir="ltr" aria-invalid={invalid} />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="balanceDueDays"
+                  label={t('balanceDueDays')}
+                  description={t('balanceDueDaysHint')}
+                  render={(field, { invalid }) => (
+                    <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="quoteValidityDays"
+                  label={t('quoteValidityDays')}
+                  render={(field, { invalid }) => (
+                    <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
+                  )}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="quoteTermsFr"
+                  label={`${t('quoteTerms')} — FR`}
+                  description={t('quoteTermsHint')}
+                  render={(field, { invalid }) => (
+                    <Textarea {...field} rows={4} dir="ltr" lang="fr" aria-invalid={invalid} />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="quoteTermsAr"
+                  label={`${t('quoteTerms')} — AR`}
+                  render={(field, { invalid }) => (
+                    <Textarea {...field} rows={4} dir="rtl" lang="ar" aria-invalid={invalid} />
+                  )}
+                />
+              </div>
+            </FormSection>
+
+            <FormSection title={t('invoicing')}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="cancellationFeeTaxRate"
+                  label={t('cancellationFeeTaxRate')}
+                  render={(field) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={!settings.isVatRegistered}
+                    >
+                      <SelectTrigger id={field.id} className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={DEFAULT_RATE}>
+                          {t('defaultRate', { rate: formatTaxRate(settings.defaultTaxRateBps) })}
+                        </SelectItem>
+                        {COMMON_TAX_RATES_BPS.map((rate) => (
+                          <SelectItem key={rate} value={String(rate)}>
+                            {formatTaxRate(rate)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="creditNoteNumbering"
+                  label={t('creditNoteNumbering')}
+                  description={t('numberingHint')}
+                  render={(field) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id={field.id} className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CREDIT_NOTE_NUMBERINGS.map((value) => (
+                          <SelectItem key={value} value={value}>
+                            {t(`numbering.${value}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="paymentTermsFr"
+                  label={`${t('paymentTerms')} — FR`}
+                  render={(field, { invalid }) => (
+                    <Textarea {...field} rows={3} dir="ltr" lang="fr" aria-invalid={invalid} />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="paymentTermsAr"
+                  label={`${t('paymentTerms')} — AR`}
+                  render={(field, { invalid }) => (
+                    <Textarea {...field} rows={3} dir="rtl" lang="ar" aria-invalid={invalid} />
+                  )}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
+                {text('bankName')}
+                {text('rib', { dir: 'ltr' })}
+              </div>
+              {text('invoiceFooter')}
+            </FormSection>
+          </>
+        )}
+
+        {section === 'legal' && (
+          <FormSection title={t('legal')} description={t('legalHint')}>
+            <LogoField settings={settings} />
             <div className="grid gap-4 sm:grid-cols-3">
+              {text('legalName')}
+              {text('legalForm')}
               <FormField
                 control={form.control}
-                name="depositPercent"
-                label={t('depositPercent')}
-                description={t('depositPercentHint')}
-                render={(field, { invalid }) => (
-                  <Input {...field} inputMode="decimal" dir="ltr" aria-invalid={invalid} />
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="balanceDueDays"
-                label={t('balanceDueDays')}
-                description={t('balanceDueDaysHint')}
-                render={(field, { invalid }) => (
-                  <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="quoteValidityDays"
-                label={t('quoteValidityDays')}
+                name="shareCapital"
+                label={t('shareCapital')}
                 render={(field, { invalid }) => (
                   <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
                 )}
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="quoteTermsFr"
-                label={`${t('quoteTerms')} — FR`}
-                description={t('quoteTermsHint')}
-                render={(field, { invalid }) => (
-                  <Textarea {...field} rows={4} dir="ltr" lang="fr" aria-invalid={invalid} />
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="quoteTermsAr"
-                label={`${t('quoteTerms')} — AR`}
-                render={(field, { invalid }) => (
-                  <Textarea {...field} rows={4} dir="rtl" lang="ar" aria-invalid={invalid} />
-                )}
-              />
+            <div className="grid gap-4 sm:grid-cols-3">
+              {text('ice', { dir: 'ltr' })}
+              {text('taxId', { dir: 'ltr' })}
+              {text('patenteNumber', { dir: 'ltr' })}
+              {text('rcNumber', { dir: 'ltr' })}
+              {text('rcCourt')}
+              {text('cnssNumber', { dir: 'ltr' })}
             </div>
+            {text('legalAddress')}
           </FormSection>
+        )}
 
-          <FormSection title={t('invoicing')}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="cancellationFeeTaxRate"
-                label={t('cancellationFeeTaxRate')}
-                render={(field) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    disabled={!settings.isVatRegistered}
-                  >
-                    <SelectTrigger id={field.id} className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={DEFAULT_RATE}>
-                        {t('defaultRate', { rate: formatTaxRate(settings.defaultTaxRateBps) })}
-                      </SelectItem>
-                      {COMMON_TAX_RATES_BPS.map((rate) => (
-                        <SelectItem key={rate} value={String(rate)}>
-                          {formatTaxRate(rate)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="creditNoteNumbering"
-                label={t('creditNoteNumbering')}
-                description={t('numberingHint')}
-                render={(field) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id={field.id} className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CREDIT_NOTE_NUMBERINGS.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {t(`numbering.${value}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="paymentTermsFr"
-                label={`${t('paymentTerms')} — FR`}
-                render={(field, { invalid }) => (
-                  <Textarea {...field} rows={3} dir="ltr" lang="fr" aria-invalid={invalid} />
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="paymentTermsAr"
-                label={`${t('paymentTerms')} — AR`}
-                render={(field, { invalid }) => (
-                  <Textarea {...field} rows={3} dir="rtl" lang="ar" aria-invalid={invalid} />
-                )}
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
-              {text('bankName')}
-              {text('rib', { dir: 'ltr' })}
-            </div>
-            {text('invoiceFooter')}
-          </FormSection>
-        </>
-      )}
-
-      {section === 'legal' && (
-        <FormSection title={t('legal')} description={t('legalHint')}>
-          <LogoField settings={settings} />
-          <div className="grid gap-4 sm:grid-cols-3">
-            {text('legalName')}
-            {text('legalForm')}
-            <FormField
-              control={form.control}
-              name="shareCapital"
-              label={t('shareCapital')}
-              render={(field, { invalid }) => (
-                <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
-              )}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {text('ice', { dir: 'ltr' })}
-            {text('taxId', { dir: 'ltr' })}
-            {text('patenteNumber', { dir: 'ltr' })}
-            {text('rcNumber', { dir: 'ltr' })}
-            {text('rcCourt')}
-            {text('cnssNumber', { dir: 'ltr' })}
-          </div>
-          {text('legalAddress')}
-        </FormSection>
-      )}
-
-      <div
-        className={
-          section === 'documents'
-            ? 'sticky bottom-0 z-10 -mx-4 flex justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6'
-            : 'flex justify-end gap-3'
-        }
-      >
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          disabled={!form.formState.isDirty}
-          onClick={() => form.reset(toFormValues(settings))}
+        <div
+          className={
+            section === 'documents'
+              ? 'sticky bottom-0 z-10 -mx-4 flex justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6'
+              : 'flex justify-end gap-3'
+          }
         >
-          {tc('cancel')}
-        </Button>
-        <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? tc('saving') : tc('save')}
-        </Button>
-      </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            disabled={!form.formState.isDirty}
+            onClick={() => form.reset(toFormValues(settings))}
+          >
+            {tc('cancel')}
+          </Button>
+          <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? tc('saving') : tc('save')}
+          </Button>
+        </div>
+      </DraftFields>
     </form>
   );
 }

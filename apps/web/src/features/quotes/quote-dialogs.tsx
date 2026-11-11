@@ -36,6 +36,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useErrorMessage } from '@/lib/api/use-error-message';
 import { formatDateTime, formatLocalDate } from '@/lib/format/date';
+import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
@@ -105,45 +106,47 @@ export function QuoteDraftDialog({
       onSubmit={onSubmit}
     >
       <FormDraftNotice draft={draft} />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <DraftFields draft={draft}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="validUntil"
+            label={t('draft.validUntil')}
+            render={(field, { invalid }) => (
+              <Input {...field} type="date" min={today} dir="ltr" aria-invalid={invalid} />
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="locale"
+            label={t('draft.locale')}
+            description={t('draft.localeHint')}
+            render={(field) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id={field.id} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCALES.map((locale) => (
+                    <SelectItem key={locale} value={locale}>
+                      {t(`locales.${locale}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
         <FormField
           control={form.control}
-          name="validUntil"
-          label={t('draft.validUntil')}
+          name="notes"
+          label={t('draft.notes')}
+          description={t('draft.notesHint')}
           render={(field, { invalid }) => (
-            <Input {...field} type="date" min={today} dir="ltr" aria-invalid={invalid} />
+            <Textarea {...field} rows={3} dir="auto" aria-invalid={invalid} />
           )}
         />
-        <FormField
-          control={form.control}
-          name="locale"
-          label={t('draft.locale')}
-          description={t('draft.localeHint')}
-          render={(field) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id={field.id} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LOCALES.map((locale) => (
-                  <SelectItem key={locale} value={locale}>
-                    {t(`locales.${locale}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </div>
-      <FormField
-        control={form.control}
-        name="notes"
-        label={t('draft.notes')}
-        description={t('draft.notesHint')}
-        render={(field, { invalid }) => (
-          <Textarea {...field} rows={3} dir="auto" aria-invalid={invalid} />
-        )}
-      />
+      </DraftFields>
     </FormDialog>
   );
 }
