@@ -29,6 +29,15 @@ describe('packageFormSchema', () => {
     expect(packageFormSchema.parse({ ...filled, maxGuests: '' }).maxGuests).toBeNull();
   });
 
+  it('nouveau menu : minimum et maximum vides (aucune fourchette imposée)', () => {
+    expect(EMPTY_PACKAGE_FORM.minGuests).toBe('');
+    expect(EMPTY_PACKAGE_FORM.maxGuests).toBe('');
+    expect(packageFormSchema.parse({ ...filled, minGuests: '', maxGuests: '' })).toMatchObject({
+      minGuests: 1,
+      maxGuests: null,
+    });
+  });
+
   it('applique les règles partagées : maximum ≥ minimum, plat unique, au moins un plat', () => {
     const paths = (values: typeof filled) =>
       packageFormSchema.safeParse(values).error?.issues.map((issue) => issue.path.join('.'));

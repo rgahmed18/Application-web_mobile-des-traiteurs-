@@ -183,6 +183,7 @@ export function PackageForm({ settings, pkg, mode }: PackageFormProps) {
               control={form.control}
               name="minGuests"
               label={`${t('packages.guests')} — ${t('packages.minGuests')}`}
+              description={t('packages.minGuestsHint')}
               render={(field, { invalid }) => (
                 <Input {...field} inputMode="numeric" dir="ltr" aria-invalid={invalid} />
               )}

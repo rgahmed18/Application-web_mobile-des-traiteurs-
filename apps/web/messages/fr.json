@@ -579,7 +579,8 @@
       "forAllEvents": "Tous les événements",
       "sectionPrice": "Prix et invités",
       "created": "Menu créé",
-      "saved": "Menu enregistré"
+      "saved": "Menu enregistré",
+      "minGuestsHint": "Laisser vide : pas de minimum."
     },
     "categories": {
       "new": "Nouvelle catégorie",

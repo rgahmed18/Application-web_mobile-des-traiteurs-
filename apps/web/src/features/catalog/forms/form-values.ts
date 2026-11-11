@@ -44,6 +44,16 @@ export function toInteger(value: string): number {
   return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
 }
 
+/** Minimum d'invités : vide = pas de minimum (1 pour l'API). */
+export function toMinGuests(value: string): number {
+  return value.trim() === '' ? 1 : toInteger(value);
+}
+
+/** Minimum d'invités affiché : 1 (pas de minimum) laisse le champ vide. */
+export function fromMinGuests(minGuests: number): string {
+  return minGuests <= 1 ? '' : String(minGuests);
+}
+
 /** Valeur du sélecteur de TVA : « default » = taux du traiteur (null pour l'API). */
 export const DEFAULT_TAX_RATE = 'default';
 
