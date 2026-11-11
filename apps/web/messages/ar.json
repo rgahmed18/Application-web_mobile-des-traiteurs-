@@ -332,7 +332,9 @@
     "buffetEmpty": "أضف طبقًا أو عنصرًا واحدًا على الأقل.",
     "linesRequired": "أضف خدمة واحدة على الأقل.",
     "invalidTime": "توقيت غير صالح (HH:MM).",
-    "invalidDate": "تاريخ غير صالح."
+    "invalidDate": "تاريخ غير صالح.",
+    "categoryRequired": "اختر فئة: فهي تصنّف المعدات في الكتالوج وفي الطلبيات.",
+    "buffetTypeRequired": "اختر نوع البوفيه: فهو يصنّف البوفيه في الكتالوج وفي الطلبيات."
   },
   "catalog": {
     "title": "قائمة المنتجات",
@@ -428,7 +430,8 @@
       "flat": "جزافي",
       "active": "مقترح في الطلبات الجديدة",
       "dishCount": "{count, plural, one {طبق واحد} other {# أطباق}}",
-      "itemCount": "{count, plural, one {عنصر واحد} other {# عناصر}}"
+      "itemCount": "{count, plural, one {عنصر واحد} other {# عناصر}}",
+      "chooseType": "اختر نوعًا…"
     },
     "fields": {
       "nameFr": "الاسم (بالفرنسية)",
@@ -448,7 +451,9 @@
       "photo": "الصورة",
       "status": "الحالة",
       "category": "الصنف",
-      "noCategory": "بدون صنف"
+      "noCategory": "بدون صنف",
+      "chooseCategory": "اختر فئة…",
+      "emptyList": "القائمة فارغة: أضف عناصر من"
     },
     "photo": {
       "choose": "إضافة صورة",

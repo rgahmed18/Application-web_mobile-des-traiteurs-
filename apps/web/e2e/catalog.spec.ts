@@ -2,9 +2,10 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { login, uniqueSuffix } from './helpers';
+import { apiLogin, clearDrafts, login, uniqueSuffix } from './helpers';
 
 const PHOTO = path.join(__dirname, 'fixtures', 'plat.jpg');
+const API = process.env.E2E_API_URL ?? 'http://localhost:3100/api/v1';
 
 test('création d’un plat avec photo puis d’une formule qui le contient', async ({ page }) => {
   const suffix = uniqueSuffix();
@@ -164,4 +165,45 @@ test('buffet : type, gamme, plat du catalogue et élément libre, prix par perso
   const row = page.getByTestId('buffet-list').getByRole('listitem').filter({ hasText: name });
   await expect(row).toContainText('Buffet marocain · Premium · 1 plat · 1 élément');
   await expect(row).toContainText('180,00');
+});
+
+test('matériel sans catégorie : refusé dans le formulaire, signalé dans la liste', async ({
+  page,
+  request,
+}) => {
+  const suffix = uniqueSuffix();
+  // Article créé avant que la catégorie soit obligatoire (l'API l'accepte encore)
+  const headers = await apiLogin(request);
+  const legacy = `Ancien matériel ${suffix}`;
+  const created = await request.post(`${API}/catalog/equipment`, {
+    headers,
+    data: {
+      name: { fr: legacy },
+      description: null,
+      categoryId: null,
+      rangeId: null,
+      price: 1000,
+      replacementPrice: 0,
+      taxRateBps: null,
+      stockQuantity: 10,
+      imageKey: null,
+      isActive: true,
+    },
+  });
+  expect(created.ok(), await created.text()).toBe(true);
+
+  await login(page);
+  await page.goto('/admin/catalog/equipment/new');
+  await page.getByLabel('Nom (français)').fill(`Nouveau matériel ${suffix}`);
+  await page.getByLabel(/^Prix (TTC|HT)$/).fill('12');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByText('Choisissez une catégorie : elle classe le matériel')).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/catalog\/equipment\/new$/);
+
+  await page.goto('/admin/catalog/equipment');
+  await page.getByRole('searchbox', { name: 'Rechercher par nom' }).fill(suffix);
+  const row = page.getByTestId('equipment-list').getByRole('listitem').filter({ hasText: legacy });
+  await expect(row.getByTestId('missing-list-value')).toHaveText('Sans catégorie');
+  // Saisie refusée laissée en brouillon : supprimée pour les parcours suivants
+  await clearDrafts(request, 'equipment:new');
 });

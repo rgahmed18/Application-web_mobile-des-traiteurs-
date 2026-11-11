@@ -34,6 +34,18 @@ export const buffetFormSchema = z
     /** Éléments hors catalogue ; une ligne vide est ignorée. */
     freeItems: z.array(localizedFormSchema),
   })
+  // Type obligatoire à la saisie : il classe le buffet dans le catalogue et les commandes
+  // (l'API accepte encore un buffet sans type, créé avant cette règle)
+  .superRefine((values, ctx) => {
+    if (values.typeId === '') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['typeId'],
+        message: 'Choisissez un type de buffet',
+        params: { i18n: 'buffetTypeRequired' },
+      });
+    }
+  })
   .transform((values) => ({
     name: toLocalizedText(values.name),
     description: toOptionalLocalizedText(values.description),

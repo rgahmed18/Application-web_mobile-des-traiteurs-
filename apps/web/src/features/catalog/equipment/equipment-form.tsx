@@ -138,7 +138,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
               name="categoryId"
               list="equipment-categories"
               label={t('fields.category')}
-              noneLabel={t('fields.noCategory')}
+              noneLabel={t('fields.chooseCategory')}
               kept={item?.category?.id}
             />
             <CatalogListSelect

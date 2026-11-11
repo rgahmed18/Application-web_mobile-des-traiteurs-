@@ -135,7 +135,7 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
               name="typeId"
               list="buffet-types"
               label={t('buffets.type')}
-              noneLabel={t('buffets.noType')}
+              noneLabel={t('buffets.chooseType')}
               kept={buffet?.type?.id}
             />
             <CatalogListSelect

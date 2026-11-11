@@ -332,7 +332,9 @@
     "buffetEmpty": "Ajoutez au moins un plat ou un élément.",
     "linesRequired": "Ajoutez au moins une prestation.",
     "invalidTime": "Heure invalide (HH:MM).",
-    "invalidDate": "Date invalide."
+    "invalidDate": "Date invalide.",
+    "categoryRequired": "Choisissez une catégorie : elle classe le matériel dans le catalogue et les commandes.",
+    "buffetTypeRequired": "Choisissez un type de buffet : il classe le buffet dans le catalogue et les commandes."
   },
   "catalog": {
     "title": "Catalogue",
@@ -428,7 +430,8 @@
       "flat": "forfait",
       "active": "Proposé dans les nouvelles commandes",
       "dishCount": "{count, plural, one {# plat} other {# plats}}",
-      "itemCount": "{count, plural, one {# élément} other {# éléments}}"
+      "itemCount": "{count, plural, one {# élément} other {# éléments}}",
+      "chooseType": "Choisir un type…"
     },
     "fields": {
       "nameFr": "Nom (français)",
@@ -448,7 +451,9 @@
       "photo": "Photo",
       "status": "Statut",
       "category": "Catégorie",
-      "noCategory": "Sans catégorie"
+      "noCategory": "Sans catégorie",
+      "chooseCategory": "Choisir une catégorie…",
+      "emptyList": "Liste vide : ajoutez-en dans"
     },
     "photo": {
       "choose": "Ajouter une photo",

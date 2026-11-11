@@ -65,6 +65,25 @@ async function typeInto(page: Page, selector: string, text: string) {
   await page.keyboard.type(text, { delay: 40 });
 }
 
+/** Premier élément d'une liste du catalogue (choix obligatoire : catégorie, type de buffet). */
+async function chooseFirst(page: Page, selector: string) {
+  await page.locator(selector).click();
+  // L'option 0 est « Choisir… »
+  await page.getByRole('option').nth(1).click();
+}
+
+async function firstListItemId(api: APIRequestContext, list: string): Promise<string> {
+  const headers = await auth(api);
+  const items = (await (await api.get(`${API}/catalog/lists/${list}`, { headers })).json()) as {
+    id: string;
+    isActive: boolean;
+    archived: boolean;
+  }[];
+  const item = items.find((candidate) => candidate.isActive && !candidate.archived);
+  if (!item) throw new Error(`liste ${list} vide`);
+  return item.id;
+}
+
 /** Élément enregistré, retrouvé par son nom (suffixe unique). */
 async function findByName<T extends { id: string; name: { fr: string } }>(
   api: APIRequestContext,
@@ -141,6 +160,7 @@ for (const locale of ['fr', 'ar'] as const) {
         const equipmentName = `Prix matériel ${suffix}`;
         await page.goto('/admin/catalog/equipment/new');
         await typeInto(page, '#field-name-fr', equipmentName);
+        await chooseFirst(page, '#field-categoryId');
         await typeInto(page, '#field-price', '10');
         await typeInto(page, '#field-replacementPrice', '20');
         await expect(page.locator('#field-replacementPrice')).toHaveAttribute(
@@ -224,7 +244,7 @@ for (const locale of ['fr', 'ar'] as const) {
           data: {
             name: { fr: buffetName },
             description: null,
-            typeId: null,
+            typeId: await firstListItemId(request, 'buffet-types'),
             rangeId: null,
             pricingUnit: 'PER_PERSON',
             price: 99_900,
@@ -271,6 +291,7 @@ for (const locale of ['fr', 'ar'] as const) {
     // Première tentative abandonnée : brouillon enregistré avec « 10 »
     await page.goto('/admin/catalog/equipment/new');
     await typeInto(page, '#field-name-fr', name);
+    await chooseFirst(page, '#field-categoryId');
     await typeInto(page, '#field-price', '10');
     await expect(page.getByTestId('draft-status')).toBeVisible();
     await expect
@@ -323,6 +344,7 @@ test('prix inhabituel : confirmation avant d’enregistrer, « Corriger » n’e
   await login(page);
   await page.goto('/admin/catalog/equipment/new');
   await typeInto(page, '#field-name-fr', name);
+  await chooseFirst(page, '#field-categoryId');
   // « 10 » tapé trois fois : 101 010 MAD par unité
   await typeInto(page, '#field-price', '101010');
   await typeInto(page, '#field-replacementPrice', '20');

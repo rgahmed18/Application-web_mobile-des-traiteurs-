@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { EMPTY_EQUIPMENT_FORM, equipmentFormSchema } from './equipment-form-schema';
 
+const categoryId = '0b8a2c8e-4f6d-4a39-9c39-6a1f0f0e0a03';
 const filled = {
   ...EMPTY_EQUIPMENT_FORM,
+  categoryId,
   name: { fr: 'Chaise Napoléon', ar: 'كرسي نابليون' },
   price: '15,00',
   replacementPrice: '450',
@@ -14,7 +16,7 @@ describe('equipmentFormSchema', () => {
   it('convertit les montants en centimes et le stock en entier', () => {
     expect(equipmentFormSchema.parse(filled)).toMatchObject({
       name: { fr: 'Chaise Napoléon', ar: 'كرسي نابليون' },
-      categoryId: null,
+      categoryId,
       rangeId: null,
       price: 1_500,
       replacementPrice: 45_000,
@@ -32,5 +34,11 @@ describe('equipmentFormSchema', () => {
     expect(paths({ ...filled, stockQuantity: '-3' })).toContain('stockQuantity');
     expect(paths({ ...filled, stockQuantity: '2,5' })).toContain('stockQuantity');
     expect(paths({ ...filled, price: '' })).toContain('price');
+  });
+
+  it('exige une catégorie', () => {
+    expect(
+      equipmentFormSchema.safeParse({ ...filled, categoryId: '' }).error?.issues,
+    ).toMatchObject([{ path: ['categoryId'], params: { i18n: 'categoryRequired' } }]);
   });
 });

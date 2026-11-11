@@ -86,6 +86,17 @@ export async function apiLogin(
   }
 }
 
+/**
+ * Brouillons de formulaire du gérant supprimés (« equipment:new »…) : un brouillon laissé par un
+ * autre parcours verrouillerait le formulaire jusqu'à « Reprendre » ou « Supprimer ».
+ */
+export async function clearDrafts(api: APIRequestContext, ...formKeys: string[]): Promise<void> {
+  const headers = await apiLogin(api);
+  for (const formKey of formKeys) {
+    await api.delete(`${API}/me/drafts/${formKey}`, { headers });
+  }
+}
+
 /** Code TOTP (RFC 6238, SHA-1, 30 s, 6 chiffres) d'une clé base32, pour un pas décalé. */
 export function totp(secret: string, offset = 0): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';

@@ -32,6 +32,18 @@ export const equipmentFormSchema = z
     imageKey: z.string().nullable(),
     isActive: z.boolean(),
   })
+  // Catégorie obligatoire à la saisie : elle classe le matériel dans le catalogue et les
+  // commandes (l'API accepte encore un article sans catégorie, créé avant cette règle)
+  .superRefine((values, ctx) => {
+    if (values.categoryId === '') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['categoryId'],
+        message: 'Choisissez une catégorie',
+        params: { i18n: 'categoryRequired' },
+      });
+    }
+  })
   .transform((values) => ({
     name: toLocalizedText(values.name),
     description: toOptionalLocalizedText(values.description),

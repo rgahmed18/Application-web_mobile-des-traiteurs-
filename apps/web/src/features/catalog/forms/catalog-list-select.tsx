@@ -1,6 +1,8 @@
 'use client';
 
 import type { CatalogList } from '@traiteur/shared';
+import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import type { Control, FieldPath, FieldValues } from 'react-hook-form';
 
 import { FormField } from '@/components/forms/form-field';
@@ -18,9 +20,10 @@ import { useLocalized } from '../use-localized';
 const NONE = 'none';
 
 /**
- * Choix facultatif dans une liste du catalogue (catégorie de matériel, gamme, type de buffet).
- * Le champ vaut '' sans choix. Seuls les éléments actifs et non archivés sont proposés, plus
- * celui déjà porté par l'article (kept).
+ * Choix dans une liste du catalogue (catégorie de matériel, gamme, type de buffet). Le champ
+ * vaut '' sans choix (« noneLabel » : « Sans gamme », ou « Choisir… » pour un choix obligatoire,
+ * imposé par le schéma du formulaire). Seuls les éléments actifs et non archivés sont proposés,
+ * plus celui déjà porté par l'article (kept) ; liste vide : lien vers « Listes » pour la remplir.
  */
 export function CatalogListSelect<T extends FieldValues>({
   control,
@@ -37,6 +40,7 @@ export function CatalogListSelect<T extends FieldValues>({
   noneLabel: string;
   kept: string | undefined;
 }) {
+  const t = useTranslations('catalog');
   const localized = useLocalized();
   const items = useCatalogList(list);
   const options = (items.data ?? []).filter(
@@ -47,14 +51,24 @@ export function CatalogListSelect<T extends FieldValues>({
       control={control}
       name={name}
       label={label}
-      render={(field) => {
+      description={
+        items.data && options.length === 0 ? (
+          <>
+            {t('fields.emptyList')}{' '}
+            <Link href="/admin/catalog/lists" className="underline underline-offset-2">
+              {t('tabs.lists')}
+            </Link>
+          </>
+        ) : undefined
+      }
+      render={(field, { invalid }) => {
         const value = typeof field.value === 'string' ? field.value : '';
         return (
           <Select
             value={value === '' ? NONE : value}
             onValueChange={(next) => field.onChange(next === NONE ? '' : next)}
           >
-            <SelectTrigger id={field.id} className="w-full">
+            <SelectTrigger id={field.id} className="w-full" aria-invalid={invalid}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

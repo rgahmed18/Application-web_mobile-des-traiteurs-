@@ -28,6 +28,7 @@ import { CatalogHeader } from '../components/catalog-header';
 import { ItemThumb, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useDebouncedValue } from '../use-debounced-value';
+import { MissingListValue } from '../components/missing-list-value';
 import { useLocalized } from '../use-localized';
 
 const ALL = 'all';
@@ -185,7 +186,11 @@ export function BuffetList() {
                       <span className="block truncate text-base font-medium">{name}</span>
                     )}
                     <span className="block truncate text-sm text-muted-foreground">
-                      {item.type ? localized(item.type.name) : t('buffets.noType')}
+                      {item.type ? (
+                        localized(item.type.name)
+                      ) : (
+                        <MissingListValue>{t('buffets.noType')}</MissingListValue>
+                      )}
                       {item.range && ` · ${localized(item.range.name)}`}
                       {' · '}
                       {[

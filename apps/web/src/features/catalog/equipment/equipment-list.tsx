@@ -28,6 +28,7 @@ import { CatalogHeader } from '../components/catalog-header';
 import { ItemThumb, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useDebouncedValue } from '../use-debounced-value';
+import { MissingListValue } from '../components/missing-list-value';
 import { useLocalized } from '../use-localized';
 
 const ALL = 'all';
@@ -185,7 +186,11 @@ export function EquipmentList() {
                       <span className="block truncate text-base font-medium">{name}</span>
                     )}
                     <span className="block truncate text-sm text-muted-foreground">
-                      {item.category ? localized(item.category.name) : t('fields.noCategory')}
+                      {item.category ? (
+                        localized(item.category.name)
+                      ) : (
+                        <MissingListValue>{t('fields.noCategory')}</MissingListValue>
+                      )}
                       {item.range && ` · ${localized(item.range.name)}`}
                       {' · '}
                       {t('equipment.inStock', { count: item.stockQuantity })}

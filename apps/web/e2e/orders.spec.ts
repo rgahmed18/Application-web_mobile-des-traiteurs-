@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { login, uniqueSuffix } from './helpers';
+import { clearDrafts, login, uniqueSuffix } from './helpers';
 
 /** Jour civil à Casablanca, dans `offset` jours. */
 function casablancaDay(offset: number): string {
@@ -139,8 +139,10 @@ test('client, commande de 3 lignes confirmée, puis retrouvée dans le calendrie
 
 test('matériel dans une commande : stock affiché, alerte de dépassement et confirmation motivée', async ({
   page,
+  request,
 }) => {
   test.setTimeout(180_000);
+  await clearDrafts(request, 'equipment:new');
   const suffix = uniqueSuffix();
   const item = `Tente berbère e2e ${suffix}`;
   const lastName = `Matériel ${suffix}`;
@@ -150,6 +152,8 @@ test('matériel dans une commande : stock affiché, alerte de dépassement et co
   // Article en stock limité (5)
   await page.goto('/admin/catalog/equipment/new');
   await page.getByLabel('Nom (français)').fill(item);
+  await page.getByLabel('Catégorie').click();
+  await page.getByRole('option', { name: 'Chaises' }).click();
   await page.getByLabel(/^Prix (TTC|HT)$/).fill('800');
   await page.getByLabel('Quantité en stock').fill('5');
   await page.getByRole('button', { name: 'Enregistrer' }).click();
