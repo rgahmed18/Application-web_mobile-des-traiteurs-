@@ -10,13 +10,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { usePermission } from '@/features/auth/session-provider';
@@ -25,7 +19,7 @@ import { EmptyState, PaginationBar } from '@/components/layout/list-states';
 
 import { useCatalogSettings, useCategories, useDishes } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
-import { ItemThumb, StatusBadge } from '../components/catalog-ui';
+import { FilterTrigger, ItemThumb, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useDebouncedValue } from '../use-debounced-value';
 import { useLocalized } from '../use-localized';
@@ -122,9 +116,7 @@ export function DishList() {
           />
         </InputGroup>
         <Select value={categoryId} onValueChange={resetPage(setCategoryId)}>
-          <SelectTrigger className="w-full" aria-label={t('fields.category')}>
-            <SelectValue />
-          </SelectTrigger>
+          <FilterTrigger label={t('fields.category')} />
           <SelectContent>
             <SelectItem value={ALL}>{t('filters.allCategories')}</SelectItem>
             {(categories.data ?? []).map((category) => (
@@ -135,9 +127,7 @@ export function DishList() {
           </SelectContent>
         </Select>
         <Select value={availability} onValueChange={resetPage(setAvailability)}>
-          <SelectTrigger className="w-full" aria-label={t('fields.status')}>
-            <SelectValue />
-          </SelectTrigger>
+          <FilterTrigger label={t('fields.status')} />
           <SelectContent>
             <SelectItem value={ALL}>{t('filters.allStatuses')}</SelectItem>
             <SelectItem value="available">{t('status.available')}</SelectItem>

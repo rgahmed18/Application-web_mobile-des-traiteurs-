@@ -414,7 +414,7 @@
       "sectionGeneral": "Description",
       "type": "Type de buffet",
       "noType": "Sans type",
-      "allTypes": "Tous les types",
+      "allTypes": "tous",
       "composition": "Composition",
       "compositionHint": "Plats du catalogue (décomptés sur le bon de préparation) et éléments libres.",
       "freeItems": "Éléments libres",
@@ -475,10 +475,11 @@
     },
     "filters": {
       "search": "Rechercher par nom",
-      "allCategories": "Toutes les catégories",
-      "allStatuses": "Tous",
+      "allCategories": "toutes",
+      "allStatuses": "tous",
       "showArchived": "Voir les archives",
-      "results": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}"
+      "results": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
+      "label": "{label} :"
     },
     "actions": {
       "edit": "Modifier",
@@ -576,7 +577,7 @@
       "sectionAudience": "Événements et gamme",
       "range": "Gamme",
       "noRange": "Aucune gamme",
-      "allRanges": "Toutes les gammes",
+      "allRanges": "toutes",
       "eventTypes": "Types d’événement",
       "eventTypesHint": "Le menu est proposé pour les événements cochés ; aucun coché : pour tous les événements.",
       "forAllEvents": "Tous les événements",

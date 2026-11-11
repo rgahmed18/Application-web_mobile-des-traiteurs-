@@ -2,9 +2,11 @@
 
 import type { ImageVariant } from '@traiteur/shared';
 import { ImageIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/ui/badge';
+import { SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { mediaUrl } from '../media/media-url';
 
@@ -55,5 +57,21 @@ export function StatusBadge({ tone, children }: { tone: BadgeTone; children: Rea
     <Badge variant="outline" className={`text-sm ${TONES[tone]}`}>
       {children}
     </Badge>
+  );
+}
+
+/**
+ * Déclencheur d'un filtre de liste : le critère reste affiché devant la valeur (« Catégorie :
+ * Chaises », « Gamme : toutes »), pour distinguer des filtres aux valeurs proches.
+ */
+export function FilterTrigger({ label }: { label: string }) {
+  const t = useTranslations('catalog.filters');
+  return (
+    <SelectTrigger className="w-full" aria-label={label}>
+      <span className="flex min-w-0 items-center gap-1">
+        <span className="shrink-0 text-muted-foreground">{t('label', { label })}</span>
+        <SelectValue />
+      </span>
+    </SelectTrigger>
   );
 }

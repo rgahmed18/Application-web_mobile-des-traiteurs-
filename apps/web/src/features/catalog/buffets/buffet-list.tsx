@@ -11,13 +11,7 @@ import { EmptyState, PaginationBar } from '@/components/layout/list-states';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { usePermission } from '@/features/auth/session-provider';
@@ -25,7 +19,7 @@ import { formatMoney } from '@/lib/format/money';
 
 import { useBuffets, useCatalogList, useCatalogSettings } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
-import { ItemThumb, StatusBadge } from '../components/catalog-ui';
+import { FilterTrigger, ItemThumb, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useDebouncedValue } from '../use-debounced-value';
 import { MissingListValue } from '../components/missing-list-value';
@@ -107,9 +101,7 @@ export function BuffetList() {
           />
         </InputGroup>
         <Select value={typeId} onValueChange={resetPage(setTypeId)}>
-          <SelectTrigger className="w-full" aria-label={t('buffets.type')}>
-            <SelectValue />
-          </SelectTrigger>
+          <FilterTrigger label={t('buffets.type')} />
           <SelectContent>
             <SelectItem value={ALL}>{t('buffets.allTypes')}</SelectItem>
             {(types.data ?? []).map((item) => (
@@ -120,9 +112,7 @@ export function BuffetList() {
           </SelectContent>
         </Select>
         <Select value={rangeId} onValueChange={resetPage(setRangeId)}>
-          <SelectTrigger className="w-full" aria-label={t('packages.range')}>
-            <SelectValue />
-          </SelectTrigger>
+          <FilterTrigger label={t('packages.range')} />
           <SelectContent>
             <SelectItem value={ALL}>{t('packages.allRanges')}</SelectItem>
             {(ranges.data ?? []).map((item) => (

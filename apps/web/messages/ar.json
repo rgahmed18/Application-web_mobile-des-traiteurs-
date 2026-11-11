@@ -333,7 +333,7 @@
     "linesRequired": "أضف خدمة واحدة على الأقل.",
     "invalidTime": "توقيت غير صالح (HH:MM).",
     "invalidDate": "تاريخ غير صالح.",
-    "categoryRequired": "اختر فئة: فهي تصنّف المعدات في الكتالوج وفي الطلبيات.",
+    "categoryRequired": "اختر صنفًا: فهو يصنّف المعدات في الكتالوج وفي الطلبيات.",
     "buffetTypeRequired": "اختر نوع البوفيه: فهو يصنّف البوفيه في الكتالوج وفي الطلبيات."
   },
   "catalog": {
@@ -350,7 +350,7 @@
     },
     "lists": {
       "title": "قوائم الكتالوج",
-      "description": "أنواع المناسبات والفئات المقترحة في الطلبيات والكتالوج. رمز العنصر لا يتغير أبدًا؛ أما اسمه وترتيبه وتوفره فيمكن تعديلها.",
+      "description": "أنواع المناسبات والمستويات المقترحة في الطلبيات والكتالوج. رمز العنصر لا يتغير أبدًا؛ أما اسمه وترتيبه وتوفره فيمكن تعديلها.",
       "dragHint": "اسحب سطرًا لتغيير ترتيب العرض (الفأرة أو الإصبع أو لوحة المفاتيح: مسافة ثم الأسهم).",
       "orderSaved": "تم حفظ الترتيب.",
       "saved": "تم حفظ العنصر.",
@@ -369,11 +369,11 @@
           "hint": "تُقترح عند إنشاء طلب ولربط القوائم بمناسبة."
         },
         "ranges": {
-          "title": "الفئات",
+          "title": "المستويات",
           "hint": "تحملها القوائم والعروض والمعدات والبوفيهات (مثل: عادية، ممتازة، فاخرة)."
         },
         "equipment-categories": {
-          "title": "فئات المعدات",
+          "title": "أصناف المعدات",
           "hint": "لترتيب المعدات: كراسي، طاولات، أغطية، أواني، إضاءة…"
         },
         "buffet-types": {
@@ -414,7 +414,7 @@
       "sectionGeneral": "الوصف",
       "type": "نوع البوفيه",
       "noType": "بدون نوع",
-      "allTypes": "كل الأنواع",
+      "allTypes": "الكل",
       "composition": "المكونات",
       "compositionHint": "أطباق الكتالوج (تُحتسب في ورقة التحضير) وعناصر حرة.",
       "freeItems": "عناصر حرة",
@@ -452,7 +452,7 @@
       "status": "الحالة",
       "category": "الصنف",
       "noCategory": "بدون صنف",
-      "chooseCategory": "اختر فئة…",
+      "chooseCategory": "اختر صنفًا…",
       "emptyList": "القائمة فارغة: أضف عناصر من"
     },
     "photo": {
@@ -475,10 +475,11 @@
     },
     "filters": {
       "search": "البحث بالاسم",
-      "allCategories": "كل الأصناف",
+      "allCategories": "الكل",
       "allStatuses": "الكل",
       "showArchived": "عرض الأرشيف",
-      "results": "{count, plural, =0 {لا توجد نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}"
+      "results": "{count, plural, =0 {لا توجد نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}",
+      "label": "{label}:"
     },
     "actions": {
       "edit": "تعديل",
@@ -573,10 +574,10 @@
       "dishCount": "{count, plural, =0 {لا يوجد طبق} one {طبق واحد} two {طبقان} few {# أطباق} many {# طبقًا} other {# طبق}}",
       "archivedDish": "مؤرشف",
       "sectionGeneral": "المعلومات",
-      "sectionAudience": "المناسبات والفئة",
-      "range": "الفئة",
-      "noRange": "بدون فئة",
-      "allRanges": "كل الفئات",
+      "sectionAudience": "المناسبات والمستوى",
+      "range": "المستوى",
+      "noRange": "بدون مستوى",
+      "allRanges": "الكل",
       "eventTypes": "أنواع المناسبات",
       "eventTypesHint": "تُقترح قائمة الطعام للمناسبات المؤشَّر عليها؛ إن لم يُؤشَّر على أي منها: لكل المناسبات.",
       "forAllEvents": "كل المناسبات",
@@ -1995,9 +1996,9 @@
       "auth_2fa_disabled": "تعطيل التحقق بخطوتين",
       "auth_2fa_recovery_codes_regenerated": "رموز احتياطية جديدة",
       "auth_2fa_recovery_code_used": "تسجيل الدخول برمز احتياطي",
-      "catalog_category_created": "إنشاء فئة",
-      "catalog_category_updated": "تعديل فئة",
-      "catalog_category_reordered": "إعادة ترتيب الفئات",
+      "catalog_category_created": "إنشاء صنف",
+      "catalog_category_updated": "تعديل صنف",
+      "catalog_category_reordered": "إعادة ترتيب الأصناف",
       "client_created": "إنشاء زبون",
       "client_updated": "تعديل زبون",
       "client_address_added": "إضافة عنوان الزبون",
@@ -2087,18 +2088,18 @@
       "catalog_event_type_restored": "استرجاع: نوع المناسبة",
       "catalog_event_type_deleted": "حذف: نوع المناسبة",
       "catalog_event_type_reordered": "إعادة الترتيب: نوع المناسبة",
-      "catalog_range_created": "إنشاء: فئة الأثمنة",
-      "catalog_range_updated": "تعديل: فئة الأثمنة",
-      "catalog_range_archived": "أرشفة: فئة الأثمنة",
-      "catalog_range_restored": "استرجاع: فئة الأثمنة",
-      "catalog_range_deleted": "حذف: فئة الأثمنة",
-      "catalog_range_reordered": "إعادة الترتيب: فئة الأثمنة",
-      "catalog_equipment_category_created": "إنشاء: فئة المعدات",
-      "catalog_equipment_category_updated": "تعديل: فئة المعدات",
-      "catalog_equipment_category_archived": "أرشفة: فئة المعدات",
-      "catalog_equipment_category_restored": "استرجاع: فئة المعدات",
-      "catalog_equipment_category_deleted": "حذف: فئة المعدات",
-      "catalog_equipment_category_reordered": "إعادة الترتيب: فئة المعدات",
+      "catalog_range_created": "إنشاء: مستوى",
+      "catalog_range_updated": "تعديل: مستوى",
+      "catalog_range_archived": "أرشفة: مستوى",
+      "catalog_range_restored": "استرجاع: مستوى",
+      "catalog_range_deleted": "حذف: مستوى",
+      "catalog_range_reordered": "إعادة الترتيب: المستويات",
+      "catalog_equipment_category_created": "إنشاء: صنف المعدات",
+      "catalog_equipment_category_updated": "تعديل: صنف المعدات",
+      "catalog_equipment_category_archived": "أرشفة: صنف المعدات",
+      "catalog_equipment_category_restored": "استرجاع: صنف المعدات",
+      "catalog_equipment_category_deleted": "حذف: صنف المعدات",
+      "catalog_equipment_category_reordered": "إعادة الترتيب: أصناف المعدات",
       "catalog_buffet_type_created": "إنشاء: نوع البوفيه",
       "catalog_buffet_type_updated": "تعديل: نوع البوفيه",
       "catalog_buffet_type_archived": "أرشفة: نوع البوفيه",
@@ -2361,7 +2362,7 @@
         },
         "names": {
           "catalog": "الكتالوج",
-          "catalog_categories": "فئات الكتالوج",
+          "catalog_categories": "أصناف الكتالوج",
           "catalog_dishes": "الأطباق",
           "catalog_packages": "الباقات",
           "catalog_services": "الخدمات",

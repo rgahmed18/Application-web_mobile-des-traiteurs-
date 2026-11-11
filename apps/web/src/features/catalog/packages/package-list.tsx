@@ -10,13 +10,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { usePermission } from '@/features/auth/session-provider';
@@ -25,7 +19,7 @@ import { EmptyState, PaginationBar } from '@/components/layout/list-states';
 
 import { useCatalogList, useCatalogSettings, usePackages } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
-import { ItemThumb, StatusBadge } from '../components/catalog-ui';
+import { FilterTrigger, ItemThumb, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useDebouncedValue } from '../use-debounced-value';
 import { useLocalized } from '../use-localized';
@@ -115,9 +109,7 @@ export function PackageList() {
           />
         </InputGroup>
         <Select value={status} onValueChange={resetPage(setStatus)}>
-          <SelectTrigger className="w-full" aria-label={t('fields.status')}>
-            <SelectValue />
-          </SelectTrigger>
+          <FilterTrigger label={t('fields.status')} />
           <SelectContent>
             <SelectItem value={ALL}>{t('filters.allStatuses')}</SelectItem>
             <SelectItem value="active">{t('status.available')}</SelectItem>
@@ -125,9 +117,7 @@ export function PackageList() {
           </SelectContent>
         </Select>
         <Select value={eventType} onValueChange={resetPage(setEventType)}>
-          <SelectTrigger className="w-full" aria-label={t('packages.eventTypes')}>
-            <SelectValue />
-          </SelectTrigger>
+          <FilterTrigger label={t('packages.eventTypes')} />
           <SelectContent>
             <SelectItem value={ALL}>{t('packages.forAllEvents')}</SelectItem>
             {(eventTypes.data ?? []).map((item) => (
@@ -138,9 +128,7 @@ export function PackageList() {
           </SelectContent>
         </Select>
         <Select value={range} onValueChange={resetPage(setRange)}>
-          <SelectTrigger className="w-full" aria-label={t('packages.range')}>
-            <SelectValue />
-          </SelectTrigger>
+          <FilterTrigger label={t('packages.range')} />
           <SelectContent>
             <SelectItem value={ALL}>{t('packages.allRanges')}</SelectItem>
             {(ranges.data ?? []).map((item) => (
