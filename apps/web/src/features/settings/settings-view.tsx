@@ -10,8 +10,9 @@ import { usePermission } from '@/features/auth/session-provider';
 import { AccountTab } from './account-forms';
 import { BillingSettingsTab } from './billing-settings-form';
 import { AvailabilityTab, CompanyTab, PricingTab } from './settings-forms';
+import { SiteTab } from './site-settings-form';
 
-const TABS = ['company', 'billing', 'availability', 'pricing', 'account'] as const;
+const TABS = ['company', 'billing', 'availability', 'pricing', 'site', 'account'] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -62,6 +63,9 @@ export function SettingsView() {
             </TabsContent>
             <TabsContent value="pricing" className="pt-4">
               <PricingTab />
+            </TabsContent>
+            <TabsContent value="site" className="pt-4">
+              <SiteTab />
             </TabsContent>
           </>
         )}

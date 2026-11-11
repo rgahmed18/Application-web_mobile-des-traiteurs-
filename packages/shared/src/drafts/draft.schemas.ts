@@ -20,7 +20,13 @@ export const DRAFT_FORMS = [
   'equipment',
   'buffet',
 ] as const;
-export const DRAFT_SETTINGS_SECTIONS = ['company', 'billing', 'pricing', 'availability'] as const;
+export const DRAFT_SETTINGS_SECTIONS = [
+  'company',
+  'billing',
+  'pricing',
+  'availability',
+  'site',
+] as const;
 export type DraftForm = (typeof DRAFT_FORMS)[number] | 'settings';
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';

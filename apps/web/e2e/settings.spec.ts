@@ -1,8 +1,11 @@
+import path from 'node:path';
+
 import { expect, request as apiRequest, test } from '@playwright/test';
 
 import { apiLogin, login } from './helpers';
 
 const API = process.env.E2E_API_URL ?? 'http://localhost:3100/api/v1';
+const PHOTO = path.join(__dirname, 'fixtures', 'plat.jpg');
 
 /** Prochain dimanche (ou aujourd'hui), jour civil à Casablanca. */
 function nextSunday(): string {
@@ -87,6 +90,47 @@ test('paramètres : fermeture hebdomadaire, avertissement du mode de prix et mon
       },
     });
     await api.put(`${API}/me/account`, { headers, data: account });
+    await api.dispose();
+  }
+});
+
+test('site client : validation des nouveaux clients, photo de l’accueil, rappel juridique', async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const api = await apiRequest.newContext();
+  const headers = await apiLogin(api);
+  const initial = (await (await api.get(`${API}/settings/site`, { headers })).json()) as object;
+
+  try {
+    await login(page);
+    await page.goto('/admin/settings?tab=site');
+    const site = page.getByTestId('site-settings');
+    await expect(site.getByTestId('privacy-legal-review')).toContainText(
+      'À faire relire par un juriste',
+    );
+    await expect(site).toContainText('Désactivée : un client peut envoyer une demande');
+    await site.getByRole('switch', { name: /Validation des nouveaux clients/ }).click();
+    await expect(site).toContainText('Activée : un nouveau client voit son espace');
+
+    await site.getByLabel('Présentation (français)').fill('Traiteur de mariages à Rabat');
+    await site.getByTestId('site-photo-input').setInputFiles(PHOTO);
+    const photo = site.getByRole('img', { name: 'Photo d’accueil n° 1' });
+    await expect(photo).toBeVisible({ timeout: 30_000 });
+    await expect(site).toContainText('Photo principale');
+
+    await site.getByRole('button', { name: 'Enregistrer' }).click();
+    await expect(page.getByText('Réglages du site client enregistrés')).toBeVisible();
+    const saved = (await (await api.get(`${API}/settings/site`, { headers })).json()) as {
+      requireClientApproval: boolean;
+      intro: { fr: string } | null;
+      photoKeys: string[];
+    };
+    expect(saved.requireClientApproval).toBe(true);
+    expect(saved.intro?.fr).toBe('Traiteur de mariages à Rabat');
+    expect(saved.photoKeys).toHaveLength(1);
+  } finally {
+    await api.put(`${API}/settings/site`, { headers, data: initial });
     await api.dispose();
   }
 });

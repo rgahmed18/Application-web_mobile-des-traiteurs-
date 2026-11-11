@@ -4,6 +4,7 @@ import { passwordSchema } from '../auth/auth.schemas';
 import { phoneSchema } from '../auth/phone';
 import { PRICE_MODES } from '../money/money';
 import { fieldsVersion } from '../editing/edit-version';
+import { localizedTextSchema } from '../i18n/localized-text';
 
 /**
  * Paramètres du traiteur (permission settings.manage) et compte de l'utilisateur connecté.
@@ -65,7 +66,44 @@ export const pricingSettingsSchema = pricingSettingsInputSchema.extend({
 });
 export type PricingSettings = z.infer<typeof pricingSettingsSchema>;
 
+// ─────────────────────────── Site client ───────────────────────────
+
+/** Photos de l'accueil du site client. */
+export const SITE_PHOTOS_MAX = 6;
+
+/** Texte FR/AR facultatif, de longueur bornée dans chaque langue. */
+const boundedText = (max: number) =>
+  localizedTextSchema
+    .refine((text) => Object.values(text).every((value) => value.length <= max), {
+      message: `${max} caractères au plus`,
+    })
+    .nullable();
+
+/**
+ * Site client du traiteur (adresse du traiteur, à la racine) : validation des nouveaux clients,
+ * présentation et photos de l'accueil, compléments de la politique de confidentialité.
+ */
+export const siteSettingsSchema = z.object({
+  /** Activé : un client inscrit en ligne attend l'accord du traiteur avant d'envoyer une demande. */
+  requireClientApproval: z.boolean(),
+  intro: boundedText(1000),
+  /** Clés des photos envoyées (sans photo : repli sur les photos du catalogue). */
+  photoKeys: z
+    .array(z.string().min(1).max(200))
+    .max(SITE_PHOTOS_MAX)
+    .refine((keys) => new Set(keys).size === keys.length, 'Photo en double'),
+  /** Paragraphe libre ajouté à la politique de confidentialité générée. */
+  privacyExtra: boundedText(4000),
+  /** Numéro de déclaration ou d'autorisation de la CNDP (loi 09-08). */
+  cndpDeclaration: nullableText(60),
+});
+export type SiteSettings = z.infer<typeof siteSettingsSchema>;
+
 /** Versions des sections (verrouillage optimiste) : empreinte de leurs champs modifiables. */
+export function siteSettingsVersion(settings: Record<string, unknown>): string {
+  return fieldsVersion(Object.keys(siteSettingsSchema.shape), settings);
+}
+
 export function companySettingsVersion(settings: Record<string, unknown>): string {
   return fieldsVersion(Object.keys(companySettingsSchema.shape), settings);
 }

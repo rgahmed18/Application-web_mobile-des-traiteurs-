@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { isoWeekday } from '@traiteur/shared';
+import { isoWeekday, type SiteSettings, siteSettingsVersion } from '@traiteur/shared';
+import sharp from 'sharp';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 
@@ -15,7 +16,7 @@ import { TokenService } from '../../src/auth/token.service';
 import type { PrismaClient, Role } from '../../src/generated/prisma/client';
 import { createTestPrisma } from './helpers';
 
-/** Paramètres (entreprise, disponibilités, mode de prix) et Mon compte, par HTTP. */
+/** Paramètres (entreprise, disponibilités, mode de prix, site client) et Mon compte, par HTTP. */
 interface Actor {
   token: string;
   traiteurId: string;
@@ -129,6 +130,100 @@ describe('API des paramètres et du compte (application complète)', () => {
       where: { traiteurId: admin.traiteurId, action: 'settings.company_updated' },
     });
     expect(audit?.after).toMatchObject({ name: input.name });
+  });
+
+  /** Photo réellement envoyée (URL pré-signée, PUT au stockage, traitement) par l'onglet Site client. */
+  async function uploadSitePhoto(actor: Actor): Promise<string> {
+    const file = await sharp({
+      create: { width: 1600, height: 1000, channels: 3, background: '#7a4b2a' },
+    })
+      .jpeg()
+      .toBuffer();
+    const ticket = await api(actor)
+      .post('/settings/site/uploads', { contentType: 'image/jpeg', size: file.length })
+      .expect(201);
+    const { uploadId, uploadUrl, headers } = ticket.body as {
+      uploadId: string;
+      uploadUrl: string;
+      headers: Record<string, string>;
+    };
+    expect((await fetch(uploadUrl, { method: 'PUT', headers, body: file })).status).toBe(200);
+    const completed = await api(actor)
+      .post(`/settings/site/uploads/${uploadId}/complete`)
+      .expect(200);
+    return (completed.body as { imageKey: string }).imageKey;
+  }
+
+  it('site client : réglages et photos de l’accueil, administrateur seulement, isolés par traiteur', async () => {
+    const empty = await api(admin).get('/settings/site').expect(200);
+    expect(empty.body).toEqual({
+      requireClientApproval: false,
+      intro: null,
+      photoKeys: [],
+      privacyExtra: null,
+      cndpDeclaration: null,
+    });
+    await api(employee).get('/settings/site').expect(403);
+    await api(employee)
+      .post('/settings/site/uploads', { contentType: 'image/jpeg', size: 1000 })
+      .expect(403);
+
+    const first = await uploadSitePhoto(admin);
+    const second = await uploadSitePhoto(admin);
+    const input = {
+      requireClientApproval: true,
+      intro: { fr: 'Traiteur à Rabat depuis 1998', ar: 'ممون حفلات بالرباط منذ 1998' },
+      photoKeys: [first, second],
+      privacyExtra: { fr: 'Les photos de vos événements ne sont jamais publiées.' },
+      cndpDeclaration: ' D-123/2026 ',
+    };
+    const saved = await api(admin)
+      .put('/settings/site', input)
+      .set('If-Match', siteSettingsVersion(empty.body as SiteSettings))
+      .expect(200);
+    expect(saved.body).toEqual({ ...input, cndpDeclaration: 'D-123/2026' });
+    const attached = await prisma.mediaUpload.findMany({
+      where: { imageKey: { in: [first, second] } },
+    });
+    expect(attached.map((media) => [media.status, media.entityType, media.entityId])).toEqual([
+      ['ATTACHED', 'TraiteurSite', admin.traiteurId],
+      ['ATTACHED', 'TraiteurSite', admin.traiteurId],
+    ]);
+
+    // Version périmée : refus, rien n'est écrasé
+    await api(admin)
+      .put('/settings/site', { ...input, requireClientApproval: false })
+      .set('If-Match', siteSettingsVersion(empty.body as SiteSettings))
+      .expect(409);
+
+    // Photo retirée : détachée (effacée après le délai de grâce) ; ordre conservé
+    const reordered = await api(admin)
+      .put('/settings/site', { ...input, photoKeys: [second] })
+      .expect(200);
+    expect((reordered.body as SiteSettings).photoKeys).toEqual([second]);
+    expect((await prisma.mediaUpload.findFirst({ where: { imageKey: first } }))?.status).toBe(
+      'DETACHED',
+    );
+
+    // Photo d'un autre traiteur, trop de photos, texte trop long : refusés
+    const foreign = await uploadSitePhoto(otherAdmin);
+    await api(admin)
+      .put('/settings/site', { ...input, photoKeys: [foreign] })
+      .expect(400);
+    await api(admin)
+      .put('/settings/site', { ...input, photoKeys: Array.from({ length: 7 }, (_, i) => `k${i}`) })
+      .expect(400);
+    await api(admin)
+      .put('/settings/site', { ...input, intro: { fr: 'x'.repeat(1001) } })
+      .expect(400);
+
+    const other = await api(otherAdmin).get('/settings/site').expect(200);
+    expect((other.body as SiteSettings).requireClientApproval).toBe(false);
+    const audit = await prisma.auditLog.findFirst({
+      where: { traiteurId: admin.traiteurId, action: 'settings.site_updated' },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(audit?.after).toMatchObject({ requireClientApproval: true, photoKeys: [first, second] });
   });
 
   it('disponibilités : un jour de fermeture hebdomadaire bloque les commandes fermes', async () => {

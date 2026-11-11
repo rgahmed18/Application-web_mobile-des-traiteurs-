@@ -7,43 +7,46 @@ nouvelle traduction (`apps/web/messages/ar.json`, `apps/api/src/pdf/labels.ts`, 
 
 ## Glossaire
 
-| Français                            | Arabe retenu                     | Écarté                                         |
-| ----------------------------------- | -------------------------------- | ---------------------------------------------- |
-| Client(s)                           | الزبون / الزبائن                 | الزبناء (usage marocain), العملاء              |
-| Commande(s)                         | الطلب / الطلبات                  | الطلبية / الطلبيات                             |
-| Prix                                | السعر / الأسعار                  | الثمن / الأثمنة                                |
-| Paiement, payé                      | الدفع، دفعة / المدفوعات، مدفوع   | الأداء، مؤدى                                   |
-| Reste à payer                       | المتبقي للدفع                    | الباقي للأداء                                  |
-| Acompte                             | العربون                          | التسبيق                                        |
-| Solde (d'une commande)              | الباقي                           | الرصيد                                         |
-| Reçu                                | الإيصال                          | الوصل                                          |
-| Bon de livraison                    | سند التسليم                      | وصل التسليم                                    |
-| Facturer                            | إصدار فاتورة                     | فوترة                                          |
-| Location (matériel)                 | الإيجار، تؤجَّر                  | الكراء، تُكرى                                  |
-| Catalogue                           | الكتالوج                         | قائمة المنتجات                                 |
-| Calendrier                          | التقويم                          | الجدول الزمني، اليومية                         |
-| Catégorie                           | الصنف / الأصناف                  | فئة                                            |
-| Gamme (Standard, Premium, Luxe)     | المستوى / المستويات              | الفئة، فئة الأثمنة                             |
-| Formule (menu)                      | الباقة / الباقات                 | العرض (réservé à « offre » et à « عرض السعر ») |
-| Offre (abonnement)                  | العرض ; côté traiteur : الاشتراك | —                                              |
-| Fonctionnalité                      | الخاصية / الخصائص                | الوظيفة                                        |
-| Livreur                             | الموصّل / الموصّلون              | سائق التوصيل, موزع                             |
-| Chauffeur (rôle sur l'événement)    | السائق                           | —                                              |
-| Accès                               | الوصول                           | الولوج                                         |
-| Espace de gestion                   | فضاء التدبير                     | فضاء التسيير                                   |
-| Date bloquée, bloquer               | تاريخ مغلق، إغلاق / إعادة الفتح  | محجوب، حجب                                     |
-| Disponible / Indisponible / Archivé | متوفر / غير متوفر / مؤرشف        | ظاهر / مخفي                                    |
-| Éléments libres (buffet)            | عناصر خارج الكتالوج              | عناصر حرة                                      |
-| Prénom / Nom                        | الاسم الأول / اسم العائلة        | الاسم الشخصي / الاسم العائلي، النسب            |
-| Fiche client                        | ملف الزبون                       | بطاقة الزبون                                   |
-| Données                             | البيانات                         | المعطيات                                       |
-| Journal d'audit                     | سجل العمليات                     | سجل التدقيق                                    |
-| Filtres                             | عوامل التصفية                    | الفلاتر                                        |
-| Jusqu'au {date}                     | حتى {date}                       | إلى غاية                                       |
-| À {heure}                           | في الساعة {time}                 | على الساعة                                     |
-| Lendemain                           | اليوم التالي                     | اليوم الموالي                                  |
-| Recevoir (un code, un lien)         | استلم                            | توصّل بـ                                       |
-| Merci de…                           | يُرجى                            | المرجو                                         |
+| Français                                            | Arabe retenu                                                                 | Écarté                                         |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------- |
+| Client(s)                                           | الزبون / الزبائن                                                             | الزبناء (usage marocain), العملاء              |
+| Commande(s)                                         | الطلب / الطلبات                                                              | الطلبية / الطلبيات                             |
+| Prix                                                | السعر / الأسعار                                                              | الثمن / الأثمنة                                |
+| Paiement, payé                                      | الدفع، دفعة / المدفوعات، مدفوع                                               | الأداء، مؤدى                                   |
+| Reste à payer                                       | المتبقي للدفع                                                                | الباقي للأداء                                  |
+| Acompte                                             | العربون                                                                      | التسبيق                                        |
+| Solde (d'une commande)                              | الباقي                                                                       | الرصيد                                         |
+| Reçu                                                | الإيصال                                                                      | الوصل                                          |
+| Bon de livraison                                    | سند التسليم                                                                  | وصل التسليم                                    |
+| Facturer                                            | إصدار فاتورة                                                                 | فوترة                                          |
+| Location (matériel)                                 | الإيجار، تؤجَّر                                                              | الكراء، تُكرى                                  |
+| Catalogue                                           | الكتالوج                                                                     | قائمة المنتجات                                 |
+| Calendrier                                          | التقويم                                                                      | الجدول الزمني، اليومية                         |
+| Catégorie                                           | الصنف / الأصناف                                                              | فئة                                            |
+| Gamme (Standard, Premium, Luxe)                     | المستوى / المستويات                                                          | الفئة، فئة الأثمنة                             |
+| Formule (menu)                                      | الباقة / الباقات                                                             | العرض (réservé à « offre » et à « عرض السعر ») |
+| Offre (abonnement)                                  | العرض ; côté traiteur : الاشتراك                                             | —                                              |
+| Fonctionnalité                                      | الخاصية / الخصائص                                                            | الوظيفة                                        |
+| Livreur                                             | الموصّل / الموصّلون                                                          | سائق التوصيل, موزع                             |
+| Chauffeur (rôle sur l'événement)                    | السائق                                                                       | —                                              |
+| Accès                                               | الوصول                                                                       | الولوج                                         |
+| Espace de gestion                                   | فضاء التدبير                                                                 | فضاء التسيير                                   |
+| Date bloquée, bloquer                               | تاريخ مغلق، إغلاق / إعادة الفتح                                              | محجوب، حجب                                     |
+| Disponible / Indisponible / Archivé                 | متوفر / غير متوفر / مؤرشف                                                    | ظاهر / مخفي                                    |
+| Éléments libres (buffet)                            | عناصر خارج الكتالوج                                                          | عناصر حرة                                      |
+| Prénom / Nom                                        | الاسم الأول / اسم العائلة                                                    | الاسم الشخصي / الاسم العائلي، النسب            |
+| Fiche client                                        | ملف الزبون                                                                   | بطاقة الزبون                                   |
+| Données                                             | البيانات                                                                     | المعطيات                                       |
+| Journal d'audit                                     | سجل العمليات                                                                 | سجل التدقيق                                    |
+| Filtres                                             | عوامل التصفية                                                                | الفلاتر                                        |
+| Jusqu'au {date}                                     | حتى {date}                                                                   | إلى غاية                                       |
+| À {heure}                                           | في الساعة {time}                                                             | على الساعة                                     |
+| Lendemain                                           | اليوم التالي                                                                 | اليوم الموالي                                  |
+| Recevoir (un code, un lien)                         | استلم                                                                        | توصّل بـ                                       |
+| Merci de…                                           | يُرجى                                                                        | المرجو                                         |
+| Site client                                         | موقع الزبائن                                                                 | الموقع العمومي                                 |
+| Validation des nouveaux clients, accepter / refuser | قبول الزبائن الجدد، قبول / رفض                                               | المصادقة                                       |
+| CNDP                                                | اللجنة الوطنية (CNDP) ; nom officiel complet conservé dans les textes légaux | —                                              |
 
 ## Conventions
 

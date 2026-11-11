@@ -103,6 +103,7 @@ const FIXED_ACTIONS = [
   'settings.availability_updated',
   'settings.logo_updated',
   'settings.logo_removed',
+  'settings.site_updated',
   // Plateforme
   'traiteur.created',
   'super_admin.created',

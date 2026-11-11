@@ -1165,7 +1165,8 @@
       "billing": "Documents et paiements",
       "availability": "Disponibilités",
       "pricing": "Mode de prix",
-      "account": "Mon compte"
+      "account": "Mon compte",
+      "site": "Site client"
     },
     "company": {
       "title": "Coordonnées",
@@ -1264,6 +1265,35 @@
         "regenerated": "Nouveaux codes de secours créés",
         "codesStored": "C’est fait"
       }
+    },
+    "site": {
+      "saved": "Réglages du site client enregistrés",
+      "clientsTitle": "Nouveaux clients",
+      "clientsHint": "Clients qui s’inscrivent eux-mêmes sur votre site.",
+      "requireClientApproval": "Validation des nouveaux clients",
+      "approvalOff": "Désactivée : un client peut envoyer une demande dès son inscription.",
+      "approvalOn": "Activée : un nouveau client voit son espace mais ne peut pas envoyer de demande avant votre accord (Accepter ou Refuser sur sa fiche).",
+      "homeTitle": "Accueil du site",
+      "homeHint": "Présentation et photos affichées en haut de votre site, avec votre nom et votre logo.",
+      "introFr": "Présentation (français)",
+      "introAr": "Présentation (arabe)",
+      "introHint": "Quelques phrases : votre spécialité, votre ville, depuis quand. 1 000 caractères au plus.",
+      "photos": {
+        "main": "Photo principale",
+        "alt": "Photo d’accueil n° {position}",
+        "moveBefore": "Placer avant",
+        "moveAfter": "Placer après",
+        "fallback": "Aucune photo : l’accueil reprend les photos de votre catalogue.",
+        "count": "{count} photo(s) sur {max} ; la première est la photo principale."
+      },
+      "privacyTitle": "Politique de confidentialité",
+      "privacyHint": "Générée automatiquement avec vos informations légales (raison sociale, ICE, adresse, contact) et acceptée par chaque client à son inscription (loi 09-08).",
+      "legalReview": "À faire relire par un juriste avant d’ouvrir votre site au public.",
+      "cndpDeclaration": "N° de déclaration CNDP",
+      "cndpHint": "Récépissé de déclaration ou numéro d’autorisation de la CNDP, s’il existe.",
+      "privacyExtraFr": "Paragraphe complémentaire (français)",
+      "privacyExtraAr": "Paragraphe complémentaire (arabe)",
+      "privacyExtraHint": "Facultatif : ajouté à la fin de la politique générée. 4 000 caractères au plus."
     }
   },
   "quotes": {
@@ -2106,7 +2136,8 @@
       "catalog_buffet_type_restored": "Type de buffet : restauré",
       "catalog_buffet_type_deleted": "Type de buffet : supprimé",
       "catalog_buffet_type_reordered": "Type de buffet : ordre modifié",
-      "unknown": "Autre action"
+      "unknown": "Autre action",
+      "settings_site_updated": "Réglages du site client modifiés"
     },
     "traiteurs": {
       "title": "Traiteurs",

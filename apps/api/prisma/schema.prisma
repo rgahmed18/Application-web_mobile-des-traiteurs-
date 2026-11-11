@@ -219,6 +219,29 @@ enum MessageSenderType {
   SYSTEM
 }
 
+// Accord du traiteur sur un client inscrit en ligne (réglage « Validation des nouveaux clients »)
+enum ClientApproval {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Origine d'une commande : saisie au back-office ou demande envoyée depuis le site client
+enum OrderSource {
+  BACKOFFICE
+  ONLINE
+}
+
+// Événements signalés au traiteur (cloche du back-office)
+enum NotificationType {
+  CLIENT_SIGNED_UP
+  CLIENT_APPROVAL_REQUESTED
+  ORDER_REQUESTED
+  ORDER_REQUEST_CANCELLED
+  QUOTE_ACCEPTED
+  QUOTE_REJECTED
+}
+
 // ─────────────────────── Tenant & identité ───────────────────────
 
 model Traiteur {
@@ -277,6 +300,13 @@ model Traiteur {
   rib           String?
   invoiceFooter String?
 
+  // Site client (adresse du traiteur, à la racine)
+  requireClientApproval Boolean  @default(false) // nouveaux clients en attente d'accord
+  siteIntro             Json? // présentation de l'accueil { fr, ar }
+  sitePhotoKeys         String[] @default([]) // photos de l'accueil (MediaUpload), 6 au plus
+  privacyExtra          Json? // paragraphe libre ajouté à la politique de confidentialité { fr, ar }
+  cndpDeclaration       String? // n° de déclaration ou d'autorisation CNDP (loi 09-08)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -319,6 +349,7 @@ model Traiteur {
   reviews             Review[]
   auditLogs           AuditLog[]
   mediaUploads        MediaUpload[]
+  notifications       Notification[]
 }
 
 // Identité globale : un compte unique, utilisable chez plusieurs traiteurs.
@@ -354,6 +385,7 @@ model User {
   twoFactorChallenges TwoFactorChallenge[]
   platformAccesses    PlatformAccess[]
   formDrafts          FormDraft[]
+  notificationReads   NotificationRead[]
 }
 
 // Activation d'un compte de la plateforme (SUPER_ADMIN) créé en ligne de commande : lien à usage
@@ -491,27 +523,36 @@ model TwoFactorChallenge {
 // Appartenance d'un utilisateur à un traiteur, avec son rôle.
 // Les données client propres au traiteur sont rattachées ici, jamais au User.
 model Membership {
-  id               String           @id @default(uuid()) @db.Uuid
-  traiteurId       String           @db.Uuid
-  userId           String           @db.Uuid
-  role             Role
-  status           MembershipStatus @default(ACTIVE)
+  id                     String           @id @default(uuid()) @db.Uuid
+  traiteurId             String           @db.Uuid
+  userId                 String           @db.Uuid
+  role                   Role
+  status                 MembershipStatus @default(ACTIVE)
   // Coordonnées telles que le traiteur les connaît : jamais partagées entre traiteurs ni
   // recopiées vers le compte global (User). Initialisées depuis le compte à sa création.
-  firstName        String
-  lastName         String
-  email            String?
-  locale           Locale           @default(fr) // langue de communication avec ce client
+  firstName              String
+  lastName               String
+  email                  String?
+  locale                 Locale           @default(fr) // langue de communication avec ce client
   // Client entreprise : raison sociale et ICE imprimés sur les factures
-  companyName      String?
-  companyIce       String?
-  internalNotes    String? // notes du traiteur sur ce client / employé
-  tags             String[]
+  companyName            String?
+  companyIce             String?
+  internalNotes          String? // notes du traiteur sur ce client / employé
+  tags                   String[]
   // Suspension d'un membre du personnel (accès refusé immédiatement, sessions révoquées)
-  suspendedAt      DateTime?
-  suspensionReason String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  suspendedAt            DateTime?
+  suspensionReason       String?
+  // Client inscrit en ligne : accord du traiteur (sans objet pour le personnel, APPROVED)
+  clientApproval         ClientApproval   @default(APPROVED)
+  clientApprovalAt       DateTime?
+  clientApprovalByUserId String?          @db.Uuid
+  clientRejectionReason  String?
+  // Consentement à la politique de confidentialité de CE traiteur (loi 09-08), horodaté
+  privacyConsentAt       DateTime?
+  privacyPolicyVersion   String?
+  privacyConsentIp       String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
   traiteur    Traiteur          @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1012,6 +1053,7 @@ model Order {
   latitude              Decimal?    @db.Decimal(9, 6)
   longitude             Decimal?    @db.Decimal(9, 6)
   status                OrderStatus @default(PENDING)
+  source                OrderSource @default(BACKOFFICE)
   // Verrouillage optimiste : incrémenté à chaque écriture (commande, lignes, statut)
   version               Int         @default(1)
   priceMode             PriceMode // figé à la création (trigger), recopié sur les lignes
@@ -1472,6 +1514,38 @@ model Review {
   @@index([traiteurId, isPublished])
 }
 
+// ─────────────────────────── Notifications ───────────────────────────
+
+// Notification du traiteur : montrée aux membres qui ont la permission de son type. `data` ne
+// contient que du texte affichable (nom du client, référence), jamais de donnée interne.
+model Notification {
+  id         String           @id @default(uuid()) @db.Uuid
+  traiteurId String           @db.Uuid
+  type       NotificationType
+  entityType String // Membership | Order | Quote
+  entityId   String           @db.Uuid
+  data       Json
+  createdAt  DateTime         @default(now())
+
+  traiteur Traiteur           @relation(fields: [traiteurId], references: [id], onDelete: Cascade)
+  reads    NotificationRead[]
+
+  @@index([traiteurId, createdAt])
+}
+
+// Lecture d'une notification, par utilisateur (un super admin entré chez le traiteur compris)
+model NotificationRead {
+  notificationId String   @db.Uuid
+  userId         String   @db.Uuid
+  readAt         DateTime @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, userId])
+  @@index([userId])
+}
+
 // ─────────────────────────── Médias ───────────────────────────
 
 enum MediaUploadStatus {
@@ -1489,7 +1563,7 @@ model MediaUpload {
   status     MediaUploadStatus @default(PENDING)
   rawKey     String // fichier brut envoyé par le navigateur (tmp/...), supprimé après traitement
   imageKey   String?           @unique // base des variantes traitées (traiteurs/<id>/catalog/<uuid>)
-  entityType String? // Dish | Package | EquipmentItem | Buffet
+  entityType String? // Dish | Package | EquipmentItem | Buffet | TraiteurSite
   entityId   String?           @db.Uuid
   detachedAt DateTime?
   createdAt  DateTime          @default(now())

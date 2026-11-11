@@ -38,15 +38,17 @@ function putWithProgress(
 /**
  * Photo du catalogue : préparation dans le navigateur, URL d'envoi, envoi direct au stockage,
  * puis traitement par l'API. Retourne la clé à enregistrer sur le plat ou la formule.
+ * `uploadsPath` : photos du catalogue, ou de l'accueil du site client (/settings/site/uploads).
  */
 export async function uploadCatalogImage(
   file: File,
   onProgress: (progress: UploadProgress) => void,
+  uploadsPath = '/catalog/uploads',
 ): Promise<string> {
   onProgress({ stage: 'preparing', percent: 0 });
   const prepared = await prepareImageForUpload(file);
 
-  const ticket = await apiRequest('/catalog/uploads', {
+  const ticket = await apiRequest(uploadsPath, {
     method: 'POST',
     body: { contentType: 'image/jpeg', size: prepared.size },
     schema: uploadTicketSchema,
@@ -57,7 +59,7 @@ export async function uploadCatalogImage(
   );
 
   onProgress({ stage: 'processing', percent: 100 });
-  const completed = await apiRequest(`/catalog/uploads/${ticket.uploadId}/complete`, {
+  const completed = await apiRequest(`${uploadsPath}/${ticket.uploadId}/complete`, {
     method: 'POST',
     schema: completedUploadSchema,
   });

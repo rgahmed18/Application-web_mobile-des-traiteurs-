@@ -8,10 +8,15 @@ import {
   type PricingSettings,
   type PricingSettingsInput,
   type AuditAction,
+  parseLocalizedText,
+  type SiteSettings,
+  siteSettingsVersion,
 } from '@traiteur/shared';
 
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth-user';
+import { jsonOrDbNull } from '../catalog/catalog-common';
+import { MediaService } from '../catalog/media/media.service';
 import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
 import type { Prisma } from '../generated/prisma/client';
@@ -39,6 +44,26 @@ const pricingSelect = {
   defaultTaxRateBps: true,
 } satisfies Prisma.TraiteurSelect;
 
+const siteSelect = {
+  requireClientApproval: true,
+  siteIntro: true,
+  sitePhotoKeys: true,
+  privacyExtra: true,
+  cndpDeclaration: true,
+} satisfies Prisma.TraiteurSelect;
+
+function toSiteSettings(
+  row: Prisma.TraiteurGetPayload<{ select: typeof siteSelect }>,
+): SiteSettings {
+  return {
+    requireClientApproval: row.requireClientApproval,
+    intro: row.siteIntro === null ? null : parseLocalizedText(row.siteIntro),
+    photoKeys: row.sitePhotoKeys,
+    privacyExtra: row.privacyExtra === null ? null : parseLocalizedText(row.privacyExtra),
+    cndpDeclaration: row.cndpDeclaration,
+  };
+}
+
 /** Réglages lus (texte, nombres, listes de nombres) : valeurs JSON telles quelles pour l'audit. */
 const snapshot = (value: object) => ({ ...value }) as Prisma.InputJsonObject;
 
@@ -52,6 +77,7 @@ export class GeneralSettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly media: MediaService,
   ) {}
 
   company(user: AuthenticatedUser): Promise<CompanySettings> {
@@ -104,6 +130,82 @@ export class GeneralSettingsService {
     return this.write(user, pricingSelect, input, 'settings.pricing_updated', client, {
       expected: expectedVersion,
       of: pricingSettingsVersion,
+    });
+  }
+
+  site(user: AuthenticatedUser): Promise<SiteSettings> {
+    return this.read(user, siteSelect).then(toSiteSettings);
+  }
+
+  /**
+   * Site client : réglages et photos de l'accueil. Les nouvelles photos sont préparées avant la
+   * transaction (copie éventuelle sur le stockage), rattachées au traiteur dans la transaction ;
+   * les photos retirées sont détachées (effacées après le délai de grâce).
+   */
+  async updateSite(
+    user: AuthenticatedUser,
+    input: SiteSettings,
+    client: ClientInfo,
+    expectedVersion: string | null = null,
+  ): Promise<SiteSettings> {
+    const traiteurId = requireTraiteurId(user);
+    const current = await this.prisma.traiteur.findUniqueOrThrow({
+      where: { id: traiteurId },
+      select: { sitePhotoKeys: true },
+    });
+    const prepared = await Promise.all(
+      input.photoKeys.map((key) =>
+        current.sitePhotoKeys.includes(key)
+          ? Promise.resolve(key)
+          : this.media.prepare(traiteurId, key, traiteurId),
+      ),
+    );
+    return this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'Traiteur', traiteurId);
+      const before = toSiteSettings(
+        await tx.traiteur.findUniqueOrThrow({ where: { id: traiteurId }, select: siteSelect }),
+      );
+      assertEditVersion(siteSettingsVersion(before), expectedVersion);
+
+      const photoKeys: string[] = [];
+      for (const key of prepared) {
+        photoKeys.push(
+          before.photoKeys.includes(key)
+            ? key
+            : await this.media.attach(tx, traiteurId, key, 'TraiteurSite', traiteurId),
+        );
+      }
+      for (const key of before.photoKeys) {
+        if (!photoKeys.includes(key)) await this.media.detach(tx, traiteurId, key);
+      }
+
+      const after = toSiteSettings(
+        await tx.traiteur.update({
+          where: { id: traiteurId },
+          data: {
+            requireClientApproval: input.requireClientApproval,
+            siteIntro: jsonOrDbNull(input.intro),
+            sitePhotoKeys: photoKeys,
+            privacyExtra: jsonOrDbNull(input.privacyExtra),
+            cndpDeclaration: input.cndpDeclaration,
+          },
+          select: siteSelect,
+        }),
+      );
+      await this.audit.record(
+        {
+          traiteurId,
+          actor: user,
+          action: 'settings.site_updated',
+          entityType: 'Traiteur',
+          entityId: traiteurId,
+          before: snapshot(before),
+          after: snapshot(after),
+          client,
+        },
+        tx,
+      );
+      return after;
     });
   }
 

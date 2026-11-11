@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
@@ -16,11 +16,22 @@ import {
   type PricingSettingsInput,
   pricingSettingsInputSchema,
   pricingSettingsSchema,
+  type CompletedUpload,
+  completedUploadSchema,
+  type CreateUploadInput,
+  createUploadSchema,
+  type SiteSettings,
+  siteSettingsSchema,
+  type UploadTicket,
+  uploadTicketSchema,
 } from '@traiteur/shared';
 
 import type { AuthenticatedUser } from '../auth/auth-user';
 import { CurrentUser, RequirePermissions } from '../auth/decorators';
+import { MediaService } from '../catalog/media/media.service';
 import { Client, type ClientInfo } from '../common/http/client-info';
+import { uuidParam } from '../common/http/uuid-param';
+import { requireTraiteurId } from '../common/tenant';
 import { zodToOpenApi } from '../common/zod/zod-openapi';
 import { ZodValidationPipe } from '../common/zod/zod-validation.pipe';
 import { AccountService } from './account.service';
@@ -31,7 +42,10 @@ import { ExpectedVersion } from '../common/http/edit-version';
 @ApiBearerAuth()
 @Controller('settings')
 export class GeneralSettingsController {
-  constructor(private readonly settings: GeneralSettingsService) {}
+  constructor(
+    private readonly settings: GeneralSettingsService,
+    private readonly media: MediaService,
+  ) {}
 
   @Get('company')
   @RequirePermissions('settings.manage')
@@ -98,6 +112,56 @@ export class GeneralSettingsController {
     @ExpectedVersion() expectedVersion: string | null,
   ): Promise<PricingSettings> {
     return this.settings.updatePricing(user, body, client, expectedVersion);
+  }
+
+  @Get('site')
+  @RequirePermissions('settings.manage')
+  @ApiOkResponse({ schema: zodToOpenApi(siteSettingsSchema, 'output') })
+  site(@CurrentUser() user: AuthenticatedUser): Promise<SiteSettings> {
+    return this.settings.site(user);
+  }
+
+  @Put('site')
+  @RequirePermissions('settings.manage')
+  @ApiOperation({
+    summary:
+      'Site client : validation des nouveaux clients, présentation et photos de l’accueil, politique de confidentialité',
+  })
+  @ApiBody({ schema: zodToOpenApi(siteSettingsSchema) })
+  @ApiOkResponse({ schema: zodToOpenApi(siteSettingsSchema, 'output') })
+  updateSite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(siteSettingsSchema)) body: SiteSettings,
+    @Client() client: ClientInfo,
+    @ExpectedVersion() expectedVersion: string | null,
+  ): Promise<SiteSettings> {
+    return this.settings.updateSite(user, body, client, expectedVersion);
+  }
+
+  @Post('site/uploads')
+  @RequirePermissions('settings.manage')
+  @ApiOperation({
+    summary: 'URL d’envoi direct d’une photo de l’accueil (JPEG, PNG ou WebP, 5 Mo)',
+  })
+  @ApiBody({ schema: zodToOpenApi(createUploadSchema) })
+  @ApiOkResponse({ schema: zodToOpenApi(uploadTicketSchema, 'output') })
+  createSiteUpload(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(createUploadSchema)) body: CreateUploadInput,
+  ): Promise<UploadTicket> {
+    return this.media.createUpload(requireTraiteurId(user), body);
+  }
+
+  @Post('site/uploads/:id/complete')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('settings.manage')
+  @ApiOperation({ summary: 'Vérifie, redimensionne et nettoie la photo envoyée' })
+  @ApiOkResponse({ schema: zodToOpenApi(completedUploadSchema, 'output') })
+  completeSiteUpload(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+  ): Promise<CompletedUpload> {
+    return this.media.completeUpload(requireTraiteurId(user), id);
   }
 }
 

@@ -15,6 +15,8 @@ import {
   type PasswordChangeInput,
   type PricingSettingsInput,
   pricingSettingsSchema,
+  type SiteSettings,
+  siteSettingsSchema,
 } from '@traiteur/shared';
 import { z } from 'zod';
 
@@ -95,6 +97,7 @@ function settingsResource<TSchema extends z.ZodType>(path: string, schema: TSche
 const company = settingsResource('/settings/company', companySettingsSchema);
 const availability = settingsResource('/settings/availability', availabilitySettingsSchema);
 const pricing = settingsResource('/settings/pricing', pricingSettingsSchema);
+const site = settingsResource('/settings/site', siteSettingsSchema);
 const account = settingsResource('/me/account', accountSchema);
 
 export const useCompanySettings = company.useQuery;
@@ -105,6 +108,8 @@ export const useSaveAvailabilitySettings = () =>
 export const usePricingSettings = pricing.useQuery;
 export const useSavePricingSettings = () =>
   pricing.useSave<PricingSettingsInput>({ invalidateAll: true });
+export const useSiteSettings = site.useQuery;
+export const useSaveSiteSettings = () => site.useSave<SiteSettings>();
 export const useAccount: () => UseQueryResult<Account> = account.useQuery;
 export const useSaveAccount = () => account.useSave<AccountUpdateInput>();
 

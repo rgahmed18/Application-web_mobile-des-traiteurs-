@@ -56,7 +56,7 @@ import {
 } from './settings-api';
 
 /** Lecture d'un réglage : squelette, erreur ou formulaire. */
-function Loaded<T>({
+export function Loaded<T>({
   query,
   children,
 }: {
@@ -69,7 +69,7 @@ function Loaded<T>({
 }
 
 /** Barre d'enregistrement commune aux onglets. */
-function SaveBar({
+export function SaveBar({
   dirty,
   submitting,
   onReset,
@@ -235,7 +235,7 @@ export function AvailabilityTab() {
   );
 }
 
-function SwitchRow({
+export function SwitchRow({
   id,
   checked,
   onChange,
