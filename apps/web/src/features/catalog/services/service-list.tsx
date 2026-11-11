@@ -51,9 +51,9 @@ export function ServiceList() {
     service.archivedAt ? (
       <StatusBadge tone="muted">{t('status.archived')}</StatusBadge>
     ) : service.isActive ? (
-      <StatusBadge tone="success">{t('status.active')}</StatusBadge>
+      <StatusBadge tone="success">{t('status.available')}</StatusBadge>
     ) : (
-      <StatusBadge tone="warning">{t('status.inactive')}</StatusBadge>
+      <StatusBadge tone="warning">{t('status.unavailable')}</StatusBadge>
     );
 
   return (

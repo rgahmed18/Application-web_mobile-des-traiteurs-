@@ -106,9 +106,9 @@ function ListRow({ list, item, canWrite, onEdit }: RowProps) {
       {item.archived ? (
         <StatusBadge tone="muted">{t('lists.archived')}</StatusBadge>
       ) : item.isActive ? (
-        <StatusBadge tone="success">{t('status.active')}</StatusBadge>
+        <StatusBadge tone="success">{t('status.available')}</StatusBadge>
       ) : (
-        <StatusBadge tone="warning">{t('status.inactive')}</StatusBadge>
+        <StatusBadge tone="warning">{t('status.unavailable')}</StatusBadge>
       )}
       {canWrite && (
         <ItemActionsMenu

@@ -350,7 +350,7 @@
     },
     "lists": {
       "title": "Listes du catalogue",
-      "description": "Types d’événement et gammes proposés dans les commandes et le catalogue. Le code d’un élément ne change jamais ; son nom, son ordre et son activation, si.",
+      "description": "Types d’événement et gammes proposés dans les commandes et le catalogue. Le code d’un élément ne change jamais ; son nom, son ordre et sa disponibilité, si.",
       "dragHint": "Glissez une ligne pour changer l’ordre d’affichage (souris, doigt, ou clavier : Espace puis flèches).",
       "orderSaved": "Ordre enregistré.",
       "saved": "Élément enregistré.",
@@ -360,7 +360,7 @@
       "usage": "{count, plural, =0 {Jamais utilisé} one {Utilisé # fois} other {Utilisé # fois}}",
       "code": "Code : {code}",
       "archived": "Archivé",
-      "active": "Proposé dans les nouvelles saisies",
+      "active": "Disponible dans les nouvelles saisies",
       "dragHandle": "Déplacer « {name} »",
       "empty": "Aucun élément.",
       "sections": {
@@ -398,8 +398,8 @@
       "replacementPriceHint": "Facturé pour un article manquant ou cassé au retour. Vide : non facturé.",
       "stockQuantity": "Quantité en stock",
       "stockHint": "La disponibilité est calculée par période : chaque commande ferme occupe son matériel de l’installation au retour.",
-      "active": "Proposé dans les nouvelles commandes",
-      "activeHint": "Décochez pour le retirer temporairement sans l’archiver.",
+      "active": "Disponible à la commande",
+      "activeHint": "Décochez pour le rendre indisponible temporairement, sans l’archiver.",
       "inStock": "{count, plural, =0 {Aucun en stock} one {# en stock} other {# en stock}}",
       "perUnit": "la location, par unité"
     },
@@ -428,7 +428,7 @@
       "pricingPerPerson": "Par personne",
       "pricingFlat": "Forfait",
       "flat": "forfait",
-      "active": "Proposé dans les nouvelles commandes",
+      "active": "Disponible à la commande",
       "dishCount": "{count, plural, one {# plat} other {# plats}}",
       "itemCount": "{count, plural, one {# élément} other {# éléments}}",
       "chooseType": "Choisir un type…"
@@ -470,8 +470,6 @@
     "status": {
       "available": "Disponible",
       "unavailable": "Indisponible",
-      "active": "Visible",
-      "inactive": "Masqué",
       "archived": "Archivé",
       "inUse": "Utilisé dans des commandes"
     },
@@ -542,7 +540,7 @@
       "allergens": "Allergènes",
       "allergensHint": "Affichés aux clients, conformément à la réglementation.",
       "availability": "Disponible à la commande",
-      "availabilityHint": "Décochez pour masquer temporairement le plat (hors saison…).",
+      "availabilityHint": "Décochez pour le rendre indisponible temporairement (hors saison…).",
       "sectionGeneral": "Informations",
       "sectionPrice": "Prix",
       "sectionDetails": "Détails",
@@ -561,7 +559,7 @@
       "maxGuestsHint": "Laisser vide : pas de limite.",
       "guestsRange": "{min} à {max} invités",
       "guestsFrom": "À partir de {min} invités",
-      "active": "Proposée aux clients",
+      "active": "Disponible à la commande",
       "composition": "Composition",
       "compositionHint": "Plats inclus et quantité par personne.",
       "addDish": "Ajouter un plat",
@@ -596,7 +594,7 @@
       "dishCount": "{count, plural, =0 {Aucun plat} one {# plat} other {# plats}}",
       "dragHint": "Faites glisser les catégories pour changer leur ordre d’affichage.",
       "dragHandle": "Déplacer {name}",
-      "active": "Visible par les clients",
+      "active": "Disponible (visible par les clients)",
       "orderSaved": "Ordre enregistré",
       "saved": "Catégorie enregistrée",
       "dragStart": "{name} saisie. Utilisez les flèches pour la déplacer, Espace pour la poser.",
@@ -611,7 +609,7 @@
       "empty": "Aucun service pour le moment",
       "emptyHint": "Décoration, serveurs, musique… proposés en complément d’une commande.",
       "pricingUnit": "Tarification",
-      "active": "Proposé aux clients",
+      "active": "Disponible à la commande",
       "saved": "Service enregistré"
     },
     "unusualPrice": {

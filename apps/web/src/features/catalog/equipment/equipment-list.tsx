@@ -72,9 +72,9 @@ export function EquipmentList() {
     item.archivedAt ? (
       <StatusBadge tone="muted">{t('status.archived')}</StatusBadge>
     ) : item.isActive ? (
-      <StatusBadge tone="success">{t('status.active')}</StatusBadge>
+      <StatusBadge tone="success">{t('status.available')}</StatusBadge>
     ) : (
-      <StatusBadge tone="warning">{t('status.inactive')}</StatusBadge>
+      <StatusBadge tone="warning">{t('status.unavailable')}</StatusBadge>
     );
   const items = equipment.data?.items ?? [];
 

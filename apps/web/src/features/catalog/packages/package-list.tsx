@@ -79,9 +79,9 @@ export function PackageList() {
     pkg.archivedAt ? (
       <StatusBadge tone="muted">{t('status.archived')}</StatusBadge>
     ) : pkg.isActive ? (
-      <StatusBadge tone="success">{t('status.active')}</StatusBadge>
+      <StatusBadge tone="success">{t('status.available')}</StatusBadge>
     ) : (
-      <StatusBadge tone="warning">{t('status.inactive')}</StatusBadge>
+      <StatusBadge tone="warning">{t('status.unavailable')}</StatusBadge>
     );
 
   const items = packages.data?.items ?? [];
@@ -120,8 +120,8 @@ export function PackageList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>{t('filters.allStatuses')}</SelectItem>
-            <SelectItem value="active">{t('status.active')}</SelectItem>
-            <SelectItem value="inactive">{t('status.inactive')}</SelectItem>
+            <SelectItem value="active">{t('status.available')}</SelectItem>
+            <SelectItem value="inactive">{t('status.unavailable')}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={eventType} onValueChange={resetPage(setEventType)}>
