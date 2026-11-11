@@ -46,6 +46,7 @@ import {
 } from '../forms/form-values';
 import { LocalizedTextFields } from '../forms/localized-text-fields';
 import { PriceFields } from '../forms/price-fields';
+import { useUnusualPriceConfirm } from '../forms/unusual-price';
 
 export const serviceFormSchema = z
   .object({
@@ -112,9 +113,24 @@ export function ServiceFormDialog({ settings, service, onClose }: ServiceFormDia
     baseVersion: service?.updatedAt ?? null,
   });
   const editConflict = useEditConflict(draft);
+  const unusualPrice = useUnusualPriceConfirm();
+  const ttc = settings.priceEntryMode === 'TTC';
   const [price, taxRate] = useWatch({ control: form.control, name: ['price', 'taxRateBps'] });
 
   const onSubmit = form.handleSubmit(async (input) => {
+    // Prix inhabituel (saisie doublée ?) : confirmé avant d'enregistrer
+    if (
+      !(await unusualPrice.confirm([
+        {
+          label: t(ttc ? 'fields.priceTtc' : 'fields.priceHt'),
+          cents: input.price,
+          kind: input.pricingUnit === 'FLAT' ? 'flat' : 'unit',
+          previous: service ? (ttc ? service.priceTtc : service.priceHt) : null,
+        },
+      ]))
+    ) {
+      return;
+    }
     try {
       await save.mutateAsync({ id: service?.id ?? null, input, version: draft.expectedVersion });
       await draft.clear();
@@ -135,6 +151,7 @@ export function ServiceFormDialog({ settings, service, onClose }: ServiceFormDia
       onSubmit={onSubmit}
     >
       <FormDraftNotice draft={draft} />
+      {unusualPrice.dialog}
       <DraftFields draft={draft}>
         <LocalizedTextFields
           control={form.control}

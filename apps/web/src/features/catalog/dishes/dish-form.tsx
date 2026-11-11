@@ -37,6 +37,7 @@ import { FormActions, FormHeader, FormSection } from '../components/form-layout'
 import { ImageUploadField } from '../forms/image-upload-field';
 import { LocalizedTextFields } from '../forms/localized-text-fields';
 import { PriceFields } from '../forms/price-fields';
+import { useUnusualPriceConfirm } from '../forms/unusual-price';
 import { UnsavedChangesGuard } from '@/components/forms/unsaved-changes-guard';
 import { useLocalized } from '../use-localized';
 import { dishFormSchema, dishToFormValues, EMPTY_DISH_FORM } from './dish-form-schema';
@@ -81,6 +82,8 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
     baseVersion: mode === 'edit' && dish ? dish.updatedAt : null,
   });
   const editConflict = useEditConflict(draft);
+  const unusualPrice = useUnusualPriceConfirm();
+  const ttc = settings.priceEntryMode === 'TTC';
 
   const [price, taxRate, nameFr] = useWatch({
     control: form.control,
@@ -88,6 +91,19 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
   });
 
   const onSubmit = form.handleSubmit(async (input) => {
+    // Prix inhabituel (saisie doublée ?) : confirmé avant d'enregistrer
+    if (
+      !(await unusualPrice.confirm([
+        {
+          label: t(ttc ? 'fields.priceTtc' : 'fields.priceHt'),
+          cents: input.price,
+          kind: 'unit',
+          previous: mode === 'edit' && dish ? (ttc ? dish.priceTtc : dish.priceHt) : null,
+        },
+      ]))
+    ) {
+      return;
+    }
     try {
       await save.mutateAsync({
         id: mode === 'edit' && dish ? dish.id : null,
@@ -107,6 +123,7 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
       <FormDraftNotice draft={draft} />
+      {unusualPrice.dialog}
       <DraftFields draft={draft}>
         <FormHeader
           title={t(mode === 'edit' ? 'dishes.editTitle' : 'dishes.newTitle')}

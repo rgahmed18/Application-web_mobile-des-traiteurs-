@@ -607,6 +607,12 @@
       "pricingUnit": "Tarification",
       "active": "Proposé aux clients",
       "saved": "Service enregistré"
+    },
+    "unusualPrice": {
+      "title": "Prix inhabituel : vérifiez la saisie",
+      "description": "Ce prix est bien plus élevé que d’habitude. Une saisie doublée (« 10 » devenu « 1010 ») est vite arrivée : corrigez-le, ou enregistrez-le s’il est voulu.",
+      "fix": "Corriger",
+      "keep": "Enregistrer ce prix"
     }
   },
   "orderStatus": {

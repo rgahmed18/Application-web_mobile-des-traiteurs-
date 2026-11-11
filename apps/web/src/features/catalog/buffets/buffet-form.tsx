@@ -34,6 +34,7 @@ import { CatalogListSelect } from '../forms/catalog-list-select';
 import { ImageUploadField } from '../forms/image-upload-field';
 import { LocalizedTextFields } from '../forms/localized-text-fields';
 import { PriceFields } from '../forms/price-fields';
+import { useUnusualPriceConfirm } from '../forms/unusual-price';
 import {
   CompositionEditor,
   type DishSummary,
@@ -65,6 +66,8 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
     baseVersion: buffet?.updatedAt ?? null,
   });
   const editConflict = useEditConflict(draft);
+  const unusualPrice = useUnusualPriceConfirm();
+  const ttc = settings.priceEntryMode === 'TTC';
 
   const [price, taxRate, nameFr, pricingUnit] = useWatch({
     control: form.control,
@@ -73,6 +76,22 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
   const freeItems = useFieldArray({ control: form.control, name: 'freeItems' });
 
   const onSubmit = form.handleSubmit(async (input) => {
+    // Prix inhabituel (saisie doublée ?) : confirmé avant d'enregistrer
+    if (
+      !(await unusualPrice.confirm([
+        {
+          label:
+            input.pricingUnit === 'FLAT'
+              ? t(ttc ? 'fields.priceTtc' : 'fields.priceHt')
+              : t(ttc ? 'fields.pricePerPersonTtc' : 'fields.pricePerPersonHt'),
+          cents: input.price,
+          kind: input.pricingUnit === 'FLAT' ? 'flat' : 'unit',
+          previous: buffet ? (ttc ? buffet.priceTtc : buffet.priceHt) : null,
+        },
+      ]))
+    ) {
+      return;
+    }
     try {
       await save.mutateAsync({ id: buffet?.id ?? null, input, version: draft.expectedVersion });
       setSaved(true);
@@ -88,6 +107,7 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
       <FormDraftNotice draft={draft} />
+      {unusualPrice.dialog}
       <DraftFields draft={draft}>
         <FormHeader
           title={t(buffet ? 'buffets.editTitle' : 'buffets.newTitle')}

@@ -313,3 +313,43 @@ for (const locale of ['fr', 'ar'] as const) {
       .toBe(404);
   });
 }
+
+test('prix inhabituel : confirmation avant d’enregistrer, « Corriger » n’enregistre rien', async ({
+  page,
+  request,
+}) => {
+  const name = `Prix inhabituel ${uniqueSuffix()}`;
+  await clearNewDrafts(request);
+  await login(page);
+  await page.goto('/admin/catalog/equipment/new');
+  await typeInto(page, '#field-name-fr', name);
+  // « 10 » tapé trois fois : 101 010 MAD par unité
+  await typeInto(page, '#field-price', '101010');
+  await typeInto(page, '#field-replacementPrice', '20');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  const dialog = page.getByTestId('unusual-price-dialog');
+  await expect(dialog).toContainText('Prix inhabituel');
+  await expect(dialog).toContainText('101 010,00');
+  await expect(dialog).not.toContainText('Prix de remplacement');
+
+  // « Corriger » : retour au formulaire, rien n'est enregistré
+  await dialog.getByRole('button', { name: 'Corriger' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(/\/admin\/catalog\/equipment\/new$/);
+  await typeInto(page, '#field-price', '10');
+  // Remplacement élevé mais voulu (arche florale) : confirmé
+  await typeInto(page, '#field-replacementPrice', '60000');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(dialog).toContainText('Prix de remplacement');
+  await expect(dialog).not.toContainText('101 010,00');
+  await dialog.getByRole('button', { name: 'Enregistrer ce prix' }).click();
+  await expect(page).toHaveURL(/\/admin\/catalog\/equipment$/);
+  const saved = await findByName<{
+    id: string;
+    name: { fr: string };
+    priceTtc: number;
+    replacementPriceTtc: number;
+  }>(request, 'equipment', name);
+  expect(saved.priceTtc).toBe(1000);
+  expect(saved.replacementPriceTtc).toBe(6_000_000);
+});

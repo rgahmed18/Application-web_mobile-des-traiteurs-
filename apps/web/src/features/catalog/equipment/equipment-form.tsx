@@ -32,6 +32,7 @@ import { CatalogListSelect } from '../forms/catalog-list-select';
 import { ImageUploadField } from '../forms/image-upload-field';
 import { LocalizedTextFields } from '../forms/localized-text-fields';
 import { PriceFields } from '../forms/price-fields';
+import { useUnusualPriceConfirm } from '../forms/unusual-price';
 import {
   EMPTY_EQUIPMENT_FORM,
   equipmentFormSchema,
@@ -67,6 +68,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
     baseVersion: item?.updatedAt ?? null,
   });
   const editConflict = useEditConflict(draft);
+  const unusualPrice = useUnusualPriceConfirm();
 
   const [price, taxRate, nameFr] = useWatch({
     control: form.control,
@@ -74,6 +76,25 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
   });
 
   const onSubmit = form.handleSubmit(async (input) => {
+    // Prix inhabituel (saisie doublée ?) : confirmé avant d'enregistrer
+    if (
+      !(await unusualPrice.confirm([
+        {
+          label: t(ttc ? 'fields.priceTtc' : 'fields.priceHt'),
+          cents: input.price,
+          kind: 'unit',
+          previous: item ? (ttc ? item.priceTtc : item.priceHt) : null,
+        },
+        {
+          label: t(ttc ? 'equipment.replacementPriceTtc' : 'equipment.replacementPriceHt'),
+          cents: input.replacementPrice,
+          kind: 'replacement',
+          previous: item ? (ttc ? item.replacementPriceTtc : item.replacementPriceHt) : null,
+        },
+      ]))
+    ) {
+      return;
+    }
     try {
       await save.mutateAsync({ id: item?.id ?? null, input, version: draft.expectedVersion });
       setSaved(true);
@@ -89,6 +110,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <UnsavedChangesGuard when={form.formState.isDirty && !saved} />
       <FormDraftNotice draft={draft} />
+      {unusualPrice.dialog}
       <DraftFields draft={draft}>
         <FormHeader
           title={t(item ? 'equipment.editTitle' : 'equipment.newTitle')}
