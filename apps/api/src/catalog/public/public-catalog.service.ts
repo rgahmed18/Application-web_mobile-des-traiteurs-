@@ -1,6 +1,15 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
+  imageVariantPath,
   localizedTextSchema,
+  parseLocalizedText,
+  type PublicPhoto,
+  type PublicPrivacy,
+  publicPrivacySchema,
+  type PublicSite,
+  publicSiteSchema,
+  privacyPolicyVersion,
+  SITE_PHOTOS_MAX,
   type PublicCatalog,
   publicCatalogOptionsSchema,
   type PublicCatalogOptions,
@@ -90,7 +99,7 @@ export class PublicCatalogService {
       const rangeFilter = range ? { range } : {};
       const listRef = { select: { ...listSelect, isActive: true, archivedAt: true } } as const;
 
-      const [menus, buffets, equipment] = await Promise.all([
+      const [menus, buffets, equipment, services] = await Promise.all([
         this.prisma.package.findMany({
           where: {
             traiteurId,
@@ -137,12 +146,20 @@ export class PublicCatalogService {
             },
           },
         }),
+        this.prisma.extraService.findMany({
+          where: { traiteurId, ...published },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, name: true, description: true, pricingUnit: true, priceTtc: true },
+        }),
       ]);
 
       // Liste archivée ou désactivée : l'élément reste publié, sans cette mention
       const visible = <T extends { isActive: boolean; archivedAt: Date | null }>(row: T | null) =>
         row && row.isActive && !row.archivedAt ? row : null;
-      const image = (key: string | null) => (key ? this.storage.publicFileUrl(key) : null);
+      const image = (key: string | null) => ({
+        imageUrl: key ? this.photoUrl(key, 'large') : null,
+        thumbUrl: key ? this.photoUrl(key, 'thumb') : null,
+      });
       const dishes = (rows: { quantity: number; dish: { name: Prisma.JsonValue } }[]) =>
         rows.map((row) => ({ name: toLocalized(row.dish.name), quantity: row.quantity }));
       const freeItems = z.array(localizedTextSchema);
@@ -154,7 +171,7 @@ export class PublicCatalogService {
           slug: row.slug,
           name: toLocalized(row.name),
           description: toLocalizedOrNull(row.description),
-          imageUrl: image(row.imageKey),
+          ...image(row.imageKey),
           range: listItem(visible(row.range)),
           pricePerPersonTtc: row.pricePerPersonTtc,
           minGuests: row.minGuests,
@@ -169,7 +186,7 @@ export class PublicCatalogService {
           slug: row.slug,
           name: toLocalized(row.name),
           description: toLocalizedOrNull(row.description),
-          imageUrl: image(row.imageKey),
+          ...image(row.imageKey),
           range: listItem(visible(row.range)),
           type: listItem(visible(row.type)),
           pricingUnit: row.pricingUnit === 'FLAT' ? 'FLAT' : 'PER_PERSON',
@@ -183,16 +200,130 @@ export class PublicCatalogService {
           slug: row.slug,
           name: toLocalized(row.name),
           description: toLocalizedOrNull(row.description),
-          imageUrl: image(row.imageKey),
+          ...image(row.imageKey),
           range: listItem(visible(row.range)),
           category: listItem(visible(row.category)),
+          priceTtc: row.priceTtc,
+        })),
+        services: services.map((row) => ({
+          id: row.id,
+          name: toLocalized(row.name),
+          description: toLocalizedOrNull(row.description),
+          pricingUnit: row.pricingUnit,
           priceTtc: row.priceTtc,
         })),
       };
     });
   }
 
+  /**
+   * Accueil du site client : présentation, contact public et photos. Sans photo choisie par le
+   * traiteur, les photos des menus, buffets puis du matériel publiés.
+   */
+  async site(slug: string): Promise<PublicSite> {
+    return this.cached(`public-site:${slug}`, publicSiteSchema, async () => {
+      const { id } = await this.traiteur(slug);
+      const row = await this.prisma.traiteur.findUniqueOrThrow({
+        where: { id },
+        select: {
+          slug: true,
+          name: true,
+          city: true,
+          phone: true,
+          email: true,
+          defaultLocale: true,
+          siteIntro: true,
+          sitePhotoKeys: true,
+          requireClientApproval: true,
+        },
+      });
+      const keys = row.sitePhotoKeys.length > 0 ? row.sitePhotoKeys : await this.catalogPhotos(id);
+      return {
+        slug: row.slug,
+        name: row.name,
+        city: row.city,
+        phone: row.phone,
+        email: row.email,
+        defaultLocale: row.defaultLocale,
+        intro: row.siteIntro === null ? null : parseLocalizedText(row.siteIntro),
+        photos: keys.map((key): PublicPhoto => ({
+          url: this.photoUrl(key, 'large'),
+          thumbUrl: this.photoUrl(key, 'thumb'),
+        })),
+        requireClientApproval: row.requireClientApproval,
+      };
+    });
+  }
+
+  /** Politique de confidentialité : informations légales du traiteur et version à accepter. */
+  async privacy(slug: string): Promise<PublicPrivacy> {
+    return this.cached(`public-privacy:${slug}`, publicPrivacySchema, async () => {
+      const { id } = await this.traiteur(slug);
+      return this.privacyOf(id);
+    });
+  }
+
+  /** Politique en vigueur d'un traiteur (sans cache) : enregistrée avec chaque consentement. */
+  async privacyOf(traiteurId: string): Promise<PublicPrivacy> {
+    const row = await this.prisma.traiteur.findUniqueOrThrow({
+      where: { id: traiteurId },
+      select: {
+        name: true,
+        legalName: true,
+        legalForm: true,
+        ice: true,
+        rcNumber: true,
+        rcCourt: true,
+        legalAddress: true,
+        city: true,
+        email: true,
+        phone: true,
+        cndpDeclaration: true,
+        privacyExtra: true,
+      },
+    });
+    const policy = {
+      controller: {
+        name: row.name,
+        legalName: row.legalName,
+        legalForm: row.legalForm,
+        ice: row.ice,
+        rcNumber: row.rcNumber,
+        rcCourt: row.rcCourt,
+        address: row.legalAddress,
+        city: row.city,
+        email: row.email,
+        phone: row.phone,
+      },
+      cndpDeclaration: row.cndpDeclaration,
+      extra: row.privacyExtra === null ? null : parseLocalizedText(row.privacyExtra),
+    };
+    return { version: privacyPolicyVersion(policy), ...policy };
+  }
+
   // ─────────────────────────── Interne ───────────────────────────
+
+  private photoUrl(imageKey: string, variant: 'large' | 'thumb'): string {
+    return this.storage.publicFileUrl(imageVariantPath(imageKey, variant));
+  }
+
+  /** Photos des éléments publiés, pour un accueil sans photo choisie. */
+  private async catalogPhotos(traiteurId: string): Promise<string[]> {
+    const where = { traiteurId, ...published, imageKey: { not: null } };
+    const select = { imageKey: true } as const;
+    const take = SITE_PHOTOS_MAX;
+    const rows = [
+      ...(await this.prisma.package.findMany({ where, select, take, orderBy: { slug: 'asc' } })),
+      ...(await this.prisma.buffet.findMany({ where, select, take, orderBy: { slug: 'asc' } })),
+      ...(await this.prisma.equipmentItem.findMany({
+        where,
+        select,
+        take,
+        orderBy: { slug: 'asc' },
+      })),
+    ];
+    return rows.flatMap((row) => (row.imageKey ? [row.imageKey] : [])).slice(0, take);
+  }
 
   private async traiteur(slug: string) {
     const traiteur = await this.prisma.traiteur.findUnique({

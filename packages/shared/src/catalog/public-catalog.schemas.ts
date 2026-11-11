@@ -2,10 +2,11 @@ import { z } from 'zod';
 
 import { eventTypeSchema } from '../enums';
 import { localizedTextSchema } from '../i18n/localized-text';
+import { pricingUnitSchema } from './catalog.schemas';
 
 /**
- * Catalogue public d'un traiteur, en lecture seule, pour son futur site client : menus et
- * formules, buffets et matériel actifs, prix TTC, photos, textes FR/AR. Jamais de stock, de prix
+ * Catalogue public d'un traiteur, en lecture seule, pour son site client : menus et formules,
+ * buffets, matériel et services actifs, prix TTC, photos, textes FR/AR. Jamais de stock, de prix
  * de remplacement, de prix HT ni d'élément archivé ou désactivé.
  */
 
@@ -47,8 +48,9 @@ const publicItemBase = z.object({
   slug: z.string(),
   name: localizedTextSchema,
   description: localizedTextSchema.nullable(),
-  /** Photo publique (null si aucune). */
+  /** Photo publique, grande taille (1200 px) et vignette (400 px) ; null si aucune. */
   imageUrl: z.url().nullable(),
+  thumbUrl: z.url().nullable(),
   range: publicListItemSchema.nullable(),
 });
 
@@ -79,10 +81,21 @@ export const publicEquipmentSchema = publicItemBase.extend({
 });
 export type PublicEquipment = z.infer<typeof publicEquipmentSchema>;
 
+/** Service (décoration, serveurs, DJ…) : non concerné par les filtres de gamme. */
+export const publicServiceSchema = z.object({
+  id: z.uuid(),
+  name: localizedTextSchema,
+  description: localizedTextSchema.nullable(),
+  pricingUnit: pricingUnitSchema,
+  priceTtc: z.number().int(),
+});
+export type PublicService = z.infer<typeof publicServiceSchema>;
+
 export const publicCatalogSchema = z.object({
   currency: z.string(),
   menus: z.array(publicMenuSchema),
   buffets: z.array(publicBuffetSchema),
   equipment: z.array(publicEquipmentSchema),
+  services: z.array(publicServiceSchema),
 });
 export type PublicCatalog = z.infer<typeof publicCatalogSchema>;

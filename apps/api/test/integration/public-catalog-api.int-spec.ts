@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
+import type { Redis } from 'ioredis';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 
@@ -10,12 +11,14 @@ import { syncPermissionCatalog } from '../../src/access/permission-catalog';
 import { AppModule } from '../../src/app.module';
 import { configureApp } from '../../src/app.setup';
 import { TokenService } from '../../src/auth/token.service';
+import { REDIS_CLIENT } from '../../src/redis/redis.module';
 import type { PrismaClient } from '../../src/generated/prisma/client';
 import { createTestPrisma } from './helpers';
 
 /**
  * Catalogue public (site client) : sans connexion, lecture seule, seulement les éléments actifs
- * et non archivés, prix TTC, jamais de stock ni de prix de remplacement ou HT.
+ * et non archivés, prix TTC, jamais de stock ni de prix de remplacement ou HT. Accueil et
+ * politique de confidentialité du site.
  */
 interface Actor {
   token: string;
@@ -32,6 +35,7 @@ interface PublicCatalogBody {
     freeItems: { fr: string }[];
   }[];
   equipment: { name: { fr: string }; priceTtc: number; category: { code: string } | null }[];
+  services: { name: { fr: string }; pricingUnit: string; priceTtc: number }[];
 }
 
 const randomPhone = () => `+2126${Math.floor(10_000_000 + Math.random() * 89_999_999)}`;
@@ -189,6 +193,19 @@ describe('Catalogue public (application complète)', () => {
         .expect(201);
     await equipment('Chaise Napoléon', true);
     await equipment('Chaise abîmée', false);
+    const service = (name: string, isActive: boolean) =>
+      api(admin)
+        .post('/catalog/services', {
+          name: { fr: name, ar: 'ديكور' },
+          description: null,
+          price: 300_000,
+          taxRateBps: null,
+          pricingUnit: 'FLAT',
+          isActive,
+        })
+        .expect(201);
+    await service('Décoration florale', true);
+    await service('DJ (plus proposé)', false);
   });
 
   afterAll(async () => {
@@ -226,8 +243,23 @@ describe('Catalogue public (application complète)', () => {
     expect(body.equipment.map((item) => [item.name.fr, item.priceTtc])).toEqual([
       ['Chaise Napoléon', 1_500],
     ]);
+    expect(body.services).toEqual([
+      expect.objectContaining({
+        name: { fr: 'Décoration florale', ar: 'ديكور' },
+        pricingUnit: 'FLAT',
+        priceTtc: 300_000,
+      }),
+    ]);
     const raw = JSON.stringify(body);
-    for (const hidden of ['stock', 'replacement', 'priceHt', 'pricePerPersonHt', 'archived']) {
+    for (const hidden of [
+      'stock',
+      'replacement',
+      'priceHt',
+      'pricePerPersonHt',
+      'archived',
+      'taxRate',
+      'isActive',
+    ]) {
       expect(raw).not.toContain(hidden);
     }
   });
@@ -248,11 +280,121 @@ describe('Catalogue public (application complète)', () => {
     await publicGet(`${slug}/catalog?range=premium!`).expect(400);
   });
 
+  it('accueil : présentation, contact public, photos du catalogue en repli', async () => {
+    const redis = app.get<Redis>(REDIS_CLIENT);
+    await prisma.traiteur.update({
+      where: { id: admin.traiteurId },
+      data: {
+        siteIntro: { fr: 'Traiteur à Fès', ar: 'ممون حفلات بفاس' },
+        requireClientApproval: true,
+      },
+    });
+    const site = (await publicGet(`${slug}/site`).expect(200)).body as Record<string, unknown>;
+    expect(site).toEqual({
+      slug,
+      name: expect.any(String) as string,
+      city: null,
+      phone: '+212500000000',
+      email: 'test@exemple.ma',
+      defaultLocale: 'fr',
+      intro: { fr: 'Traiteur à Fès', ar: 'ممون حفلات بفاس' },
+      photos: [],
+      requireClientApproval: true,
+    });
+
+    // Photo d'un menu publié : reprise en repli ; celle d'un menu archivé, jamais
+    const [published, archived] = await Promise.all([
+      prisma.package.findFirstOrThrow({
+        where: { traiteurId: admin.traiteurId, archivedAt: null, isActive: true },
+      }),
+      prisma.package.findFirstOrThrow({
+        where: { traiteurId: admin.traiteurId, archivedAt: { not: null } },
+      }),
+    ]);
+    const key = (id: string) => `traiteurs/${admin.traiteurId}/catalog/${id}`;
+    await prisma.package.update({ where: { id: published.id }, data: { imageKey: key('a') } });
+    await prisma.package.update({ where: { id: archived.id }, data: { imageKey: key('b') } });
+    // Cache d'une minute : clés effacées pour relire tout de suite
+    await redis.del(`public-site:${slug}`, `public-catalog:${slug}:catalog:*:*`);
+    const fallback = (await publicGet(`${slug}/site`).expect(200)).body as {
+      photos: { url: string; thumbUrl: string }[];
+    };
+    expect(fallback.photos).toEqual([
+      {
+        url: expect.stringMatching(/\/a-1200\.webp$/) as string,
+        thumbUrl: expect.stringMatching(/\/a-400\.webp$/) as string,
+      },
+    ]);
+    const catalog = (await publicGet(`${slug}/catalog`).expect(200)).body as {
+      menus: { imageUrl: string | null; thumbUrl: string | null }[];
+    };
+    expect(catalog.menus.flatMap((menu) => (menu.imageUrl ? [menu.imageUrl] : []))).toEqual([
+      expect.stringMatching(/\/a-1200\.webp$/),
+    ]);
+
+    // Photos choisies par le traiteur : prioritaires, dans son ordre
+    await prisma.traiteur.update({
+      where: { id: admin.traiteurId },
+      data: { sitePhotoKeys: [key('c'), key('d')] },
+    });
+    await redis.del(`public-site:${slug}`);
+    const chosen = (await publicGet(`${slug}/site`).expect(200)).body as {
+      photos: { url: string }[];
+    };
+    expect(chosen.photos.map((photo) => photo.url.split('/').at(-1))).toEqual([
+      'c-1200.webp',
+      'd-1200.webp',
+    ]);
+  });
+
+  it('politique de confidentialité : responsable du traitement, version qui suit le contenu', async () => {
+    const redis = app.get<Redis>(REDIS_CLIENT);
+    await prisma.traiteur.update({
+      where: { id: admin.traiteurId },
+      data: {
+        legalName: 'Fès Réceptions SARL',
+        ice: '001234567000089',
+        legalAddress: '12 rue Talaa, Fès',
+        rib: '011780000012345678901234',
+        cndpDeclaration: 'D-42/2026',
+        privacyExtra: { fr: 'Photos jamais publiées.' },
+      },
+    });
+    await redis.del(`public-privacy:${slug}`);
+    const first = (await publicGet(`${slug}/privacy`).expect(200)).body as {
+      version: string;
+      controller: Record<string, unknown>;
+      cndpDeclaration: string;
+      extra: unknown;
+    };
+    expect(first.version).toMatch(/^2026-11\.[0-9a-f]{16}$/);
+    expect(first.controller).toMatchObject({
+      legalName: 'Fès Réceptions SARL',
+      ice: '001234567000089',
+      address: '12 rue Talaa, Fès',
+      email: 'test@exemple.ma',
+    });
+    expect(JSON.stringify(first)).not.toContain('011780000012345678901234');
+    expect(first.cndpDeclaration).toBe('D-42/2026');
+    expect(first.extra).toEqual({ fr: 'Photos jamais publiées.' });
+
+    await prisma.traiteur.update({
+      where: { id: admin.traiteurId },
+      data: { privacyExtra: { fr: 'Photos publiées seulement avec votre accord.' } },
+    });
+    await redis.del(`public-privacy:${slug}`);
+    const second = (await publicGet(`${slug}/privacy`).expect(200)).body as { version: string };
+    expect(second.version).not.toBe(first.version);
+  });
+
   it('traiteur inconnu, malformé ou suspendu : 404', async () => {
     await publicGet('inconnu-xyz/catalog').expect(404);
     await publicGet('Pas%20un%20slug/catalog/options').expect(404);
     const suspended = await createTraiteur('suspendu');
     await prisma.traiteur.update({ where: { id: suspended.id }, data: { status: 'SUSPENDED' } });
     await publicGet(`${suspended.slug}/catalog`).expect(404);
+    await publicGet(`${suspended.slug}/site`).expect(404);
+    await publicGet(`${suspended.slug}/privacy`).expect(404);
+    await publicGet('inconnu-xyz/site').expect(404);
   });
 });

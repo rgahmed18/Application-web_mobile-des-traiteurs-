@@ -16,7 +16,7 @@ import { ExtraServicesService } from './extra-services/extra-services.service';
 import { MediaService } from './media/media.service';
 import { PackagesController } from './packages/packages.controller';
 import { PackagesService } from './packages/packages.service';
-import { PublicCatalogController } from './public/public-catalog.controller';
+import { PublicCatalogController, PublicSiteController } from './public/public-catalog.controller';
 import { PublicCatalogService } from './public/public-catalog.service';
 
 /**
@@ -34,6 +34,7 @@ import { PublicCatalogService } from './public/public-catalog.service';
     PackagesController,
     ExtraServicesController,
     PublicCatalogController,
+    PublicSiteController,
   ],
   providers: [
     BuffetsService,
@@ -46,6 +47,6 @@ import { PublicCatalogService } from './public/public-catalog.service';
     MediaService,
     PublicCatalogService,
   ],
-  exports: [MediaService],
+  exports: [MediaService, PublicCatalogService],
 })
 export class CatalogModule {}
