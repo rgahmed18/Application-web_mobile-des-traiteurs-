@@ -112,7 +112,7 @@ describe('Connexion à l’espace de gestion (application complète)', () => {
     });
   });
 
-  it('un client n’entre pas dans l’espace de gestion ; l’application client garde l’inscription', async () => {
+  it('un client n’entre pas dans l’espace de gestion ; ailleurs, inscription avec consentement', async () => {
     const traiteur = await createTraiteur('Dar Diafa');
     const elsewhere = await createTraiteur('Saveurs');
     const customer = await createMember(traiteur.id, 'CLIENT');
@@ -120,9 +120,10 @@ describe('Connexion à l’espace de gestion (application complète)', () => {
     const refused = await login(traiteur.slug, customer.phone, 'backoffice').expect(403);
     expect(refused.body).toMatchObject({ code: 'NO_BACKOFFICE_ACCESS' });
 
-    // Application client (sans espace) : un client existant peut commander chez un autre traiteur
-    const joined = await login(elsewhere.slug, customer.phone).expect(200);
-    expect(joined.body).toMatchObject({ context: { traiteurId: elsewhere.id, role: 'CLIENT' } });
+    // Chez un autre traiteur : jamais d'inscription automatique (consentement à sa politique)
+    const elsewhereLogin = await login(elsewhere.slug, customer.phone).expect(403);
+    expect(elsewhereLogin.body).toMatchObject({ code: 'SIGNUP_REQUIRED' });
+    expect(await prisma.membership.count({ where: { traiteurId: elsewhere.id } })).toBe(0);
   });
 
   it('code SMS : numéro inconnu ou membre d’ailleurs, même réponse, aucun compte créé', async () => {

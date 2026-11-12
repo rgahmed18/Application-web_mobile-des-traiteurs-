@@ -121,7 +121,7 @@ export const envSchema = z
      * Fournisseur SMS : console (simulé, développement), http (agrégateur local, configuré par
      * SMS_HTTP_*), twilio. SMS_FALLBACK_PROVIDER est essayé si le principal échoue.
      */
-    SMS_PROVIDER: z.enum(['console', 'http', 'twilio']).default('console'),
+    SMS_PROVIDER: z.enum(['console', 'outbox', 'http', 'twilio']).default('console'),
     SMS_FALLBACK_PROVIDER: z.enum(['none', 'http', 'twilio']).default('none'),
     /** Délai maximal d'un envoi, par fournisseur. */
     SMS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
@@ -168,6 +168,37 @@ export const envSchema = z
     SMS_ALLOWED_COUNTRY_CODES: commaList('212').pipe(
       z.array(countryCode).min(1, 'au moins un indicatif est requis'),
     ),
+
+    /**
+     * Codes de vérification par e-mail, pour les numéros hors SMS_ALLOWED_COUNTRY_CODES
+     * (Marocains résidant à l'étranger) : console (simulé, développement et démonstration),
+     * http (API d'envoi d'e-mails, EMAIL_HTTP_*), ou disabled (aucun envoi : la connexion de ces
+     * numéros est indisponible). Par défaut : console, ou disabled en production.
+     */
+    EMAIL_PROVIDER: z.enum(['console', 'outbox', 'http', 'disabled']).optional(),
+    /**
+     * Boîte d'envoi des parcours e2e (SMS_PROVIDER=outbox, EMAIL_PROVIDER=outbox) : le dernier
+     * message de chaque destinataire est écrit dans ce dossier. Interdite en production.
+     */
+    OUTBOX_DIR: z.string().min(1).optional(),
+    /** Expéditeur, ex. « Gestion Traiteurs <codes@gestion-traiteurs.ma> ». */
+    EMAIL_FROM: z.string().trim().min(3).max(200).optional(),
+    /** API d'envoi (POST JSON) : gabarit du corps avec {{to}}, {{from}}, {{subject}}, {{text}}. */
+    EMAIL_HTTP_URL: z
+      .string()
+      .trim()
+      .regex(/^https:\/\//, 'URL https attendue')
+      .optional(),
+    EMAIL_HTTP_BODY: z.string().optional(),
+    /** En-tête d'authentification : nom (ex. « api-key » ou « Authorization ») et valeur secrète. */
+    EMAIL_HTTP_AUTH_HEADER_NAME: z
+      .string()
+      .regex(/^[A-Za-z0-9-]+$/)
+      .default('Authorization'),
+    EMAIL_HTTP_AUTH_HEADER_VALUE: z.string().optional(),
+    EMAIL_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
+    /** Plafond global d'e-mails de code envoyés sur 24 h glissantes. */
+    EMAIL_DAILY_GLOBAL_LIMIT: z.coerce.number().int().min(1).default(500),
 
     /**
      * Suivi des erreurs (Sentry) : actif seulement si SENTRY_DSN est renseigné. Aucune donnée
@@ -260,6 +291,35 @@ export const envSchema = z
         path: ['DEMO_SPACE_SELECTION'],
         message:
           'le choix du traiteur (démonstration) est interdit en production : le traiteur vient de l’adresse',
+      });
+    }
+    if (env.EMAIL_PROVIDER === 'http') {
+      for (const key of [
+        'EMAIL_HTTP_URL',
+        'EMAIL_HTTP_BODY',
+        'EMAIL_HTTP_AUTH_HEADER_VALUE',
+        'EMAIL_FROM',
+      ] as const) {
+        if (!env[key]) {
+          ctx.addIssue({ code: 'custom', path: [key], message: 'requis pour le fournisseur http' });
+        }
+      }
+    }
+    if (
+      (env.SMS_PROVIDER === 'outbox' || env.EMAIL_PROVIDER === 'outbox') &&
+      (env.NODE_ENV === 'production' || !env.OUTBOX_DIR)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['OUTBOX_DIR'],
+        message: "boîte d'envoi des tests : OUTBOX_DIR requis, jamais en production",
+      });
+    }
+    if (env.NODE_ENV === 'production' && env.EMAIL_PROVIDER === 'console') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['EMAIL_PROVIDER'],
+        message: "le fournisseur d'e-mails simulé 'console' est interdit en production",
       });
     }
     if (env.NODE_ENV === 'production' && env.SMS_PROVIDER === 'console') {

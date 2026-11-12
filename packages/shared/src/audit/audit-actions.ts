@@ -104,6 +104,8 @@ const FIXED_ACTIONS = [
   'settings.logo_updated',
   'settings.logo_removed',
   'settings.site_updated',
+  // Clients du site
+  'client.self_registered',
   // Plateforme
   'traiteur.created',
   'super_admin.created',

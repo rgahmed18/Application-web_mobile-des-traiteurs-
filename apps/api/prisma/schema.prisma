@@ -80,6 +80,12 @@ enum OtpPurpose {
   PASSWORD_RESET
 }
 
+// Canal d'un code : SMS, ou e-mail pour les numéros qui ne reçoivent pas de SMS (étranger)
+enum OtpChannel {
+  SMS
+  EMAIL
+}
+
 enum DishUnit {
   PER_PERSON
   PER_PIECE
@@ -632,11 +638,18 @@ model OtpCode {
   ipAddress   String?
   // null = aucun SMS envoyé (indicatif non autorisé, compte inconnu en réinitialisation...)
   smsSentAt   DateTime?
+  // Code envoyé par e-mail (numéro étranger) : adresse liée au code, comme le numéro
+  channel     OtpChannel @default(SMS)
+  email       String?
+  // null = aucun e-mail envoyé (adresse qui ne correspond pas au compte du numéro...)
+  emailSentAt DateTime?
   createdAt   DateTime   @default(now())
 
   @@index([phone, purpose, createdAt])
   @@index([ipAddress, createdAt]) // quota par IP
   @@index([smsSentAt]) // plafond global de SMS
+  @@index([email, createdAt]) // quota par adresse e-mail
+  @@index([emailSentAt]) // plafond global d'e-mails
 }
 
 // ───────────────────── Permissions & offres ─────────────────────

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import { RequireSession } from '@/features/auth/auth-gates';
+import { SessionProvider } from '@/features/auth/session-provider';
 import { ConsoleShell } from '@/features/platform/console-shell';
 import { currentSpace } from '@/lib/space/space.server';
 
@@ -18,8 +19,10 @@ export const metadata: Metadata = {
 export default async function PlatformLayout({ children }: { children: ReactNode }) {
   if ((await currentSpace())?.kind !== 'platform') notFound();
   return (
-    <RequireSession area="platform">
-      <ConsoleShell>{children}</ConsoleShell>
-    </RequireSession>
+    <SessionProvider>
+      <RequireSession area="platform">
+        <ConsoleShell>{children}</ConsoleShell>
+      </RequireSession>
+    </SessionProvider>
   );
 }

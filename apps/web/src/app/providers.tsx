@@ -7,7 +7,6 @@ import { useState, type ReactNode } from 'react';
 
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { SessionProvider } from '@/features/auth/session-provider';
 import { isApiError } from '@/lib/api/errors';
 
 interface ProvidersProps {
@@ -16,7 +15,10 @@ interface ProvidersProps {
   dir: 'ltr' | 'rtl';
 }
 
-/** Fournisseurs côté client : direction, session, requêtes, infobulles, notifications. */
+/**
+ * Fournisseurs côté client : direction, requêtes, infobulles, notifications. La session est
+ * propre à chaque espace (back-office et console, ou site client) : voir leurs layouts.
+ */
 export function Providers({ children, dir }: ProvidersProps) {
   // Un QueryClient par onglet, créé une seule fois.
   const [queryClient] = useState(
@@ -36,9 +38,7 @@ export function Providers({ children, dir }: ProvidersProps) {
   return (
     <Direction.Provider dir={dir}>
       <QueryClientProvider client={queryClient}>
-        <SessionProvider>
-          <TooltipProvider>{children}</TooltipProvider>
-        </SessionProvider>
+        <TooltipProvider>{children}</TooltipProvider>
         <Toaster position="top-center" dir={dir} richColors closeButton />
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
       </QueryClientProvider>

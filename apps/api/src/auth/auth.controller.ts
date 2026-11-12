@@ -29,8 +29,6 @@ import {
   refreshTokenSchema,
   type RecoveryCodes,
   recoveryCodesSchema,
-  type RegisterInput,
-  registerSchema,
   type TwoFactorChallengeConfirmInput,
   type TwoFactorChallengeConfirmResult,
   twoFactorChallengeConfirmResultSchema,
@@ -69,18 +67,6 @@ const loginResponse = {
 @Throttle({ default: { limit: 20, ttl: 60_000 } })
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
-
-  @Public()
-  @Post('register')
-  @ApiOperation({ summary: 'Inscription client (mot de passe + code SMS SIGNUP)' })
-  @ApiBody({ schema: zodToOpenApi(registerSchema) })
-  @ApiOkResponse(sessionResponse)
-  register(
-    @Body(new ZodValidationPipe(registerSchema)) body: RegisterInput,
-    @Client() client: ClientInfo,
-  ): Promise<AuthSession> {
-    return this.auth.register(body, client);
-  }
 
   @Public()
   @Post('login')

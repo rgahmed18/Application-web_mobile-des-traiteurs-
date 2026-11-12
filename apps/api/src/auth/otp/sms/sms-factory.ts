@@ -1,5 +1,5 @@
 import type { Env } from '../../../config/env.schema';
-import { ConsoleSmsProvider, type SmsProvider } from '../sms.provider';
+import { ConsoleSmsProvider, OutboxSmsProvider, type SmsProvider } from '../sms.provider';
 import {
   type FetchLike,
   FailoverSmsProvider,
@@ -10,6 +10,7 @@ import {
 type SmsEnv = Pick<
   Env,
   | 'SMS_PROVIDER'
+  | 'OUTBOX_DIR'
   | 'SMS_FALLBACK_PROVIDER'
   | 'SMS_TIMEOUT_MS'
   | 'SMS_SENDER'
@@ -32,6 +33,7 @@ type SmsEnv = Pick<
  */
 export function createSmsProvider(env: SmsEnv, fetchImpl: FetchLike = fetch): SmsProvider {
   if (env.SMS_PROVIDER === 'console') return new ConsoleSmsProvider();
+  if (env.SMS_PROVIDER === 'outbox') return new OutboxSmsProvider(env.OUTBOX_DIR ?? '.outbox');
   const build = (kind: 'http' | 'twilio') =>
     kind === 'http'
       ? new HttpSmsProvider(

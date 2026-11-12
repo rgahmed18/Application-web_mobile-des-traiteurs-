@@ -5,6 +5,7 @@ import { getErrorCode } from '../../common/errors';
 import type { Env } from '../../config/env.schema';
 import type { OtpPurpose } from '../../generated/prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service';
+import type { EmailMessage, EmailProvider } from './email.provider';
 import { OtpService } from './otp.service';
 import type { SmsProvider } from './sms.provider';
 
@@ -19,6 +20,8 @@ interface OtpRow {
   usedAt: Date | null;
   ipAddress: string | null;
   smsSentAt: Date | null;
+  email?: string | null;
+  emailSentAt?: Date | null;
   createdAt: Date;
 }
 
@@ -32,6 +35,8 @@ interface OtpWhere {
   attempts?: { lt: number };
   ipAddress?: string;
   smsSentAt?: { gt: Date };
+  email?: string | null;
+  emailSentAt?: { gt: Date };
 }
 
 /** Stockage OTP en mémoire reproduisant la sémantique des requêtes Prisma utilisées. */
@@ -50,7 +55,12 @@ class InMemoryOtpStore {
       (where.attempts === undefined || row.attempts < where.attempts.lt) &&
       (where.ipAddress === undefined || row.ipAddress === where.ipAddress) &&
       (where.smsSentAt === undefined ||
-        (row.smsSentAt !== null && row.smsSentAt > where.smsSentAt.gt))
+        (row.smsSentAt !== null && row.smsSentAt > where.smsSentAt.gt)) &&
+      (where.email === undefined || (row.email ?? null) === where.email) &&
+      (where.emailSentAt === undefined ||
+        (row.emailSentAt !== undefined &&
+          row.emailSentAt !== null &&
+          row.emailSentAt > where.emailSentAt.gt))
     );
   }
 
@@ -64,9 +74,15 @@ class InMemoryOtpStore {
     findMany: ({ where }: { where: OtpWhere }) => Promise.resolve(this.sorted(where)),
     findFirst: ({ where }: { where: OtpWhere }) => Promise.resolve(this.sorted(where)[0] ?? null),
     count: ({ where }: { where: OtpWhere }) => Promise.resolve(this.sorted(where).length),
-    update: ({ where, data }: { where: { id: string }; data: { smsSentAt: Date | null } }) => {
+    update: ({
+      where,
+      data,
+    }: {
+      where: { id: string };
+      data: { smsSentAt?: Date | null; emailSentAt?: Date | null };
+    }) => {
       const row = this.rows.find((candidate) => candidate.id === where.id);
-      if (row) row.smsSentAt = data.smsSentAt;
+      if (row) Object.assign(row, data);
       return Promise.resolve(row);
     },
     create: ({ data }: { data: Omit<OtpRow, 'id' | 'attempts' | 'usedAt' | 'createdAt'> }) => {
@@ -109,6 +125,7 @@ const settings: Partial<Env> = {
   OTP_MAX_PER_IP_PER_DAY: 4,
   SMS_DAILY_GLOBAL_LIMIT: 100,
   SMS_ALLOWED_COUNTRY_CODES: ['212'],
+  EMAIL_DAILY_GLOBAL_LIMIT: 100,
   OTP_SECRET: 'x'.repeat(32),
 };
 function configWith(overrides: Partial<Env> = {}): ConfigService<Env, true> {
@@ -128,9 +145,22 @@ function setup(overrides: Partial<Env> = {}) {
       return Promise.resolve();
     },
   };
-  const service = new OtpService(store as unknown as PrismaService, sms, configWith(overrides));
+  const emails: EmailMessage[] = [];
+  const email: EmailProvider = {
+    enabled: true,
+    send: (message) => {
+      emails.push(message);
+      return Promise.resolve();
+    },
+  };
+  const service = new OtpService(
+    store as unknown as PrismaService,
+    sms,
+    configWith(overrides),
+    email,
+  );
   const lastCode = () => /(\d{6})/.exec(sent.at(-1) ?? '')?.[1] ?? '';
-  return { store, sent, service, lastCode };
+  return { store, sent, emails, service, lastCode };
 }
 
 async function errorCodeOf(promise: Promise<unknown>): Promise<string | undefined> {
@@ -305,13 +335,107 @@ describe('OtpService', () => {
       const failing: SmsProvider = {
         send: () => Promise.reject(new Error('opérateur indisponible')),
       };
-      const service = new OtpService(store as unknown as PrismaService, failing, config);
+      const service = new OtpService(store as unknown as PrismaService, failing, config, {
+        enabled: true,
+        send: () => Promise.resolve(),
+      });
       // Erreur claire pour l'utilisateur (503), sans le détail interne du fournisseur
       await expect(service.requestCode(PHONE, 'LOGIN')).rejects.toMatchObject({
         status: 503,
         response: { code: 'SMS_UNAVAILABLE' },
       });
       expect(store.rows[0]?.smsSentAt).toBeNull();
+    });
+  });
+
+  describe('codes par e-mail (numéros étrangers)', () => {
+    const FOREIGN = '+33612345678';
+    const message = (code: string, minutes: number) => ({
+      subject: `Code ${code}`,
+      text: `Votre code : ${code} (${minutes} min)`,
+    });
+
+    it('envoie le code à l’adresse, lié au numéro ET à l’adresse', async () => {
+      const { service, emails, store } = setup();
+      await service.requestEmailCode(FOREIGN, 'mre@exemple.fr', 'LOGIN', { message });
+      expect(emails).toHaveLength(1);
+      expect(emails[0]?.to).toBe('mre@exemple.fr');
+      const code = /(\d{6})/.exec(emails[0]?.subject ?? '')?.[1] ?? '';
+      expect(store.rows[0]).toMatchObject({ channel: 'EMAIL', email: 'mre@exemple.fr' });
+      // Même code présenté sans l'adresse, ou avec une autre : refusé
+      expect(await errorCodeOf(service.checkCode(FOREIGN, 'LOGIN', code))).toBe('INVALID_OTP');
+      expect(await errorCodeOf(service.checkCode(FOREIGN, 'LOGIN', code, 'autre@exemple.fr'))).toBe(
+        'INVALID_OTP',
+      );
+      expect(await service.checkCode(FOREIGN, 'LOGIN', code, 'mre@exemple.fr')).toBe('otp-1');
+    });
+
+    it('n’envoie rien si l’adresse ne correspond pas, avec une réponse identique', async () => {
+      const { service, emails } = setup();
+      const silent = await service.requestEmailCode(FOREIGN, 'x@exemple.fr', 'LOGIN', {
+        message,
+        deliver: false,
+      });
+      const { service: other } = setup();
+      const real = await other.requestEmailCode(FOREIGN, 'x@exemple.fr', 'LOGIN', { message });
+      expect(silent).toEqual(real);
+      expect(emails).toHaveLength(0);
+    });
+
+    it('limite les codes par adresse, quel que soit le numéro, et par IP', async () => {
+      const { service } = setup();
+      for (let i = 0; i < 5; i += 1) {
+        await service.requestEmailCode(`+3361234560${i}`, 'cible@exemple.fr', 'LOGIN', {
+          message,
+        });
+      }
+      expect(
+        await errorCodeOf(
+          service.requestEmailCode('+33612345699', 'cible@exemple.fr', 'LOGIN', { message }),
+        ),
+      ).toBe('OTP_RATE_LIMITED');
+
+      const fromIp = setup();
+      for (let i = 0; i < 4; i += 1) {
+        await fromIp.service.requestEmailCode(`+3361234561${i}`, `a${i}@exemple.fr`, 'LOGIN', {
+          message,
+          ipAddress: '203.0.113.9',
+        });
+      }
+      expect(
+        await errorCodeOf(
+          fromIp.service.requestEmailCode('+33612345688', 'b@exemple.fr', 'LOGIN', {
+            message,
+            ipAddress: '203.0.113.9',
+          }),
+        ),
+      ).toBe('OTP_RATE_LIMITED');
+    });
+
+    it('respecte le plafond global d’e-mails', async () => {
+      const { service, emails } = setup({ EMAIL_DAILY_GLOBAL_LIMIT: 2 });
+      await service.requestEmailCode('+33612345601', 'a@exemple.fr', 'LOGIN', { message });
+      await service.requestEmailCode('+33612345602', 'b@exemple.fr', 'LOGIN', { message });
+      expect(
+        await errorCodeOf(
+          service.requestEmailCode('+33612345603', 'c@exemple.fr', 'LOGIN', { message }),
+        ),
+      ).toBe('OTP_RATE_LIMITED');
+      expect(emails).toHaveLength(2);
+    });
+
+    it('fournisseur désactivé (production sans configuration) : 503, aucun code créé', async () => {
+      const store = new InMemoryOtpStore();
+      const service = new OtpService(
+        store as unknown as PrismaService,
+        { send: () => Promise.resolve() },
+        config,
+        { enabled: false, send: () => Promise.reject(new Error('désactivé')) },
+      );
+      await expect(
+        service.requestEmailCode(FOREIGN, 'a@exemple.fr', 'LOGIN', { message }),
+      ).rejects.toMatchObject({ status: 503, response: { code: 'EMAIL_UNAVAILABLE' } });
+      expect(store.rows).toHaveLength(0);
     });
   });
 });

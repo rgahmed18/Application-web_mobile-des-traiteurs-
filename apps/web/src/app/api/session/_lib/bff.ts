@@ -21,11 +21,53 @@ import { clientIpFromHeaders } from './client-ip';
 /**
  * Proxy de session (« Backend For Frontend »).
  * Seul endroit qui voit le refresh token : il vit dans un cookie httpOnly, Secure,
- * SameSite=Strict, limité au chemin /api/session. Le navigateur ne reçoit que l'access token,
- * conservé en mémoire.
+ * SameSite=Strict, limité au chemin des routes de session. Le navigateur ne reçoit que l'access
+ * token, conservé en mémoire.
+ *
+ * Deux sessions indépendantes sur une même adresse de traiteur, chacune avec ses cookies :
+ * l'espace de gestion (personnel, /api/session) et le site client (clients, /api/client-session).
+ * Un membre du personnel et un client peuvent ainsi utiliser le même navigateur sans s'écraser.
  */
 export const REFRESH_COOKIE = 'gt_refresh';
 const COOKIE_PATH = '/api/session';
+
+/** Espace d'une session : ses cookies et les sessions qu'il accepte. */
+export interface SessionKind {
+  refreshCookie: string;
+  cookiePath: string;
+  markCookie: string;
+  /** Routes qui continuent la même session (repère conservé). */
+  samePaths: RegExp;
+  accepts: (context: AuthSession['context'], space: Space) => boolean;
+  denied: () => NextResponse;
+}
+
+/** Espace de gestion (et console) : sessions du personnel ou du super admin. */
+export const BACKOFFICE_SESSION: SessionKind = {
+  refreshCookie: REFRESH_COOKIE,
+  cookiePath: COOKIE_PATH,
+  markCookie: SESSION_MARK_COOKIE,
+  samePaths: /\/api\/session\/(refresh|platform\/(enter|leave))$/,
+  accepts: (context, space) => context.role !== 'CLIENT' && sessionMatchesSpace(context, space),
+  denied: () =>
+    jsonError(403, 'NO_BACKOFFICE_ACCESS', "Ce compte n'a pas accès à l'espace de gestion"),
+};
+
+/** Repère de la session du site client (lisible, sans secret, voir session-wake.ts). */
+export const CLIENT_SESSION_MARK_COOKIE = 'gt_client_mark';
+
+/** Site client : sessions des clients de CE traiteur seulement. */
+export const CLIENT_SESSION: SessionKind = {
+  refreshCookie: 'gt_client_refresh',
+  cookiePath: '/api/client-session',
+  markCookie: CLIENT_SESSION_MARK_COOKIE,
+  samePaths: /\/api\/client-session\/refresh$/,
+  accepts: (context, space) =>
+    context.role === 'CLIENT' &&
+    space.kind === 'traiteur' &&
+    context.traiteurId === space.traiteur.id,
+  denied: () => jsonError(403, 'USE_BACKOFFICE', "Ce compte n'est pas un compte client"),
+};
 
 type JsonBody = Record<string, unknown>;
 
@@ -107,9 +149,6 @@ export function apiUnreachable(): NextResponse {
   return jsonError(502, 'API_UNREACHABLE', "Le serveur de l'application est injoignable");
 }
 
-/** Même session, continuée : rotation, entrée chez un traiteur ou retour à la console. */
-const SAME_SESSION_PATHS = /\/api\/session\/(refresh|platform\/(enter|leave))$/;
-
 /**
  * Cookie de session (httpOnly) et repère de session lisible par les onglets (identifiant
  * aléatoire, sans secret, voir features/auth/session-wake.ts) : conservé pour la même session,
@@ -119,19 +158,20 @@ export function setRefreshCookie(
   request: NextRequest,
   response: NextResponse,
   refreshToken: string,
+  kind: SessionKind = BACKOFFICE_SESSION,
 ): void {
   const env = serverEnv();
   const maxAge = env.REFRESH_COOKIE_MAX_AGE_DAYS * 24 * 60 * 60;
-  response.cookies.set(REFRESH_COOKIE, refreshToken, {
+  response.cookies.set(kind.refreshCookie, refreshToken, {
     httpOnly: true,
     secure: env.REFRESH_COOKIE_SECURE,
     sameSite: 'strict',
-    path: COOKIE_PATH,
+    path: kind.cookiePath,
     maxAge,
   });
-  const current = request.cookies.get(SESSION_MARK_COOKIE)?.value;
-  const keep = current && SAME_SESSION_PATHS.test(request.nextUrl.pathname);
-  response.cookies.set(SESSION_MARK_COOKIE, keep ? current : randomUUID(), {
+  const current = request.cookies.get(kind.markCookie)?.value;
+  const keep = current && kind.samePaths.test(request.nextUrl.pathname);
+  response.cookies.set(kind.markCookie, keep ? current : randomUUID(), {
     httpOnly: false,
     secure: env.REFRESH_COOKIE_SECURE,
     sameSite: 'strict',
@@ -140,9 +180,12 @@ export function setRefreshCookie(
   });
 }
 
-export function clearRefreshCookie(response: NextResponse): void {
-  response.cookies.set(REFRESH_COOKIE, '', { path: COOKIE_PATH, maxAge: 0 });
-  response.cookies.set(SESSION_MARK_COOKIE, '', { path: '/', maxAge: 0 });
+export function clearRefreshCookie(
+  response: NextResponse,
+  kind: SessionKind = BACKOFFICE_SESSION,
+): void {
+  response.cookies.set(kind.refreshCookie, '', { path: kind.cookiePath, maxAge: 0 });
+  response.cookies.set(kind.markCookie, '', { path: '/', maxAge: 0 });
 }
 
 /** Ce que reçoit le navigateur : la session sans le refresh token. */
@@ -158,10 +201,11 @@ export async function finishSession(
   request: NextRequest,
   apiResponse: Response,
   space?: Space,
+  kind: SessionKind = BACKOFFICE_SESSION,
 ): Promise<NextResponse> {
   if (!apiResponse.ok) {
     const response = await relayError(apiResponse);
-    if (apiResponse.status === 401) clearRefreshCookie(response);
+    if (apiResponse.status === 401) clearRefreshCookie(response, kind);
     return response;
   }
 
@@ -170,7 +214,7 @@ export async function finishSession(
   if (challenge.success) return NextResponse.json(challenge.data);
   const parsed = authSessionSchema.safeParse(body);
   if (!parsed.success) return jsonError(502, 'API_UNREACHABLE', "Réponse inattendue de l'API");
-  return sessionResponse(request, parsed.data, space);
+  return sessionResponse(request, parsed.data, space, undefined, kind);
 }
 
 /** Espace servi par l'adresse de la requête ; null : « Espace introuvable ». */
@@ -217,18 +261,15 @@ async function sessionResponse(
   { refreshToken, ...session }: AuthSession,
   knownSpace?: Space,
   extra?: { recoveryCodes: string[] },
+  kind: SessionKind = BACKOFFICE_SESSION,
 ): Promise<NextResponse> {
   const space = knownSpace ?? (await requestSpace(request));
-  if (session.context.role === 'CLIENT' || !space || !sessionMatchesSpace(session.context, space)) {
-    // Un client n'a rien à faire dans le back-office, et une session ne sert que sur l'adresse de
-    // son espace : elle est aussitôt révoquée.
+  if (!space || !kind.accepts(session.context, space)) {
+    // Un client n'a rien à faire dans le back-office (ni le personnel sur le site client), et une
+    // session ne sert que sur l'adresse de son espace : elle est aussitôt révoquée.
     await callApi(request, '/auth/logout', { refreshToken }).catch(() => undefined);
-    const response = jsonError(
-      403,
-      'NO_BACKOFFICE_ACCESS',
-      "Ce compte n'a pas accès à l'espace de gestion",
-    );
-    clearRefreshCookie(response);
+    const response = kind.denied();
+    clearRefreshCookie(response, kind);
     return response;
   }
 
@@ -237,6 +278,6 @@ async function sessionResponse(
       ? { session: session satisfies ClientSession, ...extra }
       : (session satisfies ClientSession),
   );
-  setRefreshCookie(request, response, refreshToken);
+  setRefreshCookie(request, response, refreshToken, kind);
   return response;
 }

@@ -15,7 +15,6 @@ import {
   PLATFORM_ACCESS_HOURS,
   type PlatformAccess,
   type RecoveryCodes,
-  type RegisterInput,
   type TwoFactorChallengeConfirmInput,
   type TwoFactorChallengeConfirmResult,
   type TwoFactorChallengeSetupInput,
@@ -59,8 +58,8 @@ function platformAccessExpiry(from: Date): Date {
 }
 
 interface ContextOptions {
-  /** Crée un Membership CLIENT si l'utilisateur n'en a pas encore chez ce traiteur. */
-  autoJoinAsClient: boolean;
+  /** Connexion d'un client : sans Membership chez ce traiteur, inscription demandée. */
+  clientSpace: boolean;
   /**
    * Espace de gestion : un Membership du personnel actif chez CE traiteur est exigé ; aucune
    * inscription automatique (jamais client d'un autre traiteur en se connectant au back-office).
@@ -91,45 +90,16 @@ export class AuthService {
     this.lockoutMinutes = config.get('LOGIN_LOCKOUT_MINUTES', { infer: true });
   }
 
-  /** Inscription avec mot de passe ; le téléphone est prouvé par un code SMS (SIGNUP). */
-  async register(input: RegisterInput, client: ClientInfo): Promise<AuthSession> {
-    const traiteur = await this.findAvailableTraiteur(input.traiteurSlug);
-    // Vérifie le code sans le consommer : un conflit (compte ou email existant) le laisse valide.
-    const otpId = await this.otp.checkCode(input.phone, 'SIGNUP', input.code);
-
-    if (await this.prisma.user.findUnique({ where: { phone: input.phone } })) {
-      throw appErrors.conflict(
-        'ACCOUNT_EXISTS',
-        'Un compte existe déjà pour ce numéro, connectez-vous',
-      );
-    }
-    if (input.email && (await this.prisma.user.findUnique({ where: { email: input.email } }))) {
-      throw appErrors.conflict('EMAIL_TAKEN', 'Cette adresse email est déjà utilisée');
-    }
-    await this.otp.consumeCode(otpId);
-
-    const user = await this.prisma.user.create({
-      data: {
-        phone: input.phone,
-        email: input.email ?? null,
-        passwordHash: await this.passwords.hash(input.password),
-        firstName: input.firstName,
-        lastName: input.lastName,
-        locale: input.locale ?? 'fr',
-        lastLoginAt: new Date(),
-        memberships: {
-          create: {
-            traiteurId: traiteur.id,
-            role: 'CLIENT',
-            firstName: input.firstName,
-            lastName: input.lastName,
-            email: input.email ?? null,
-            locale: input.locale ?? 'fr',
-          },
-        },
-      },
-    });
-    const context = await this.resolveContext(user, traiteur.slug, { autoJoinAsClient: false });
+  /**
+   * Session d'un client prouvé par code (site du traiteur, voir ClientAuthService) : jamais de
+   * double authentification (accès limité à ses demandes chez ce traiteur).
+   */
+  async startClientSession(
+    user: User,
+    context: AuthContext,
+    client: ClientInfo,
+  ): Promise<AuthSession> {
+    await this.touchLastLogin(user.id);
     return this.createSession(user, context, client);
   }
 
@@ -163,7 +133,7 @@ export class AuthService {
 
     const backoffice = input.space === 'backoffice';
     const context = await this.resolveContext(user, input.traiteurSlug ?? null, {
-      autoJoinAsClient: !backoffice,
+      clientSpace: !backoffice,
       backoffice,
       client,
     });
@@ -182,39 +152,29 @@ export class AuthService {
     });
   }
 
-  /** Connexion par code SMS ; crée un compte sans mot de passe si le numéro est inconnu. */
+  /**
+   * Connexion par code SMS d'un compte existant. Jamais de création de compte : un numéro
+   * inconnu reçoit SIGNUP_REQUIRED (client) ou NO_BACKOFFICE_ACCESS (espace de gestion).
+   */
   async verifyOtp(input: OtpVerifyInput, client: ClientInfo): Promise<LoginResult> {
     const traiteur = await this.findAvailableTraiteur(input.traiteurSlug);
     const otpId = await this.otp.checkCode(input.phone, 'LOGIN', input.code);
 
-    let user = await this.prisma.user.findUnique({ where: { phone: input.phone } });
+    const user = await this.prisma.user.findUnique({ where: { phone: input.phone } });
     const backoffice = input.space === 'backoffice';
-    if (user) {
-      await this.otp.consumeCode(otpId);
-    } else if (backoffice) {
-      // Espace de gestion : jamais de création de compte. Même réponse qu'un compte qui existe
-      // mais n'appartient pas à ce traiteur.
-      await this.otp.consumeCode(otpId);
-      throw this.noBackofficeAccess(traiteur.name);
-    } else {
-      if (!input.firstName || !input.lastName) {
-        // Le code n'est pas consommé : l'app peut le renvoyer avec le prénom et le nom.
-        throw appErrors.badRequest('PROFILE_REQUIRED', 'Prénom et nom requis pour créer le compte');
-      }
-      await this.otp.consumeCode(otpId);
-      user = await this.prisma.user.create({
-        data: {
-          phone: input.phone,
-          firstName: input.firstName,
-          lastName: input.lastName,
-          locale: input.locale ?? 'fr',
-        },
-      });
+    await this.otp.consumeCode(otpId);
+    if (!user) {
+      // Même réponse qu'un compte qui existe mais n'appartient pas à ce traiteur
+      if (backoffice) throw this.noBackofficeAccess(traiteur.name);
+      throw appErrors.forbidden(
+        'SIGNUP_REQUIRED',
+        'Inscrivez-vous chez ce traiteur pour continuer',
+      );
     }
     this.assertUserActive(user);
 
     const context = await this.resolveContext(user, traiteur.slug, {
-      autoJoinAsClient: !backoffice,
+      clientSpace: !backoffice,
       backoffice,
       client,
     });
@@ -733,7 +693,7 @@ export class AuthService {
   private async resolveContext(
     user: User,
     traiteurSlug: string | null,
-    { autoJoinAsClient, backoffice = false, client }: ContextOptions,
+    { clientSpace, backoffice = false, client }: ContextOptions,
   ): Promise<AuthContext> {
     if (!traiteurSlug) {
       if (user.isSuperAdmin) return { traiteurId: null, membershipId: null, role: 'SUPER_ADMIN' };
@@ -775,23 +735,15 @@ export class AuthService {
       throw this.noBackofficeAccess(traiteur.name);
     }
     if (!membership) {
-      if (!autoJoinAsClient) {
-        throw appErrors.forbidden('MEMBERSHIP_INACTIVE', "Vous n'avez pas accès à ce traiteur");
+      // Jamais d'inscription automatique : un client s'inscrit chez chaque traiteur avec son
+      // consentement (ClientAuthService) ; le personnel est invité par le traiteur.
+      if (clientSpace) {
+        throw appErrors.forbidden(
+          'SIGNUP_REQUIRED',
+          'Inscrivez-vous chez ce traiteur pour continuer',
+        );
       }
-      // Un client existant peut commander chez un nouveau traiteur ; les rôles du personnel
-      // ne sont jamais attribués automatiquement (invitation par le traiteur).
-      membership = await this.prisma.membership.create({
-        data: {
-          userId: user.id,
-          traiteurId: traiteur.id,
-          role: 'CLIENT',
-          // Coordonnées propres à ce traiteur, initialisées depuis le compte
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          locale: user.locale,
-        },
-      });
+      throw appErrors.forbidden('MEMBERSHIP_INACTIVE', "Vous n'avez pas accès à ce traiteur");
     } else if (membership.status === 'INVITED') {
       membership = await this.prisma.membership.update({
         where: { id: membership.id },

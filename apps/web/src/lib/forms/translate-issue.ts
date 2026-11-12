@@ -27,6 +27,7 @@ export type ValidationMessageKey =
   | 'buffetEmpty'
   | 'categoryRequired'
   | 'buffetTypeRequired'
+  | 'consentRequired'
   | 'invalidTime'
   | 'invalidDate'
   | 'invalid';
@@ -55,6 +56,7 @@ const CUSTOM_KEYS = new Set<ValidationMessageKey>([
   'buffetEmpty',
   'categoryRequired',
   'buffetTypeRequired',
+  'consentRequired',
 ]);
 
 /** Champs saisis comme des montants (« 250,50 ») : message d'erreur avec un exemple. */

@@ -209,9 +209,7 @@
       "INVALID_OTP": "Code incorrect ou expiré.",
       "OTP_LOCKED": "Trop d’essais avec ce code. Demandez-en un nouveau.",
       "OTP_RATE_LIMITED": "Trop de codes demandés. Patientez avant de réessayer.",
-      "ACCOUNT_EXISTS": "Un compte existe déjà pour ce numéro.",
       "EMAIL_TAKEN": "Cette adresse email est déjà utilisée.",
-      "PROFILE_REQUIRED": "Aucun compte n’est associé à ce numéro.",
       "ACCOUNT_DISABLED": "Ce compte est désactivé.",
       "TRAITEUR_REQUIRED": "Établissement non précisé.",
       "TRAITEUR_NOT_FOUND": "Établissement introuvable.",
@@ -305,7 +303,13 @@
       "DOMAIN_INVALID": "Domaine invalide : un nom comme « traiteur-exemple.ma », hors des adresses de la plateforme.",
       "DOMAIN_TAKEN": "Ce domaine est déjà enregistré.",
       "DOMAIN_FEATURE_REQUIRED": "La fonctionnalité « Domaine personnalisé » n’est pas active pour ce traiteur.",
-      "DOMAIN_NOT_VERIFIED": "Vérification impossible : enregistrement TXT absent ou différent (la propagation DNS peut prendre jusqu’à 24 h)."
+      "DOMAIN_NOT_VERIFIED": "Vérification impossible : enregistrement TXT absent ou différent (la propagation DNS peut prendre jusqu’à 24 h).",
+      "SIGNUP_REQUIRED": "Inscrivez-vous pour continuer.",
+      "CONSENT_REQUIRED": "Acceptez la politique de confidentialité pour continuer.",
+      "USE_BACKOFFICE": "Ce numéro appartient à un membre de l’équipe : connectez-vous à l’espace de gestion.",
+      "PRIVACY_POLICY_CHANGED": "La politique de confidentialité vient d’être mise à jour : relisez-la puis acceptez-la de nouveau.",
+      "EMAIL_REQUIRED": "Ce numéro ne reçoit pas nos SMS : indiquez votre adresse e-mail pour recevoir le code.",
+      "EMAIL_UNAVAILABLE": "L’envoi du code par e-mail est momentanément indisponible. Réessayez plus tard ou contactez le traiteur."
     },
     "noBackofficeAccessTraiteur": "Ce compte n’a pas accès à l’espace de gestion de {name}. Vérifiez l’adresse de connexion de votre traiteur.",
     "noBackofficeAccessPlatform": "Ce compte n’a pas accès à la console de la plateforme. Connectez-vous depuis l’adresse de votre traiteur."
@@ -334,7 +338,8 @@
     "invalidTime": "Heure invalide (HH:MM).",
     "invalidDate": "Date invalide.",
     "categoryRequired": "Choisissez une catégorie : elle classe le matériel dans le catalogue et les commandes.",
-    "buffetTypeRequired": "Choisissez un type de buffet : il classe le buffet dans le catalogue et les commandes."
+    "buffetTypeRequired": "Choisissez un type de buffet : il classe le buffet dans le catalogue et les commandes.",
+    "consentRequired": "Cochez la case pour accepter la politique de confidentialité."
   },
   "catalog": {
     "title": "Catalogue",
@@ -2137,7 +2142,8 @@
       "catalog_buffet_type_deleted": "Type de buffet : supprimé",
       "catalog_buffet_type_reordered": "Type de buffet : ordre modifié",
       "unknown": "Autre action",
-      "settings_site_updated": "Réglages du site client modifiés"
+      "settings_site_updated": "Réglages du site client modifiés",
+      "client_self_registered": "Client inscrit en ligne"
     },
     "traiteurs": {
       "title": "Traiteurs",
@@ -2507,5 +2513,92 @@
     "pendingLocked": "Choisissez « Reprendre » ou « Supprimer » avant de modifier le formulaire.",
     "restoredNotice": "Brouillon repris : les champs marqués « Repris » contiennent votre saisie précédente. Vérifiez-les avant d’enregistrer.",
     "restoredField": "Repris"
+  },
+  "site": {
+    "nav": {
+      "label": "Menu du site",
+      "home": "Accueil",
+      "catalog": "Catalogue",
+      "login": "Se connecter",
+      "account": "Mon espace"
+    },
+    "footer": {
+      "rights": "Site réservé aux clients de ce traiteur.",
+      "privacy": "Politique de confidentialité"
+    },
+    "login": {
+      "title": "Connexion",
+      "subtitle": "Sans mot de passe : nous vous envoyons un code. Première visite ? Votre compte est créé en quelques secondes.",
+      "phone": "Numéro de téléphone",
+      "phoneHint": "Numéro marocain (06…) ou étranger avec l’indicatif (+33…).",
+      "phonePlaceholder": "06 12 34 56 78",
+      "email": "Adresse e-mail",
+      "emailForCode": "Votre numéro ne reçoit pas nos SMS : le code vous sera envoyé par e-mail.",
+      "sendCode": "Recevoir le code",
+      "resendIn": "Nouveau code dans {seconds} s",
+      "codeTitle": "Saisissez le code",
+      "codeSentSms": "Code envoyé par SMS au {destination}.",
+      "codeSentEmail": "Si cette adresse correspond à votre compte, le code a été envoyé à {destination}. Pensez à vérifier les indésirables.",
+      "code": "Code à 6 chiffres",
+      "verify": "Valider",
+      "changeNumber": "Changer de numéro",
+      "resend": "Renvoyer le code",
+      "signupTitle": "Créer mon compte",
+      "signupSubtitle": "Quelques informations pour préparer vos demandes.",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "emailOptional": "Adresse e-mail (facultative)",
+      "consent": "J’ai lu et j’accepte la <link>politique de confidentialité</link> de ce traiteur.",
+      "createAccount": "Créer mon compte",
+      "consentTitle": "Votre accord",
+      "consentTitleNamed": "Bonjour {name}",
+      "consentSubtitle": "Pour accéder à votre espace en ligne, acceptez la politique de confidentialité de ce traiteur.",
+      "continue": "Continuer",
+      "privacyUnavailable": "La politique de confidentialité n’a pas pu être chargée. Réessayez dans un instant."
+    },
+    "account": {
+      "title": "Mon espace",
+      "welcome": "Bonjour {name}",
+      "logout": "Se déconnecter"
+    },
+    "privacy": {
+      "title": "Politique de confidentialité",
+      "intro": "{name} attache une grande importance à la protection de vos données personnelles. Cette politique explique quelles données sont collectées sur ce site, pourquoi, et comment exercer vos droits, conformément à la loi n° 09-08 relative à la protection des personnes physiques à l’égard du traitement des données à caractère personnel.",
+      "controllerTitle": "Responsable du traitement",
+      "cndp": "Traitement déclaré auprès de la CNDP sous le n° {number}.",
+      "cndpPending": "Le numéro de déclaration auprès de la CNDP sera indiqué ici dès sa délivrance.",
+      "sections": {
+        "data": {
+          "title": "Données collectées",
+          "body": "Nom et prénom, numéro de téléphone, adresse e-mail (facultative, sauf pour recevoir un code si votre numéro ne reçoit pas de SMS), adresses des lieux de vos événements, détail de vos demandes, devis, factures et paiements, ainsi que la date, la version de cette politique et l’adresse IP de votre accord."
+        },
+        "purposes": {
+          "title": "Pourquoi ces données",
+          "body": "Créer et sécuriser votre compte client (codes de connexion), traiter vos demandes, établir devis, factures et reçus, organiser la livraison et le service de votre événement, et vous contacter à leur sujet. Aucune donnée n’est vendue ni utilisée à des fins publicitaires."
+        },
+        "legalBasis": {
+          "title": "Fondement",
+          "body": "Votre consentement, donné à l’inscription ; l’exécution des prestations que vous demandez ; le respect des obligations légales du traiteur (comptabilité, facturation)."
+        },
+        "recipients": {
+          "title": "Destinataires",
+          "body": "Le personnel habilité de {name}, selon ses fonctions ; ses prestataires techniques, qui agissent sur ses instructions : hébergement de la plateforme de gestion, envoi des SMS et des e-mails de code. Vos données ne sont jamais communiquées à un autre traiteur."
+        },
+        "retention": {
+          "title": "Durée de conservation",
+          "body": "Les données de votre compte sont conservées tant que vous l’utilisez, puis au plus 3 ans après votre dernière demande. Les factures et pièces comptables sont conservées 10 ans, comme l’exige la loi."
+        },
+        "security": {
+          "title": "Sécurité",
+          "body": "Connexion sans mot de passe par code à usage unique, échanges chiffrés, accès limité aux personnes habilitées et journal des opérations."
+        },
+        "rights": {
+          "title": "Vos droits",
+          "body": "Vous pouvez à tout moment accéder à vos données, les faire rectifier, vous opposer à leur traitement pour des motifs légitimes ou retirer votre consentement (articles 7 à 9 de la loi n° 09-08), en écrivant à {email}. Vous pouvez aussi saisir la Commission nationale de contrôle de la protection des données à caractère personnel (CNDP, www.cndp.ma)."
+        }
+      },
+      "extraTitle": "Informations complémentaires de {name}",
+      "version": "Version {version}"
+    }
   }
 }

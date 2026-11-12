@@ -276,22 +276,18 @@ describe('AuthService.login', () => {
     expect(getStored()?.lastLoginAt).toBeNull();
   });
 
-  it('inscrit automatiquement comme CLIENT un utilisateur nouveau chez ce traiteur', async () => {
+  it('n’inscrit jamais automatiquement un compte d’ailleurs comme client (consentement requis)', async () => {
     const { service, membershipCreate } = setup({ user: buildUser(), membership: null });
-    const session = asSession(await service.login(input, client));
-    expect(membershipCreate).toHaveBeenCalledWith({
-      // Coordonnées propres au traiteur, initialisées depuis le compte
-      data: {
-        userId: buildUser().id,
-        traiteurId: TRAITEUR.id,
-        role: 'CLIENT',
-        firstName: 'Salma',
-        lastName: 'Bennani',
-        email: 'client@exemple.ma',
-        locale: 'fr',
-      },
+    expect(await errorCodeOf(service.login(input, client))).toBe('SIGNUP_REQUIRED');
+    expect(membershipCreate).not.toHaveBeenCalled();
+  });
+
+  it('connecte un client de ce traiteur', async () => {
+    const { service } = setup({
+      user: buildUser(),
+      membership: { id: 'm1', role: 'CLIENT', status: 'ACTIVE' },
     });
-    expect(session.context.role).toBe('CLIENT');
+    expect(asSession(await service.login(input, client)).context.role).toBe('CLIENT');
   });
 
   it('refuse un Membership suspendu', async () => {
@@ -315,41 +311,14 @@ describe('AuthService.login', () => {
   });
 });
 
-describe('AuthService.register', () => {
-  const input = {
-    traiteurSlug: 'dar-diafa',
-    phone: '+212612345678',
-    code: '123456',
-    password: 'Password123!',
-    firstName: 'Salma',
-    lastName: 'Bennani',
-  };
-
-  it('vérifie le code SIGNUP, puis le consomme avant de créer le compte', async () => {
-    const { service, otp, userCreate } = setup({ user: null });
-    await service.register(input, client).catch(() => undefined);
-    expect(otp.checkCode).toHaveBeenCalledWith(input.phone, 'SIGNUP', '123456');
-    expect(otp.consumeCode).toHaveBeenCalledWith('otp-1');
-    expect(userCreate).toHaveBeenCalled();
-  });
-
-  it('refuse un numéro déjà inscrit sans consommer le code', async () => {
-    const { service, otp, userCreate } = setup({ user: buildUser() });
-    expect(await errorCodeOf(service.register(input, client))).toBe('ACCOUNT_EXISTS');
-    expect(otp.checkCode).toHaveBeenCalled();
-    expect(otp.consumeCode).not.toHaveBeenCalled();
-    expect(userCreate).not.toHaveBeenCalled();
-  });
-});
-
 describe('AuthService.verifyOtp', () => {
   const input = { traiteurSlug: 'dar-diafa', phone: '+212612345678', code: '123456' };
 
-  it('exige prénom et nom pour un compte inconnu, sans consommer le code', async () => {
-    const { service, otp } = setup({ user: null });
-    expect(await errorCodeOf(service.verifyOtp(input, client))).toBe('PROFILE_REQUIRED');
+  it('ne crée jamais de compte : numéro inconnu, inscription demandée', async () => {
+    const { service, otp, userCreate } = setup({ user: null });
+    expect(await errorCodeOf(service.verifyOtp(input, client))).toBe('SIGNUP_REQUIRED');
     expect(otp.checkCode).toHaveBeenCalledWith(input.phone, 'LOGIN', '123456');
-    expect(otp.consumeCode).not.toHaveBeenCalled();
+    expect(userCreate).not.toHaveBeenCalled();
   });
 
   it('consomme le code pour un compte existant', async () => {
@@ -359,17 +328,6 @@ describe('AuthService.verifyOtp', () => {
     });
     await service.verifyOtp(input, client);
     expect(otp.consumeCode).toHaveBeenCalledWith('otp-1');
-  });
-
-  it('crée un compte sans mot de passe si le profil est fourni', async () => {
-    const { service, userCreate } = setup({ user: null, membership: null });
-    const session = asSession(
-      await service.verifyOtp({ ...input, firstName: 'Youssef', lastName: 'Alami' }, client),
-    );
-    expect(userCreate).toHaveBeenCalledWith({
-      data: expect.not.objectContaining({ passwordHash: expect.anything() as unknown }) as unknown,
-    });
-    expect(session.context.role).toBe('CLIENT');
   });
 });
 

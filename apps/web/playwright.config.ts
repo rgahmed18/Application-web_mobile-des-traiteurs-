@@ -47,7 +47,11 @@ const e2eMediaUrl = `${apiEnv('S3_ENDPOINT').replace(/\/+$/, '')}/${apiEnv('S3_B
 const e2eRedis = new URL(apiEnv('REDIS_URL'));
 e2eRedis.pathname = '/1';
 
+/** SMS et e-mails de code des parcours : écrits dans ce dossier par l'API, relus par les tests. */
+const OUTBOX_DIR = path.join(__dirname, '.e2e-outbox');
+
 // Lu par les parcours (préparation des données par l'API)
+process.env.E2E_OUTBOX_DIR = OUTBOX_DIR;
 process.env.E2E_API_URL = `${API_URL}/api/v1`;
 process.env.E2E_PLATFORM_URL = PLATFORM_URL;
 
@@ -95,6 +99,11 @@ export default defineConfig({
         PLATFORM_HOSTNAMES: 'localhost',
         TENANT_URL_TEMPLATE: `http://{slug}.localhost:${WEB_PORT}`,
         S3_PUBLIC_URL: e2eMediaUrl,
+        SMS_PROVIDER: 'outbox',
+        EMAIL_PROVIDER: 'outbox',
+        OUTBOX_DIR,
+        // Tous les codes des parcours viennent du serveur web (même adresse IP)
+        OTP_MAX_PER_IP_PER_DAY: '1000',
       },
     },
     {

@@ -19,8 +19,6 @@ export const traiteurSlugSchema = z
   .toLowerCase()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Identifiant de traiteur invalide');
 
-const nameSchema = z.string().trim().min(1).max(80);
-
 export const otpCodeSchema = z
   .string()
   .trim()
@@ -36,28 +34,11 @@ export type OtpPurpose = z.infer<typeof otpPurposeSchema>;
 // ─── Requêtes ───
 
 /**
- * Inscription d'un client auprès d'un traiteur, avec mot de passe.
- * Le téléphone doit être prouvé par un code SMS (OTP de type SIGNUP) : sans cela,
- * n'importe qui pourrait créer un compte au nom du numéro d'un tiers.
- */
-export const registerSchema = z.object({
-  traiteurSlug: traiteurSlugSchema,
-  phone: phoneSchema,
-  code: otpCodeSchema,
-  email: z.string().trim().toLowerCase().pipe(z.email()).optional(),
-  password: passwordSchema,
-  firstName: nameSchema,
-  lastName: nameSchema,
-  locale: localeSchema.optional(),
-});
-export type RegisterInput = z.infer<typeof registerSchema>;
-
-/**
  * Espace d'où vient la connexion :
- *   - « client » (par défaut, applications des clients) : un compte sans Membership chez ce traiteur y est
- *     inscrit comme client ;
- *   - « backoffice » (espace de gestion, posé par le serveur web) : jamais d'inscription
- *     automatique, un Membership du personnel actif chez CE traiteur est exigé.
+ *   - « client » (par défaut, applications des clients) : un Membership actif chez ce traiteur
+ *     est exigé ; sinon SIGNUP_REQUIRED (inscription avec consentement : client-auth.schemas) ;
+ *   - « backoffice » (espace de gestion, posé par le serveur web) : un Membership du personnel
+ *     actif chez CE traiteur est exigé.
  */
 export const AUTH_SPACES = ['client', 'backoffice'] as const;
 export const authSpaceSchema = z.enum(AUTH_SPACES);
@@ -82,17 +63,13 @@ export const otpRequestSchema = z.object({
 export type OtpRequestInput = z.infer<typeof otpRequestSchema>;
 
 /**
- * Connexion ou inscription par code SMS. Si le compte n'existe pas encore,
- * `firstName` et `lastName` sont requis (inscription sans mot de passe).
+ * Connexion par code SMS d'un compte existant, déjà membre de ce traiteur. Jamais de création de
+ * compte ici : l'inscription des clients passe par client-auth.schemas (consentement).
  */
 export const otpVerifySchema = z.object({
   traiteurSlug: traiteurSlugSchema,
   phone: phoneSchema,
   code: otpCodeSchema,
-  firstName: nameSchema.optional(),
-  lastName: nameSchema.optional(),
-  locale: localeSchema.optional(),
-  /** « backoffice » : jamais de création de compte ni d'inscription comme client. */
   space: authSpaceSchema.optional(),
 });
 export type OtpVerifyInput = z.infer<typeof otpVerifySchema>;

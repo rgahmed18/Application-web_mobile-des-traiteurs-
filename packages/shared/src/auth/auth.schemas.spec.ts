@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { loginSchema, otpVerifySchema, passwordSchema, registerSchema } from './auth.schemas';
+import { loginSchema, otpVerifySchema, passwordSchema } from './auth.schemas';
+import { clientVerifySchema } from './client-auth.schemas';
 
 describe('passwordSchema', () => {
   it('accepte un mot de passe avec lettres et chiffres', () => {
@@ -13,23 +14,30 @@ describe('passwordSchema', () => {
   });
 });
 
-describe('registerSchema', () => {
-  it('normalise le téléphone, le slug et l’email', () => {
-    const result = registerSchema.parse({
-      traiteurSlug: 'Dar-Diafa',
-      phone: '06 12 34 56 78',
-      code: '123456',
-      email: ' Client@Exemple.MA ',
-      password: 'Password123!',
-      firstName: ' Salma ',
-      lastName: 'Bennani',
-    });
+describe('clientVerifySchema', () => {
+  const signup = {
+    firstName: ' Salma ',
+    lastName: 'Bennani',
+    email: ' Client@Exemple.MA ',
+    consent: true,
+    privacyVersion: '2026-11.0123456789abcdef',
+  };
+
+  it('normalise le téléphone, le nom et l’e-mail de l’inscription', () => {
+    const result = clientVerifySchema.parse({ phone: '06 12 34 56 78', code: '123456', signup });
     expect(result).toMatchObject({
-      traiteurSlug: 'dar-diafa',
       phone: '+212612345678',
-      email: 'client@exemple.ma',
-      firstName: 'Salma',
+      signup: { firstName: 'Salma', email: 'client@exemple.ma' },
     });
+  });
+
+  it('exige la case de consentement cochée', () => {
+    const base = { phone: '0612345678', code: '123456' };
+    expect(
+      clientVerifySchema.safeParse({ ...base, signup: { ...signup, consent: false } }).success,
+    ).toBe(false);
+    const { consent: _consent, ...withoutConsent } = signup;
+    expect(clientVerifySchema.safeParse({ ...base, signup: withoutConsent }).success).toBe(false);
   });
 });
 

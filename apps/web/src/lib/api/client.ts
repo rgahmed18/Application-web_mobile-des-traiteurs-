@@ -112,12 +112,16 @@ export async function apiRequest<TSchema extends z.ZodType>(
   return schema.parse(payload);
 }
 
-/** Appel aux routes de session de Next (même origine, cookie httpOnly). */
+/**
+ * Appel aux routes de session de Next (même origine, cookie httpOnly). `base` : routes du
+ * back-office (/api/session) ou du site client (/api/client-session).
+ */
 export async function sessionRequest<TSchema extends z.ZodType>(
   path: string,
   schema: TSchema,
   body: unknown = {},
   accessToken?: string | null,
+  base = '/api/session',
 ): Promise<z.infer<TSchema>> {
   let response: Response;
   const headers: Record<string, string> = {
@@ -126,7 +130,7 @@ export async function sessionRequest<TSchema extends z.ZodType>(
   };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   try {
-    response = await fetch(`/api/session${path}`, {
+    response = await fetch(`${base}${path}`, {
       method: 'POST',
       credentials: 'same-origin',
       headers,

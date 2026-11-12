@@ -2,11 +2,15 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 
+import { CatalogModule } from '../catalog/catalog.module';
 import type { AppConfigService } from '../config/app-config.module';
 import { ActivationsService } from './activation/activations.service';
 import { PublicActivationsController } from './activation/public-activations.controller';
 import { AuthController, TwoFactorAccountController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { ClientAuthController } from './client-auth.controller';
+import { ClientAuthService } from './client-auth.service';
+import { createEmailProvider, EMAIL_PROVIDER } from './otp/email.provider';
 import { OtpService } from './otp/otp.service';
 import { createSmsProvider } from './otp/sms/sms-factory';
 import { SMS_PROVIDER } from './otp/sms.provider';
@@ -17,6 +21,7 @@ import { TwoFactorService } from './two-factor/two-factor.service';
 
 @Module({
   imports: [
+    CatalogModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: AppConfigService) => ({
@@ -31,12 +36,14 @@ import { TwoFactorService } from './two-factor/two-factor.service';
   ],
   controllers: [
     AuthController,
+    ClientAuthController,
     TwoFactorAccountController,
     PublicActivationsController,
     PlatformAccessController,
   ],
   providers: [
     AuthService,
+    ClientAuthService,
     PasswordService,
     TokenService,
     TwoFactorService,
@@ -49,6 +56,7 @@ import { TwoFactorService } from './two-factor/two-factor.service';
       useFactory: (config: AppConfigService) =>
         createSmsProvider({
           SMS_PROVIDER: config.get('SMS_PROVIDER', { infer: true }),
+          OUTBOX_DIR: config.get('OUTBOX_DIR', { infer: true }),
           SMS_FALLBACK_PROVIDER: config.get('SMS_FALLBACK_PROVIDER', { infer: true }),
           SMS_TIMEOUT_MS: config.get('SMS_TIMEOUT_MS', { infer: true }),
           SMS_SENDER: config.get('SMS_SENDER', { infer: true }),
@@ -65,7 +73,26 @@ import { TwoFactorService } from './two-factor/two-factor.service';
           TWILIO_MESSAGING_SERVICE_SID: config.get('TWILIO_MESSAGING_SERVICE_SID', { infer: true }),
         }),
     },
+    // Codes des numéros étrangers : console (simulé), API http, ou désactivé (production par défaut)
+    {
+      provide: EMAIL_PROVIDER,
+      inject: [ConfigService],
+      useFactory: (config: AppConfigService) =>
+        createEmailProvider({
+          NODE_ENV: config.get('NODE_ENV', { infer: true }),
+          EMAIL_PROVIDER: config.get('EMAIL_PROVIDER', { infer: true }),
+          OUTBOX_DIR: config.get('OUTBOX_DIR', { infer: true }),
+          EMAIL_FROM: config.get('EMAIL_FROM', { infer: true }),
+          EMAIL_HTTP_URL: config.get('EMAIL_HTTP_URL', { infer: true }),
+          EMAIL_HTTP_BODY: config.get('EMAIL_HTTP_BODY', { infer: true }),
+          EMAIL_HTTP_AUTH_HEADER_NAME: config.get('EMAIL_HTTP_AUTH_HEADER_NAME', { infer: true }),
+          EMAIL_HTTP_AUTH_HEADER_VALUE: config.get('EMAIL_HTTP_AUTH_HEADER_VALUE', {
+            infer: true,
+          }),
+          EMAIL_TIMEOUT_MS: config.get('EMAIL_TIMEOUT_MS', { infer: true }),
+        }),
+    },
   ],
-  exports: [TokenService, PasswordService, SMS_PROVIDER],
+  exports: [TokenService, PasswordService, SMS_PROVIDER, EMAIL_PROVIDER],
 })
 export class AuthModule {}

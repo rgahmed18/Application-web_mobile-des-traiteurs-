@@ -544,6 +544,12 @@ Mêmes étapes que le staging, avec ces différences :
 documentation de l'agrégateur retenu (exemples dans `apps/api/.env.example`), le nom
 d'expéditeur validé dans `SMS_SENDER`, et Twilio en secours (`TWILIO_*`).
 
+**Codes par e-mail** (site client, numéros étrangers qui ne reçoivent pas de SMS) : sans
+configuration, l'envoi est désactivé en production (ces clients ne peuvent pas se connecter,
+message clair). Pour l'activer : `EMAIL_PROVIDER=http`, `EMAIL_FROM` (adresse d'un domaine
+vérifié chez le fournisseur, SPF et DKIM en place) et `EMAIL_HTTP_*` (exemple Brevo dans
+`apps/api/.env.example`).
+
 **Mise en production d'une version** : sur votre PC, dans le dépôt :
 
 ```powershell
