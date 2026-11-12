@@ -2520,7 +2520,9 @@
       "home": "الرئيسية",
       "catalog": "الكتالوج",
       "login": "تسجيل الدخول",
-      "account": "فضائي"
+      "account": "فضائي",
+      "request": "طلبي",
+      "requestCount": "طلبي ({count})"
     },
     "footer": {
       "rights": "موقع مخصص لزبائن هذا الممون.",
@@ -2599,6 +2601,69 @@
       },
       "extraTitle": "معلومات إضافية من {name}",
       "version": "الإصدار {version}"
+    },
+    "home": {
+      "photoAlt": "صورة الممون رقم {position}",
+      "seeCatalog": "تصفّح الكتالوج",
+      "requestQuote": "اطلب عرض سعر",
+      "eventTypes": "لمناسباتكم",
+      "contact": "تواصلوا معنا"
+    },
+    "catalog": {
+      "title": "الكتالوج",
+      "subtitle": "الأسعار شاملة للضريبة. اختر ما يناسبك: سيرسل إليك الممون عرض السعر النهائي.",
+      "filters": {
+        "eventType": "المناسبة",
+        "range": "المستوى",
+        "allEvents": "الكل",
+        "allRanges": "الكل"
+      },
+      "tabs": {
+        "menu": "القوائم",
+        "buffet": "البوفيهات",
+        "equipment": "المعدات",
+        "service": "الخدمات"
+      },
+      "units": {
+        "perPerson": "/ للشخص",
+        "flat": "جزافي",
+        "perUnit": "/ للوحدة",
+        "perHour": "/ للساعة"
+      },
+      "photoOf": "صورة: {name}",
+      "minGuests": "ابتداءً من {count} مدعوًا",
+      "guestsRange": "من {min} إلى {max} مدعوًا",
+      "add": "أضف إلى طلبي",
+      "addAgain": "أضف مرة أخرى",
+      "inCart": "في طلبي",
+      "empty": "لا شيء لهذا الاختيار",
+      "emptyHint": "جرّب مناسبة أخرى أو مستوى آخر.",
+      "notFound": "العنصر غير موجود",
+      "notFoundHint": "لم يعد الممون يقترحه.",
+      "backToCatalog": "العودة إلى الكتالوج",
+      "composition": "المكوّنات",
+      "quantity": "الكمية",
+      "guestsLater": "يُحدَّد عدد المدعوين في طلبك.",
+      "availabilityLater": "يظهر التوفر في تاريخ مناسبتك داخل طلبك."
+    },
+    "cart": {
+      "title": "طلبي",
+      "subtitle": "يُحفظ اختيارك على هذا الجهاز حتى الإرسال، دون أي بيانات شخصية.",
+      "empty": "طلبك فارغ",
+      "emptyHint": "أضف قوائم أو بوفيهات أو معدات أو خدمات من الكتالوج.",
+      "browse": "تصفّح الكتالوج",
+      "kinds": {
+        "menu": "قائمة",
+        "buffet": "بوفيه",
+        "equipment": "معدات",
+        "service": "خدمة"
+      },
+      "perGuestHint": "لجميع مدعويك",
+      "quantity": "الكمية",
+      "quantityOf": "الكمية: {name}",
+      "remove": "إزالة {name}",
+      "loginToSend": "سجّل الدخول (أو أنشئ حسابك في لحظة) لإرسال طلبك إلى الممون.",
+      "login": "سجّل الدخول للإرسال"
     }
   }
 }

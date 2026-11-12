@@ -78,7 +78,8 @@ function clearSession(): void {
   refreshTimer = null;
   accessToken = null;
   expiresAt = 0;
-  for (const hook of endHooks) hook();
+  // Fin d'une session ouverte (pas un simple visiteur au chargement de la page)
+  if (state.status === 'authenticated') for (const hook of endHooks) hook();
   setState({ status: 'anonymous', user: null, context: null });
 }
 

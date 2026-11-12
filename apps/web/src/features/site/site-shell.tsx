@@ -2,6 +2,7 @@
 
 import { LogInIcon, UserRoundIcon } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
@@ -9,12 +10,14 @@ import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { Button } from '@/components/ui/button';
 import { SpaceBrand } from '@/features/space/space-brand';
 
+import { useCart } from './cart-store';
 import { useClientSession } from './client-session-provider';
 
-/** Liens du menu du site, ajoutés au fil des pages. */
+/** Liens du menu du site. */
 export interface SiteNavLink {
   href: string;
   label: string;
+  testId: string;
 }
 
 /**
@@ -24,8 +27,18 @@ export interface SiteNavLink {
 export function SiteShell({ children }: { children: ReactNode }) {
   const t = useTranslations('site');
   const session = useClientSession();
-  // Pages publiques du site (accueil et catalogue : étape suivante)
-  const links: SiteNavLink[] = [];
+  const cart = useCart();
+  const pathname = usePathname();
+  const links: SiteNavLink[] = [
+    { href: '/', label: t('nav.home'), testId: 'site-nav-home' },
+    { href: '/catalogue', label: t('nav.catalog'), testId: 'site-nav-catalog' },
+    {
+      href: '/demande',
+      label: cart.length > 0 ? t('nav.requestCount', { count: cart.length }) : t('nav.request'),
+      testId: 'site-nav-request',
+    },
+  ];
+  const active = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -51,19 +64,23 @@ export function SiteShell({ children }: { children: ReactNode }) {
             </Button>
           )}
         </div>
-        {links.length > 0 && (
-          <nav aria-label={t('nav.label')} className="mx-auto max-w-6xl overflow-x-auto px-4 pb-2">
-            <ul className="flex gap-1">
-              {links.map((link) => (
-                <li key={link.href}>
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href={link.href}>{link.label}</Link>
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
+        <nav aria-label={t('nav.label')} className="mx-auto max-w-6xl overflow-x-auto px-4 pb-2">
+          <ul className="flex gap-1">
+            {links.map((link) => (
+              <li key={link.href}>
+                <Button asChild variant={active(link.href) ? 'secondary' : 'ghost'} size="sm">
+                  <Link
+                    href={link.href}
+                    data-testid={link.testId}
+                    aria-current={active(link.href) ? 'page' : undefined}
+                  >
+                    {link.label}
+                  </Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
       <footer className="border-t bg-muted/40">

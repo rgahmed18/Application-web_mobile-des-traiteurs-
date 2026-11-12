@@ -2520,7 +2520,9 @@
       "home": "Accueil",
       "catalog": "Catalogue",
       "login": "Se connecter",
-      "account": "Mon espace"
+      "account": "Mon espace",
+      "request": "Ma demande",
+      "requestCount": "Ma demande ({count})"
     },
     "footer": {
       "rights": "Site réservé aux clients de ce traiteur.",
@@ -2599,6 +2601,69 @@
       },
       "extraTitle": "Informations complémentaires de {name}",
       "version": "Version {version}"
+    },
+    "home": {
+      "photoAlt": "Photo {position} du traiteur",
+      "seeCatalog": "Voir le catalogue",
+      "requestQuote": "Demander un devis",
+      "eventTypes": "Pour vos événements",
+      "contact": "Nous contacter"
+    },
+    "catalog": {
+      "title": "Catalogue",
+      "subtitle": "Prix TTC. Choisissez ce qui vous plaît : le devis définitif vous sera envoyé par le traiteur.",
+      "filters": {
+        "eventType": "Événement",
+        "range": "Gamme",
+        "allEvents": "tous",
+        "allRanges": "toutes"
+      },
+      "tabs": {
+        "menu": "Menus",
+        "buffet": "Buffets",
+        "equipment": "Matériel",
+        "service": "Services"
+      },
+      "units": {
+        "perPerson": "/ personne",
+        "flat": "forfait",
+        "perUnit": "/ unité",
+        "perHour": "/ heure"
+      },
+      "photoOf": "Photo : {name}",
+      "minGuests": "À partir de {count} invités",
+      "guestsRange": "De {min} à {max} invités",
+      "add": "Ajouter à ma demande",
+      "addAgain": "Ajouter encore",
+      "inCart": "Dans ma demande",
+      "empty": "Rien pour ce choix",
+      "emptyHint": "Essayez un autre type d’événement ou une autre gamme.",
+      "notFound": "Élément introuvable",
+      "notFoundHint": "Il n’est plus proposé par le traiteur.",
+      "backToCatalog": "Retour au catalogue",
+      "composition": "Composition",
+      "quantity": "Quantité",
+      "guestsLater": "Le nombre d’invités se précise dans votre demande.",
+      "availabilityLater": "La disponibilité pour votre date s’affiche dans votre demande."
+    },
+    "cart": {
+      "title": "Ma demande",
+      "subtitle": "Votre sélection est gardée sur cet appareil jusqu’à l’envoi, sans aucune donnée personnelle.",
+      "empty": "Votre demande est vide",
+      "emptyHint": "Ajoutez des menus, buffets, du matériel ou des services depuis le catalogue.",
+      "browse": "Voir le catalogue",
+      "kinds": {
+        "menu": "Menu",
+        "buffet": "Buffet",
+        "equipment": "Matériel",
+        "service": "Service"
+      },
+      "perGuestHint": "Pour tous vos invités",
+      "quantity": "Quantité",
+      "quantityOf": "Quantité : {name}",
+      "remove": "Retirer {name}",
+      "loginToSend": "Connectez-vous (ou créez votre compte en un instant) pour envoyer votre demande au traiteur.",
+      "login": "Se connecter pour envoyer"
     }
   }
 }
