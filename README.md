@@ -20,13 +20,14 @@ Langues : français et arabe (RTL), anglais facultatif. Devise par défaut : MAD
 3. [Lancer le projet](#lancer-le-projet)
 4. [Comptes de démonstration](#comptes-de-démonstration)
 5. [Back-office web](#back-office-web)
-6. [Tester l'authentification](#tester-lauthentification)
-7. [Structure du monorepo](#structure-du-monorepo)
-8. [Choix d'architecture](#choix-darchitecture)
-9. [Tests et qualité](#tests-et-qualité)
-10. [Référence des commandes](#référence-des-commandes)
-11. [Mise en production](#mise-en-production)
-12. [Dépannage](#dépannage)
+6. [Site client](#site-client)
+7. [Tester l'authentification](#tester-lauthentification)
+8. [Structure du monorepo](#structure-du-monorepo)
+9. [Choix d'architecture](#choix-darchitecture)
+10. [Tests et qualité](#tests-et-qualité)
+11. [Référence des commandes](#référence-des-commandes)
+12. [Mise en production](#mise-en-production)
+13. [Dépannage](#dépannage)
 
 ---
 
@@ -625,6 +626,16 @@ comprise). Elle est envoyée directement au stockage par URL présignée (type e
 400 px) sans métadonnées. Une photo jamais rattachée, ou remplacée, est supprimée après 24 h par
 une tâche BullMQ horaire (`media-orphans-cleanup`).
 
+## Site client
+
+Chaque traiteur a un site pour ses clients à la racine de son adresse
+(`http://dar-diafa.localhost:3001/` en développement) : accueil, catalogue public filtrable,
+« ma demande », inscription et connexion par code (SMS, ou e-mail pour un numéro étranger),
+demande en ligne, espace client (demandes, devis, factures et reçus, paiements, profil). Réglages
+dans Paramètres → Site client ; nouveaux clients et demandes signalés par la cloche du
+back-office. En développement, les codes s'affichent dans les journaux de l'API (fournisseurs
+simulés). Détails, sécurité, limites et tests : **[docs/site-client.md](docs/site-client.md)**.
+
 ## Tester l'authentification
 
 Toutes les routes sont sous `/api/v1/auth`. Le détail est dans Swagger.
@@ -1064,7 +1075,7 @@ request :
 | `pnpm --filter @traiteur/api db:check-drift`              | Vérifie que schéma et migrations concordent                                    |
 | `pnpm --filter @traiteur/api db:studio`                   | Interface graphique de la base                                                 |
 | `pnpm --filter @traiteur/api catalog:set-photo …`         | Remplace la photo d'un plat ou d'une formule                                   |
-| `pnpm --filter @traiteur/web test:e2e`                    | Parcours Playwright du back-office                                             |
+| `pnpm --filter @traiteur/web test:e2e`                    | Parcours Playwright du back-office et du site client                           |
 | `pnpm clean`                                              | Vide `.turbo`, les `.next/cache`, `dist` et `*.tsbuildinfo` (serveurs arrêtés) |
 
 ## Mise en production

@@ -3,7 +3,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_MARK_COOKIE } from '@/features/auth/session-wake';
 
-import { callApi, finishSession, REFRESH_COOKIE, sessionMatchesSpace } from './bff';
+import {
+  BACKOFFICE_SESSION,
+  callApi,
+  CLIENT_SESSION,
+  finishSession,
+  REFRESH_COOKIE,
+  sessionMatchesSpace,
+} from './bff';
 
 /** En-têtes réellement envoyés à l'API par le serveur Next. */
 async function forwardedHeaders(incoming: Record<string, string>): Promise<Headers> {
@@ -123,5 +130,93 @@ describe('sessionMatchesSpace : une session ne vaut que pour l’espace de son a
     expect(sessionMatchesSpace(staff(darDiafa.traiteur.id, 'ADMIN_TRAITEUR'), platform)).toBe(
       false,
     );
+  });
+});
+
+describe('sessions du site client et du back-office : séparées, liées à l’adresse', () => {
+  const darDiafa = {
+    kind: 'traiteur' as const,
+    traiteur: {
+      id: '22222222-2222-4222-8222-222222222222',
+      slug: 'dar-diafa',
+      name: 'Dar Diafa',
+      logoUrl: null,
+      status: 'ACTIVE' as const,
+    },
+  };
+  const context = (
+    traiteurId: string | null,
+    role: 'ADMIN_TRAITEUR' | 'CLIENT' | 'SUPER_ADMIN',
+  ) => ({
+    traiteurId,
+    membershipId: role === 'SUPER_ADMIN' ? null : '33333333-3333-4333-8333-333333333333',
+    role,
+  });
+
+  it('cookies distincts : un client et un membre du personnel ne s’écrasent pas', () => {
+    expect(CLIENT_SESSION.refreshCookie).not.toBe(BACKOFFICE_SESSION.refreshCookie);
+    expect(CLIENT_SESSION.markCookie).not.toBe(BACKOFFICE_SESSION.markCookie);
+    expect(CLIENT_SESSION.cookiePath).toBe('/api/client-session');
+  });
+
+  it('site client : seulement un client de CE traiteur', () => {
+    expect(CLIENT_SESSION.accepts(context(darDiafa.traiteur.id, 'CLIENT'), darDiafa)).toBe(true);
+    // Client d'un autre traiteur, personnel, super admin, adresse de la console : refusés
+    expect(
+      CLIENT_SESSION.accepts(context('44444444-4444-4444-8444-444444444444', 'CLIENT'), darDiafa),
+    ).toBe(false);
+    expect(CLIENT_SESSION.accepts(context(darDiafa.traiteur.id, 'ADMIN_TRAITEUR'), darDiafa)).toBe(
+      false,
+    );
+    expect(CLIENT_SESSION.accepts(context(darDiafa.traiteur.id, 'SUPER_ADMIN'), darDiafa)).toBe(
+      false,
+    );
+    expect(
+      CLIENT_SESSION.accepts(context(darDiafa.traiteur.id, 'CLIENT'), { kind: 'platform' }),
+    ).toBe(false);
+  });
+
+  it('back-office : jamais une session client', () => {
+    expect(BACKOFFICE_SESSION.accepts(context(darDiafa.traiteur.id, 'CLIENT'), darDiafa)).toBe(
+      false,
+    );
+    expect(
+      BACKOFFICE_SESSION.accepts(context(darDiafa.traiteur.id, 'ADMIN_TRAITEUR'), darDiafa),
+    ).toBe(true);
+  });
+
+  it('une session client refusée par l’adresse est révoquée, sans cookie posé', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const request = new NextRequest('http://dar-diafa.localhost:3001/api/client-session/verify', {
+      method: 'POST',
+    });
+    const apiResponse = new Response(
+      JSON.stringify({
+        tokenType: 'Bearer',
+        accessToken: 'access',
+        expiresIn: 900,
+        refreshToken: 'refresh-secret',
+        user: {
+          id: '11111111-1111-4111-8111-111111111111',
+          phone: '+212600000001',
+          email: null,
+          firstName: 'Client',
+          lastName: 'Ailleurs',
+          locale: 'fr',
+          isSuperAdmin: false,
+          hasPassword: false,
+          twoFactorEnabled: false,
+        },
+        context: context('44444444-4444-4444-8444-444444444444', 'CLIENT'),
+      }),
+    );
+    const response = await finishSession(request, apiResponse, darDiafa, CLIENT_SESSION);
+    expect(response.status).toBe(403);
+    expect(response.cookies.get(CLIENT_SESSION.refreshCookie)?.value ?? '').toBe('');
+    // La session est révoquée côté API
+    const called = fetchMock.mock.calls[0]?.[0];
+    expect(typeof called === 'string' ? called : '').toMatch(/\/auth\/logout$/);
+    vi.unstubAllGlobals();
   });
 });
