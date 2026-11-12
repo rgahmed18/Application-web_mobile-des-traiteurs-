@@ -648,37 +648,136 @@ export class QuotesService {
   ): Promise<PublicQuote> {
     const link = await this.findLink(token, true);
     await this.expireDue({ traiteurId: link.traiteurId, quoteId: link.quoteId });
+    await this.rejectByClient(link.traiteurId, link.quoteId, input.reason, client, null);
+    return this.presentPublic(link, null);
+  }
+
+  // ─────────────────────────── Espace client ───────────────────────────
+
+  /**
+   * Devis vu depuis l'espace du client sur le site du traiteur : seulement un devis envoyé d'une
+   * commande de CE client (jamais un brouillon), même présentation que la page publique.
+   */
+  async clientView(
+    traiteurId: string,
+    membershipId: string,
+    quoteId: string,
+    lang: 'fr' | 'ar' | null,
+  ): Promise<PublicQuote> {
+    await this.clientQuote(traiteurId, membershipId, quoteId);
+    await this.expireDue({ traiteurId, quoteId });
+    return this.presentPublic({ traiteurId, quoteId }, lang);
+  }
+
+  /** Accord du client connecté : comme l'accord en ligne (nom saisi, IP), l'auteur en plus. */
+  async clientAccept(
+    user: AuthenticatedUser,
+    membershipId: string,
+    quoteId: string,
+    input: PublicAcceptInput,
+    client: ClientInfo,
+  ): Promise<PublicQuote> {
+    const traiteurId = requireTraiteurId(user);
+    await this.clientQuote(traiteurId, membershipId, quoteId);
+    await this.expireDue({ traiteurId, quoteId });
+    await this.prisma.$transaction((tx) =>
+      this.accept(
+        tx,
+        traiteurId,
+        quoteId,
+        {
+          mode: 'ONLINE',
+          name: input.name,
+          ip: client.ipAddress,
+          userAgent: client.userAgent,
+          note: null,
+          attachmentKey: null,
+          recordedBy: null,
+          actor: user,
+        },
+        client,
+        false,
+      ),
+    );
+    return this.presentPublic({ traiteurId, quoteId }, null);
+  }
+
+  async clientReject(
+    user: AuthenticatedUser,
+    membershipId: string,
+    quoteId: string,
+    reason: string | null,
+    client: ClientInfo,
+  ): Promise<PublicQuote> {
+    const traiteurId = requireTraiteurId(user);
+    await this.clientQuote(traiteurId, membershipId, quoteId);
+    await this.expireDue({ traiteurId, quoteId });
+    await this.rejectByClient(traiteurId, quoteId, reason, client, user);
+    return this.presentPublic({ traiteurId, quoteId }, null);
+  }
+
+  /** PDF d'un devis du client (envoyé, accepté ou clos), lien signé de courte durée. */
+  async clientPdf(
+    user: AuthenticatedUser,
+    membershipId: string,
+    quoteId: string,
+  ): Promise<Download> {
+    await this.clientQuote(requireTraiteurId(user), membershipId, quoteId);
+    return this.pdfDownload(user, quoteId);
+  }
+
+  private async clientQuote(traiteurId: string, membershipId: string, quoteId: string) {
+    const quote = await this.prisma.quote.findFirst({
+      where: {
+        id: quoteId,
+        traiteurId,
+        status: { not: 'DRAFT' },
+        order: { clientId: membershipId },
+      },
+      select: { id: true },
+    });
+    if (!quote) throw appErrors.notFound('NOT_FOUND', 'Devis introuvable');
+    return quote;
+  }
+
+  /** Refus par le client (lien public ou espace) : la commande revient « En attente ». */
+  private async rejectByClient(
+    traiteurId: string,
+    quoteId: string,
+    reason: string | null,
+    client: ClientInfo,
+    actor: AuthenticatedUser | null,
+  ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      const quote = await this.lockQuote(tx, link.traiteurId, link.quoteId);
+      const quote = await this.lockQuote(tx, traiteurId, quoteId);
       if (quote.status !== 'SENT') {
         throw appErrors.badRequest('QUOTE_NOT_OPEN', 'Ce devis n’est plus en cours');
       }
-      await this.lockOrder(tx, link.traiteurId, quote.orderId);
+      await this.lockOrder(tx, traiteurId, quote.orderId);
       await tx.quote.update({
         where: { id: quote.id },
-        data: { status: 'REJECTED', rejectedAt: new Date(), rejectionReason: input.reason },
+        data: { status: 'REJECTED', rejectedAt: new Date(), rejectionReason: reason },
       });
       await this.reopenOrder(
         tx,
-        link.traiteurId,
+        traiteurId,
         quote.orderId,
         `Devis ${quote.reference} v${quote.version} refusé par le client`,
         'client (en ligne)',
       );
       await this.audit.record(
         {
-          traiteurId: link.traiteurId,
-          actor: null,
+          traiteurId,
+          actor,
           action: 'quote.rejected',
           entityType: 'Quote',
           entityId: quote.id,
-          after: { reason: input.reason, via: 'online' },
+          after: { reason, via: actor ? 'client-space' : 'online' },
           client,
         },
         tx,
       );
     });
-    return this.presentPublic(link, null);
   }
 
   // ─────────────────────────── Expiration ───────────────────────────

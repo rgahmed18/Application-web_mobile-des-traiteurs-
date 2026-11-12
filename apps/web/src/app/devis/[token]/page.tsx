@@ -10,7 +10,7 @@ import { MessageScreen } from '@/components/layout/message-screen';
 import type { UiLocale } from '@/i18n/config';
 import { serverEnv } from '@/lib/env/server';
 
-import { PublicQuoteView } from './public-quote-view';
+import { TokenQuoteView } from './public-quote-view';
 
 /**
  * Devis consulté par le client via son lien sécurisé (sans connexion). Jamais indexé, aucun
@@ -68,7 +68,7 @@ export default async function PublicQuotePage({
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <div lang={locale} dir={getTextDirection(locale)} className="flex flex-1 flex-col">
-        <PublicQuoteView token={token} initial={quote} locale={locale} />
+        <TokenQuoteView token={token} initial={quote} locale={locale} />
       </div>
     </NextIntlClientProvider>
   );

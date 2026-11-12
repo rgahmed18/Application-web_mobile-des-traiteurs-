@@ -82,3 +82,13 @@ export async function signUpOnSite(
   await expect(page.getByTestId('client-account')).toBeVisible();
   return { e164: phone.e164 };
 }
+
+/**
+ * Chargement d'une page du site par un client connecté : attend la reprise de la session (bouton
+ * « Mon espace ») avant de continuer. Enchaîner deux chargements interromprait la rotation du
+ * jeton de session, aussitôt prise pour une réutilisation (session fermée, par sécurité).
+ */
+export async function gotoSignedIn(page: Page, url: string): Promise<void> {
+  await page.goto(url);
+  await expect(page.getByTestId('site-account-link')).toBeVisible();
+}

@@ -30,6 +30,29 @@ import { useLocalized } from '@/features/catalog/use-localized';
 
 type Step = 'view' | 'accept' | 'reject';
 
+/**
+ * Actions sur le devis : page publique (lien sécurisé) ou espace du client (session). Les
+ * erreurs portent le code stable de l'API dans leur message (ou leur propriété code).
+ */
+export interface QuoteActions {
+  respond: (action: 'accept' | 'reject', body: object) => Promise<PublicQuote>;
+  /** PDF : lien direct (page publique) ou téléchargement par lien signé (espace client). */
+  pdf: { href: string } | { download: () => Promise<void> };
+  /** Page publique : choix de la langue du devis ; espace client : langue du site. */
+  languageSwitch: boolean;
+}
+
+/** Actions de la page publique : lien sécurisé, sans session. */
+export function publicQuoteActions(token: string): QuoteActions {
+  return {
+    respond: (action, body) => respond(token, action, body),
+    pdf: {
+      href: `${publicEnv().PUBLIC_API_URL}/public/quotes/${encodeURIComponent(token)}/pdf`,
+    },
+    languageSwitch: true,
+  };
+}
+
 /** Appel public (sans session) : réponse validée, code d'erreur stable sinon. */
 async function respond(token: string, action: 'accept' | 'reject', body: object) {
   const response = await fetch(
@@ -54,13 +77,16 @@ async function respond(token: string, action: 'accept' | 'reject', body: object)
 
 /** Devis vu par le client : détail, téléchargement du PDF, accord ou refus. */
 export function PublicQuoteView({
-  token,
+  actions,
   initial,
   locale,
+  embedded = false,
 }: {
-  token: string;
+  actions: QuoteActions;
   initial: PublicQuote;
   locale: UiLocale;
+  /** Dans l'espace client (cadre du site) plutôt qu'en page entière. */
+  embedded?: boolean;
 }) {
   const t = useTranslations('publicQuote');
   const localized = useLocalized();
@@ -73,7 +99,6 @@ export function PublicQuoteView({
   const [error, setError] = useState<string | null>(null);
   const money = (cents: number) => formatMoney(cents, locale);
   const ttc = quote.priceMode === 'TTC';
-  const pdfUrl = `${publicEnv().PUBLIC_API_URL}/public/quotes/${encodeURIComponent(token)}/pdf`;
 
   const submit = async (action: 'accept' | 'reject') => {
     setPending(true);
@@ -83,10 +108,15 @@ export function PublicQuoteView({
         action === 'accept'
           ? { name: name.trim(), consent }
           : { reason: reason.trim() === '' ? null : reason.trim() };
-      setQuote(await respond(token, action, body));
+      setQuote(await actions.respond(action, body));
       setStep('view');
     } catch (failure) {
-      const code = failure instanceof Error ? failure.message : '';
+      const code =
+        failure instanceof Error
+          ? 'code' in failure && typeof failure.code === 'string'
+            ? failure.code
+            : failure.message
+          : '';
       setError(
         code === 'QUOTE_EXPIRED'
           ? t('errors.expired')
@@ -113,7 +143,14 @@ export function PublicQuoteView({
     : quote.event.startTime;
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6 sm:py-10">
+    <main
+      className={
+        embedded
+          ? 'flex w-full flex-col gap-5'
+          : 'mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6 sm:py-10'
+      }
+      data-testid="quote-view"
+    >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">{t('from')}</p>
@@ -132,11 +169,13 @@ export function PublicQuoteView({
             <span dir="ltr">{quote.traiteur.email}</span>
           </p>
         </div>
-        <Button asChild variant="ghost" size="sm">
-          <Link href={`?lang=${otherLocale}`} replace>
-            {t('switchLanguage')}
-          </Link>
-        </Button>
+        {actions.languageSwitch && (
+          <Button asChild variant="ghost" size="sm">
+            <Link href={`?lang=${otherLocale}`} replace>
+              {t('switchLanguage')}
+            </Link>
+          </Button>
+        )}
       </header>
 
       <Card>
@@ -257,12 +296,23 @@ export function PublicQuoteView({
             </div>
           )}
 
-          <Button asChild variant="outline" className="self-start">
-            <a href={pdfUrl} target="_blank" rel="noreferrer noopener">
+          {'href' in actions.pdf ? (
+            <Button asChild variant="outline" className="self-start">
+              <a href={actions.pdf.href} target="_blank" rel="noreferrer noopener">
+                <DownloadIcon aria-hidden />
+                {t('downloadPdf')}
+              </a>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="self-start"
+              onClick={() => 'download' in actions.pdf && void actions.pdf.download()}
+            >
               <DownloadIcon aria-hidden />
               {t('downloadPdf')}
-            </a>
-          </Button>
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -404,4 +454,17 @@ function Outcome({ quote }: { quote: PublicQuote }) {
       {t(quote.status)}
     </p>
   );
+}
+
+/** Page publique du devis (composant client) : actions par le lien sécurisé. */
+export function TokenQuoteView({
+  token,
+  initial,
+  locale,
+}: {
+  token: string;
+  initial: PublicQuote;
+  locale: UiLocale;
+}) {
+  return <PublicQuoteView actions={publicQuoteActions(token)} initial={initial} locale={locale} />;
 }

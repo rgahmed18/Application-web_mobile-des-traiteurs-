@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { login } from './helpers';
-import { signUpOnSite } from './site-helpers';
+import { gotoSignedIn, signUpOnSite } from './site-helpers';
 
 /** Jour civil à Casablanca, dans `days` jours (AAAA-MM-JJ). */
 function inDays(days: number): string {
@@ -19,7 +19,7 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
   await signUpOnSite(page, { firstName: 'Hajar', lastName });
 
   // Choix dans le catalogue : la formule de mariage et un service
-  await page.goto('/catalogue');
+  await gotoSignedIn(page, '/catalogue');
   const catalog = page.getByTestId('site-catalog');
   await catalog
     .getByTestId('catalog-card')

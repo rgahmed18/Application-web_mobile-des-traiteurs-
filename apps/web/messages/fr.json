@@ -2174,7 +2174,8 @@
       "client_approved": "Client inscrit en ligne : accepté",
       "client_rejected": "Client inscrit en ligne : refusé",
       "order_requested_online": "Demande en ligne reçue",
-      "order_cancelled_by_client": "Demande annulée par le client"
+      "order_cancelled_by_client": "Demande annulée par le client",
+      "client_account_updated": "Client : coordonnées modifiées depuis son espace"
     },
     "traiteurs": {
       "title": "Traiteurs",
@@ -2589,11 +2590,6 @@
       "continue": "Continuer",
       "privacyUnavailable": "La politique de confidentialité n’a pas pu être chargée. Réessayez dans un instant."
     },
-    "account": {
-      "title": "Mon espace",
-      "welcome": "Bonjour {name}",
-      "logout": "Se déconnecter"
-    },
     "privacy": {
       "title": "Politique de confidentialité",
       "intro": "{name} attache une grande importance à la protection de vos données personnelles. Cette politique explique quelles données sont collectées sur ce site, pourquoi, et comment exercer vos droits, conformément à la loi n° 09-08 relative à la protection des personnes physiques à l’égard du traitement des données à caractère personnel.",
@@ -2739,6 +2735,126 @@
       "previous": "Précédent",
       "next": "Suivant",
       "send": "Envoyer ma demande"
+    },
+    "space": {
+      "title": "Mon espace",
+      "welcome": "Bonjour {name}",
+      "logout": "Se déconnecter",
+      "menu": "Rubriques de mon espace",
+      "sections": {
+        "home": "Accueil",
+        "orders": "Mes demandes",
+        "quotes": "Mes devis",
+        "invoices": "Factures et reçus",
+        "payments": "Paiements",
+        "profile": "Profil"
+      },
+      "newRequest": "Nouvelle demande",
+      "quoteToAnswer": "Devis à traiter",
+      "guests": "{count} invités",
+      "dueOn": "à régler avant le {date}",
+      "overdue": "En retard",
+      "validUntil": "Valable jusqu’au {date}",
+      "download": "Télécharger",
+      "voided": "Annulé",
+      "dashboard": {
+        "quotes": "Devis à traiter",
+        "nextPayment": "Prochain paiement",
+        "active": "Demandes et commandes en cours",
+        "noActive": "Aucune demande en cours. Parcourez le catalogue pour préparer la prochaine."
+      },
+      "installments": {
+        "DEPOSIT": "Acompte",
+        "BALANCE": "Solde",
+        "FULL": "Totalité"
+      },
+      "quoteStatus": {
+        "SENT": "À traiter",
+        "ACCEPTED": "Accepté",
+        "REJECTED": "Refusé",
+        "EXPIRED": "Expiré",
+        "SUPERSEDED": "Remplacé"
+      },
+      "orders": {
+        "empty": "Aucune demande",
+        "emptyHint": "Choisissez vos menus, buffets et services dans le catalogue, puis envoyez votre demande."
+      },
+      "order": {
+        "cancel": "Annuler la demande",
+        "cancelTitle": "Annuler cette demande ?",
+        "cancelHint": "Le traiteur sera informé. Vous pourrez envoyer une nouvelle demande quand vous le souhaitez.",
+        "keep": "Garder la demande",
+        "confirmCancel": "Annuler la demande",
+        "cancelled": "Demande annulée.",
+        "event": "Événement",
+        "date": "Date",
+        "guests": "Invités",
+        "venue": "Lieu",
+        "notes": "Vos précisions",
+        "lines": "Détail",
+        "total": "Total TTC",
+        "estimateHint": "Estimation : le prix définitif figurera dans le devis du traiteur.",
+        "documents": "Paiements et documents",
+        "paid": "Payé : {paid} · Reste à payer : {remaining}",
+        "history": "Historique",
+        "byYou": "par vous",
+        "byTraiteur": "par le traiteur"
+      },
+      "quotes": {
+        "empty": "Aucun devis",
+        "emptyHint": "Le traiteur vous enverra un devis après l’étude de votre demande."
+      },
+      "invoices": {
+        "empty": "Aucune facture ni aucun reçu",
+        "emptyHint": "Ils apparaîtront ici dès que le traiteur les aura émis.",
+        "invoices": "Factures",
+        "receipts": "Reçus de paiement"
+      },
+      "invoiceKinds": {
+        "TOTAL": "Facture",
+        "DEPOSIT": "Facture d’acompte",
+        "BALANCE": "Facture de solde",
+        "CANCELLATION_FEE": "Frais d’annulation",
+        "CREDIT_NOTE": "Avoir"
+      },
+      "payments": {
+        "empty": "Aucun paiement",
+        "emptyHint": "Les paiements enregistrés par le traiteur apparaîtront ici avec leur reçu."
+      },
+      "paymentTypes": {
+        "DEPOSIT": "Acompte",
+        "BALANCE": "Solde",
+        "FULL": "Paiement complet",
+        "REFUND": "Remboursement"
+      },
+      "paymentMethods": {
+        "CASH": "Espèces",
+        "BANK_TRANSFER": "Virement",
+        "CARD": "Carte",
+        "CHEQUE": "Chèque"
+      },
+      "profile": {
+        "title": "Mes coordonnées",
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "email": "Adresse e-mail (facultative)",
+        "locale": "Langue des messages",
+        "localeHint": "Pour les SMS et e-mails envoyés par le traiteur.",
+        "phone": "Téléphone (identifiant de connexion)",
+        "save": "Enregistrer",
+        "saved": "Coordonnées enregistrées.",
+        "addresses": "Mes adresses",
+        "addAddress": "Ajouter une adresse",
+        "noAddress": "Aucune adresse enregistrée.",
+        "default": "par défaut",
+        "removeAddress": "Supprimer l’adresse {label}",
+        "addressLabel": "Nom (ex. Maison)",
+        "city": "Ville",
+        "address": "Adresse",
+        "makeDefault": "Adresse par défaut",
+        "saveAddress": "Enregistrer l’adresse",
+        "cancel": "Annuler"
+      }
     }
   }
 }

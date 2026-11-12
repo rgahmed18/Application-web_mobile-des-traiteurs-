@@ -199,7 +199,7 @@ export function RequestWizard() {
       cartStore.clear();
       await queryClient.invalidateQueries({ queryKey: clientKeys.all });
       toast.success(t('sent', { reference: created.reference }));
-      router.push('/espace');
+      router.push(`/espace/demandes/${created.id}`);
     } catch (error) {
       toast.error(describeError(error));
     }

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { signUpOnSite } from './site-helpers';
+import { gotoSignedIn, signUpOnSite } from './site-helpers';
 
 test('visiteur : accueil, catalogue filtré, prix TTC, « ma demande », sur téléphone', async ({
   page,
@@ -73,7 +73,7 @@ test('catalogue en arabe ; « ma demande » vidée à la déconnexion', async ({
 
   await context.clearCookies();
   await signUpOnSite(page, { firstName: 'Imane', lastName: 'Berrada' });
-  await page.goto('/catalogue');
+  await gotoSignedIn(page, '/catalogue');
   await page.getByTestId('catalog-card').first().getByTestId('add-to-cart').click();
   await expect(page.getByTestId('site-nav-request')).toHaveText('Ma demande (1)');
   await page.goto('/espace');
