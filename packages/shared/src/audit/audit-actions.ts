@@ -106,6 +106,8 @@ const FIXED_ACTIONS = [
   'settings.site_updated',
   // Clients du site
   'client.self_registered',
+  'client.approved',
+  'client.rejected',
   // Plateforme
   'traiteur.created',
   'super_admin.created',

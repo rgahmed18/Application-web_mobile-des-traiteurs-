@@ -50,6 +50,7 @@ import { formatMoney } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 import { useLocalized } from '@/features/catalog/use-localized';
 
+import { ClientApprovalBadge, ClientApprovalCard } from './client-approval';
 import { ClientFormDialog } from './client-form-dialog';
 import { draftParam } from '@/features/drafts/draft-param';
 import { clientName, useClient, useRemoveAddress, useSaveAddress } from './clients-api';
@@ -323,6 +324,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           <div>
             <h1 className="text-2xl font-semibold sm:text-3xl">{clientName(data)}</h1>
             {!data.active && <Badge variant="outline">{t('detail.inactive')}</Badge>}
+            <ClientApprovalBadge approval={data.approval} />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
@@ -354,6 +356,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
           </div>
         </div>
       </div>
+
+      <ClientApprovalCard client={data} />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>

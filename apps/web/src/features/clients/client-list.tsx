@@ -6,10 +6,11 @@ import {
   ArrowUpNarrowWideIcon,
   PlusIcon,
   SearchIcon,
+  ShieldCheckIcon,
   UsersIcon,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
@@ -32,6 +33,7 @@ import { useTimeZone } from '@/features/traiteur/use-time-zone';
 import { formatDate } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
 
+import { ClientApprovalBadge } from './client-approval';
 import { ClientFormDialog } from './client-form-dialog';
 import { draftParam } from '@/features/drafts/draft-param';
 import { clientName, useClients } from './clients-api';
@@ -50,6 +52,9 @@ export function ClientList() {
   const [sort, setSort] = useState<Sort>('name');
   const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
+  // Clients inscrits en ligne qui attendent l'accord du traiteur (lien des notifications)
+  const params = useSearchParams();
+  const [pendingOnly, setPendingOnly] = useState(() => params.get('validation') === 'attente');
   // Reprise d'un brouillon de nouveau client (lien du tableau de bord)
   const [creating, setCreating] = useState(() => draftParam() === 'client:new');
   const debouncedSearch = useDebouncedValue(search.trim());
@@ -60,7 +65,9 @@ export function ClientList() {
     direction,
     page,
     pageSize: PAGE_SIZE,
+    ...(pendingOnly ? { approval: 'PENDING' as const } : {}),
   });
+  const pendingCount = useClients({ approval: 'PENDING', pageSize: 1 }).data?.total ?? 0;
   const items = clients.data?.items ?? [];
 
   const changeSort = (value: Sort) => {
@@ -84,6 +91,22 @@ export function ClientList() {
           )
         }
       />
+
+      {(pendingCount > 0 || pendingOnly) && (
+        <Button
+          variant={pendingOnly ? 'default' : 'outline'}
+          className="self-start"
+          aria-pressed={pendingOnly}
+          onClick={() => {
+            setPendingOnly(!pendingOnly);
+            setPage(1);
+          }}
+          data-testid="clients-pending-filter"
+        >
+          <ShieldCheckIcon aria-hidden />
+          {t('approval.pendingFilter', { count: pendingCount })}
+        </Button>
+      )}
 
       <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] md:items-end">
         <InputGroup>
@@ -156,7 +179,10 @@ export function ClientList() {
                 className="flex flex-col gap-2 p-3 hover:bg-muted/50 focus-visible:bg-muted/50 sm:flex-row sm:items-center sm:gap-4 sm:p-4"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-medium">{clientName(client)}</p>
+                  <p className="flex items-center gap-2 truncate text-base font-medium">
+                    {clientName(client)}
+                    <ClientApprovalBadge approval={client.approval} />
+                  </p>
                   <p className="text-sm text-muted-foreground" dir="ltr">
                     {client.phone}
                   </p>

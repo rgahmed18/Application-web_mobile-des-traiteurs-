@@ -70,10 +70,26 @@ export const clientListQuerySchema = z.object({
   sort: z.enum(CLIENT_SORTS).default('name'),
   direction: z.enum(['asc', 'desc']).default('asc'),
   includeInactive: booleanQuery,
+  /** Clients à valider (PENDING), acceptés ou refusés. */
+  approval: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type ClientListQuery = z.infer<typeof clientListQuerySchema>;
+
+/**
+ * Accord du traiteur sur un client inscrit en ligne (réglage « Validation des nouveaux
+ * clients ») : en attente, accepté ou refusé (avec motif, montré au client).
+ */
+export const CLIENT_APPROVALS = ['PENDING', 'APPROVED', 'REJECTED'] as const;
+export const clientApprovalSchema = z.enum(CLIENT_APPROVALS);
+export type ClientApproval = z.infer<typeof clientApprovalSchema>;
+
+/** Refus d'un client : motif obligatoire, envoyé au client. */
+export const clientRejectSchema = z.object({
+  reason: z.string().trim().min(3).max(500),
+});
+export type ClientRejectInput = z.infer<typeof clientRejectSchema>;
 
 export const clientAddressSchema = clientAddressInputSchema.extend({ id: z.uuid() });
 export type ClientAddress = z.infer<typeof clientAddressSchema>;
@@ -96,6 +112,9 @@ export const clientSummarySchema = z.object({
   /** Prochain événement à venir (commandes ni annulées ni en brouillon). */
   nextOrderAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
+  approval: clientApprovalSchema,
+  /** Inscrit sur le site du traiteur : date de son accord à la politique de confidentialité. */
+  privacyConsentAt: z.iso.datetime().nullable(),
 });
 export type ClientSummary = z.infer<typeof clientSummarySchema>;
 
@@ -104,6 +123,10 @@ export const clientSchema = clientSummarySchema.extend({
   companyName: z.string().nullable(),
   companyIce: z.string().nullable(),
   addresses: z.array(clientAddressSchema),
+  /** Décision du traiteur sur l'inscription en ligne : date et motif d'un refus. */
+  approvalDecidedAt: z.iso.datetime().nullable(),
+  rejectionReason: z.string().nullable(),
+  privacyPolicyVersion: z.string().nullable(),
 });
 export type Client = z.infer<typeof clientSchema>;
 

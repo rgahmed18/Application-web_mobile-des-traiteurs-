@@ -66,6 +66,21 @@ export function useCreateClient() {
   );
 }
 
+/** Décision du traiteur sur un client inscrit en ligne : accepté, ou refusé avec motif. */
+export function useDecideClient() {
+  return useClientMutation(
+    (
+      variables:
+        { id: string; decision: 'approve' } | { id: string; decision: 'reject'; reason: string },
+    ) =>
+      apiRequest(`/clients/${variables.id}/${variables.decision}`, {
+        method: 'POST',
+        body: variables.decision === 'reject' ? { reason: variables.reason } : undefined,
+        schema: clientSchema,
+      }),
+  );
+}
+
 export function useUpdateClient() {
   return useClientMutation(
     ({ id, input, version }: { id: string; input: ClientUpdateInput; version: string | null }) =>

@@ -26,6 +26,8 @@ export const PERMISSIONS = [
   { key: 'catalog.read', module: 'catalog', description: 'Consulter le catalogue', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE, CLIENT] },
   { key: 'catalog.write', module: 'catalog', description: 'Créer, modifier, archiver et supprimer les éléments du catalogue (réservé à l’administrateur)', isTenantEditable: false, defaultRoles: [ADMIN] },
   // Commandes
+  // Clients du site
+  { key: 'clients.approve', module: 'clients', description: 'Accepter ou refuser les nouveaux clients inscrits en ligne', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
   { key: 'orders.read', module: 'orders', description: 'Consulter toutes les commandes', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE] },
   { key: 'orders.read_own', module: 'orders', description: 'Consulter ses propres commandes', isTenantEditable: true, defaultRoles: [CLIENT] },
   { key: 'orders.create', module: 'orders', description: 'Créer une commande', isTenantEditable: true, defaultRoles: [ADMIN, EMPLOYEE, CLIENT] },

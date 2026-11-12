@@ -418,8 +418,12 @@ if (
   fail('Le build a échoué.');
 }
 
-step('Migrations en attente (jamais de remise à zéro)');
+step('Migrations en attente et permissions (jamais de remise à zéro)');
 if (!run('pnpm', ['--filter', '@traiteur/api', 'db:deploy'])) fail('migrate deploy a échoué.');
+// Nouvelles permissions du catalogue (comme au déploiement) ; les réglages des traiteurs restent
+if (!run('pnpm', ['--filter', '@traiteur/api', 'exec', 'node', 'dist/cli/sync-permissions.js'])) {
+  fail('la synchronisation des permissions a échoué.');
+}
 
 step('Démarrage de l’API, du worker et du web');
 process.on('SIGINT', () => stopAll(0));

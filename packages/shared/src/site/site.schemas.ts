@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { clientApprovalSchema } from '../clients/client.schemas';
 import { contentVersion } from '../editing/edit-version';
 import { localeSchema, localizedTextSchema } from '../i18n/localized-text';
 
@@ -68,3 +69,31 @@ export type PublicPrivacy = z.infer<typeof publicPrivacySchema>;
 export function privacyPolicyVersion(policy: Omit<PublicPrivacy, 'version'>): string {
   return `${PRIVACY_TEMPLATE_VERSION}.${contentVersion(policy).slice(2)}`;
 }
+
+// ─────────────────────────── Espace client ───────────────────────────
+
+/**
+ * Compte du client chez CE traiteur : coordonnées de sa fiche (jamais celles connues ailleurs)
+ * et accord du traiteur. Tant que l'accord n'est pas donné, aucune demande ne peut être envoyée.
+ */
+export const clientAccountSchema = z.object({
+  firstName: z.string(),
+  lastName: z.string(),
+  phone: z.string(),
+  email: z.string().nullable(),
+  locale: localeSchema,
+  approval: clientApprovalSchema,
+  rejectionReason: z.string().nullable(),
+  /** Demandes encore possibles aujourd'hui (limite par client et par jour). */
+  canRequest: z.boolean(),
+});
+export type ClientAccount = z.infer<typeof clientAccountSchema>;
+
+/** Modification par le client de ses coordonnées chez ce traiteur. */
+export const clientAccountUpdateSchema = z.object({
+  firstName: z.string().trim().min(1).max(80),
+  lastName: z.string().trim().min(1).max(80),
+  email: z.string().trim().toLowerCase().max(160).pipe(z.email()).nullable(),
+  locale: z.enum(['fr', 'ar']),
+});
+export type ClientAccountUpdateInput = z.infer<typeof clientAccountUpdateSchema>;

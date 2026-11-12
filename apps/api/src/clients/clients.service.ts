@@ -14,6 +14,7 @@ import {
 } from '@traiteur/shared';
 
 import { AuditService } from '../audit/audit.service';
+import { ClientNoticesService } from '../client-site/client-notices.service';
 import type { AuthenticatedUser } from '../auth/auth-user';
 import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
@@ -89,7 +90,26 @@ export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly notices: ClientNoticesService,
   ) {}
+
+  /**
+   * Accepte un client inscrit en ligne : il peut envoyer ses demandes. Aussi pour revenir sur un
+   * refus. Le client est prévenu (SMS, ou e-mail pour un numéro étranger).
+   */
+  async approve(user: AuthenticatedUser, id: string, client: ClientInfo): Promise<Client> {
+    return this.decide(user, id, { approval: 'APPROVED', reason: null }, client);
+  }
+
+  /** Refuse un client (motif obligatoire, montré au client et envoyé avec l'avis). */
+  async reject(
+    user: AuthenticatedUser,
+    id: string,
+    reason: string,
+    client: ClientInfo,
+  ): Promise<Client> {
+    return this.decide(user, id, { approval: 'REJECTED', reason }, client);
+  }
 
   async list(user: AuthenticatedUser, query: ClientListQuery): Promise<ClientPage> {
     const traiteurId = requireTraiteurId(user);
@@ -341,6 +361,62 @@ export class ClientsService {
 
   // ─────────────────────────── Interne ───────────────────────────
 
+  private async decide(
+    user: AuthenticatedUser,
+    id: string,
+    decision: { approval: 'APPROVED' | 'REJECTED'; reason: string | null },
+    client: ClientInfo,
+  ): Promise<Client> {
+    const traiteurId = requireTraiteurId(user);
+    const result = await this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'Membership', id);
+      const before = await this.findClient(tx, traiteurId, id);
+      if (before.clientApproval === decision.approval && decision.approval === 'APPROVED') {
+        return { client: await this.load(tx, traiteurId, id), changed: false };
+      }
+      await tx.membership.update({
+        where: { id },
+        data: {
+          clientApproval: decision.approval,
+          clientApprovalAt: new Date(),
+          clientApprovalByUserId: user.userId,
+          clientRejectionReason: decision.reason,
+        },
+      });
+      await this.audit.record(
+        {
+          traiteurId,
+          actor: user,
+          action: decision.approval === 'APPROVED' ? 'client.approved' : 'client.rejected',
+          entityType: 'Membership',
+          entityId: id,
+          before: {
+            approval: before.clientApproval,
+            reason: before.clientRejectionReason,
+          },
+          after: { approval: decision.approval, reason: decision.reason },
+          client,
+        },
+        tx,
+      );
+      return { client: await this.load(tx, traiteurId, id), changed: true };
+    });
+    if (result.changed) {
+      await this.notices.send(id, ({ traiteur, url }) =>
+        decision.approval === 'APPROVED'
+          ? {
+              fr: `${traiteur} a validé votre compte : vous pouvez envoyer vos demandes sur ${url}`,
+              ar: `فعّل ${traiteur} حسابك: يمكنك الآن إرسال طلباتك عبر ${url}`,
+            }
+          : {
+              fr: `${traiteur} n'a pas validé votre compte : ${decision.reason ?? ''}`,
+              ar: `لم يفعّل ${traiteur} حسابك: ${decision.reason ?? ''}`,
+            },
+      );
+    }
+    return result.client;
+  }
+
   private listWhere(traiteurId: string, query: ClientListQuery): Prisma.MembershipWhereInput {
     const tokens = (query.search ?? '').split(/\s+/).filter((token) => token.length > 0);
     return {
@@ -348,6 +424,7 @@ export class ClientsService {
       role: 'CLIENT',
       ...(query.includeInactive ? {} : { status: 'ACTIVE' }),
       ...(query.tag ? { tags: { has: query.tag } } : {}),
+      ...(query.approval ? { clientApproval: query.approval } : {}),
       // Chaque mot doit figurer dans le prénom, le nom ou le téléphone
       AND: tokens.map((token) => {
         const digits = token.replace(/\D/g, '');
@@ -436,6 +513,8 @@ export class ClientsService {
       lastOrderAt: toIso(stats.lastOrderAt),
       nextOrderAt: toIso(stats.nextOrderAt),
       createdAt: row.createdAt.toISOString(),
+      approval: row.clientApproval,
+      privacyConsentAt: toIso(row.privacyConsentAt),
     };
   }
 
@@ -452,6 +531,9 @@ export class ClientsService {
       companyName: row.companyName,
       companyIce: row.companyIce,
       addresses: row.addresses.map(toAddress),
+      approvalDecidedAt: toIso(row.clientApprovalAt),
+      rejectionReason: row.clientRejectionReason,
+      privacyPolicyVersion: row.privacyPolicyVersion,
     };
   }
 

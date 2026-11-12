@@ -14,6 +14,7 @@ import { AuditModule } from './audit/audit.module';
 import { PlatformAccessAuditInterceptor } from './audit/platform-access-audit.interceptor';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { ClientSiteModule } from './client-site/client-site.module';
 import { ClientsModule } from './clients/clients.module';
 import { DocumentRecoveryModule } from './document-recovery/document-recovery.module';
 import { DocumentsModule } from './documents/documents.module';
@@ -62,6 +63,7 @@ import { StorageModule } from './storage/storage.module';
     CatalogModule,
     PdfModule,
     ClientsModule,
+    ClientSiteModule,
     OrdersModule,
     PaymentsModule,
     DocumentRecoveryModule,

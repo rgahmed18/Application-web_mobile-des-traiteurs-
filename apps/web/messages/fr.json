@@ -723,6 +723,26 @@
       "whatsapp": "WhatsApp",
       "edit": "Modifier",
       "inactive": "Compte désactivé"
+    },
+    "approval": {
+      "title": "Inscription en ligne",
+      "status": {
+        "PENDING": "À valider",
+        "APPROVED": "Accepté",
+        "REJECTED": "Refusé"
+      },
+      "consent": "Politique de confidentialité acceptée le {date} (version {version}).",
+      "pendingHint": "Ce client s’est inscrit sur votre site : il ne peut pas envoyer de demande avant votre accord.",
+      "reason": "Motif du refus : {reason}",
+      "approve": "Accepter",
+      "reject": "Refuser",
+      "rejectTitle": "Refuser ce client",
+      "rejectHint": "Le motif est envoyé au client et affiché dans son espace. Vous pourrez revenir sur votre décision.",
+      "reasonLabel": "Motif",
+      "confirmReject": "Refuser le client",
+      "approved": "Client accepté : il est prévenu.",
+      "rejected": "Client refusé : il est prévenu.",
+      "pendingFilter": "À valider ({count})"
     }
   },
   "orders": {
@@ -2143,7 +2163,9 @@
       "catalog_buffet_type_reordered": "Type de buffet : ordre modifié",
       "unknown": "Autre action",
       "settings_site_updated": "Réglages du site client modifiés",
-      "client_self_registered": "Client inscrit en ligne"
+      "client_self_registered": "Client inscrit en ligne",
+      "client_approved": "Client inscrit en ligne : accepté",
+      "client_rejected": "Client inscrit en ligne : refusé"
     },
     "traiteurs": {
       "title": "Traiteurs",
@@ -2664,6 +2686,12 @@
       "remove": "Retirer {name}",
       "loginToSend": "Connectez-vous (ou créez votre compte en un instant) pour envoyer votre demande au traiteur.",
       "login": "Se connecter pour envoyer"
+    },
+    "approval": {
+      "pendingTitle": "Votre compte attend la validation de {traiteur}",
+      "pendingBody": "Vous pouvez déjà préparer votre demande. Vous serez prévenu dès que votre compte sera validé, et pourrez alors l’envoyer.",
+      "rejectedTitle": "{traiteur} n’a pas validé votre compte",
+      "rejectedBody": "Motif : {reason}"
     }
   }
 }

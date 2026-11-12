@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   type Client,
@@ -10,6 +22,8 @@ import {
   clientListQuerySchema,
   type ClientPage,
   clientPageSchema,
+  type ClientRejectInput,
+  clientRejectSchema,
   clientSchema,
   type ClientUpdateInput,
   clientUpdateSchema,
@@ -77,6 +91,34 @@ export class ClientsController {
     @ExpectedVersion() expectedVersion: string | null,
   ): Promise<Client> {
     return this.clients.update(user, id, body, client, expectedVersion);
+  }
+
+  @Post(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('clients.approve')
+  @ApiOperation({ summary: 'Accepter un client inscrit en ligne (il est prévenu)' })
+  @ApiOkResponse(clientResponse)
+  approve(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @ClientMeta() client: ClientInfo,
+  ): Promise<Client> {
+    return this.clients.approve(user, id, client);
+  }
+
+  @Post(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('clients.approve')
+  @ApiOperation({ summary: 'Refuser un client inscrit en ligne, avec motif (il est prévenu)' })
+  @ApiBody({ schema: zodToOpenApi(clientRejectSchema) })
+  @ApiOkResponse(clientResponse)
+  reject(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', uuidParam) id: string,
+    @Body(new ZodValidationPipe(clientRejectSchema)) body: ClientRejectInput,
+    @ClientMeta() client: ClientInfo,
+  ): Promise<Client> {
+    return this.clients.reject(user, id, body.reason, client);
   }
 
   @Post(':id/addresses')

@@ -723,6 +723,26 @@
       "whatsapp": "واتساب",
       "edit": "تعديل",
       "inactive": "حساب معطل"
+    },
+    "approval": {
+      "title": "التسجيل عبر الموقع",
+      "status": {
+        "PENDING": "في انتظار القبول",
+        "APPROVED": "مقبول",
+        "REJECTED": "مرفوض"
+      },
+      "consent": "وافق على سياسة الخصوصية يوم {date} (الإصدار {version}).",
+      "pendingHint": "سجّل هذا الزبون في موقعك: لا يمكنه إرسال طلب قبل موافقتك.",
+      "reason": "سبب الرفض: {reason}",
+      "approve": "قبول",
+      "reject": "رفض",
+      "rejectTitle": "رفض هذا الزبون",
+      "rejectHint": "يُرسل السبب إلى الزبون ويظهر في فضائه. يمكنك التراجع عن قرارك لاحقًا.",
+      "reasonLabel": "السبب",
+      "confirmReject": "رفض الزبون",
+      "approved": "قُبل الزبون وتم إخباره.",
+      "rejected": "رُفض الزبون وتم إخباره.",
+      "pendingFilter": "في انتظار القبول ({count})"
     }
   },
   "orders": {
@@ -2143,7 +2163,9 @@
       "catalog_buffet_type_reordered": "إعادة الترتيب: نوع البوفيه",
       "unknown": "إجراء آخر",
       "settings_site_updated": "تعديل إعدادات موقع الزبائن",
-      "client_self_registered": "تسجيل زبون عبر الموقع"
+      "client_self_registered": "تسجيل زبون عبر الموقع",
+      "client_approved": "قبول زبون مسجّل عبر الموقع",
+      "client_rejected": "رفض زبون مسجّل عبر الموقع"
     },
     "traiteurs": {
       "title": "الممونون",
@@ -2664,6 +2686,12 @@
       "remove": "إزالة {name}",
       "loginToSend": "سجّل الدخول (أو أنشئ حسابك في لحظة) لإرسال طلبك إلى الممون.",
       "login": "سجّل الدخول للإرسال"
+    },
+    "approval": {
+      "pendingTitle": "حسابك في انتظار موافقة {traiteur}",
+      "pendingBody": "يمكنك منذ الآن تحضير طلبك. ستتوصل بإشعار فور قبول حسابك، وحينها يمكنك إرساله.",
+      "rejectedTitle": "لم يقبل {traiteur} حسابك",
+      "rejectedBody": "السبب: {reason}"
     }
   }
 }
