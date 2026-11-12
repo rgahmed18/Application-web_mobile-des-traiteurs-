@@ -2856,5 +2856,21 @@
         "cancel": "إلغاء"
       }
     }
+  },
+  "notifications": {
+    "label": "الإشعارات",
+    "labelUnread": "الإشعارات: {count} غير مقروءة",
+    "title": "الإشعارات",
+    "markAll": "تعليم الكل كمقروء",
+    "empty": "لا توجد إشعارات حاليًا.",
+    "reason": "السبب: {reason}",
+    "types": {
+      "CLIENT_SIGNED_UP": "زبون جديد سجّل في موقعك: {client}",
+      "CLIENT_APPROVAL_REQUESTED": "زبون جديد في انتظار القبول: {client}",
+      "ORDER_REQUESTED": "طلب جديد عبر الموقع {reference} من {client}",
+      "ORDER_REQUEST_CANCELLED": "ألغى {client} الطلب {reference}",
+      "QUOTE_ACCEPTED": "قبل {client} عرض السعر {reference}",
+      "QUOTE_REJECTED": "رفض {client} عرض السعر {reference}"
+    }
   }
 }

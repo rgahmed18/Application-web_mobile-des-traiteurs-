@@ -2856,5 +2856,21 @@
         "cancel": "Annuler"
       }
     }
+  },
+  "notifications": {
+    "label": "Notifications",
+    "labelUnread": "Notifications : {count} non lue(s)",
+    "title": "Notifications",
+    "markAll": "Tout marquer comme lu",
+    "empty": "Aucune notification pour le moment.",
+    "reason": "Motif : {reason}",
+    "types": {
+      "CLIENT_SIGNED_UP": "Nouveau client inscrit sur votre site : {client}",
+      "CLIENT_APPROVAL_REQUESTED": "Nouveau client à valider : {client}",
+      "ORDER_REQUESTED": "Nouvelle demande en ligne {reference} de {client}",
+      "ORDER_REQUEST_CANCELLED": "Demande {reference} annulée par {client}",
+      "QUOTE_ACCEPTED": "Devis {reference} accepté par {client}",
+      "QUOTE_REJECTED": "Devis {reference} refusé par {client}"
+    }
   }
 }

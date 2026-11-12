@@ -8,6 +8,8 @@ import { useSession } from '@/features/auth/session-provider';
 import { PlatformAccessBanner } from '@/features/platform/platform-access-banner';
 
 import { AppSidebar } from './app-sidebar';
+import { NotificationBell } from '@/features/notifications/notification-bell';
+
 import { UserMenu } from './user-menu';
 
 /**
@@ -28,6 +30,7 @@ export function BackofficeShell({ children }: { children: ReactNode }) {
           >
             <SidebarTrigger />
             <div className="ms-auto flex items-center gap-2">
+              <NotificationBell />
               <LanguageSwitcher />
               <UserMenu />
             </div>

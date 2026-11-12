@@ -16,6 +16,7 @@ import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { ClientSiteModule } from './client-site/client-site.module';
 import { ClientsModule } from './clients/clients.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { DocumentRecoveryModule } from './document-recovery/document-recovery.module';
 import { DocumentsModule } from './documents/documents.module';
 import { DraftsModule } from './drafts/drafts.module';
@@ -64,6 +65,7 @@ import { StorageModule } from './storage/storage.module';
     PdfModule,
     ClientsModule,
     ClientSiteModule,
+    NotificationsModule,
     OrdersModule,
     PaymentsModule,
     DocumentRecoveryModule,

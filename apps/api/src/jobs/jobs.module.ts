@@ -8,11 +8,12 @@ import { QuotesModule } from '../quotes/quotes.module';
 import { DOCUMENTS_QUEUE, DocumentRecoveryProcessor } from './document-recovery.processor';
 import { DRAFTS_QUEUE, DraftPurgeProcessor } from './draft-purge.processor';
 import { MEDIA_QUEUE, MediaCleanupProcessor } from './media-cleanup.processor';
+import { NotificationDeliveryProcessor } from './notification-delivery.processor';
 import { QUOTES_QUEUE, QuoteExpiryProcessor } from './quote-expiry.processor';
 
 /**
- * Tâches BullMQ (planifiées) : reprise des PDF manquants, nettoyage des photos orphelines,
- * expiration des devis, purge des brouillons. Chargé UNIQUEMENT par le processus worker (src/worker.ts) : l'API ne
+ * Tâches BullMQ : reprise des PDF manquants, nettoyage des photos orphelines, expiration des
+ * devis, purge des brouillons (planifiées) et envoi des notifications du traiteur. Chargé UNIQUEMENT par le processus worker (src/worker.ts) : l'API ne
  * consomme aucune file, elle reste réactive quoi qu'il arrive aux traitements de fond.
  */
 @Module({
@@ -32,6 +33,7 @@ import { QUOTES_QUEUE, QuoteExpiryProcessor } from './quote-expiry.processor';
     DocumentRecoveryProcessor,
     DraftPurgeProcessor,
     MediaCleanupProcessor,
+    NotificationDeliveryProcessor,
     QuoteExpiryProcessor,
   ],
 })

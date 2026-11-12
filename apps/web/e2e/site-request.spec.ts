@@ -64,6 +64,15 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
   // Le traiteur la reçoit « En attente », marquée « Demande en ligne »
   const staff = await browser.newPage();
   await login(staff);
+  // Cloche : la nouvelle demande est signalée, lien vers la commande
+  await staff.getByTestId('notification-bell').click();
+  const notice = staff
+    .getByTestId('notification-list')
+    .getByRole('button', { name: new RegExp(`Nouvelle demande en ligne .* de Hajar ${lastName}`) });
+  await expect(notice).toBeVisible();
+  await notice.click();
+  await expect(staff).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
+  await expect(staff.getByTestId('online-request-badge')).toBeVisible();
   await staff.goto('/admin/orders');
   const row = staff.getByRole('link').filter({ hasText: lastName });
   await expect(row).toContainText('En attente');

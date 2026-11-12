@@ -37,6 +37,7 @@ import { joinAddress } from '../pdf/document-model';
 import { capitalize } from '../pdf/format';
 import { DOCUMENT_TEMPLATE_VERSION, PdfService } from '../pdf/pdf.service';
 import { type Seller, sellerSelect } from '../pdf/seller';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SpacesService } from '../spaces/spaces.service';
 import { nextDocumentNumber } from '../sequences/document-sequence';
@@ -127,6 +128,7 @@ export class QuotesService {
     private readonly pdf: PdfService,
     private readonly storage: StorageService,
     private readonly spaces: SpacesService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ─────────────────────────── Back-office ───────────────────────────
@@ -619,7 +621,7 @@ export class QuotesService {
   ): Promise<PublicQuote> {
     const link = await this.findLink(token, true);
     await this.expireDue({ traiteurId: link.traiteurId, quoteId: link.quoteId });
-    await this.prisma.$transaction((tx) =>
+    const notificationId = await this.prisma.$transaction((tx) =>
       this.accept(
         tx,
         link.traiteurId,
@@ -638,6 +640,7 @@ export class QuotesService {
         false,
       ),
     );
+    if (notificationId) await this.notifications.dispatch([notificationId]);
     return this.presentPublic(link, null);
   }
 
@@ -680,7 +683,7 @@ export class QuotesService {
     const traiteurId = requireTraiteurId(user);
     await this.clientQuote(traiteurId, membershipId, quoteId);
     await this.expireDue({ traiteurId, quoteId });
-    await this.prisma.$transaction((tx) =>
+    const notificationId = await this.prisma.$transaction((tx) =>
       this.accept(
         tx,
         traiteurId,
@@ -699,6 +702,7 @@ export class QuotesService {
         false,
       ),
     );
+    if (notificationId) await this.notifications.dispatch([notificationId]);
     return this.presentPublic({ traiteurId, quoteId }, null);
   }
 
@@ -748,7 +752,7 @@ export class QuotesService {
     client: ClientInfo,
     actor: AuthenticatedUser | null,
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    const notificationId = await this.prisma.$transaction(async (tx) => {
       const quote = await this.lockQuote(tx, traiteurId, quoteId);
       if (quote.status !== 'SENT') {
         throw appErrors.badRequest('QUOTE_NOT_OPEN', 'Ce devis n’est plus en cours');
@@ -777,7 +781,24 @@ export class QuotesService {
         },
         tx,
       );
+      const order = await tx.order.findFirstOrThrow({
+        where: { id: quote.orderId, traiteurId },
+        select: { client: { select: { firstName: true, lastName: true } } },
+      });
+      return this.notifications.record(tx, {
+        traiteurId,
+        type: 'QUOTE_REJECTED',
+        entityType: 'Quote',
+        entityId: quote.id,
+        data: {
+          clientName: `${order.client.firstName} ${order.client.lastName}`.trim(),
+          reference: `${quote.reference} v${quote.version}`,
+          orderId: quote.orderId,
+          reason,
+        },
+      });
     });
+    await this.notifications.dispatch([notificationId]);
   }
 
   // ─────────────────────────── Expiration ───────────────────────────
@@ -856,7 +877,7 @@ export class QuotesService {
     record: AcceptanceRecord,
     client: ClientInfo,
     allowExpired: boolean,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const settings = await this.settings(tx, traiteurId);
     const quote = await this.lockQuote(tx, traiteurId, quoteId);
     const acceptable = quote.status === 'SENT' || (allowExpired && quote.status === 'EXPIRED');
@@ -949,6 +970,19 @@ export class QuotesService {
       },
       tx,
     );
+    // Accord du client lui-même (en ligne) : le traiteur est prévenu (cloche)
+    if (record.mode !== 'ONLINE') return null;
+    return this.notifications.record(tx, {
+      traiteurId,
+      type: 'QUOTE_ACCEPTED',
+      entityType: 'Quote',
+      entityId: quoteId,
+      data: {
+        clientName: record.name,
+        reference: `${quote.reference} v${quote.version}`,
+        orderId: order.id,
+      },
+    });
   }
 
   /** Commande « Devis envoyé » sans devis en cours → « En attente ». */

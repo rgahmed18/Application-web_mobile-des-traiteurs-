@@ -12,6 +12,7 @@ import { PublicCatalogService } from '../catalog/public/public-catalog.service';
 import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
 import type { Membership, User } from '../generated/prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import type { EmailMessage } from './otp/email.provider';
@@ -58,6 +59,7 @@ export class ClientAuthService {
     private readonly auth: AuthService,
     private readonly site: PublicCatalogService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async requestCode(
@@ -211,7 +213,7 @@ export class ClientAuthService {
     });
     const locale = signup.locale ?? 'fr';
     const now = new Date();
-    const { user, membership } = await this.prisma.$transaction(async (tx) => {
+    const { user, membership, notificationId } = await this.prisma.$transaction(async (tx) => {
       const user =
         existing ??
         (await tx.user.create({
@@ -260,8 +262,16 @@ export class ClientAuthService {
         },
         tx,
       );
-      return { user, membership };
+      const notificationId = await this.notifications.record(tx, {
+        traiteurId,
+        type: requireClientApproval ? 'CLIENT_APPROVAL_REQUESTED' : 'CLIENT_SIGNED_UP',
+        entityType: 'Membership',
+        entityId: membership.id,
+        data: { clientName: `${signup.firstName} ${signup.lastName}` },
+      });
+      return { user, membership, notificationId };
     });
+    await this.notifications.dispatch([notificationId]);
     return this.auth.startClientSession(
       user,
       { traiteurId, membershipId: membership.id, role: 'CLIENT' },

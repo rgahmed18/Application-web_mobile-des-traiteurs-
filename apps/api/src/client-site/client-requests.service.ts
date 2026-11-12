@@ -25,6 +25,7 @@ import { DocumentLinesService } from '../documents/document-lines.service';
 import type { Prisma } from '../generated/prisma/client';
 import { dayAvailability, hasConflict, lockDay } from '../orders/availability';
 import { equipmentShortages } from '../orders/equipment-stock';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextDocumentNumber } from '../sequences/document-sequence';
 import { type ClientContext, requireClient } from './client-account.service';
@@ -79,6 +80,7 @@ export class ClientRequestsService {
     private readonly prisma: PrismaService,
     private readonly lines: DocumentLinesService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
     config: ConfigService<Env, true>,
   ) {
     this.perDay = config.get('CLIENT_REQUESTS_PER_DAY', { infer: true });
@@ -130,7 +132,7 @@ export class ClientRequestsService {
   ): Promise<ClientRequestCreated> {
     const context = requireClient(user);
     const { traiteurId, membershipId } = context;
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       // Une demande à la fois par client : les limites se comptent sans course
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`client-request:${membershipId}`}))`;
       const member = await tx.membership.findFirst({
@@ -228,14 +230,23 @@ export class ClientRequestsService {
         },
         tx,
       );
-      return { id: order.id, reference: order.reference };
+      const notificationId = await this.notifications.record(tx, {
+        traiteurId,
+        type: 'ORDER_REQUESTED',
+        entityType: 'Order',
+        entityId: order.id,
+        data: { clientName: actorName, reference: order.reference },
+      });
+      return { id: order.id, reference: order.reference, notificationId };
     });
+    await this.notifications.dispatch([created.notificationId]);
+    return { id: created.id, reference: created.reference };
   }
 
   /** Annulation par le client, tant que la demande est « En attente » (avant tout devis). */
   async cancel(user: AuthenticatedUser, orderId: string, client: ClientInfo): Promise<void> {
     const { traiteurId, membershipId, userId } = requireClient(user);
-    await this.prisma.$transaction(async (tx) => {
+    const notificationId = await this.prisma.$transaction(async (tx) => {
       const member = await tx.membership.findUniqueOrThrow({
         where: { id: membershipId },
         select: { firstName: true, lastName: true },
@@ -282,7 +293,19 @@ export class ClientRequestsService {
         },
         tx,
       );
+      const { reference } = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        select: { reference: true },
+      });
+      return this.notifications.record(tx, {
+        traiteurId,
+        type: 'ORDER_REQUEST_CANCELLED',
+        entityType: 'Order',
+        entityId: orderId,
+        data: { clientName: `${member.firstName} ${member.lastName}`.trim(), reference },
+      });
     });
+    await this.notifications.dispatch([notificationId]);
   }
 
   // ─────────────────────────── Interne ───────────────────────────
