@@ -103,6 +103,7 @@ export function toOrderSummary(
     priceMode: row.priceMode,
     totalTtc: row.totalTtc,
     ...payment,
+    source: row.source,
     createdAt: row.createdAt.toISOString(),
   };
 }

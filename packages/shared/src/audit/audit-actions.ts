@@ -108,6 +108,8 @@ const FIXED_ACTIONS = [
   'client.self_registered',
   'client.approved',
   'client.rejected',
+  'order.requested_online',
+  'order.cancelled_by_client',
   // Plateforme
   'traiteur.created',
   'super_admin.created',

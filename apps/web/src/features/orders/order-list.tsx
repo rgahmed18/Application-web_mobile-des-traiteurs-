@@ -38,7 +38,7 @@ import { formatMoney } from '@/lib/format/money';
 import { useCatalogList } from '@/features/catalog/catalog-api';
 import { useLocalized } from '@/features/catalog/use-localized';
 
-import { OrderStatusBadge } from './order-ui';
+import { OnlineRequestBadge, OrderStatusBadge } from './order-ui';
 import { useOrders } from './orders-api';
 
 const PAGE_SIZE = 20;
@@ -332,6 +332,7 @@ export function OrderList() {
                       {tAssign(`alerts.${order.staffAlert}`)}
                     </Badge>
                   )}
+                  {order.source === 'ONLINE' && <OnlineRequestBadge className="mt-0.5" />}
                 </span>
                 <OrderStatusBadge
                   status={order.status}

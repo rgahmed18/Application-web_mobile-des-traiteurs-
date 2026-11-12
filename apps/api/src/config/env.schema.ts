@@ -197,6 +197,9 @@ export const envSchema = z
       .default('Authorization'),
     EMAIL_HTTP_AUTH_HEADER_VALUE: z.string().optional(),
     EMAIL_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
+    /** Site client : demandes par client sur 24 h, et demandes encore en attente au plus. */
+    CLIENT_REQUESTS_PER_DAY: z.coerce.number().int().min(1).max(100).default(3),
+    CLIENT_PENDING_REQUESTS_MAX: z.coerce.number().int().min(1).max(100).default(5),
     /** Plafond global d'e-mails de code envoyés sur 24 h glissantes. */
     EMAIL_DAILY_GLOBAL_LIMIT: z.coerce.number().int().min(1).default(500),
 

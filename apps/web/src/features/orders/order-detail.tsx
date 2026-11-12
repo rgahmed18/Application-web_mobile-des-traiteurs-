@@ -60,7 +60,7 @@ import {
   type VersionConflict,
   VersionConflictDialog,
 } from './order-dialogs';
-import { OrderStatusBadge, STATUS_STYLES } from './order-ui';
+import { OnlineRequestBadge, OrderStatusBadge, STATUS_STYLES } from './order-ui';
 import { orderKeys, useOrder, useOrderHistory, useTransitionOrder } from './orders-api';
 
 function Info({
@@ -387,6 +387,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 {data.reference}
               </h1>
               <OrderStatusBadge status={data.status} className="text-base" testId="order-status" />
+              {data.source === 'ONLINE' && <OnlineRequestBadge />}
               {data.staffAlert && (
                 <Badge variant="destructive" data-testid="order-staff-alert">
                   {tAssign(`alerts.${data.staffAlert}`)}

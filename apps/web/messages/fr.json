@@ -309,7 +309,13 @@
       "USE_BACKOFFICE": "Ce numéro appartient à un membre de l’équipe : connectez-vous à l’espace de gestion.",
       "PRIVACY_POLICY_CHANGED": "La politique de confidentialité vient d’être mise à jour : relisez-la puis acceptez-la de nouveau.",
       "EMAIL_REQUIRED": "Ce numéro ne reçoit pas nos SMS : indiquez votre adresse e-mail pour recevoir le code.",
-      "EMAIL_UNAVAILABLE": "L’envoi du code par e-mail est momentanément indisponible. Réessayez plus tard ou contactez le traiteur."
+      "EMAIL_UNAVAILABLE": "L’envoi du code par e-mail est momentanément indisponible. Réessayez plus tard ou contactez le traiteur.",
+      "CLIENT_NOT_APPROVED": "Votre compte attend la validation du traiteur : vous pourrez envoyer votre demande dès qu’il sera validé.",
+      "REQUEST_LIMIT": "Vous avez déjà envoyé plusieurs demandes : attendez la réponse du traiteur ou réessayez demain.",
+      "DATE_TOO_SOON": "Choisissez une date à partir de demain, ou appelez le traiteur.",
+      "GUESTS_OUT_OF_RANGE": "Le nombre d’invités ne convient pas à un menu ou buffet choisi.",
+      "ITEM_UNAVAILABLE": "Un élément de votre demande n’est plus proposé : retirez-le puis renvoyez la demande.",
+      "ORDER_NOT_CANCELLABLE": "Cette demande est déjà traitée : contactez le traiteur pour l’annuler."
     },
     "noBackofficeAccessTraiteur": "Ce compte n’a pas accès à l’espace de gestion de {name}. Vérifiez l’adresse de connexion de votre traiteur.",
     "noBackofficeAccessPlatform": "Ce compte n’a pas accès à la console de la plateforme. Connectez-vous depuis l’adresse de votre traiteur."
@@ -1014,7 +1020,8 @@
       "reasonLabel": "Motif pour confirmer quand même",
       "reasonPlaceholder": "Ex. sous-location chez un confrère, matériel fourni par le client…",
       "confirm": "Confirmer quand même"
-    }
+    },
+    "onlineRequest": "Demande en ligne"
   },
   "calendar": {
     "title": "Calendrier",
@@ -2165,7 +2172,9 @@
       "settings_site_updated": "Réglages du site client modifiés",
       "client_self_registered": "Client inscrit en ligne",
       "client_approved": "Client inscrit en ligne : accepté",
-      "client_rejected": "Client inscrit en ligne : refusé"
+      "client_rejected": "Client inscrit en ligne : refusé",
+      "order_requested_online": "Demande en ligne reçue",
+      "order_cancelled_by_client": "Demande annulée par le client"
     },
     "traiteurs": {
       "title": "Traiteurs",
@@ -2692,6 +2701,44 @@
       "pendingBody": "Vous pouvez déjà préparer votre demande. Vous serez prévenu dès que votre compte sera validé, et pourrez alors l’envoyer.",
       "rejectedTitle": "{traiteur} n’a pas validé votre compte",
       "rejectedBody": "Motif : {reason}"
+    },
+    "request": {
+      "stepsLabel": "Étapes de la demande",
+      "steps": {
+        "event": "Événement",
+        "choices": "Vos choix",
+        "venue": "Lieu",
+        "summary": "Récapitulatif"
+      },
+      "availability": {
+        "AVAILABLE": "Disponible",
+        "ON_REQUEST": "Sur demande"
+      },
+      "fields": {
+        "eventType": "Type d’événement",
+        "chooseEventType": "Choisir…",
+        "date": "Date",
+        "startTime": "Heure de début",
+        "endTime": "Heure de fin (facultative)",
+        "endsNextDay": "Se termine le lendemain (après minuit)",
+        "guests": "Nombre d’invités",
+        "venueName": "Nom de la salle (facultatif)",
+        "city": "Ville",
+        "address": "Adresse",
+        "saveAddressAs": "Enregistrer cette adresse sous (facultatif)",
+        "saveAddressHint": "Par exemple « Maison » ou « Salle des fêtes » : vous la retrouverez dans votre profil.",
+        "contactName": "Contact sur place (facultatif)",
+        "contactPhone": "Téléphone du contact (facultatif)",
+        "notes": "Précisions pour le traiteur (facultatif)"
+      },
+      "estimate": "Estimation TTC",
+      "estimateHint": "Estimation indicative : le prix définitif figurera dans le devis que le traiteur vous enverra.",
+      "emptyChoices": "Ajoutez au moins un élément du catalogue.",
+      "invalid": "Vérifiez les informations de votre demande.",
+      "sent": "Demande {reference} envoyée au traiteur.",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "send": "Envoyer ma demande"
     }
   }
 }

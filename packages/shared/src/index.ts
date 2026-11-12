@@ -39,4 +39,5 @@ export * from './staff/assignment.schemas';
 export * from './payments/cash-desk.schemas';
 export * from './settings/settings.schemas';
 export * from './site/site.schemas';
+export * from './site/client-request.schemas';
 export * from './observability/scrub';

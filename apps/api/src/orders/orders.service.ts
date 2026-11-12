@@ -889,6 +889,7 @@ export class OrdersService {
       traiteurId,
       ...(query.status ? { status: { in: query.status } } : {}),
       ...(query.eventType ? { eventType: query.eventType } : {}),
+      ...(query.source ? { source: query.source } : {}),
       ...(query.clientId ? { clientId: query.clientId } : {}),
       ...(query.from || query.to ? { eventDate } : {}),
       AND: and,

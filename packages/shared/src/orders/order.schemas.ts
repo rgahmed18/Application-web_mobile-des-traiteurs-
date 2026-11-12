@@ -211,6 +211,8 @@ export const orderListQuerySchema = z.object({
   from: localDateSchema.optional(),
   to: localDateSchema.optional(),
   clientId: z.uuid().optional(),
+  /** Demandes envoyées par les clients depuis le site (ONLINE) ou saisies au back-office. */
+  source: z.enum(['BACKOFFICE', 'ONLINE']).optional(),
   /** Commandes fermes dont la date est passée (carte « À clôturer »). */
   toClose: z
     .enum(['true', 'false'])
@@ -293,6 +295,8 @@ export const orderSummarySchema = z.object({
   overdueAmount: z.number().int(),
   /** Un membre ne peut pas venir, ou n'a pas confirmé 48 h avant l'événement. */
   staffAlert: z.enum(['DECLINED', 'UNCONFIRMED']).nullable(),
+  /** ONLINE : demande envoyée par le client depuis le site du traiteur. */
+  source: z.enum(['BACKOFFICE', 'ONLINE']),
   createdAt: z.iso.datetime(),
 });
 export type OrderSummary = z.infer<typeof orderSummarySchema>;

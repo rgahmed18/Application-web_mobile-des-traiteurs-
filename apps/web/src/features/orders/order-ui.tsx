@@ -1,6 +1,7 @@
 'use client';
 
 import type { OrderStatus } from '@traiteur/shared';
+import { GlobeIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +67,17 @@ export const STATUS_STYLES: Record<OrderStatus, { badge: string; dot: string; ch
     chip: 'border-s-red-500 bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300',
   },
 };
+
+/** Demande envoyée par le client depuis le site du traiteur. */
+export function OnlineRequestBadge({ className }: { className?: string }) {
+  const t = useTranslations('orders');
+  return (
+    <Badge variant="outline" className={className} data-testid="online-request-badge">
+      <GlobeIcon aria-hidden />
+      {t('onlineRequest')}
+    </Badge>
+  );
+}
 
 export function OrderStatusBadge({
   status,
