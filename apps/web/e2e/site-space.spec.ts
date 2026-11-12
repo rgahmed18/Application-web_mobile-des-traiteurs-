@@ -97,7 +97,7 @@ test('espace client : annulation d’une demande en attente, profil et adresses'
 }) => {
   test.setTimeout(240_000);
   await signUpOnSite(page, { firstName: 'Ilyas', lastName: 'Sbai' });
-  const orderId = await sendRequest(page, 80);
+  await sendRequest(page, 80);
   const order = page.getByTestId('client-order');
   await order.getByRole('button', { name: 'Annuler la demande' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Annuler la demande' }).click();
