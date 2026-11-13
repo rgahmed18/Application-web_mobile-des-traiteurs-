@@ -820,7 +820,8 @@ et le back-office, restaure, puis redémarre.
 Le script de restauration est testé en conditions réelles à chaque modification
 (`deploy/tests/backup-restore.sh`, exécuté par la CI) : sauvegarde chiffrée, restauration
 avec la clé machine et avec la clé de secours, refus d'une autre clé, base détruite puis
-restaurée à l'identique.
+restaurée à l'identique. Ses conteneurs, volumes et réseau sont supprimés à la fin, même en cas
+d'échec ; ceux d'une exécution tuée (étiquette `gestion-traiteurs.test`) partent avec `pnpm clean`.
 
 ## 18. Journaux et commandes utiles
 

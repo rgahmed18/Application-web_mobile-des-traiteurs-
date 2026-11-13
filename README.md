@@ -1062,21 +1062,21 @@ request :
 
 ## Référence des commandes
 
-| Commande                                                  | Effet                                                                          |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `pnpm docker:up` / `pnpm docker:down`                     | Démarre / arrête PostgreSQL, Redis et RustFS                                   |
-| `pnpm demo:start`                                         | Démonstration sur le réseau local, version de production (voir plus haut)      |
-| `pnpm db:migrate`                                         | Crée et applique les migrations (développement)                                |
-| `pnpm db:seed`                                            | Charge les données de démonstration                                            |
-| `pnpm db:reset`                                           | Vide la base, réapplique les migrations et le seed                             |
-| `pnpm db:generate`                                        | Régénère le client Prisma                                                      |
-| `pnpm --filter @traiteur/api db:deploy`                   | Applique les migrations (production / CI)                                      |
-| `pnpm --filter @traiteur/api db:patch-set-null <fichier>` | Réécrit les SET NULL composites d'une migration                                |
-| `pnpm --filter @traiteur/api db:check-drift`              | Vérifie que schéma et migrations concordent                                    |
-| `pnpm --filter @traiteur/api db:studio`                   | Interface graphique de la base                                                 |
-| `pnpm --filter @traiteur/api catalog:set-photo …`         | Remplace la photo d'un plat ou d'une formule                                   |
-| `pnpm --filter @traiteur/web test:e2e`                    | Parcours Playwright du back-office et du site client                           |
-| `pnpm clean`                                              | Vide `.turbo`, les `.next/cache`, `dist` et `*.tsbuildinfo` (serveurs arrêtés) |
+| Commande                                                  | Effet                                                                                                                                                        |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm docker:up` / `pnpm docker:down`                     | Démarre / arrête PostgreSQL, Redis et RustFS                                                                                                                 |
+| `pnpm demo:start`                                         | Démonstration sur le réseau local, version de production (voir plus haut)                                                                                    |
+| `pnpm db:migrate`                                         | Crée et applique les migrations (développement)                                                                                                              |
+| `pnpm db:seed`                                            | Charge les données de démonstration                                                                                                                          |
+| `pnpm db:reset`                                           | Vide la base, réapplique les migrations et le seed                                                                                                           |
+| `pnpm db:generate`                                        | Régénère le client Prisma                                                                                                                                    |
+| `pnpm --filter @traiteur/api db:deploy`                   | Applique les migrations (production / CI)                                                                                                                    |
+| `pnpm --filter @traiteur/api db:patch-set-null <fichier>` | Réécrit les SET NULL composites d'une migration                                                                                                              |
+| `pnpm --filter @traiteur/api db:check-drift`              | Vérifie que schéma et migrations concordent                                                                                                                  |
+| `pnpm --filter @traiteur/api db:studio`                   | Interface graphique de la base                                                                                                                               |
+| `pnpm --filter @traiteur/api catalog:set-photo …`         | Remplace la photo d'un plat ou d'une formule                                                                                                                 |
+| `pnpm --filter @traiteur/web test:e2e`                    | Parcours Playwright du back-office et du site client                                                                                                         |
+| `pnpm clean`                                              | Vide `.turbo`, les caches `.next`, `dist`, `*.tsbuildinfo`, les restes e2e et les conteneurs et volumes Docker de test orphelins (serveurs et tests arrêtés) |
 
 ## Mise en production
 

@@ -21,20 +21,30 @@ ID="$$"
 NET="traiteur-test-$ID"
 PG="traiteur-test-pg-$ID"
 S3="traiteur-test-s3-$ID"
+# Étiquette de tout ce que le test crée : `pnpm clean` supprime les restes d'une exécution tuée
+LABEL="gestion-traiteurs.test=backup-restore"
 
+# Conteneurs, volumes (nommés : un volume anonyme survit à `docker rm -f`) et réseau supprimés
+# à la sortie, réussite, échec ou interruption
 cleanup() {
-  docker rm -f "$PG" "$S3" >/dev/null 2>&1 || true
+  docker rm -f -v "$PG" "$S3" >/dev/null 2>&1 || true
+  docker volume rm "$PG" "$S3" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
+trap 'exit 130' INT TERM
 step() { printf '\n\033[1m▶ %s\033[0m\n' "$*"; }
 
 step "Conteneurs jetables (PostgreSQL, stockage S3)"
-docker network create "$NET" >/dev/null
-docker run -d --name "$PG" --network "$NET" -e POSTGRES_USER=traiteur \
-  -e POSTGRES_PASSWORD=test -e POSTGRES_DB=traiteur postgres:17-alpine >/dev/null
-docker run -d --name "$S3" --network "$NET" --network-alias stockage \
-  -e RUSTFS_ACCESS_KEY=test -e RUSTFS_SECRET_KEY=test-secret rustfs/rustfs:1.0.1 >/dev/null
+docker network create --label "$LABEL" "$NET" >/dev/null
+docker volume create --label "$LABEL" "$PG" >/dev/null
+docker volume create --label "$LABEL" "$S3" >/dev/null
+docker run -d --name "$PG" --label "$LABEL" --network "$NET" -v "$PG:/var/lib/postgresql/data" \
+  -e POSTGRES_USER=traiteur -e POSTGRES_PASSWORD=test -e POSTGRES_DB=traiteur \
+  postgres:17-alpine >/dev/null
+docker run -d --name "$S3" --label "$LABEL" --network "$NET" --network-alias stockage \
+  -v "$S3:/data" -e RUSTFS_ACCESS_KEY=test -e RUSTFS_SECRET_KEY=test-secret \
+  rustfs/rustfs:1.0.1 >/dev/null
 # Prêt en TCP seulement (le serveur temporaire d'initialisation n'écoute que sur le socket)
 for _ in $(seq 1 90); do docker exec "$PG" pg_isready -h 127.0.0.1 -U traiteur -d traiteur >/dev/null 2>&1 && break; sleep 1; done
 
@@ -69,7 +79,7 @@ ORIGINAL="$(fingerprint)"
 echo "Empreinte des données : $ORIGINAL"
 
 step "Scripts du serveur dans Ubuntu 24.04"
-docker run --rm -i --network "$NET" \
+docker run --rm -i --label "$LABEL" --network "$NET" \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$SCRIPTS_HOST:/src:ro" \
   -e POSTGRES_CONTAINER="$PG" -e ORIGINAL="$ORIGINAL" \
