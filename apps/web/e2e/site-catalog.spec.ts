@@ -82,3 +82,31 @@ test('catalogue en arabe ; « ma demande » vidée à la déconnexion', async ({
   await expect(page.getByTestId('site-nav-request')).toHaveText('Ma demande');
   expect(await page.evaluate(() => window.localStorage.getItem('gt-demande:dar-diafa'))).toBeNull();
 });
+
+test('accueil : bandeau, cartes d’événement vers le catalogue filtré, menus phares, pied de page', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const home = page.getByTestId('site-home');
+  await expect(home.getByTestId('site-hero')).toBeVisible();
+  // « Demander un devis » toujours visible sur téléphone ; pas de WhatsApp sans numéro réglé
+  await expect(page.getByTestId('sticky-quote')).toBeVisible();
+  await expect(page.getByTestId('whatsapp-button')).toHaveCount(0);
+  // Menus phares sans choix du traiteur : menus et buffets publiés avec photo, ajout à la demande
+  const featured = home.getByTestId('site-featured');
+  await expect(featured.getByRole('article').first()).toBeVisible();
+  await featured.getByRole('article').first().getByTestId('add-to-cart').click();
+  await expect(page.getByTestId('site-nav-request')).toHaveText('Ma demande (1)');
+  await expect(page.getByTestId('site-how')).toContainText('Je reçois mon devis');
+  await expect(page.getByTestId('powered-by')).toHaveText('Propulsé par Walima Pro');
+  await expect(page.locator('footer')).not.toContainText('Site réservé');
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+
+  await home.getByTestId('event-type-card').filter({ hasText: 'Mariage' }).click();
+  await expect(page).toHaveURL(/\/catalogue\?type=WEDDING/);
+  await expect(page.getByTestId('site-catalog')).toContainText('Formule Mariage Prestige');
+});

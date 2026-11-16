@@ -29,16 +29,18 @@ export function EntryPrice({ entry }: { entry: CatalogEntry }) {
 export function AddToCartButton({
   entry,
   quantity = 1,
+  className,
 }: {
-  entry: CatalogEntry;
+  entry: Pick<CatalogEntry, 'kind' | 'id'>;
   quantity?: number;
+  className?: string;
 }) {
   const t = useTranslations('site.catalog');
   const cart = useCart();
   const inCart = cart.some((item) => item.kind === entry.kind && item.id === entry.id);
   if (inCart && perGuest(entry.kind)) {
     return (
-      <Button variant="secondary" asChild data-testid="in-cart">
+      <Button variant="secondary" asChild data-testid="in-cart" className={className}>
         <Link href="/demande">
           <CheckIcon data-icon="inline-start" />
           {t('inCart')}
@@ -47,7 +49,11 @@ export function AddToCartButton({
     );
   }
   return (
-    <Button onClick={() => cartStore.add(entry.kind, entry.id, quantity)} data-testid="add-to-cart">
+    <Button
+      onClick={() => cartStore.add(entry.kind, entry.id, quantity)}
+      data-testid="add-to-cart"
+      className={className}
+    >
       {inCart ? <CheckIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
       {inCart ? t('addAgain') : t('add')}
     </Button>

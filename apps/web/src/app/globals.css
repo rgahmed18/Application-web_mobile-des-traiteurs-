@@ -7,6 +7,8 @@
 @theme inline {
   --font-heading: var(--app-font);
   --font-sans: var(--app-font);
+  /* Titres du site client (Cormorant Garamond ou Amiri) : jamais pour le texte courant */
+  --font-display: var(--site-display-font);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -163,5 +165,85 @@ html.platform-theme {
     @apply font-sans;
     /* Texte de base à 16 px : lisible sur tablette, sans zoom automatique des champs sur iOS */
     font-size: 16px;
+  }
+}
+
+/*
+ * Site client : polices du site (texte Manrope ou IBM Plex Sans Arabic, titres Cormorant
+ * Garamond ou Amiri) ; couleurs de la palette du traiteur posées en variables par le cadre.
+ */
+.site {
+  --app-font: var(--font-site-body), ui-sans-serif, system-ui, sans-serif;
+  --site-display-font: var(--font-site-display), Georgia, serif;
+  font-family: var(--app-font);
+}
+html[lang='ar'] .site {
+  --app-font: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+  --site-display-font: var(--font-site-display-ar), var(--font-arabic), serif;
+}
+
+/* Carrousels du téléphone : défilement horizontal aimanté, sans barre visible */
+.site-rail {
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+}
+.site-rail::-webkit-scrollbar {
+  display: none;
+}
+.site-rail > * {
+  scroll-snap-align: start;
+}
+
+/* Filet de points sous les titres de section */
+.site-ornament {
+  width: 64px;
+  height: 10px;
+  background: radial-gradient(circle, var(--site-accent) 3px, transparent 3.5px) center / 16px 10px
+    repeat-x;
+}
+
+/* Animations légères : apparition au défilement, zoom lent du bandeau, bouton WhatsApp */
+.site-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease;
+}
+.site-reveal[data-shown] {
+  opacity: 1;
+  transform: none;
+}
+@keyframes site-kenburns {
+  from {
+    transform: scale(1.06);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.site-kenburns {
+  animation: site-kenburns 16s ease-out both;
+}
+@keyframes site-bob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.site-bob {
+  animation: site-bob 3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .site-kenburns,
+  .site-bob {
+    animation: none;
+  }
+  .site * {
+    transition-duration: 0s !important;
   }
 }

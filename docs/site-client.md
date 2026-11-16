@@ -15,6 +15,22 @@ reste sous `/admin`. Sur l'adresse de la console, la racine renvoie vers `/admin
 | `/confidentialite`                     | Politique de confidentialité du traiteur (loi 09-08)                           | public                 |
 | `/espace` et sous-pages                | Demandes, devis, factures et reçus, paiements, profil et adresses              | client connecté        |
 
+## Accueil et apparence
+
+- **Accueil** : bandeau plein écran (photo principale, nom, présentation, « Demander un devis » et
+  « Voir le catalogue »), « Pour vos événements » (cartes vers le catalogue filtré), menus phares,
+  « Comment ça marche », galerie (photos du site), contact. Carrousels sur téléphone, grilles sur
+  grand écran ; apparition au défilement, désactivée avec « réduire les animations ».
+- **Paramètres → Site client** : palette parmi 6 (contraste WCAG AA vérifié par test), numéro
+  WhatsApp du bouton flottant (message prérempli), 3 à 6 menus et buffets phares (sans choix : les
+  premiers publiés avec photo), photo propre à chaque type d'événement (sinon celle d'un menu
+  publié de ce type).
+- **Polices** : titres en Cormorant Garamond (latin) ou Amiri (arabe), jamais sous 24 px ni pour
+  le texte courant ; texte en Manrope ou IBM Plex Sans Arabic. Hébergées avec le site.
+- **Téléphone** : « Demander un devis » toujours visible en bas de l'écran (sauf demande,
+  connexion, espace client). Pied de page : « © traiteur », politique de confidentialité,
+  « Propulsé par Walima Pro ».
+
 ## Données et confidentialité
 
 - **Catalogue public** : éléments disponibles, non archivés et **publiés sur le site** (case « Publié
