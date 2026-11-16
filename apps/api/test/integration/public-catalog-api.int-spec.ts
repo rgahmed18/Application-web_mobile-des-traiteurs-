@@ -114,8 +114,8 @@ describe('Catalogue public (application complète)', () => {
     );
     admin = { token: issued.accessToken, traiteurId: traiteur.id };
 
-    // Catalogue : un plat, trois menus (soutenance premium, tous événements, archivé), un buffet,
-    // du matériel actif et désactivé
+    // Catalogue : un plat, des menus (soutenance premium, tous événements, archivé, désactivé, non
+    // publiés), un buffet, du matériel actif et désactivé
     const dish = (
       (
         await api(admin)
@@ -145,6 +145,7 @@ describe('Catalogue public (application complète)', () => {
           maxGuests: null,
           imageKey: null,
           isActive: true,
+          isPublished: true,
           dishes: [{ dishId: dish, quantity: 1 }],
           rangeId: null,
           eventTypeIds: [],
@@ -159,6 +160,8 @@ describe('Catalogue public (application complète)', () => {
     const archived = (await menu('Menu archivé', {})).body as { id: string };
     await api(admin).post(`/catalog/packages/${archived.id}/archive`).expect(200);
     await menu('Menu désactivé', { isActive: false });
+    // Disponible mais pas publié sur le site par le traiteur : jamais montré
+    await menu('Menu non publié', { isPublished: false });
 
     await api(admin)
       .post('/catalog/buffets', {
@@ -172,6 +175,7 @@ describe('Catalogue public (application complète)', () => {
         minGuests: 1,
         imageKey: null,
         isActive: true,
+        isPublished: true,
         dishes: [],
         freeItems: [{ fr: 'Thé à la menthe', ar: 'أتاي' }],
       })
@@ -189,6 +193,7 @@ describe('Catalogue public (application complète)', () => {
           stockQuantity: 200,
           imageKey: null,
           isActive,
+          isPublished: true,
         })
         .expect(201);
     await equipment('Chaise Napoléon', true);
@@ -202,6 +207,7 @@ describe('Catalogue public (application complète)', () => {
           taxRateBps: null,
           pricingUnit: 'FLAT',
           isActive,
+          isPublished: true,
         })
         .expect(201);
     await service('Décoration florale', true);
@@ -305,7 +311,12 @@ describe('Catalogue public (application complète)', () => {
     // Photo d'un menu publié : reprise en repli ; celle d'un menu archivé, jamais
     const [published, archived] = await Promise.all([
       prisma.package.findFirstOrThrow({
-        where: { traiteurId: admin.traiteurId, archivedAt: null, isActive: true },
+        where: {
+          traiteurId: admin.traiteurId,
+          archivedAt: null,
+          isActive: true,
+          isPublished: true,
+        },
       }),
       prisma.package.findFirstOrThrow({
         where: { traiteurId: admin.traiteurId, archivedAt: { not: null } },

@@ -334,6 +334,7 @@ describe('API des listes du catalogue (application complète)', () => {
       maxGuests: null,
       imageKey: null,
       isActive: true,
+      isPublished: false,
       dishes: [{ dishId: dish.id, quantity: 1 }],
       rangeId: null,
       eventTypeIds: [],

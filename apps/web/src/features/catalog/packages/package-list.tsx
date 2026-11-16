@@ -19,7 +19,7 @@ import { EmptyState, PaginationBar } from '@/components/layout/list-states';
 
 import { useCatalogList, useCatalogSettings, usePackages } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
-import { FilterTrigger, ItemThumb, StatusBadge } from '../components/catalog-ui';
+import { FilterTrigger, ItemThumb, OffSiteBadge, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useDebouncedValue } from '../use-debounced-value';
 import { useLocalized } from '../use-localized';
@@ -207,6 +207,7 @@ export function PackageList() {
                     </span>
                     <span className="text-sm text-muted-foreground">{t('units.PER_PERSON')}</span>
                     {badge(pkg)}
+                    <OffSiteBadge item={pkg} />
                   </div>
                 </div>
                 {canWrite && (

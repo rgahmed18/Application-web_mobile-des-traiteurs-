@@ -101,6 +101,8 @@ export const packageInputSchema = z
     maxGuests: z.number().int().min(1).max(100_000).nullable(),
     imageKey: imageKeySchema.nullable(),
     isActive: z.boolean(),
+    /** Visible sur le site client (choix du traiteur, distinct de « Disponible »). */
+    isPublished: z.boolean(),
     dishes: z.array(packageDishInputSchema).min(1).max(100),
     /** Gamme (liste du traiteur), facultative. */
     rangeId: z.uuid().nullable(),
@@ -145,6 +147,8 @@ export const extraServiceInputSchema = z.object({
   taxRateBps: taxRateSchema,
   pricingUnit: pricingUnitSchema,
   isActive: z.boolean(),
+  /** Visible sur le site client (choix du traiteur, distinct de « Disponible »). */
+  isPublished: z.boolean(),
 });
 export type ExtraServiceInput = z.infer<typeof extraServiceInputSchema>;
 
@@ -277,6 +281,8 @@ export const packageSchema = z.object({
   maxGuests: z.number().int().nullable(),
   imageKey: z.string().nullable(),
   isActive: z.boolean(),
+  /** Visible sur le site client (distinct de isActive : « Disponible »). */
+  isPublished: z.boolean(),
   archivedAt: z.iso.datetime().nullable(),
   dishes: z.array(packageDishSchema),
   range: catalogListRefSchema.nullable(),
@@ -296,6 +302,8 @@ export const extraServiceSchema = z.object({
   effectiveTaxRateBps: z.number().int(),
   pricingUnit: pricingUnitSchema,
   isActive: z.boolean(),
+  /** Visible sur le site client (distinct de isActive : « Disponible »). */
+  isPublished: z.boolean(),
   archivedAt: z.iso.datetime().nullable(),
   ...usageSchema,
   ...timestampsSchema,

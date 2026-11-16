@@ -127,6 +127,7 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
     maxGuests: null,
     imageKey: null,
     isActive: true,
+    isPublished: false,
     dishes: [{ dishId, quantity: 1 }],
     rangeId: null,
     eventTypeIds: [],
@@ -138,6 +139,7 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
     taxRateBps: null,
     pricingUnit: 'FLAT',
     isActive: true,
+    isPublished: false,
   });
 
   /** Création par l'administrateur des éléments sur lesquels portent les opérations. */
@@ -168,6 +170,7 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
     stockQuantity: 100,
     imageKey: null,
     isActive: true,
+    isPublished: false,
   });
   const newEquipment = async () => ({ id: await created('/catalog/equipment', equipmentBody()) });
   const buffetBody = () => ({
@@ -181,6 +184,7 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
     minGuests: 20,
     imageKey: null,
     isActive: true,
+    isPublished: false,
     dishes: [],
     freeItems: [{ fr: 'Fruits secs' }],
   });

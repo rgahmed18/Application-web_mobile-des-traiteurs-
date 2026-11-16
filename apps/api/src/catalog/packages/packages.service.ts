@@ -91,6 +91,7 @@ function toPackage(row: PackageRow, settings: CatalogSettings): Package {
     maxGuests: row.maxGuests,
     imageKey: row.imageKey,
     isActive: row.isActive,
+    isPublished: row.isPublished,
     archivedAt: toIso(row.archivedAt),
     dishes: row.dishes.map((line) => ({
       dishId: line.dishId,
@@ -388,6 +389,7 @@ export class PackagesService {
       minGuests: input.minGuests,
       maxGuests: input.maxGuests,
       isActive: input.isActive,
+      isPublished: input.isPublished,
       rangeId: input.rangeId,
     };
   }

@@ -33,8 +33,10 @@ const CACHE_TTL_SECONDS = 60;
 /** Traiteur suspendu ou résilié : son catalogue n'est plus publié (404, sans le dire). */
 const UNPUBLISHED_STATUSES = new Set(['SUSPENDED', 'CANCELLED']);
 
-/** Élément publié : actif et non archivé. */
+/** Élément de liste publié (type d’événement, gamme…) : actif et non archivé. */
 const published = { isActive: true, archivedAt: null } as const;
+/** Élément du catalogue publié : disponible, non archivé et publié sur le site par le traiteur. */
+const onSite = { ...published, isPublished: true } as const;
 const listSelect = { code: true, name: true } as const;
 const dishesInclude = {
   orderBy: { sortOrder: 'asc' },
@@ -53,8 +55,8 @@ function listItem(
 }
 
 /**
- * Catalogue public d'un traiteur (lecture seule) pour son site client. Seuls les éléments actifs
- * et non archivés sont publiés, avec leurs prix TTC ; ni stock, ni prix de remplacement, ni prix
+ * Catalogue public d'un traiteur (lecture seule) pour son site client. Seuls les éléments actifs,
+ * non archivés et publiés par le traiteur (« Publié sur le site ») sont montrés, avec leurs prix TTC ; ni stock, ni prix de remplacement, ni prix
  * HT. Réponses mises en cache dans Redis (une minute) ; sans Redis, lecture directe.
  */
 @Injectable()
@@ -103,7 +105,7 @@ export class PublicCatalogService {
         this.prisma.package.findMany({
           where: {
             traiteurId,
-            ...published,
+            ...onSite,
             ...rangeFilter,
             ...(query.eventType
               ? {
@@ -126,7 +128,7 @@ export class PublicCatalogService {
           },
         }),
         this.prisma.buffet.findMany({
-          where: { traiteurId, ...published, ...rangeFilter },
+          where: { traiteurId, ...onSite, ...rangeFilter },
           orderBy: { slug: 'asc' },
           include: {
             type: listRef,
@@ -137,7 +139,7 @@ export class PublicCatalogService {
           },
         }),
         this.prisma.equipmentItem.findMany({
-          where: { traiteurId, ...published, ...rangeFilter },
+          where: { traiteurId, ...onSite, ...rangeFilter },
           orderBy: { slug: 'asc' },
           include: {
             category: listRef,
@@ -147,7 +149,7 @@ export class PublicCatalogService {
           },
         }),
         this.prisma.extraService.findMany({
-          where: { traiteurId, ...published },
+          where: { traiteurId, ...onSite },
           orderBy: { createdAt: 'asc' },
           select: { id: true, name: true, description: true, pricingUnit: true, priceTtc: true },
         }),
@@ -309,7 +311,7 @@ export class PublicCatalogService {
 
   /** Photos des éléments publiés, pour un accueil sans photo choisie. */
   private async catalogPhotos(traiteurId: string): Promise<string[]> {
-    const where = { traiteurId, ...published, imageKey: { not: null } };
+    const where = { traiteurId, ...onSite, imageKey: { not: null } };
     const select = { imageKey: true } as const;
     const take = SITE_PHOTOS_MAX;
     const rows = [

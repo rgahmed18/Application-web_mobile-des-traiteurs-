@@ -81,6 +81,7 @@ function toEquipment(row: EquipmentRow, settings: CatalogSettings): Equipment {
     stockQuantity: row.stockQuantity,
     imageKey: row.imageKey,
     isActive: row.isActive,
+    isPublished: row.isPublished,
     archivedAt: toIso(row.archivedAt),
     inUse: row._count.orderItems + row._count.quoteLines > 0,
     createdAt: toIso(row.createdAt),
@@ -392,6 +393,7 @@ export class EquipmentService {
       taxRateBps: input.taxRateBps,
       stockQuantity: input.stockQuantity,
       isActive: input.isActive,
+      isPublished: input.isPublished,
     };
   }
 

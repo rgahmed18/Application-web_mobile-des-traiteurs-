@@ -309,7 +309,8 @@ export async function seedDemoEquipmentAndBuffets(
     const row = await prisma.equipmentItem.upsert({
       where: { traiteurId_slug: { traiteurId, slug: item.slug } },
       update: data,
-      create: { traiteurId, slug: item.slug, ...data },
+      // Publié sur le site client à la création ; un nouveau seed ne change pas ce choix
+      create: { traiteurId, slug: item.slug, ...data, isPublished: true },
     });
     equipmentIds.set(item.slug, row.id);
   }
@@ -329,7 +330,7 @@ export async function seedDemoEquipmentAndBuffets(
     const row = await prisma.buffet.upsert({
       where: { traiteurId_slug: { traiteurId, slug: buffet.slug } },
       update: data,
-      create: { traiteurId, slug: buffet.slug, ...data },
+      create: { traiteurId, slug: buffet.slug, ...data, isPublished: true },
     });
     buffetIds.set(buffet.slug, row.id);
     for (const [index, [dishSlug, quantity]] of buffet.dishes.entries()) {

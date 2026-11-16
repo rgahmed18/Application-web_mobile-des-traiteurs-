@@ -368,6 +368,7 @@ export class ClientRequestsService {
       traiteurId,
       id: { in: ids(kind) },
       ...published,
+      isPublished: true,
     });
     const [menus, buffets, equipment, services] = await Promise.all([
       tx.package.findMany({ where: where('menu') }),

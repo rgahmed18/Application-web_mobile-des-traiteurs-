@@ -60,6 +60,17 @@ export function StatusBadge({ tone, children }: { tone: BadgeTone; children: Rea
   );
 }
 
+/** « Hors site » : élément du catalogue non publié sur le site client (archivé : rien). */
+export function OffSiteBadge({
+  item,
+}: {
+  item: { archivedAt: string | null; isPublished: boolean };
+}) {
+  const t = useTranslations('catalog.published');
+  if (item.archivedAt || item.isPublished) return null;
+  return <StatusBadge tone="muted">{t('offSite')}</StatusBadge>;
+}
+
 /**
  * Déclencheur d'un filtre de liste : le critère reste affiché devant la valeur (« Catégorie :
  * Chaises », « Gamme : toutes »), pour distinguer des filtres aux valeurs proches.

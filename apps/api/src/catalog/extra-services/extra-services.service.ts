@@ -42,6 +42,7 @@ function toExtraService(row: ServiceRow, settings: CatalogSettings): ExtraServic
     effectiveTaxRateBps: resolveTaxRate(settings, row.taxRateBps),
     pricingUnit: row.pricingUnit,
     isActive: row.isActive,
+    isPublished: row.isPublished,
     archivedAt: toIso(row.archivedAt),
     inUse: row._count.orderItems + row._count.quoteLines > 0,
     createdAt: toIso(row.createdAt),
@@ -221,6 +222,7 @@ export class ExtraServicesService {
       taxRateBps: input.taxRateBps,
       pricingUnit: input.pricingUnit,
       isActive: input.isActive,
+      isPublished: input.isPublished,
     };
   }
 }

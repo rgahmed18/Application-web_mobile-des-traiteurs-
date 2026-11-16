@@ -17,8 +17,11 @@ reste sous `/admin`. Sur l'adresse de la console, la racine renvoie vers `/admin
 
 ## Données et confidentialité
 
-- **Catalogue public** : éléments actifs et non archivés, prix TTC. Jamais de stock, de prix HT
-  ou de remplacement, de taux de TVA ni d'élément désactivé.
+- **Catalogue public** : éléments disponibles, non archivés et **publiés sur le site** (case « Publié
+  sur le site » de chaque menu, buffet, matériel et service, désactivée pour un nouvel élément ;
+  « Hors site » dans les listes). Avant publication, la fiche signale une photo, une description
+  ou une traduction arabe manquante. Prix TTC ; jamais de stock, de prix HT ou de remplacement,
+  de taux de TVA ni d'élément désactivé. Une demande en ligne refuse un élément non publié.
 - **Disponibilité** (client connecté) : « Disponible » ou « Sur demande » pour la date
   (fermeture, date bloquée, capacité, date trop proche) et pour chaque matériel (stock sur la
   période). Jamais de chiffre.

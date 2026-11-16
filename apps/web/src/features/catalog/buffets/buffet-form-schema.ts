@@ -30,6 +30,7 @@ export const buffetFormSchema = z
     minGuests: z.string(),
     imageKey: z.string().nullable(),
     isActive: z.boolean(),
+    isPublished: z.boolean(),
     dishes: z.array(z.object({ dishId: z.string(), quantity: z.string() })),
     /** Éléments hors catalogue ; une ligne vide est ignorée. */
     freeItems: z.array(localizedFormSchema),
@@ -57,6 +58,7 @@ export const buffetFormSchema = z
     minGuests: toMinGuests(values.minGuests),
     imageKey: values.imageKey,
     isActive: values.isActive,
+    isPublished: values.isPublished,
     dishes: values.dishes.map((line) => ({
       dishId: line.dishId,
       quantity: toInteger(line.quantity),
@@ -80,6 +82,7 @@ export const EMPTY_BUFFET_FORM: BuffetFormValues = {
   minGuests: '',
   imageKey: null,
   isActive: true,
+  isPublished: false,
   dishes: [],
   freeItems: [],
 };
@@ -96,6 +99,7 @@ export function buffetToFormValues(buffet: Buffet, settings: CatalogSettings): B
     minGuests: fromMinGuests(buffet.minGuests),
     imageKey: buffet.imageKey,
     isActive: buffet.isActive,
+    isPublished: buffet.isPublished,
     dishes: buffet.dishes.map((line) => ({ dishId: line.dishId, quantity: String(line.quantity) })),
     freeItems: buffet.freeItems.map(fromLocalizedText),
   };

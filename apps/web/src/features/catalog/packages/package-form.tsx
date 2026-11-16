@@ -33,6 +33,7 @@ import {
   summariesFromPackage,
 } from './composition-editor';
 import { EMPTY_PACKAGE_FORM, packageFormSchema, packageToFormValues } from './package-form-schema';
+import { PublishedField } from '../forms/published-field';
 
 const LIST_PATH = '/admin/catalog/packages';
 
@@ -210,6 +211,7 @@ export function PackageForm({ settings, pkg, mode }: PackageFormProps) {
               </Field>
             )}
           />
+          <PublishedField control={form.control} id="package-published" withPhoto />
         </FormSection>
 
         <FormActions

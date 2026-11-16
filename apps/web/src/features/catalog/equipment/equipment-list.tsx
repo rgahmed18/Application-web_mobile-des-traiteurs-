@@ -19,7 +19,7 @@ import { formatMoney } from '@/lib/format/money';
 
 import { useCatalogList, useCatalogSettings, useEquipmentList } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
-import { FilterTrigger, ItemThumb, StatusBadge } from '../components/catalog-ui';
+import { FilterTrigger, ItemThumb, OffSiteBadge, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useDebouncedValue } from '../use-debounced-value';
 import { MissingListValue } from '../components/missing-list-value';
@@ -192,6 +192,7 @@ export function EquipmentList() {
                     </span>
                     <span className="text-sm text-muted-foreground">{t('equipment.perUnit')}</span>
                     {status(item)}
+                    <OffSiteBadge item={item} />
                   </div>
                 </div>
                 {canWrite && (

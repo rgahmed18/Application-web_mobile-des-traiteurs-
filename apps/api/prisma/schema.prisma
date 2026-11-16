@@ -799,6 +799,7 @@ model Package {
   imageKey          String? // photo traitée (MediaUpload)
   rangeId           String?   @db.Uuid // gamme (CatalogRange), facultative
   isActive          Boolean   @default(true)
+  isPublished       Boolean   @default(false) // visible sur le site client (choix du traiteur)
   archivedAt        DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -860,6 +861,7 @@ model ExtraService {
   taxRateBps  Int? // null = taux par défaut du traiteur
   pricingUnit PricingUnit @default(FLAT)
   isActive    Boolean     @default(true)
+  isPublished Boolean     @default(false) // visible sur le site client (choix du traiteur)
   archivedAt  DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -959,6 +961,7 @@ model EquipmentItem {
   stockQuantity       Int       @default(0)
   imageKey            String?
   isActive            Boolean   @default(true)
+  isPublished         Boolean   @default(false) // visible sur le site client (choix du traiteur)
   archivedAt          DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -1014,6 +1017,7 @@ model Buffet {
   freeItems   Json        @default("[]") // LocalizedText[] : éléments hors catalogue
   imageKey    String?
   isActive    Boolean     @default(true)
+  isPublished Boolean     @default(false) // visible sur le site client (choix du traiteur)
   archivedAt  DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

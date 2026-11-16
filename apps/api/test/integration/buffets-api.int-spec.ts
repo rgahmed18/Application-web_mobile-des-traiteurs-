@@ -123,6 +123,7 @@ describe('API des buffets (application complète)', () => {
     minGuests: 30,
     imageKey: null,
     isActive: true,
+    isPublished: false,
     dishes: [],
     freeItems: [{ fr: 'Fruits secs', ar: 'فواكه جافة' }],
     ...overrides,

@@ -694,7 +694,8 @@ async function seedCatalog(traiteurId: string) {
     const row = await prisma.package.upsert({
       where: { traiteurId_slug: { traiteurId, slug: pkg.slug } },
       update: data,
-      create: { traiteurId, slug: pkg.slug, ...data },
+      // Publiée sur le site client à la création ; un nouveau seed ne change pas ce choix
+      create: { traiteurId, slug: pkg.slug, ...data, isPublished: true },
     });
     packageIds.set(pkg.slug, row.id);
 
@@ -719,7 +720,7 @@ async function seedCatalog(traiteurId: string) {
     await prisma.extraService.upsert({
       where: { id: extra.id },
       update: data,
-      create: { id: extra.id, traiteurId, ...data },
+      create: { id: extra.id, traiteurId, ...data, isPublished: true },
     });
   }
 

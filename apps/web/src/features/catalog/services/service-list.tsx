@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/layout/list-states';
 
 import { useCatalogSettings, useExtraServices } from '../catalog-api';
 import { CatalogHeader } from '../components/catalog-header';
-import { StatusBadge } from '../components/catalog-ui';
+import { OffSiteBadge, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
 import { useLocalized } from '../use-localized';
 import { ServiceFormDialog } from './service-form';
@@ -119,6 +119,7 @@ export function ServiceList() {
                       {t(`pricingUnits.${service.pricingUnit}`)}
                     </span>
                     {badge(service)}
+                    <OffSiteBadge item={service} />
                   </div>
                 </div>
                 {canWrite && (

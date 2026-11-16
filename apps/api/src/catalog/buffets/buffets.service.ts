@@ -97,6 +97,7 @@ function toBuffet(row: BuffetRow, settings: CatalogSettings): Buffet {
     minGuests: row.minGuests,
     imageKey: row.imageKey,
     isActive: row.isActive,
+    isPublished: row.isPublished,
     archivedAt: toIso(row.archivedAt),
     dishes: row.dishes.map((line) => ({
       dishId: line.dishId,
@@ -378,6 +379,7 @@ export class BuffetsService {
       minGuests: input.minGuests,
       freeItems: input.freeItems,
       isActive: input.isActive,
+      isPublished: input.isPublished,
     };
   }
 

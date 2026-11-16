@@ -31,6 +31,7 @@ export const equipmentFormSchema = z
     stockQuantity: z.string(),
     imageKey: z.string().nullable(),
     isActive: z.boolean(),
+    isPublished: z.boolean(),
   })
   // Catégorie obligatoire à la saisie : elle classe le matériel dans le catalogue et les
   // commandes (l'API accepte encore un article sans catégorie, créé avant cette règle)
@@ -57,6 +58,7 @@ export const equipmentFormSchema = z
     stockQuantity: toInteger(values.stockQuantity),
     imageKey: values.imageKey,
     isActive: values.isActive,
+    isPublished: values.isPublished,
   }))
   .pipe(equipmentInputSchema);
 
@@ -73,6 +75,7 @@ export const EMPTY_EQUIPMENT_FORM: EquipmentFormValues = {
   stockQuantity: '0',
   imageKey: null,
   isActive: true,
+  isPublished: false,
 };
 
 /** Valeurs à partir d'un article : prix affichés dans le mode de saisie du traiteur. */
@@ -92,5 +95,6 @@ export function equipmentToFormValues(
     stockQuantity: String(item.stockQuantity),
     imageKey: item.imageKey,
     isActive: item.isActive,
+    isPublished: item.isPublished,
   };
 }

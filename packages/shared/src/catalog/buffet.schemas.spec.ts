@@ -14,6 +14,7 @@ const base = {
   minGuests: 30,
   imageKey: null,
   isActive: true,
+  isPublished: false,
   dishes: [{ dishId: DISH, quantity: 2 }],
   freeItems: [{ fr: 'Fruits secs', ar: 'فواكه جافة' }],
 };

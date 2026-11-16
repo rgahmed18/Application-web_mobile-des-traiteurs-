@@ -41,6 +41,7 @@ import {
   summariesFromPackage,
 } from '../packages/composition-editor';
 import { buffetFormSchema, buffetToFormValues, EMPTY_BUFFET_FORM } from './buffet-form-schema';
+import { PublishedField } from '../forms/published-field';
 
 const LIST_PATH = '/admin/catalog/buffets';
 
@@ -266,6 +267,7 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
               </Field>
             )}
           />
+          <PublishedField control={form.control} id="buffet-published" withPhoto />
         </FormSection>
 
         <FormActions

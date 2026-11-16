@@ -188,6 +188,7 @@ test('matériel sans catégorie : refusé dans le formulaire, signalé dans la l
       stockQuantity: 10,
       imageKey: null,
       isActive: true,
+      isPublished: false,
     },
   });
   expect(created.ok(), await created.text()).toBe(true);

@@ -149,6 +149,7 @@ describe('Notifications du traiteur (application complète)', () => {
             taxRateBps: null,
             pricingUnit: 'FLAT',
             isActive: true,
+            isPublished: true,
           })
           .expect(201)
       ).body as { id: string }

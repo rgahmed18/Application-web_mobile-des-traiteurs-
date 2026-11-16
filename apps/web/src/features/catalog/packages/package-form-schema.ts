@@ -28,6 +28,7 @@ export const packageFormSchema = z
     maxGuests: z.string(),
     imageKey: z.string().nullable(),
     isActive: z.boolean(),
+    isPublished: z.boolean(),
     dishes: z.array(z.object({ dishId: z.string(), quantity: z.string() })),
     /** Gamme choisie ('' : aucune). */
     rangeId: z.string(),
@@ -42,6 +43,7 @@ export const packageFormSchema = z
     maxGuests: values.maxGuests.trim() === '' ? null : toInteger(values.maxGuests),
     imageKey: values.imageKey,
     isActive: values.isActive,
+    isPublished: values.isPublished,
     dishes: values.dishes.map((line) => ({
       dishId: line.dishId,
       quantity: toInteger(line.quantity),
@@ -62,6 +64,7 @@ export const EMPTY_PACKAGE_FORM: PackageFormValues = {
   maxGuests: '',
   imageKey: null,
   isActive: true,
+  isPublished: false,
   dishes: [],
   rangeId: '',
   eventTypeIds: [],
@@ -86,6 +89,7 @@ export function packageToFormValues(
     maxGuests: pkg.maxGuests === null ? '' : String(pkg.maxGuests),
     imageKey: pkg.imageKey,
     isActive: pkg.isActive,
+    isPublished: copySuffix ? false : pkg.isPublished,
     // La copie reprend toute la composition
     dishes: pkg.dishes.map((line) => ({ dishId: line.dishId, quantity: String(line.quantity) })),
     rangeId: pkg.range?.id ?? '',

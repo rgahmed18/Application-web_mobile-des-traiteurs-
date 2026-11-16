@@ -182,6 +182,7 @@ describe('Matériel et buffets dans les commandes (application complète)', () =
             stockQuantity: 100,
             imageKey: null,
             isActive: true,
+            isPublished: false,
           })
           .expect(201)
       ).body as { id: string }
@@ -200,6 +201,7 @@ describe('Matériel et buffets dans les commandes (application complète)', () =
             minGuests: 20,
             imageKey: null,
             isActive: true,
+            isPublished: false,
             dishes: [],
             freeItems: [{ fr: 'Thé à la menthe', ar: 'أتاي' }],
           })

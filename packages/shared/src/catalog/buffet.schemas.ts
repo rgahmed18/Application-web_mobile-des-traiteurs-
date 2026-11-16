@@ -34,6 +34,8 @@ export const buffetInputSchema = z
     minGuests: z.number().int().min(1).max(100_000),
     imageKey: imageKeySchema.nullable(),
     isActive: z.boolean(),
+    /** Visible sur le site client (choix du traiteur, distinct de « Disponible »). */
+    isPublished: z.boolean(),
     /** Plats du catalogue : portions par personne (ou au total pour un forfait). */
     dishes: z.array(packageDishInputSchema).max(100),
     /** Éléments hors catalogue (ex. « Fruits secs », « Msemen et beghrir »). */
@@ -89,6 +91,8 @@ export const buffetSchema = z.object({
   minGuests: z.number().int(),
   imageKey: z.string().nullable(),
   isActive: z.boolean(),
+  /** Visible sur le site client (distinct de isActive : « Disponible »). */
+  isPublished: z.boolean(),
   archivedAt: z.iso.datetime().nullable(),
   dishes: z.array(packageDishSchema),
   freeItems: z.array(localizedTextSchema),

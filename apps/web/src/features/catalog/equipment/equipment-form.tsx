@@ -38,6 +38,7 @@ import {
   equipmentFormSchema,
   equipmentToFormValues,
 } from './equipment-form-schema';
+import { PublishedField } from '../forms/published-field';
 
 const LIST_PATH = '/admin/catalog/equipment';
 
@@ -220,6 +221,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
               </Field>
             )}
           />
+          <PublishedField control={form.control} id="equipment-published" withPhoto />
         </FormSection>
 
         <FormActions

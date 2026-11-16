@@ -29,6 +29,8 @@ export const equipmentInputSchema = z.object({
   stockQuantity: z.number().int().min(0).max(1_000_000),
   imageKey: imageKeySchema.nullable(),
   isActive: z.boolean(),
+  /** Visible sur le site client (choix du traiteur, distinct de « Disponible »). */
+  isPublished: z.boolean(),
 });
 export type EquipmentInput = z.infer<typeof equipmentInputSchema>;
 
@@ -59,6 +61,8 @@ export const equipmentSchema = z.object({
   stockQuantity: z.number().int(),
   imageKey: z.string().nullable(),
   isActive: z.boolean(),
+  /** Visible sur le site client (distinct de isActive : « Disponible »). */
+  isPublished: z.boolean(),
   archivedAt: z.iso.datetime().nullable(),
   /** Déjà sur une commande : seule l'archive est possible. */
   inUse: z.boolean(),

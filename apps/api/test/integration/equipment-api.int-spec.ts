@@ -105,6 +105,7 @@ describe('API du matériel (application complète)', () => {
     stockQuantity: 200,
     imageKey: null,
     isActive: true,
+    isPublished: false,
     ...overrides,
   });
 

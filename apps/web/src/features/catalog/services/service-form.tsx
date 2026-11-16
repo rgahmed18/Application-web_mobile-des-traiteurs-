@@ -47,6 +47,7 @@ import {
 import { LocalizedTextFields } from '../forms/localized-text-fields';
 import { PriceFields } from '../forms/price-fields';
 import { useUnusualPriceConfirm } from '../forms/unusual-price';
+import { PublishedField } from '../forms/published-field';
 
 export const serviceFormSchema = z
   .object({
@@ -56,6 +57,7 @@ export const serviceFormSchema = z
     taxRateBps: z.string(),
     pricingUnit: pricingUnitSchema,
     isActive: z.boolean(),
+    isPublished: z.boolean(),
   })
   .transform((values) => ({
     name: toLocalizedText(values.name),
@@ -64,6 +66,7 @@ export const serviceFormSchema = z
     taxRateBps: toTaxRate(values.taxRateBps),
     pricingUnit: values.pricingUnit,
     isActive: values.isActive,
+    isPublished: values.isPublished,
   }))
   .pipe(extraServiceInputSchema);
 
@@ -81,6 +84,7 @@ function toFormValues(
       taxRateBps: DEFAULT_TAX_RATE,
       pricingUnit: 'FLAT',
       isActive: true,
+      isPublished: false,
     };
   }
   return {
@@ -90,6 +94,7 @@ function toFormValues(
     taxRateBps: fromTaxRate(service.taxRateBps),
     pricingUnit: service.pricingUnit,
     isActive: service.isActive,
+    isPublished: service.isPublished,
   };
 }
 
@@ -205,6 +210,7 @@ export function ServiceFormDialog({ settings, service, onClose }: ServiceFormDia
             </Field>
           )}
         />
+        <PublishedField control={form.control} id="service-published" withPhoto={false} />
       </DraftFields>
     </FormDialog>
   );

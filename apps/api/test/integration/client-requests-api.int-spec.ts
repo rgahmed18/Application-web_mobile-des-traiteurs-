@@ -131,6 +131,7 @@ describe('Demandes en ligne des clients (application complète)', () => {
         maxGuests: 200,
         imageKey: null,
         isActive: true,
+        isPublished: true,
         dishes: [{ dishId: (dish.body as { id: string }).id, quantity: 1 }],
         rangeId: null,
         eventTypeIds: [],
@@ -190,6 +191,7 @@ describe('Demandes en ligne des clients (application complète)', () => {
             minGuests: 1,
             imageKey: null,
             isActive: true,
+            isPublished: true,
             dishes: [],
             freeItems: [{ fr: 'Thé à la menthe' }],
           })
@@ -210,6 +212,7 @@ describe('Demandes en ligne des clients (application complète)', () => {
             stockQuantity: 50,
             imageKey: null,
             isActive: true,
+            isPublished: true,
           })
           .expect(201)
       ).body as { id: string }
@@ -224,6 +227,7 @@ describe('Demandes en ligne des clients (application complète)', () => {
             taxRateBps: null,
             pricingUnit: 'PER_PERSON',
             isActive: true,
+            isPublished: true,
           })
           .expect(201)
       ).body as { id: string }
@@ -314,7 +318,7 @@ describe('Demandes en ligne des clients (application complète)', () => {
     ]);
   });
 
-  it('refus : compte non validé, élément d’un autre traiteur ou archivé, invités, date trop proche', async () => {
+  it('refus : compte non validé, élément d’un autre traiteur, non publié ou archivé, invités, date trop proche', async () => {
     const pending = await actorFor(admin.traiteurId, 'CLIENT', 'PENDING');
     const notApproved = await api(pending).post('/client/requests', requestBody());
     expect(notApproved.status).toBe(403);
@@ -328,6 +332,10 @@ describe('Demandes en ligne des clients (application complète)', () => {
     ).toBe('ITEM_UNAVAILABLE');
     expect(await codeOf(requestBody({ guestCount: 5 }))).toBe('GUESTS_OUT_OF_RANGE');
     expect(await codeOf(requestBody({ eventDate: inDays(0) }))).toBe('DATE_TOO_SOON');
+    // Service retiré du site par le traiteur (toujours disponible au back-office)
+    await prisma.extraService.update({ where: { id: serviceId }, data: { isPublished: false } });
+    expect(await codeOf(requestBody())).toBe('ITEM_UNAVAILABLE');
+    await prisma.extraService.update({ where: { id: serviceId }, data: { isPublished: true } });
     await api(admin).post(`/catalog/buffets/${buffetId}/archive`).expect(200);
     expect(
       await codeOf(requestBody({ items: [{ kind: 'buffet', id: buffetId, quantity: 1 }] })),

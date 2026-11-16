@@ -629,6 +629,18 @@
       "description": "Ce prix est bien plus élevé que d’habitude. Une saisie doublée (« 10 » devenu « 1010 ») est vite arrivée : corrigez-le, ou enregistrez-le s’il est voulu.",
       "fix": "Corriger",
       "keep": "Enregistrer ce prix"
+    },
+    "published": {
+      "label": "Publié sur le site",
+      "hint": "Montré à vos clients sur votre site. Distinct de « Disponible » : un élément non publié reste utilisable au back-office.",
+      "offSite": "Hors site",
+      "issuesBefore": "Avant de publier sur le site, complétez la fiche :",
+      "issuesPublished": "Publié, mais la fiche est incomplète :",
+      "issues": {
+        "photo": "pas de photo",
+        "description": "pas de description",
+        "arabic": "traduction arabe manquante (nom ou description)"
+      }
     }
   },
   "orderStatus": {
