@@ -175,11 +175,13 @@ html.platform-theme {
 .site {
   --app-font: var(--font-site-body), ui-sans-serif, system-ui, sans-serif;
   --site-display-font: var(--font-site-display), Georgia, serif;
+  --site-script-font: var(--font-site-display), Georgia, serif;
   font-family: var(--app-font);
 }
 html[lang='ar'] .site {
   --app-font: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
   --site-display-font: var(--font-site-display-ar), var(--font-arabic), serif;
+  --site-script-font: var(--font-site-script-ar), var(--font-site-display-ar), serif;
 }
 
 /* Carrousels du téléphone : défilement horizontal aimanté, sans barre visible */
@@ -233,6 +235,156 @@ html[lang='ar'] .site {
 .site-bob {
   animation: site-bob 3s ease-in-out infinite;
 }
+/* En-tête : fond ivoire flouté au défilement (opaque sans flou sur les anciens navigateurs) */
+.site-header-scrolled {
+  background-color: color-mix(in srgb, var(--background) 96%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--site-accent) 22%, transparent),
+    0 10px 30px -22px rgb(60 30 10 / 0.45);
+}
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .site-header-scrolled {
+    background-color: color-mix(in srgb, var(--background) 80%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
+}
+/* Lien actif : fin trait dans la couleur principale (blanc sur la photo de l'accueil) */
+.site-nav-link {
+  position: relative;
+}
+.site-nav-link::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 -2px 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+.text-white .site-nav-link::after {
+  background: #fff;
+}
+.site-nav-link:hover::after {
+  transform: scaleX(0.5);
+}
+.site-nav-link[aria-current='page']::after {
+  transform: none;
+}
+/* Menu plein écran du téléphone : liens qui glissent l'un après l'autre */
+@keyframes site-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.site-menu-item {
+  animation: site-menu-in 0.45s ease both;
+}
+.site-menu-item:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.site-menu-item:nth-child(3) {
+  animation-delay: 0.12s;
+}
+
+/* Bandeau de titre : ornement zellige discret, en fondu vers le texte */
+.site-zellige {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23b8893a' stroke-width='.8' opacity='.55'%3E%3Cpath d='M20 4l4.7 11.3L36 20l-11.3 4.7L20 36l-4.7-11.3L4 20l11.3-4.7z'/%3E%3Crect x='11' y='11' width='18' height='18' transform='rotate(45 20 20)'/%3E%3Ccircle cx='20' cy='20' r='3'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 64px;
+  -webkit-mask-image: linear-gradient(to left, #000, transparent);
+  mask-image: linear-gradient(to left, #000, transparent);
+}
+[dir='rtl'] .site-zellige {
+  -webkit-mask-image: linear-gradient(to right, #000, transparent);
+  mask-image: linear-gradient(to right, #000, transparent);
+}
+
+/*
+ * Finitions des gammes (voir RANGE_FINISH_COLORS) : ivoire sobre, bronze avec reflet au survol,
+ * or en bordure dégradée sur fond ivoire profond, titre calligraphié et lueur dorée au survol.
+ */
+.range-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.35s ease,
+    box-shadow 0.35s ease;
+}
+.range-card:hover {
+  transform: translateY(-4px);
+}
+.range-card[data-finish='ivory'] {
+  border-color: #e3d8c6;
+}
+.range-card[data-finish='ivory']:hover {
+  box-shadow: 0 22px 44px -26px rgb(60 40 10 / 0.35);
+}
+.range-card[data-finish='bronze'] {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, #8a5a2b, #e6c39a 45%, #a8743f 60%, #7a4c22) border-box;
+}
+.range-card[data-finish='bronze']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgb(255 236 210 / 0.55) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+}
+.range-card[data-finish='bronze']:hover::after {
+  transition: transform 1.1s ease;
+  transform: translateX(120%);
+}
+.range-card[data-finish='bronze']:hover {
+  box-shadow: 0 24px 46px -24px rgb(120 72 30 / 0.5);
+}
+.range-card[data-finish='gold'],
+.range-panel[data-finish='gold'] {
+  --muted-foreground: #5f5245;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(#f4ead3, #f4ead3) padding-box,
+    linear-gradient(135deg, #a87a1e, #f6e2a0 30%, #c9992f 55%, #f1d98c 75%, #9c6f17) border-box;
+  box-shadow: 0 0 0 4px rgb(214 175 80 / 0.1);
+}
+.range-card[data-finish='gold']:hover {
+  box-shadow:
+    0 0 0 4px rgb(214 175 80 / 0.22),
+    0 0 40px -6px rgb(214 170 60 / 0.6),
+    0 26px 50px -24px rgb(120 85 10 / 0.6);
+}
+.range-panel[data-finish='bronze'] {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(#fbf5ee, #fbf5ee) padding-box,
+    linear-gradient(135deg, #8a5a2b, #e6c39a 45%, #7a4c22) border-box;
+}
+.range-panel[data-finish='ivory'] {
+  border: 1px solid #e3d8c6;
+  background: #f7f2e9;
+}
+/* Titre de la gamme Or : calligraphie (Cormorant italique, Aref Ruqaa en arabe), 24 px et plus */
+.range-title-gold {
+  font-family: var(--site-script-font);
+  font-style: italic;
+  color: #3f2c08;
+}
+html[lang='ar'] .range-title-gold {
+  font-style: normal;
+}
+.range-badge-gold {
+  background: linear-gradient(135deg, #fbf0cf, #efd690);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .site-reveal {
     opacity: 1;
@@ -240,8 +392,15 @@ html[lang='ar'] .site {
     transition: none;
   }
   .site-kenburns,
-  .site-bob {
+  .site-bob,
+  .site-menu-item {
     animation: none;
+  }
+  .range-card:hover {
+    transform: none;
+  }
+  .range-card[data-finish='bronze']::after {
+    display: none;
   }
   .site * {
     transition-duration: 0s !important;

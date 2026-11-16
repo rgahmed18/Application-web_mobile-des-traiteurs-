@@ -1,4 +1,4 @@
-import { Amiri, Cormorant_Garamond, Manrope } from 'next/font/google';
+import { Amiri, Aref_Ruqaa, Cormorant_Garamond, Manrope } from 'next/font/google';
 
 /*
  * Polices du site client, hébergées avec le site (aucune requête vers Google) et chargées
@@ -11,6 +11,8 @@ const displayLatin = Cormorant_Garamond({
   variable: '--font-site-display',
   subsets: ['latin'],
   weight: ['600', '700'],
+  // Italique : titres de la gamme Or
+  style: ['normal', 'italic'],
   display: 'swap',
 });
 
@@ -21,11 +23,23 @@ const displayArabic = Amiri({
   display: 'swap',
 });
 
+/**
+ * Calligraphie des titres de la gamme Or en arabe. Non préchargée : téléchargée seulement quand
+ * un tel titre est affiché.
+ */
+const scriptArabic = Aref_Ruqaa({
+  variable: '--font-site-script-ar',
+  subsets: ['arabic'],
+  weight: ['700'],
+  display: 'swap',
+  preload: false,
+});
+
 const body = Manrope({
   variable: '--font-site-body',
   subsets: ['latin'],
   display: 'swap',
 });
 
-/** Classes à poser sur le cadre du site : variables des trois polices. */
-export const siteFontClasses = `${displayLatin.variable} ${displayArabic.variable} ${body.variable}`;
+/** Classes à poser sur le cadre du site : variables des polices. */
+export const siteFontClasses = `${displayLatin.variable} ${displayArabic.variable} ${scriptArabic.variable} ${body.variable}`;

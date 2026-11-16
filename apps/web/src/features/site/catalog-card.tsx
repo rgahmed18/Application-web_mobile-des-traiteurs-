@@ -8,9 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useLocalized } from '@/features/catalog/use-localized';
 import { formatMoney } from '@/lib/format/money';
+import { cn } from '@/lib/utils';
 
 import { cartStore, perGuest, useCart } from './cart-store';
 import type { CatalogEntry } from './catalog-view';
+import { IncludedList, PublicRangeBadge } from './range-finish';
 import { useListShown } from './site-lists';
 
 /** Prix TTC et son unité : « 350,00 MAD / personne ». */
@@ -60,26 +62,51 @@ export function AddToCartButton({
   );
 }
 
-/** Carte d'un élément : photo, nom, gamme, prix TTC, ajout à la demande, lien vers la fiche. */
+/** Nombre de plats et d'invités : « 8 plats · de 100 à 800 invités ». */
+export function EntryMeta({ entry }: { entry: CatalogEntry }) {
+  const t = useTranslations('site.catalog');
+  const parts = [
+    entry.dishes.length > 0 ? t('dishCount', { count: entry.dishes.length }) : null,
+    entry.minGuests !== null && entry.minGuests > 1
+      ? entry.maxGuests
+        ? t('guestsRangeShort', { min: entry.minGuests, max: entry.maxGuests })
+        : t('minGuests', { count: entry.minGuests })
+      : null,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return <p className="text-sm text-muted-foreground">{parts.join(' · ')}</p>;
+}
+
+/**
+ * Carte d'un élément, à la finition de sa gamme (ivoire, bronze, or ; sobre sans gamme) : photo
+ * avec badge de gamme et prix TTC posés dessus, nom, plats et invités, deux lignes de « Ce qui est
+ * inclus », lien vers la fiche et ajout à la demande.
+ */
 export function CatalogCard({ entry }: { entry: CatalogEntry }) {
   const t = useTranslations('site.catalog');
   const localized = useLocalized();
   const shown = useListShown();
   const href = `/catalogue/${entry.kind}/${entry.id}`;
   const name = localized(entry.name);
+  const range = entry.range && shown(entry.range) ? entry.range : null;
   return (
     <li
-      className="flex flex-col overflow-hidden rounded-xl border bg-card"
+      className="range-card flex flex-col rounded-[22px] border bg-card"
+      data-finish={range?.finish}
       data-testid="catalog-card"
     >
       {entry.kind !== 'service' && (
-        <Link href={href} className="block aspect-[4/3] bg-muted" tabIndex={-1}>
+        <Link
+          href={href}
+          className="relative block aspect-[4/3] overflow-hidden bg-muted"
+          tabIndex={-1}
+        >
           {entry.thumbUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={entry.thumbUrl}
               alt={t('photoOf', { name })}
-              className="size-full object-cover"
+              className="size-full object-cover transition-transform duration-700 hover:scale-105 motion-reduce:transition-none motion-reduce:hover:scale-100"
               loading="lazy"
             />
           ) : (
@@ -87,35 +114,52 @@ export function CatalogCard({ entry }: { entry: CatalogEntry }) {
               <ImageIcon className="size-10 text-muted-foreground" aria-hidden />
             </span>
           )}
+          {range && (
+            <PublicRangeBadge
+              range={range}
+              className="absolute start-3 top-3 shadow-[0_4px_14px_-6px_rgb(0_0_0/0.4)]"
+            />
+          )}
+          <span className="absolute start-3 bottom-3 rounded-2xl bg-white/95 px-3 py-1.5 text-sm text-[#2a1f1a] shadow-[0_6px_18px_-8px_rgb(0_0_0/0.35)]">
+            <EntryPrice entry={entry} />
+          </span>
         </Link>
       )}
-      <div className="flex flex-1 flex-col gap-2 p-4">
+      <div className="flex flex-1 flex-col gap-1.5 p-4 pt-3.5">
         <div className="flex flex-wrap gap-1">
-          {entry.range && shown(entry.range) && (
-            <Badge variant="secondary">{localized(entry.range.name)}</Badge>
-          )}
+          {entry.kind === 'service' && <EntryPrice entry={entry} />}
           {entry.group && shown(entry.group) && (
             <Badge variant="outline">{localized(entry.group.name)}</Badge>
           )}
         </div>
-        <h3 className="text-lg leading-snug font-semibold" dir="auto">
+        <h3
+          className={cn(
+            'font-display text-[26px] leading-tight font-bold rtl:leading-normal',
+            range?.finish === 'gold' && 'range-title-gold text-[30px]',
+          )}
+          dir="auto"
+        >
           <Link href={href} className="hover:underline">
             {name}
           </Link>
         </h3>
-        {entry.description && (
-          <p className="line-clamp-2 text-sm text-muted-foreground" dir="auto">
-            {localized(entry.description)}
-          </p>
+        <EntryMeta entry={entry} />
+        {range ? (
+          <IncludedList range={range} limit={2} className="mt-1" />
+        ) : (
+          entry.description && (
+            <p className="line-clamp-2 text-sm text-muted-foreground" dir="auto">
+              {localized(entry.description)}
+            </p>
+          )
         )}
-        {entry.minGuests !== null && entry.minGuests > 1 && (
-          <p className="text-sm text-muted-foreground">
-            {t('minGuests', { count: entry.minGuests })}
-          </p>
-        )}
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2">
-          <EntryPrice entry={entry} />
-          <AddToCartButton entry={entry} />
+        <div className="mt-auto flex gap-2 pt-3">
+          <Button asChild variant="outline" className="h-11 flex-1 rounded-full">
+            <Link href={href} aria-label={t('seeItem', { name })}>
+              {t('see')}
+            </Link>
+          </Button>
+          <AddToCartButton entry={entry} className="h-11 flex-1 rounded-full" />
         </div>
       </div>
     </li>

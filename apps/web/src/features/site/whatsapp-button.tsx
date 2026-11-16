@@ -19,11 +19,10 @@ export function WhatsAppIcon({ className }: { className?: string }) {
 }
 
 /**
- * Bouton WhatsApp flottant, bien visible (vert, ombre, léger mouvement sans « réduire les
- * animations ») : icône seule sur téléphone, avec son libellé sur grand écran. `raised` : posé
- * au-dessus de la barre « Demander un devis » du téléphone.
+ * Bouton WhatsApp flottant en bas de l'écran, bien visible (vert, ombre, léger mouvement sans
+ * « réduire les animations ») : icône seule sur téléphone, avec son libellé sur grand écran.
  */
-export function WhatsAppButton({ phone, raised }: { phone: string; raised: boolean }) {
+export function WhatsAppButton({ phone }: { phone: string }) {
   const t = useTranslations('site.whatsapp');
   return (
     <a
@@ -32,8 +31,7 @@ export function WhatsAppButton({ phone, raised }: { phone: string; raised: boole
       rel="noopener noreferrer"
       aria-label={t('label')}
       className={cn(
-        'site-bob fixed end-4 z-30 inline-flex h-14 min-w-14 items-center justify-center gap-2 rounded-2xl bg-[#25d366] px-0 font-bold text-[#06301a] shadow-[0_12px_30px_-8px_rgb(0_0_0/0.45)] transition-transform hover:scale-105 focus-visible:ring-4 focus-visible:ring-[#25d366]/40 focus-visible:outline-none md:bottom-6 md:px-5',
-        raised ? 'bottom-[5.5rem]' : 'bottom-4',
+        'site-bob fixed end-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 inline-flex h-14 min-w-14 items-center justify-center gap-2 rounded-2xl bg-[#25d366] px-0 font-bold text-[#06301a] shadow-[0_12px_30px_-8px_rgb(0_0_0/0.45)] transition-transform hover:scale-105 focus-visible:ring-4 focus-visible:ring-[#25d366]/40 focus-visible:outline-none md:bottom-6 md:px-5',
       )}
       data-testid="whatsapp-button"
     >

@@ -23,9 +23,14 @@ test('visiteur : accueil, catalogue filtré, prix TTC, « ma demande », sur té
   );
   expect(overflow).toBeLessThanOrEqual(0);
 
-  // Filtre par type d'événement, gardé dans l'adresse
-  await catalog.getByRole('combobox', { name: 'Événement' }).click();
-  await page.getByRole('option', { name: 'Mariage' }).click();
+  // Filtre par type d'événement (pastilles), gardé dans l'adresse
+  await catalog
+    .getByRole('group', { name: 'Événement' })
+    .getByRole('button', { name: 'Mariage', exact: true })
+    .click();
+  await expect(
+    catalog.getByRole('group', { name: 'Événement' }).getByRole('button', { name: 'Mariage' }),
+  ).toHaveAttribute('aria-pressed', 'true');
   await expect(page).toHaveURL(/type=WEDDING/);
   await expect(catalog).toContainText('Formule Mariage Prestige');
 
@@ -39,13 +44,16 @@ test('visiteur : accueil, catalogue filtré, prix TTC, « ma demande », sur té
   const decoration = catalog
     .getByTestId('catalog-card')
     .filter({ hasText: 'Décoration florale de la salle' });
-  await decoration.getByRole('link', { name: 'Décoration florale de la salle' }).click();
+  await decoration
+    .getByRole('link', { name: 'Décoration florale de la salle', exact: true })
+    .click();
   const item = page.getByTestId('catalog-item');
   await item.getByLabel('Quantité').fill('2');
   await item.getByTestId('add-to-cart').click();
-  await expect(page.getByTestId('site-nav-request')).toHaveText('Ma demande (2)');
+  // Téléphone : « Devis » de l'en-tête, avec le nombre d'éléments choisis
+  await expect(page.getByTestId('site-quote-count')).toHaveText('2');
 
-  await page.getByTestId('site-nav-request').click();
+  await page.getByTestId('site-quote').click();
   const review = page.getByTestId('cart-review');
   await expect(review.getByTestId('cart-line')).toHaveCount(2);
   await expect(review.getByLabel('Quantité : Décoration florale de la salle')).toHaveValue('2');
@@ -75,11 +83,11 @@ test('catalogue en arabe ; « ma demande » vidée à la déconnexion', async ({
   await signUpOnSite(page, { firstName: 'Imane', lastName: 'Berrada' });
   await gotoSignedIn(page, '/catalogue');
   await page.getByTestId('catalog-card').first().getByTestId('add-to-cart').click();
-  await expect(page.getByTestId('site-nav-request')).toHaveText('Ma demande (1)');
+  await expect(page.getByTestId('site-nav-request-count')).toHaveText('1');
   await page.goto('/espace');
   await page.getByRole('button', { name: 'Se déconnecter' }).click();
   await expect(page).toHaveURL(/\/connexion$/);
-  await expect(page.getByTestId('site-nav-request')).toHaveText('Ma demande');
+  await expect(page.getByTestId('site-nav-request-count')).toHaveCount(0);
   expect(await page.evaluate(() => window.localStorage.getItem('gt-demande:dar-diafa'))).toBeNull();
 });
 
@@ -90,14 +98,15 @@ test('accueil : bandeau, cartes d’événement vers le catalogue filtré, menus
   await page.goto('/');
   const home = page.getByTestId('site-home');
   await expect(home.getByTestId('site-hero')).toBeVisible();
-  // « Demander un devis » toujours visible sur téléphone ; pas de WhatsApp sans numéro réglé
-  await expect(page.getByTestId('sticky-quote')).toBeVisible();
+  // « Devis » de l'en-tête visible ; pas de barre en bas ; pas de WhatsApp sans numéro réglé
+  await expect(page.getByTestId('site-quote')).toBeInViewport();
+  await expect(page.getByTestId('sticky-quote')).toHaveCount(0);
   await expect(page.getByTestId('whatsapp-button')).toHaveCount(0);
   // Menus phares sans choix du traiteur : menus et buffets publiés avec photo, ajout à la demande
   const featured = home.getByTestId('site-featured');
   await expect(featured.getByRole('article').first()).toBeVisible();
   await featured.getByRole('article').first().getByTestId('add-to-cart').click();
-  await expect(page.getByTestId('site-nav-request')).toHaveText('Ma demande (1)');
+  await expect(page.getByTestId('site-quote-count')).toHaveText('1');
   await expect(page.getByTestId('site-how')).toContainText('Je reçois mon devis');
   await expect(page.getByTestId('powered-by')).toHaveText('Propulsé par Walima Pro');
   await expect(page.locator('footer')).not.toContainText('Site réservé');

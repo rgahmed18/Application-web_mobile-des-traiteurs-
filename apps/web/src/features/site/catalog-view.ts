@@ -1,4 +1,10 @@
-import type { LocalizedText, PricingUnit, PublicCatalog, PublicListItem } from '@traiteur/shared';
+import type {
+  LocalizedText,
+  PricingUnit,
+  PublicCatalog,
+  PublicListItem,
+  PublicRange,
+} from '@traiteur/shared';
 
 import type { CartKind } from './cart-store';
 
@@ -13,7 +19,7 @@ export interface CatalogEntry {
   description: LocalizedText | null;
   imageUrl: string | null;
   thumbUrl: string | null;
-  range: PublicListItem | null;
+  range: PublicRange | null;
   /** Catégorie du matériel, type du buffet. */
   group: PublicListItem | null;
   priceTtc: number;
@@ -22,6 +28,8 @@ export interface CatalogEntry {
   maxGuests: number | null;
   dishes: { name: LocalizedText; quantity: number }[];
   freeItems: LocalizedText[];
+  /** Menus : types d'événement prévus (vide : tous). */
+  eventTypes: string[];
 }
 
 const UNIT: Record<PricingUnit, PriceUnit> = {
@@ -33,7 +41,14 @@ const UNIT: Record<PricingUnit, PriceUnit> = {
 
 /** Tous les éléments du catalogue, par type, dans l'ordre du traiteur. */
 export function catalogEntries(catalog: PublicCatalog): Record<CartKind, CatalogEntry[]> {
-  const base = { group: null, minGuests: null, maxGuests: null, dishes: [], freeItems: [] };
+  const base = {
+    group: null,
+    minGuests: null,
+    maxGuests: null,
+    dishes: [],
+    freeItems: [],
+    eventTypes: [],
+  };
   return {
     menu: catalog.menus.map((menu) => ({
       ...base,
@@ -49,6 +64,7 @@ export function catalogEntries(catalog: PublicCatalog): Record<CartKind, Catalog
       minGuests: menu.minGuests,
       maxGuests: menu.maxGuests,
       dishes: menu.dishes,
+      eventTypes: menu.eventTypes,
     })),
     buffet: catalog.buffets.map((buffet) => ({
       ...base,

@@ -68,7 +68,7 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
   await wizard.getByRole('button', { name: 'Envoyer ma demande' }).click();
   await expect(page.getByText(/Demande CMD-\d{4}-\d+ envoyée au traiteur/)).toBeVisible();
   // « Ma demande » est vidée après l'envoi
-  await expect(page.getByTestId('site-nav-request')).toHaveText('Ma demande');
+  await expect(page.getByTestId('site-nav-request-count')).toHaveCount(0);
 
   // Le traiteur la reçoit « En attente », marquée « Demande en ligne »
   const staff = await browser.newPage();
