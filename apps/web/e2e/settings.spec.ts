@@ -118,6 +118,17 @@ test('site client : validation des nouveaux clients, photo de l’accueil, rappe
     const photo = site.getByRole('img', { name: 'Photo d’accueil n° 1' });
     await expect(photo).toBeVisible({ timeout: 30_000 });
     await expect(site).toContainText('Photo principale');
+    // Apparence : palette « Prune et corail », bouton WhatsApp
+    await site.getByTestId('palette-plum').click();
+    await expect(site.getByTestId('palette-plum')).toHaveAttribute('aria-checked', 'true');
+    await site.getByLabel('Numéro WhatsApp').fill('06 61 23 45 67');
+    // Menus phares : 1 ou 2 refusés à l'enregistrement, 3 acceptés
+    await site.getByTestId('featured-add').first().click();
+    await site.getByRole('button', { name: 'Enregistrer' }).click();
+    await expect(site.getByText('Choisissez de 3 à 6 menus et buffets, ou aucun.')).toBeVisible();
+    await site.getByTestId('featured-add').first().click();
+    await site.getByTestId('featured-add').first().click();
+    await expect(site.getByTestId('featured-selected')).toHaveCount(3);
 
     await site.getByRole('button', { name: 'Enregistrer' }).click();
     await expect(page.getByText('Réglages du site client enregistrés')).toBeVisible();
@@ -125,10 +136,27 @@ test('site client : validation des nouveaux clients, photo de l’accueil, rappe
       requireClientApproval: boolean;
       intro: { fr: string } | null;
       photoKeys: string[];
+      palette: string;
+      whatsappPhone: string | null;
+      featured: unknown[];
     };
     expect(saved.requireClientApproval).toBe(true);
     expect(saved.intro?.fr).toBe('Traiteur de mariages à Rabat');
     expect(saved.photoKeys).toHaveLength(1);
+    expect(saved).toMatchObject({ palette: 'plum', whatsappPhone: '+212661234567' });
+    expect(saved.featured).toHaveLength(3);
+
+    // Le site prend la palette et montre le bouton WhatsApp
+    await page.goto('/');
+    await expect(page.getByTestId('whatsapp-button')).toHaveAttribute(
+      'href',
+      /^https:\/\/wa\.me\/212661234567\?text=/,
+    );
+    await expect(page.getByTestId('site-featured').getByRole('article')).toHaveCount(3);
+    const primary = await page
+      .locator('.site')
+      .evaluate((element) => getComputedStyle(element).getPropertyValue('--primary').trim());
+    expect(primary).toBe('#6d1f52');
   } finally {
     await api.put(`${API}/settings/site`, { headers, data: initial });
     await api.dispose();

@@ -138,8 +138,8 @@ export function SiteFeaturedField({
         </ol>
       )}
       {available.length > 0 && (
-        <details className="rounded-xl border" open={value.length === 0}>
-          <summary className="cursor-pointer p-3 text-sm font-medium">{t('add')}</summary>
+        <div className="rounded-xl border">
+          <p className="p-3 text-sm font-medium">{t('add')}</p>
           <ul className="flex max-h-80 flex-col divide-y overflow-y-auto border-t">
             {available.map((item) => (
               <li key={`${item.kind}:${item.id}`} className="flex items-center gap-2 p-2">
@@ -158,7 +158,7 @@ export function SiteFeaturedField({
               </li>
             ))}
           </ul>
-        </details>
+        </div>
       )}
     </div>
   );
