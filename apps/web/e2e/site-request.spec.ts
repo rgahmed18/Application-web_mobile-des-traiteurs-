@@ -10,6 +10,15 @@ function inDays(days: number): string {
   );
 }
 
+/** Date bloquée par le seed de Dar Diafa (« Congés annuels ») : jamais « Disponible ». */
+const SEEDED_BLOCKED_DATE = '2026-12-31';
+
+/** Jour libre dans au moins `days` jours : la date bloquée du seed est sautée. */
+function freeDayIn(days: number): string {
+  const day = inDays(days);
+  return day === SEEDED_BLOCKED_DATE ? inDays(days + 1) : day;
+}
+
 test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En attente » au back-office', async ({
   page,
   browser,
@@ -38,7 +47,7 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
   const wizard = page.getByTestId('request-wizard');
   await wizard.getByLabel('Type d’événement').click();
   await page.getByRole('option', { name: 'Mariage' }).click();
-  await wizard.getByLabel('Date').fill(inDays(45));
+  await wizard.getByLabel('Date').fill(freeDayIn(45));
   await wizard.getByLabel('Heure de début').fill('19:00');
   await wizard.getByLabel('Nombre d’invités').fill('150');
   await expect(wizard.getByTestId('request-step-event')).toContainText('Disponible');
