@@ -14,6 +14,7 @@ import { cartStore, perGuest, useCart } from './cart-store';
 import { EntryPrice } from './catalog-card';
 import { type CatalogEntry, findEntry } from './catalog-view';
 import { usePublicCatalog } from './site-api';
+import { UpgradeSuggestion } from './upgrade-suggestion';
 
 /** Ligne de « ma demande » : élément encore publié, avec sa quantité choisie. */
 export interface CartLine {
@@ -98,6 +99,7 @@ export function CartReview({ footer }: { footer?: React.ReactNode }) {
             >
               <Trash2Icon aria-hidden />
             </Button>
+            {entry.kind === 'menu' && <UpgradeSuggestion entry={entry} />}
           </li>
         ))}
       </ul>

@@ -90,6 +90,16 @@ export const cartStore = {
       ),
     );
   },
+  /** Remplace un élément par un autre du même type, à la même place (montée en gamme). */
+  replace(kind: CartKind, from: string, to: string): void {
+    if (items.some((item) => item.kind === kind && item.id === to)) {
+      cartStore.remove(kind, from);
+      return;
+    }
+    write(
+      items.map((item) => (item.kind === kind && item.id === from ? { ...item, id: to } : item)),
+    );
+  },
   remove(kind: CartKind, id: string): void {
     write(items.filter((item) => !(item.kind === kind && item.id === id)));
   },

@@ -17,6 +17,7 @@ beforeAll(() => {
 
 const MENU = '11111111-1111-4111-8111-111111111111';
 const CHAIRS = '22222222-2222-4222-8222-222222222222';
+const PREMIUM = '33333333-3333-4333-8333-333333333333';
 
 describe('« Ma demande » gardée dans le navigateur', () => {
   it('ne garde que des références du catalogue et des quantités, par traiteur', async () => {
@@ -34,6 +35,15 @@ describe('« Ma demande » gardée dans le navigateur', () => {
     for (const item of stored as Record<string, unknown>[]) {
       expect(Object.keys(item).sort()).toEqual(['id', 'kind', 'quantity']);
     }
+  });
+
+  it('montée en gamme : le menu est remplacé à la même place, sans doublon', async () => {
+    const { cartStore } = await import('./cart-store');
+    cartStore.replace('menu', MENU, PREMIUM);
+    expect(cartStore.snapshot().map((item) => item.id)).toEqual([PREMIUM, CHAIRS]);
+    cartStore.add('menu', MENU);
+    cartStore.replace('menu', MENU, PREMIUM);
+    expect(cartStore.snapshot().map((item) => item.id)).toEqual([PREMIUM, CHAIRS]);
   });
 
   it('borne les quantités, ignore un contenu modifié à la main, se vide entièrement', async () => {

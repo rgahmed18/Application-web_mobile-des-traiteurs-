@@ -27,9 +27,37 @@ reste sous `/admin`. Sur l'adresse de la console, la racine renvoie vers `/admin
   publié de ce type).
 - **Polices** : titres en Cormorant Garamond (latin) ou Amiri (arabe), jamais sous 24 px ni pour
   le texte courant ; texte en Manrope ou IBM Plex Sans Arabic. Hébergées avec le site.
-- **Téléphone** : « Demander un devis » toujours visible en bas de l'écran (sauf demande,
-  connexion, espace client). Pied de page : « © traiteur », politique de confidentialité,
-  « Propulsé par Walima Pro ».
+- **En-tête** : collant en haut de l'écran, fond ivoire flouté dès que la page défile (opaque
+  sur les navigateurs sans flou) ; sur l'accueil, transparent sur la photo jusque-là. Lien actif
+  souligné d'un fin trait dans la couleur principale ; langue en petite pastille ; « Demander un
+  devis » toujours visible (« Devis » sur téléphone, avec le nombre d'éléments choisis).
+- **Téléphone** : menu plein écran (liens, devis, connexion, WhatsApp, langue), sans barre en bas
+  de l'écran ; le bouton WhatsApp reste en bas. Pied de page : « © traiteur », politique de
+  confidentialité, « Propulsé par Walima Pro ».
+- **Catalogue** : bandeau de titre (police des titres, ornement zellige discret), filtres en
+  pastilles (type d'événement, gamme avec son symbole), onglets soulignés.
+
+## Gammes : finitions, comparateur, montée en gamme
+
+- **Catalogue → Listes → Gammes** : nom, description et « Ce qui est inclus » (FR/AR, une ligne
+  par élément, 12 au plus) ; finition sur le site : Ivoire, Bronze ou Or. Par défaut, Standard
+  (affichée « Essentiel » si son nom n'a pas été changé) en ivoire, Premium en bronze, Luxe en or.
+- **Finitions** : symbole (losange, étoile marocaine à 8 branches, couronne) toujours accompagné du
+  nom, jamais la couleur seule ; contraste des badges vérifié par test (`range-finish.spec.ts`).
+  Cartes : bordure fine (ivoire), bordure bronze avec reflet au survol (bronze), bordure dorée en
+  dégradé sur fond ivoire profond, titre calligraphié (Cormorant italique, Aref Ruqaa en arabe,
+  chargée seulement si affichée) et lueur au survol (or). Reflet, lueur, zoom et soulèvement
+  coupés avec « réduire les animations ».
+- **Cartes et fiches** : deux lignes de « Ce qui est inclus » sur chaque carte (l'Essentiel met en
+  avant ce qu'il offre) ; encart « Inclus dans la gamme » sur la fiche.
+- **Comparateur** (`/catalogue/comparer?type=WEDDING`) : pour un type d'événement, les gammes qui
+  y ont au moins un menu publié (deux au minimum) : prix « à partir de », nombre de plats, « Ce
+  qui est inclus ». Tableau sur grand écran, cartes à faire glisser sur téléphone. Accessible
+  depuis le catalogue et les fiches.
+- **Montée en gamme** (« Ma demande ») : menu publié le moins cher de la gamme juste au-dessus,
+  pour un même type d'événement, plus cher et pas déjà choisi : « Pour X de plus par personne,
+  passez en … ». « Passer en … » remplace le menu ; « Non merci » la masque pour la visite.
+  Désactivable : Paramètres → Site client → Montée en gamme.
 
 ## Données et confidentialité
 

@@ -122,6 +122,10 @@ test('site client : validation des nouveaux clients, photo de l’accueil, rappe
     await site.getByTestId('palette-plum').click();
     await expect(site.getByTestId('palette-plum')).toHaveAttribute('aria-checked', 'true');
     await site.getByLabel('Numéro WhatsApp').fill('06 61 23 45 67');
+    // Montée en gamme dans « Ma demande » : activée par défaut, désactivable
+    const upsell = site.getByRole('switch', { name: /Suggérer la gamme supérieure/ });
+    await expect(upsell).toBeChecked();
+    await upsell.click();
     // Menus phares : 1 ou 2 refusés à l'enregistrement, 3 acceptés (choisis parmi les publiés :
     // un élément « Hors site » ne s'afficherait pas)
     const addPublished = () =>
@@ -147,12 +151,14 @@ test('site client : validation des nouveaux clients, photo de l’accueil, rappe
       palette: string;
       whatsappPhone: string | null;
       featured: unknown[];
+      upsell: boolean;
     };
     expect(saved.requireClientApproval).toBe(true);
     expect(saved.intro?.fr).toBe('Traiteur de mariages à Rabat');
     expect(saved.photoKeys).toHaveLength(1);
     expect(saved).toMatchObject({ palette: 'plum', whatsappPhone: '+212661234567' });
     expect(saved.featured).toHaveLength(3);
+    expect(saved.upsell).toBe(false);
 
     // Le site prend la palette et montre le bouton WhatsApp
     await page.goto('/');
