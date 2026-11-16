@@ -151,7 +151,7 @@ describe('Catalogue : écriture réservée à l’administrateur', () => {
   const newCategory = async () => ({ id: await created('/catalog/categories', categoryBody()) });
   const newService = async () => ({ id: await created('/catalog/services', serviceBody()) });
   const listBody = () => ({
-    name: { fr: `Élément ${suffix()}` },
+    name: { fr: `Élément ${suffix()}`, ar: `عنصر ${suffix()}` },
     description: null,
     isActive: true,
   });
