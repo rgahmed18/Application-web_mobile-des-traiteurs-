@@ -142,7 +142,11 @@ export function SiteFeaturedField({
           <p className="p-3 text-sm font-medium">{t('add')}</p>
           <ul className="flex max-h-80 flex-col divide-y overflow-y-auto border-t">
             {available.map((item) => (
-              <li key={`${item.kind}:${item.id}`} className="flex items-center gap-2 p-2">
+              <li
+                key={`${item.kind}:${item.id}`}
+                className="flex items-center gap-2 p-2"
+                data-testid="featured-candidate"
+              >
                 {row(item)}
                 <Button
                   type="button"

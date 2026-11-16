@@ -122,12 +122,20 @@ test('site client : validation des nouveaux clients, photo de l’accueil, rappe
     await site.getByTestId('palette-plum').click();
     await expect(site.getByTestId('palette-plum')).toHaveAttribute('aria-checked', 'true');
     await site.getByLabel('Numéro WhatsApp').fill('06 61 23 45 67');
-    // Menus phares : 1 ou 2 refusés à l'enregistrement, 3 acceptés
-    await site.getByTestId('featured-add').first().click();
+    // Menus phares : 1 ou 2 refusés à l'enregistrement, 3 acceptés (choisis parmi les publiés :
+    // un élément « Hors site » ne s'afficherait pas)
+    const addPublished = () =>
+      site
+        .getByTestId('featured-candidate')
+        .filter({ hasNotText: 'Hors site' })
+        .first()
+        .getByTestId('featured-add')
+        .click();
+    await addPublished();
     await site.getByRole('button', { name: 'Enregistrer' }).click();
     await expect(site.getByText('Choisissez de 3 à 6 menus et buffets, ou aucun.')).toBeVisible();
-    await site.getByTestId('featured-add').first().click();
-    await site.getByTestId('featured-add').first().click();
+    await addPublished();
+    await addPublished();
     await expect(site.getByTestId('featured-selected')).toHaveCount(3);
 
     await site.getByRole('button', { name: 'Enregistrer' }).click();
