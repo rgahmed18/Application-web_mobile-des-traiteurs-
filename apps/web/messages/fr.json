@@ -315,7 +315,9 @@
       "DATE_TOO_SOON": "Choisissez une date à partir de demain, ou appelez le traiteur.",
       "GUESTS_OUT_OF_RANGE": "Le nombre d’invités ne convient pas à un menu ou buffet choisi.",
       "ITEM_UNAVAILABLE": "Un élément de votre demande n’est plus proposé : retirez-le puis renvoyez la demande.",
-      "ORDER_NOT_CANCELLABLE": "Cette demande est déjà traitée : contactez le traiteur pour l’annuler."
+      "ORDER_NOT_CANCELLABLE": "Cette demande est déjà traitée : contactez le traiteur pour l’annuler.",
+      "FEATURED_ITEM_UNKNOWN": "Un menu ou buffet mis en avant n’existe plus : retirez-le de la sélection.",
+      "EVENT_TYPE_UNKNOWN": "Un type d’événement n’existe plus : retirez sa photo."
     },
     "noBackofficeAccessTraiteur": "Ce compte n’a pas accès à l’espace de gestion de {name}. Vérifiez l’adresse de connexion de votre traiteur.",
     "noBackofficeAccessPlatform": "Ce compte n’a pas accès à la console de la plateforme. Connectez-vous depuis l’adresse de votre traiteur."
@@ -345,7 +347,8 @@
     "invalidDate": "Date invalide.",
     "categoryRequired": "Choisissez une catégorie : elle classe le matériel dans le catalogue et les commandes.",
     "buffetTypeRequired": "Choisissez un type de buffet : il classe le buffet dans le catalogue et les commandes.",
-    "consentRequired": "Cochez la case pour accepter la politique de confidentialité."
+    "consentRequired": "Cochez la case pour accepter la politique de confidentialité.",
+    "featuredCount": "De 3 à 6 menus et buffets, ou aucun."
   },
   "catalog": {
     "title": "Catalogue",
@@ -1339,7 +1342,44 @@
       "cndpHint": "Récépissé de déclaration ou numéro d’autorisation de la CNDP, s’il existe.",
       "privacyExtraFr": "Paragraphe complémentaire (français)",
       "privacyExtraAr": "Paragraphe complémentaire (arabe)",
-      "privacyExtraHint": "Facultatif : ajouté à la fin de la politique générée. 4 000 caractères au plus."
+      "privacyExtraHint": "Facultatif : ajouté à la fin de la politique générée. 4 000 caractères au plus.",
+      "appearanceTitle": "Apparence",
+      "appearanceHint": "Couleurs de votre site et bouton WhatsApp, pour un site à votre image.",
+      "palette": {
+        "label": "Palette",
+        "hint": "Chaque palette est vérifiée pour rester lisible : texte blanc sur la couleur principale, petits titres sur les fonds clairs.",
+        "names": {
+          "terracotta": "Terre cuite et or",
+          "plum": "Prune et corail",
+          "emerald": "Émeraude et or",
+          "majorelle": "Bleu Majorelle",
+          "bordeaux": "Bordeaux et rose",
+          "night": "Nuit et sable"
+        }
+      },
+      "whatsapp": "Numéro WhatsApp",
+      "whatsappHint": "Bouton flottant sur votre site, avec un message prérempli « Bonjour, je souhaite un devis pour… ». Vide : pas de bouton.",
+      "featured": {
+        "title": "Menus phares",
+        "hint": "Menus et buffets mis en avant sur l’accueil, dans cet ordre.",
+        "auto": "Aucun choix : l’accueil montre les premiers menus et buffets publiés avec photo.",
+        "count": "{count} choisi(s) : de {min} à {max}.",
+        "countError": "Choisissez de 3 à 6 menus et buffets, ou aucun.",
+        "add": "Ajouter un menu ou un buffet",
+        "addOne": "Ajouter",
+        "moveUp": "Monter",
+        "moveDown": "Descendre",
+        "remove": "Retirer {name}",
+        "kinds": {
+          "menu": "Menu",
+          "buffet": "Buffet"
+        }
+      },
+      "eventPhotos": {
+        "title": "Photos des types d’événement",
+        "hint": "Cartes « Pour vos événements » de l’accueil, qui mènent au catalogue filtré.",
+        "auto": "Sans photo : celle d’un menu publié pour ce type."
+      }
     }
   },
   "quotes": {
@@ -2572,7 +2612,8 @@
     },
     "footer": {
       "rights": "Site réservé aux clients de ce traiteur.",
-      "privacy": "Politique de confidentialité"
+      "privacy": "Politique de confidentialité",
+      "poweredBy": "Propulsé par Walima Pro"
     },
     "login": {
       "title": "Connexion",
@@ -2648,7 +2689,40 @@
       "seeCatalog": "Voir le catalogue",
       "requestQuote": "Demander un devis",
       "eventTypes": "Pour vos événements",
-      "contact": "Nous contacter"
+      "contact": "Nous contacter",
+      "eventTypesTitle": "Chaque fête a sa table",
+      "featured": "Nos menus phares",
+      "featuredTitle": "Les formules préférées de nos clients",
+      "kinds": {
+        "menu": "Menu",
+        "buffet": "Buffet"
+      },
+      "from": "à partir de",
+      "guestsFrom": "dès {min} invités",
+      "guestsRange": "de {min} à {max} invités",
+      "how": "Comment ça marche",
+      "howTitle": "Votre fête en trois étapes",
+      "steps": {
+        "compose": {
+          "title": "Je compose ma demande",
+          "text": "Menus, buffets, matériel et services, la date et le nombre d’invités."
+        },
+        "quote": {
+          "title": "Je reçois mon devis",
+          "text": "Le traiteur étudie votre demande et vous envoie un devis détaillé."
+        },
+        "confirm": {
+          "title": "Je confirme",
+          "text": "Acceptez le devis en ligne et versez l’acompte : votre date est réservée."
+        }
+      },
+      "gallery": "Galerie",
+      "galleryTitle": "Nos événements réalisés",
+      "contactTitle": "Parlons de votre événement",
+      "contactText": "Une question avant de commander ? Appelez-nous ou écrivez-nous sur WhatsApp.",
+      "whatsapp": "WhatsApp",
+      "call": "Appeler",
+      "whatsappMessage": "Bonjour, je souhaite un devis pour…"
     },
     "catalog": {
       "title": "Catalogue",
@@ -2869,6 +2943,11 @@
         "saveAddress": "Enregistrer l’adresse",
         "cancel": "Annuler"
       }
+    },
+    "whatsapp": {
+      "label": "Écrire au traiteur sur WhatsApp",
+      "short": "WhatsApp",
+      "message": "Bonjour, je souhaite un devis pour…"
     }
   },
   "notifications": {

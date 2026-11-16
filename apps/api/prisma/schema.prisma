@@ -312,6 +312,10 @@ model Traiteur {
   sitePhotoKeys         String[] @default([]) // photos de l'accueil (MediaUpload), 6 au plus
   privacyExtra          Json? // paragraphe libre ajouté à la politique de confidentialité { fr, ar }
   cndpDeclaration       String? // n° de déclaration ou d'autorisation CNDP (loi 09-08)
+  sitePalette           String   @default("terracotta") // palette du site (SITE_PALETTES)
+  siteWhatsappPhone     String? // bouton WhatsApp flottant (E.164), null : pas de bouton
+  siteFeatured          Json     @default("[]") // menus et buffets mis en avant [{ kind, id }]
+  siteEventTypePhotos   Json     @default("[]") // photos propres aux types d'événement [{ code, imageKey }]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

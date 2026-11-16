@@ -4,7 +4,9 @@ import { passwordSchema } from '../auth/auth.schemas';
 import { phoneSchema } from '../auth/phone';
 import { PRICE_MODES } from '../money/money';
 import { fieldsVersion } from '../editing/edit-version';
+import { eventTypeSchema } from '../enums';
 import { localizedTextSchema } from '../i18n/localized-text';
+import { sitePaletteSchema } from '../site/site-palettes';
 
 /**
  * Paramètres du traiteur (permission settings.manage) et compte de l'utilisateur connecté.
@@ -71,6 +73,23 @@ export type PricingSettings = z.infer<typeof pricingSettingsSchema>;
 /** Photos de l'accueil du site client. */
 export const SITE_PHOTOS_MAX = 6;
 
+/** Menus et buffets mis en avant sur l'accueil : 3 à 6 (aucun : choix automatique). */
+export const SITE_FEATURED_MIN = 3;
+export const SITE_FEATURED_MAX = 6;
+
+export const siteFeaturedItemSchema = z.object({
+  kind: z.enum(['menu', 'buffet']),
+  id: z.uuid(),
+});
+export type SiteFeaturedItem = z.infer<typeof siteFeaturedItemSchema>;
+
+/** Photo propre à un type d'événement (sans elle : celle d'un menu publié de ce type). */
+export const siteEventTypePhotoSchema = z.object({
+  code: eventTypeSchema,
+  imageKey: z.string().min(1).max(200),
+});
+export type SiteEventTypePhoto = z.infer<typeof siteEventTypePhotoSchema>;
+
 /** Texte FR/AR facultatif, de longueur bornée dans chaque langue. */
 const boundedText = (max: number) =>
   localizedTextSchema
@@ -96,6 +115,32 @@ export const siteSettingsSchema = z.object({
   privacyExtra: boundedText(4000),
   /** Numéro de déclaration ou d'autorisation de la CNDP (loi 09-08). */
   cndpDeclaration: nullableText(60),
+  /** Palette du site (couleurs au contraste vérifié), pour un site à l'image du traiteur. */
+  palette: sitePaletteSchema,
+  /** Numéro du bouton WhatsApp flottant (vide : pas de bouton). */
+  whatsappPhone: phoneSchema.nullable(),
+  featured: z
+    .array(siteFeaturedItemSchema)
+    .max(SITE_FEATURED_MAX)
+    .superRefine((items, ctx) => {
+      if (items.length > 0 && items.length < SITE_FEATURED_MIN) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `De ${SITE_FEATURED_MIN} à ${SITE_FEATURED_MAX} menus et buffets mis en avant`,
+          params: { i18n: 'featuredCount' },
+        });
+      }
+      if (new Set(items.map((item) => `${item.kind}:${item.id}`)).size !== items.length) {
+        ctx.addIssue({ code: 'custom', message: 'Élément en double' });
+      }
+    }),
+  eventTypePhotos: z
+    .array(siteEventTypePhotoSchema)
+    .max(50)
+    .refine(
+      (photos) => new Set(photos.map((photo) => photo.code)).size === photos.length,
+      'Type d’événement en double',
+    ),
 });
 export type SiteSettings = z.infer<typeof siteSettingsSchema>;
 

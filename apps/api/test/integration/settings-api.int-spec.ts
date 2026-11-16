@@ -162,6 +162,10 @@ describe('API des paramètres et du compte (application complète)', () => {
       photoKeys: [],
       privacyExtra: null,
       cndpDeclaration: null,
+      palette: 'terracotta',
+      whatsappPhone: null,
+      featured: [],
+      eventTypePhotos: [],
     });
     await api(employee).get('/settings/site').expect(403);
     await api(employee)
@@ -170,25 +174,65 @@ describe('API des paramètres et du compte (application complète)', () => {
 
     const first = await uploadSitePhoto(admin);
     const second = await uploadSitePhoto(admin);
+    const wedding = await uploadSitePhoto(admin);
     const input = {
       requireClientApproval: true,
       intro: { fr: 'Traiteur à Rabat depuis 1998', ar: 'ممون حفلات بالرباط منذ 1998' },
       photoKeys: [first, second],
       privacyExtra: { fr: 'Les photos de vos événements ne sont jamais publiées.' },
       cndpDeclaration: ' D-123/2026 ',
+      palette: 'plum',
+      whatsappPhone: '06 61 23 45 67',
+      featured: [],
+      eventTypePhotos: [{ code: 'WEDDING', imageKey: wedding }],
     };
     const saved = await api(admin)
       .put('/settings/site', input)
       .set('If-Match', siteSettingsVersion(empty.body as SiteSettings))
       .expect(200);
-    expect(saved.body).toEqual({ ...input, cndpDeclaration: 'D-123/2026' });
+    expect(saved.body).toEqual({
+      ...input,
+      cndpDeclaration: 'D-123/2026',
+      whatsappPhone: '+212661234567',
+    });
     const attached = await prisma.mediaUpload.findMany({
-      where: { imageKey: { in: [first, second] } },
+      where: { imageKey: { in: [first, second, wedding] } },
     });
     expect(attached.map((media) => [media.status, media.entityType, media.entityId])).toEqual([
       ['ATTACHED', 'TraiteurSite', admin.traiteurId],
       ['ATTACHED', 'TraiteurSite', admin.traiteurId],
+      ['ATTACHED', 'TraiteurSite', admin.traiteurId],
     ]);
+
+    // Palette inconnue, 1 ou 2 menus mis en avant, menu inconnu, type inconnu : refusés
+    const refused = async (patch: object) =>
+      (
+        (
+          await api(admin)
+            .put('/settings/site', { ...input, ...patch })
+            .expect(400)
+        ).body as {
+          code: string;
+        }
+      ).code;
+    await refused({ palette: 'fluo' });
+    await refused({ featured: [{ kind: 'menu', id: randomUUID() }] });
+    expect(
+      await refused({
+        featured: [1, 2, 3].map(() => ({ kind: 'menu', id: randomUUID() })),
+      }),
+    ).toBe('FEATURED_ITEM_UNKNOWN');
+    expect(await refused({ eventTypePhotos: [{ code: 'INCONNU', imageKey: wedding }] })).toBe(
+      'EVENT_TYPE_UNKNOWN',
+    );
+
+    // Photo d'un type retirée : détachée
+    await api(admin)
+      .put('/settings/site', { ...input, eventTypePhotos: [] })
+      .expect(200);
+    expect((await prisma.mediaUpload.findFirst({ where: { imageKey: wedding } }))?.status).toBe(
+      'DETACHED',
+    );
 
     // Version périmée : refus, rien n'est écrasé
     await api(admin)

@@ -7,6 +7,12 @@ import {
   type PublicPrivacy,
   publicPrivacySchema,
   type PublicSite,
+  type PublicEventTypeCard,
+  type PublicFeatured,
+  DEFAULT_SITE_PALETTE,
+  siteEventTypePhotoSchema,
+  siteFeaturedItemSchema,
+  sitePaletteSchema,
   publicSiteSchema,
   privacyPolicyVersion,
   SITE_PHOTOS_MAX,
@@ -26,6 +32,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { REDIS_CLIENT } from '../../redis/redis.module';
 import { StorageService } from '../../storage/storage.service';
 import { toLocalized, toLocalizedOrNull } from '../catalog-common';
+
+/** Menus et buffets mis en avant sans choix du traiteur. */
+const AUTO_FEATURED = 4;
 
 /** Réponses gardées une minute : le site client peut appeler à chaque visite. */
 const CACHE_TTL_SECONDS = 60;
@@ -237,6 +246,10 @@ export class PublicCatalogService {
           siteIntro: true,
           sitePhotoKeys: true,
           requireClientApproval: true,
+          sitePalette: true,
+          siteWhatsappPhone: true,
+          siteFeatured: true,
+          siteEventTypePhotos: true,
         },
       });
       const keys = row.sitePhotoKeys.length > 0 ? row.sitePhotoKeys : await this.catalogPhotos(id);
@@ -253,6 +266,16 @@ export class PublicCatalogService {
           thumbUrl: this.photoUrl(key, 'thumb'),
         })),
         requireClientApproval: row.requireClientApproval,
+        palette: sitePaletteSchema.safeParse(row.sitePalette).data ?? DEFAULT_SITE_PALETTE,
+        whatsappPhone: row.siteWhatsappPhone,
+        featured: await this.featured(
+          id,
+          z.array(siteFeaturedItemSchema).safeParse(row.siteFeatured).data ?? [],
+        ),
+        eventTypeCards: await this.eventTypeCards(
+          id,
+          z.array(siteEventTypePhotoSchema).safeParse(row.siteEventTypePhotos).data ?? [],
+        ),
       };
     });
   }
@@ -307,6 +330,105 @@ export class PublicCatalogService {
 
   private photoUrl(imageKey: string, variant: 'large' | 'thumb'): string {
     return this.storage.publicFileUrl(imageVariantPath(imageKey, variant));
+  }
+
+  private photo(key: string | null): PublicPhoto | null {
+    return key ? { url: this.photoUrl(key, 'large'), thumbUrl: this.photoUrl(key, 'thumb') } : null;
+  }
+
+  /**
+   * Menus et buffets mis en avant, dans l'ordre choisi, s'ils sont publiés. Sans choix du
+   * traiteur : les premiers menus puis buffets publiés avec photo (4 au plus).
+   */
+  private async featured(
+    traiteurId: string,
+    chosen: { kind: 'menu' | 'buffet'; id: string }[],
+  ): Promise<PublicFeatured[]> {
+    const range = {
+      select: { ...listSelect, description: true, isActive: true, archivedAt: true },
+    };
+    const auto = chosen.length === 0;
+    const filter = (kind: 'menu' | 'buffet') =>
+      auto
+        ? { imageKey: { not: null } }
+        : { id: { in: chosen.filter((item) => item.kind === kind).map((item) => item.id) } };
+    const [menus, buffets] = await Promise.all([
+      this.prisma.package.findMany({
+        where: { traiteurId, ...onSite, ...filter('menu') },
+        orderBy: { slug: 'asc' },
+        include: { range },
+        ...(auto ? { take: AUTO_FEATURED } : {}),
+      }),
+      this.prisma.buffet.findMany({
+        where: { traiteurId, ...onSite, ...filter('buffet') },
+        orderBy: { slug: 'asc' },
+        include: { range },
+        ...(auto ? { take: AUTO_FEATURED } : {}),
+      }),
+    ]);
+    const visibleRange = <T extends { isActive: boolean; archivedAt: Date | null }>(
+      row: T | null,
+    ) => (row?.isActive && !row.archivedAt ? row : null);
+    const items: PublicFeatured[] = [
+      ...menus.map((row): PublicFeatured => ({
+        kind: 'menu',
+        id: row.id,
+        name: toLocalized(row.name),
+        photo: this.photo(row.imageKey),
+        range: listItem(visibleRange(row.range)),
+        priceTtc: row.pricePerPersonTtc,
+        perPerson: true,
+        minGuests: row.minGuests,
+        maxGuests: row.maxGuests,
+      })),
+      ...buffets.map((row): PublicFeatured => ({
+        kind: 'buffet',
+        id: row.id,
+        name: toLocalized(row.name),
+        photo: this.photo(row.imageKey),
+        range: listItem(visibleRange(row.range)),
+        priceTtc: row.priceTtc,
+        perPerson: row.pricingUnit === 'PER_PERSON',
+        minGuests: row.minGuests,
+        maxGuests: null,
+      })),
+    ];
+    if (auto) return items.slice(0, AUTO_FEATURED);
+    // Ordre choisi par le traiteur ; un élément retiré du site disparaît sans erreur
+    return chosen.flatMap(
+      (choice) => items.find((item) => item.kind === choice.kind && item.id === choice.id) ?? [],
+    );
+  }
+
+  /**
+   * Photo de chaque type d'événement publié : celle choisie par le traiteur, sinon celle d'un
+   * menu publié proposé pour ce type, sinon celle d'un menu publié pour tous les événements.
+   */
+  private async eventTypeCards(
+    traiteurId: string,
+    own: { code: string; imageKey: string }[],
+  ): Promise<PublicEventTypeCard[]> {
+    const [types, menus] = await Promise.all([
+      this.prisma.eventType.findMany({
+        where: { traiteurId, ...published },
+        orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+        select: { code: true },
+      }),
+      this.prisma.package.findMany({
+        where: { traiteurId, ...onSite, imageKey: { not: null } },
+        orderBy: { slug: 'asc' },
+        select: {
+          imageKey: true,
+          eventTypes: { select: { eventType: { select: { code: true } } } },
+        },
+      }),
+    ]);
+    const forAll = menus.find((menu) => menu.eventTypes.length === 0)?.imageKey ?? null;
+    return types.map(({ code }) => {
+      const chosen = own.find((photo) => photo.code === code)?.imageKey;
+      const menu = menus.find((row) => row.eventTypes.some((link) => link.eventType.code === code));
+      return { code, photo: this.photo(chosen ?? menu?.imageKey ?? forAll) };
+    });
   }
 
   /** Photos des éléments publiés, pour un accueil sans photo choisie. */

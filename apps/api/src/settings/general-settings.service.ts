@@ -10,13 +10,19 @@ import {
   type AuditAction,
   parseLocalizedText,
   type SiteSettings,
+  siteEventTypePhotoSchema,
+  siteFeaturedItemSchema,
+  sitePaletteSchema,
+  DEFAULT_SITE_PALETTE,
   siteSettingsVersion,
 } from '@traiteur/shared';
+import { z } from 'zod';
 
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/auth-user';
 import { jsonOrDbNull } from '../catalog/catalog-common';
 import { MediaService } from '../catalog/media/media.service';
+import { appErrors } from '../common/errors';
 import type { ClientInfo } from '../common/http/client-info';
 import { requireTraiteurId } from '../common/tenant';
 import type { Prisma } from '../generated/prisma/client';
@@ -50,7 +56,15 @@ const siteSelect = {
   sitePhotoKeys: true,
   privacyExtra: true,
   cndpDeclaration: true,
+  sitePalette: true,
+  siteWhatsappPhone: true,
+  siteFeatured: true,
+  siteEventTypePhotos: true,
 } satisfies Prisma.TraiteurSelect;
+
+/** Listes JSON relues avec leur schéma (contenu invalide : liste vide). */
+const featuredList = z.array(siteFeaturedItemSchema);
+const eventTypePhotoList = z.array(siteEventTypePhotoSchema);
 
 function toSiteSettings(
   row: Prisma.TraiteurGetPayload<{ select: typeof siteSelect }>,
@@ -61,7 +75,16 @@ function toSiteSettings(
     photoKeys: row.sitePhotoKeys,
     privacyExtra: row.privacyExtra === null ? null : parseLocalizedText(row.privacyExtra),
     cndpDeclaration: row.cndpDeclaration,
+    palette: sitePaletteSchema.safeParse(row.sitePalette).data ?? DEFAULT_SITE_PALETTE,
+    whatsappPhone: row.siteWhatsappPhone,
+    featured: featuredList.safeParse(row.siteFeatured).data ?? [],
+    eventTypePhotos: eventTypePhotoList.safeParse(row.siteEventTypePhotos).data ?? [],
   };
+}
+
+/** Clés des photos du site : accueil, puis types d'événement. */
+function siteImageKeys(settings: Pick<SiteSettings, 'photoKeys' | 'eventTypePhotos'>): string[] {
+  return [...settings.photoKeys, ...settings.eventTypePhotos.map((photo) => photo.imageKey)];
 }
 
 /** Réglages lus (texte, nombres, listes de nombres) : valeurs JSON telles quelles pour l'audit. */
@@ -149,13 +172,17 @@ export class GeneralSettingsService {
     expectedVersion: string | null = null,
   ): Promise<SiteSettings> {
     const traiteurId = requireTraiteurId(user);
-    const current = await this.prisma.traiteur.findUniqueOrThrow({
-      where: { id: traiteurId },
-      select: { sitePhotoKeys: true },
-    });
+    const current = toSiteSettings(
+      await this.prisma.traiteur.findUniqueOrThrow({
+        where: { id: traiteurId },
+        select: siteSelect,
+      }),
+    );
+    const currentKeys = siteImageKeys(current);
+    // Photos de l'accueil puis photos des types d'événement, préparées dans cet ordre
     const prepared = await Promise.all(
-      input.photoKeys.map((key) =>
-        current.sitePhotoKeys.includes(key)
+      siteImageKeys(input).map((key) =>
+        currentKeys.includes(key)
           ? Promise.resolve(key)
           : this.media.prepare(traiteurId, key, traiteurId),
       ),
@@ -166,18 +193,25 @@ export class GeneralSettingsService {
         await tx.traiteur.findUniqueOrThrow({ where: { id: traiteurId }, select: siteSelect }),
       );
       assertEditVersion(siteSettingsVersion(before), expectedVersion);
+      await this.assertSiteReferences(tx, traiteurId, input);
 
-      const photoKeys: string[] = [];
+      const beforeKeys = siteImageKeys(before);
+      const keys: string[] = [];
       for (const key of prepared) {
-        photoKeys.push(
-          before.photoKeys.includes(key)
+        keys.push(
+          beforeKeys.includes(key)
             ? key
             : await this.media.attach(tx, traiteurId, key, 'TraiteurSite', traiteurId),
         );
       }
-      for (const key of before.photoKeys) {
-        if (!photoKeys.includes(key)) await this.media.detach(tx, traiteurId, key);
+      for (const key of beforeKeys) {
+        if (!keys.includes(key)) await this.media.detach(tx, traiteurId, key);
       }
+      const photoKeys = keys.slice(0, input.photoKeys.length);
+      const eventTypePhotos = input.eventTypePhotos.map((photo, index) => ({
+        code: photo.code,
+        imageKey: keys[input.photoKeys.length + index] ?? photo.imageKey,
+      }));
 
       const after = toSiteSettings(
         await tx.traiteur.update({
@@ -188,6 +222,10 @@ export class GeneralSettingsService {
             sitePhotoKeys: photoKeys,
             privacyExtra: jsonOrDbNull(input.privacyExtra),
             cndpDeclaration: input.cndpDeclaration,
+            sitePalette: input.palette,
+            siteWhatsappPhone: input.whatsappPhone,
+            siteFeatured: input.featured,
+            siteEventTypePhotos: eventTypePhotos,
           },
           select: siteSelect,
         }),
@@ -210,6 +248,39 @@ export class GeneralSettingsService {
   }
 
   // ─────────────────────────── Interne ───────────────────────────
+
+  /**
+   * Menus et buffets mis en avant : ceux du traiteur, non archivés (publiés ou non : seuls les
+   * publiés s'affichent) ; photos propres à des types d'événement du traiteur.
+   */
+  private async assertSiteReferences(
+    tx: Prisma.TransactionClient,
+    traiteurId: string,
+    input: SiteSettings,
+  ): Promise<void> {
+    const ids = (kind: 'menu' | 'buffet') =>
+      input.featured.filter((item) => item.kind === kind).map((item) => item.id);
+    const where = (kind: 'menu' | 'buffet') => ({
+      traiteurId,
+      id: { in: ids(kind) },
+      archivedAt: null,
+    });
+    const codes = input.eventTypePhotos.map((photo) => photo.code);
+    const [menus, buffets, eventTypes] = await Promise.all([
+      tx.package.count({ where: where('menu') }),
+      tx.buffet.count({ where: where('buffet') }),
+      tx.eventType.count({ where: { traiteurId, code: { in: codes } } }),
+    ]);
+    if (menus !== ids('menu').length || buffets !== ids('buffet').length) {
+      throw appErrors.badRequest(
+        'FEATURED_ITEM_UNKNOWN',
+        'Menu ou buffet mis en avant introuvable',
+      );
+    }
+    if (eventTypes !== codes.length) {
+      throw appErrors.badRequest('EVENT_TYPE_UNKNOWN', 'Type d’événement introuvable');
+    }
+  }
 
   private async read<TSelect extends Prisma.TraiteurSelect>(
     user: AuthenticatedUser,

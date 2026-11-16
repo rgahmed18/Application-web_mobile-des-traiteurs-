@@ -31,6 +31,9 @@ import { useZodForm } from '@/lib/forms/use-zod-form';
 
 import { useSaveSiteSettings, useSiteSettings } from './settings-api';
 import { Loaded, SaveBar, SwitchRow } from './settings-forms';
+import { SiteEventPhotosField } from './site-event-photos-field';
+import { SiteFeaturedField } from './site-featured-field';
+import { SitePaletteField } from './site-palette-field';
 import { SitePhotosField } from './site-photos-field';
 
 const siteFormSchema = z
@@ -40,6 +43,10 @@ const siteFormSchema = z
     photoKeys: z.array(z.string()),
     privacyExtra: localizedFormSchema,
     cndpDeclaration: z.string(),
+    palette: z.string(),
+    whatsappPhone: z.string(),
+    featured: z.array(z.object({ kind: z.enum(['menu', 'buffet']), id: z.string() })),
+    eventTypePhotos: z.array(z.object({ code: z.string(), imageKey: z.string() })),
   })
   .transform((values): z.input<typeof siteSettingsSchema> => ({
     requireClientApproval: values.requireClientApproval,
@@ -47,6 +54,10 @@ const siteFormSchema = z
     photoKeys: values.photoKeys,
     privacyExtra: toOptionalLocalizedText(values.privacyExtra),
     cndpDeclaration: values.cndpDeclaration,
+    palette: values.palette,
+    whatsappPhone: values.whatsappPhone.trim() === '' ? null : values.whatsappPhone,
+    featured: values.featured,
+    eventTypePhotos: values.eventTypePhotos,
   }))
   .pipe(siteSettingsSchema);
 
@@ -56,6 +67,10 @@ const siteValues = (settings: SiteSettings) => ({
   photoKeys: settings.photoKeys,
   privacyExtra: fromLocalizedText(settings.privacyExtra),
   cndpDeclaration: settings.cndpDeclaration ?? '',
+  palette: settings.palette,
+  whatsappPhone: settings.whatsappPhone ?? '',
+  featured: settings.featured,
+  eventTypePhotos: settings.eventTypePhotos,
 });
 
 export function SiteTab() {
@@ -68,8 +83,9 @@ export function SiteTab() {
 }
 
 /**
- * Site client du traiteur : validation des nouveaux clients, accueil (présentation, photos) et
- * compléments de la politique de confidentialité générée.
+ * Site client du traiteur : validation des nouveaux clients, accueil (présentation, photos),
+ * apparence (palette, WhatsApp), menus phares, photos des types d'événement et compléments de la
+ * politique de confidentialité générée.
  */
 function SiteForm({ settings }: { settings: SiteSettings }) {
   const t = useTranslations('settings.site');
@@ -87,6 +103,9 @@ function SiteForm({ settings }: { settings: SiteSettings }) {
   const [uploading, setUploading] = useState(false);
   const approval = form.watch('requireClientApproval');
   const photoKeys = form.watch('photoKeys');
+  const palette = form.watch('palette');
+  const featured = form.watch('featured');
+  const eventTypePhotos = form.watch('eventTypePhotos');
   const onSubmit = form.handleSubmit(async (input) => {
     try {
       form.reset(siteValues(await save.mutateAsync({ input, version: draft.expectedVersion })));
@@ -130,6 +149,51 @@ function SiteForm({ settings }: { settings: SiteSettings }) {
           <SitePhotosField
             value={photoKeys}
             onChange={(next) => form.setValue('photoKeys', next, { shouldDirty: true })}
+            onBusyChange={setUploading}
+          />
+        </FormSection>
+        <FormSection title={t('appearanceTitle')} description={t('appearanceHint')}>
+          <SitePaletteField
+            value={palette}
+            onChange={(code) => form.setValue('palette', code, { shouldDirty: true })}
+          />
+          <FormField
+            control={form.control}
+            name="whatsappPhone"
+            label={t('whatsapp')}
+            description={t('whatsappHint')}
+            render={(field, { invalid }) => (
+              <Input
+                {...field}
+                type="tel"
+                dir="ltr"
+                inputMode="tel"
+                className="max-w-64"
+                aria-invalid={invalid}
+              />
+            )}
+          />
+        </FormSection>
+        <FormSection title={t('featured.title')} description={t('featured.hint')}>
+          <SiteFeaturedField
+            value={featured}
+            onChange={(items) =>
+              form.setValue('featured', items, {
+                shouldDirty: true,
+                shouldValidate: form.formState.isSubmitted,
+              })
+            }
+          />
+          {form.formState.errors.featured && (
+            <p role="alert" className="text-sm text-destructive">
+              {t('featured.countError')}
+            </p>
+          )}
+        </FormSection>
+        <FormSection title={t('eventPhotos.title')} description={t('eventPhotos.hint')}>
+          <SiteEventPhotosField
+            value={eventTypePhotos}
+            onChange={(photos) => form.setValue('eventTypePhotos', photos, { shouldDirty: true })}
             onBusyChange={setUploading}
           />
         </FormSection>

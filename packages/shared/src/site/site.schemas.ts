@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 import { clientApprovalSchema } from '../clients/client.schemas';
 import { contentVersion } from '../editing/edit-version';
+import { publicListItemSchema } from '../catalog/public-catalog.schemas';
+import { eventTypeSchema } from '../enums';
 import { localeSchema, localizedTextSchema } from '../i18n/localized-text';
+import { sitePaletteSchema } from './site-palettes';
 
 /**
  * Site client d'un traiteur (son adresse, à la racine) : informations publiques de l'accueil et
@@ -15,6 +18,28 @@ export const publicPhotoSchema = z.object({
   thumbUrl: z.url(),
 });
 export type PublicPhoto = z.infer<typeof publicPhotoSchema>;
+
+/** Menu ou buffet mis en avant sur l'accueil (publié), prix TTC. */
+export const publicFeaturedSchema = z.object({
+  kind: z.enum(['menu', 'buffet']),
+  id: z.uuid(),
+  name: localizedTextSchema,
+  photo: publicPhotoSchema.nullable(),
+  range: publicListItemSchema.nullable(),
+  priceTtc: z.number().int(),
+  /** Prix par personne, ou forfait (buffet au forfait). */
+  perPerson: z.boolean(),
+  minGuests: z.number().int(),
+  maxGuests: z.number().int().nullable(),
+});
+export type PublicFeatured = z.infer<typeof publicFeaturedSchema>;
+
+/** Carte d'un type d'événement : photo propre au type, sinon celle d'un menu publié de ce type. */
+export const publicEventTypeCardSchema = z.object({
+  code: eventTypeSchema,
+  photo: publicPhotoSchema.nullable(),
+});
+export type PublicEventTypeCard = z.infer<typeof publicEventTypeCardSchema>;
 
 export const publicSiteSchema = z.object({
   slug: z.string(),
@@ -29,6 +54,13 @@ export const publicSiteSchema = z.object({
   photos: z.array(publicPhotoSchema),
   /** Nouveaux clients en attente de l'accord du traiteur avant leur première demande. */
   requireClientApproval: z.boolean(),
+  palette: sitePaletteSchema,
+  /** Bouton WhatsApp flottant (null : pas de bouton). */
+  whatsappPhone: z.string().nullable(),
+  /** Menus et buffets mis en avant (choisis par le traiteur, sinon les premiers publiés). */
+  featured: z.array(publicFeaturedSchema),
+  /** Photos des cartes « Pour vos événements », par code de type. */
+  eventTypeCards: z.array(publicEventTypeCardSchema),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
 

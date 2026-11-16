@@ -306,6 +306,10 @@ describe('Catalogue public (application complète)', () => {
       intro: { fr: 'Traiteur à Fès', ar: 'ممون حفلات بفاس' },
       photos: [],
       requireClientApproval: true,
+      palette: 'terracotta',
+      whatsappPhone: null,
+      featured: [],
+      eventTypeCards: expect.any(Array) as unknown,
     });
 
     // Photo d'un menu publié : reprise en repli ; celle d'un menu archivé, jamais
@@ -356,6 +360,75 @@ describe('Catalogue public (application complète)', () => {
       'c-1200.webp',
       'd-1200.webp',
     ]);
+  });
+
+  it('accueil : menus phares (choix du traiteur ou automatique) et photos des types d’événement', async () => {
+    const redis = app.get<Redis>(REDIS_CLIENT);
+    const key = (id: string) => `traiteurs/${admin.traiteurId}/catalog/${id}`;
+    const menuId = async (fr: string) =>
+      (
+        await prisma.package.findFirstOrThrow({
+          where: { traiteurId: admin.traiteurId, name: { path: ['fr'], equals: fr } },
+        })
+      ).id;
+    const thesis = await menuId('Menu soutenance');
+    const forAll = await menuId('Menu tous événements');
+    const hidden = await menuId('Menu non publié');
+    await prisma.package.update({ where: { id: thesis }, data: { imageKey: key('these') } });
+    await prisma.package.update({ where: { id: forAll }, data: { imageKey: key('tous') } });
+    await prisma.package.update({ where: { id: hidden }, data: { imageKey: key('cache') } });
+    const buffet = await prisma.buffet.findFirstOrThrow({
+      where: { traiteurId: admin.traiteurId },
+    });
+    const site = async () => {
+      await redis.del(`public-site:${slug}`);
+      return (await publicGet(`${slug}/site`).expect(200)).body as {
+        featured: { kind: string; name: { fr: string }; priceTtc: number; perPerson: boolean }[];
+        eventTypeCards: { code: string; photo: { url: string } | null }[];
+      };
+    };
+    const file = (url: string | undefined) => url?.split('/').at(-1);
+
+    // Sans choix : menus publiés avec photo (jamais le menu non publié)
+    await prisma.traiteur.update({
+      where: { id: admin.traiteurId },
+      data: { siteFeatured: [], siteEventTypePhotos: [] },
+    });
+    const auto = await site();
+    expect(auto.featured.map((item) => item.name.fr)).toEqual([
+      'Menu soutenance',
+      'Menu tous événements',
+    ]);
+
+    // Choix du traiteur, dans son ordre ; un élément non publié est ignoré
+    await prisma.traiteur.update({
+      where: { id: admin.traiteurId },
+      data: {
+        siteFeatured: [
+          { kind: 'buffet', id: buffet.id },
+          { kind: 'menu', id: hidden },
+          { kind: 'menu', id: thesis },
+        ],
+      },
+    });
+    const chosen = await site();
+    expect(chosen.featured.map((item) => [item.kind, item.name.fr, item.perPerson])).toEqual([
+      ['buffet', 'Buffet thé', false],
+      ['menu', 'Menu soutenance', true],
+    ]);
+
+    // Cartes : menu publié du type, sinon menu pour tous les événements, sinon photo propre
+    const cards = (body: Awaited<ReturnType<typeof site>>) =>
+      Object.fromEntries(body.eventTypeCards.map((card) => [card.code, file(card.photo?.url)]));
+    expect(cards(chosen)).toMatchObject({ THESIS: 'these-1200.webp', WEDDING: 'tous-1200.webp' });
+    await prisma.traiteur.update({
+      where: { id: admin.traiteurId },
+      data: { siteEventTypePhotos: [{ code: 'WEDDING', imageKey: key('mariage') }] },
+    });
+    expect(cards(await site())).toMatchObject({
+      THESIS: 'these-1200.webp',
+      WEDDING: 'mariage-1200.webp',
+    });
   });
 
   it('politique de confidentialité : responsable du traitement, version qui suit le contenu', async () => {

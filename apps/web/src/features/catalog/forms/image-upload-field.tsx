@@ -19,10 +19,21 @@ interface ImageUploadFieldProps {
   /** Signale un envoi en cours : le formulaire attend la fin avant d'enregistrer. */
   onBusyChange: (busy: boolean) => void;
   alt: string;
+  /** Libellé au-dessus de l'aperçu (par défaut « Photo »). */
+  label?: string;
+  /** Adresse d'envoi (par défaut celle du catalogue ; « /settings/site/uploads » pour le site). */
+  uploadPath?: string;
 }
 
 /** Photo d'un plat ou d'une formule : choix, envoi avec progression, aperçu, retrait. */
-export function ImageUploadField({ value, onChange, onBusyChange, alt }: ImageUploadFieldProps) {
+export function ImageUploadField({
+  value,
+  onChange,
+  onBusyChange,
+  alt,
+  label,
+  uploadPath,
+}: ImageUploadFieldProps) {
   const t = useTranslations('catalog.photo');
   const tf = useTranslations('catalog.fields');
   const describeError = useErrorMessage();
@@ -33,7 +44,7 @@ export function ImageUploadField({ value, onChange, onBusyChange, alt }: ImageUp
   async function handleFile(file: File) {
     onBusyChange(true);
     try {
-      const imageKey = await uploadCatalogImage(file, setProgress);
+      const imageKey = await uploadCatalogImage(file, setProgress, uploadPath);
       onChange(imageKey);
     } catch (error) {
       toast.error(error instanceof UnsupportedImageError ? t('unsupported') : describeError(error));
@@ -55,7 +66,7 @@ export function ImageUploadField({ value, onChange, onBusyChange, alt }: ImageUp
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-sm font-medium">{tf('photo')}</span>
+      <span className="text-sm font-medium">{label ?? tf('photo')}</span>
       <div className="relative flex aspect-[4/3] w-full max-w-sm items-center justify-center overflow-hidden rounded-xl border bg-muted">
         {value ? (
           // eslint-disable-next-line @next/next/no-img-element

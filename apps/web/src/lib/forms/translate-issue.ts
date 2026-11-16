@@ -19,6 +19,7 @@ export type ValidationMessageKey =
   | 'passwordsMismatch'
   | 'maxGuestsBelowMin'
   | 'duplicateDish'
+  | 'featuredCount'
   | 'invalidAmount'
   | 'discountTooHigh'
   | 'endBeforeStart'
@@ -48,6 +49,7 @@ const CUSTOM_KEYS = new Set<ValidationMessageKey>([
   'maxValue',
   'maxGuestsBelowMin',
   'duplicateDish',
+  'featuredCount',
   'invalidAmount',
   'discountTooHigh',
   'endBeforeStart',
