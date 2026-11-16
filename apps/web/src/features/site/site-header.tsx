@@ -115,7 +115,10 @@ function MobileMenu({
           <MenuIcon className="size-[22px]" aria-hidden />
         </button>
       </DialogPrimitive.Trigger>
-      <DialogPrimitive.Portal>
+      {/* Dans le cadre du site : polices et palette du traiteur */}
+      <DialogPrimitive.Portal
+        container={open ? document.querySelector<HTMLElement>('.site') : undefined}
+      >
         <DialogPrimitive.Content
           className="site-menu fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background text-foreground"
           data-testid="site-menu"
