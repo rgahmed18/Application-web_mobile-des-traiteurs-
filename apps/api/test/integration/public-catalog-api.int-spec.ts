@@ -224,10 +224,13 @@ describe('Catalogue public (application complète)', () => {
     expect(response.headers['cache-control']).toBe('public, max-age=60');
     const body = response.body as {
       eventTypes: { code: string }[];
-      ranges: { code: string; description: unknown }[];
+      ranges: { code: string; description: unknown; finish: string; included: unknown }[];
     };
     expect(body.eventTypes.map((item) => item.code)).toContain('THESIS');
     expect(body.ranges.map((item) => item.code)).toEqual(['STANDARD', 'PREMIUM', 'LUXE']);
+    // Finition et « Ce qui est inclus » de chaque gamme, pour le site
+    expect(body.ranges.map((item) => item.finish)).toEqual(['ivory', 'bronze', 'gold']);
+    expect(body.ranges[0]?.included).toEqual({ fr: [], ar: [] });
   });
 
   it('catalogue : éléments publiés seulement, prix TTC, ni stock ni prix de remplacement', async () => {
@@ -310,6 +313,7 @@ describe('Catalogue public (application complète)', () => {
       whatsappPhone: null,
       featured: [],
       eventTypeCards: expect.any(Array) as unknown,
+      upsell: true,
     });
 
     // Photo d'un menu publié : reprise en repli ; celle d'un menu archivé, jamais

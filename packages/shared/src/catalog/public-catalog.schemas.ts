@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { eventTypeSchema } from '../enums';
 import { localizedTextSchema } from '../i18n/localized-text';
 import { pricingUnitSchema } from './catalog.schemas';
+import { rangeFinishSchema, rangeIncludedSchema } from './range-finish';
 
 /**
  * Catalogue public d'un traiteur, en lecture seule, pour son site client : menus et formules,
@@ -20,12 +21,19 @@ export const publicListItemSchema = z.object({
 });
 export type PublicListItem = z.infer<typeof publicListItemSchema>;
 
+/** Gamme : finition (couleur, symbole, style des cartes) et « Ce qui est inclus ». */
+export const publicRangeSchema = publicListItemSchema.extend({
+  finish: rangeFinishSchema,
+  included: rangeIncludedSchema,
+});
+export type PublicRange = z.infer<typeof publicRangeSchema>;
+
 /** Choix proposés au visiteur : types d'événement et gammes, dans l'ordre du traiteur. */
 export const publicCatalogOptionsSchema = z.object({
   traiteur: z.object({ slug: z.string(), name: z.string() }),
   currency: z.string(),
   eventTypes: z.array(publicListItemSchema),
-  ranges: z.array(publicListItemSchema),
+  ranges: z.array(publicRangeSchema),
 });
 export type PublicCatalogOptions = z.infer<typeof publicCatalogOptionsSchema>;
 
@@ -51,7 +59,7 @@ const publicItemBase = z.object({
   /** Photo publique, grande taille (1200 px) et vignette (400 px) ; null si aucune. */
   imageUrl: z.url().nullable(),
   thumbUrl: z.url().nullable(),
-  range: publicListItemSchema.nullable(),
+  range: publicRangeSchema.nullable(),
 });
 
 export const publicMenuSchema = publicItemBase.extend({

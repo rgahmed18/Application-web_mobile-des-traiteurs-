@@ -46,6 +46,7 @@ const siteFormSchema = z
     palette: z.string(),
     whatsappPhone: z.string(),
     featured: z.array(z.object({ kind: z.enum(['menu', 'buffet']), id: z.string() })),
+    upsell: z.boolean(),
     eventTypePhotos: z.array(z.object({ code: z.string(), imageKey: z.string() })),
   })
   .transform((values): z.input<typeof siteSettingsSchema> => ({
@@ -57,6 +58,7 @@ const siteFormSchema = z
     palette: values.palette,
     whatsappPhone: values.whatsappPhone.trim() === '' ? null : values.whatsappPhone,
     featured: values.featured,
+    upsell: values.upsell,
     eventTypePhotos: values.eventTypePhotos,
   }))
   .pipe(siteSettingsSchema);
@@ -70,6 +72,7 @@ const siteValues = (settings: SiteSettings) => ({
   palette: settings.palette,
   whatsappPhone: settings.whatsappPhone ?? '',
   featured: settings.featured,
+  upsell: settings.upsell,
   eventTypePhotos: settings.eventTypePhotos,
 });
 
@@ -105,6 +108,7 @@ function SiteForm({ settings }: { settings: SiteSettings }) {
   const photoKeys = form.watch('photoKeys');
   const palette = form.watch('palette');
   const featured = form.watch('featured');
+  const upsell = form.watch('upsell');
   const eventTypePhotos = form.watch('eventTypePhotos');
   const onSubmit = form.handleSubmit(async (input) => {
     try {
@@ -189,6 +193,15 @@ function SiteForm({ settings }: { settings: SiteSettings }) {
               {t('featured.countError')}
             </p>
           )}
+        </FormSection>
+        <FormSection title={t('upsell.title')} description={t('upsell.hint')}>
+          <SwitchRow
+            id="settings-upsell"
+            checked={upsell}
+            onChange={(checked) => form.setValue('upsell', checked, { shouldDirty: true })}
+            label={t('upsell.label')}
+            hint={t(upsell ? 'upsell.on' : 'upsell.off')}
+          />
         </FormSection>
         <FormSection title={t('eventPhotos.title')} description={t('eventPhotos.hint')}>
           <SiteEventPhotosField

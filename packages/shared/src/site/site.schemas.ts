@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { clientApprovalSchema } from '../clients/client.schemas';
 import { contentVersion } from '../editing/edit-version';
-import { publicListItemSchema } from '../catalog/public-catalog.schemas';
+import { publicRangeSchema } from '../catalog/public-catalog.schemas';
 import { eventTypeSchema } from '../enums';
 import { localeSchema, localizedTextSchema } from '../i18n/localized-text';
 import { sitePaletteSchema } from './site-palettes';
@@ -25,7 +25,7 @@ export const publicFeaturedSchema = z.object({
   id: z.uuid(),
   name: localizedTextSchema,
   photo: publicPhotoSchema.nullable(),
-  range: publicListItemSchema.nullable(),
+  range: publicRangeSchema.nullable(),
   priceTtc: z.number().int(),
   /** Prix par personne, ou forfait (buffet au forfait). */
   perPerson: z.boolean(),
@@ -61,6 +61,8 @@ export const publicSiteSchema = z.object({
   featured: z.array(publicFeaturedSchema),
   /** Photos des cartes « Pour vos événements », par code de type. */
   eventTypeCards: z.array(publicEventTypeCardSchema),
+  /** Suggestion de la gamme supérieure dans « Ma demande ». */
+  upsell: z.boolean(),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
 

@@ -22,6 +22,9 @@ import {
   type PublicCatalogQuery,
   publicCatalogSchema,
   type PublicListItem,
+  type PublicRange,
+  parseRangeIncluded,
+  rangeFinish,
 } from '@traiteur/shared';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
@@ -63,6 +66,24 @@ function listItem(
   };
 }
 
+/** Gamme : finition et « Ce qui est inclus » en plus. */
+function rangeItem(
+  row: {
+    code: string;
+    name: Prisma.JsonValue;
+    description: Prisma.JsonValue | null;
+    finish: string;
+    included: Prisma.JsonValue;
+  } | null,
+): PublicRange | null {
+  const item = listItem(row);
+  if (!row || !item) return null;
+  return { ...item, finish: rangeFinish(row.finish), included: parseRangeIncluded(row.included) };
+}
+
+/** Champs d'une gamme publiée sur le site. */
+const rangeSelect = { ...listSelect, description: true, finish: true, included: true } as const;
+
 /**
  * Catalogue public d'un traiteur (lecture seule) pour son site client. Seuls les éléments actifs,
  * non archivés et publiés par le traiteur (« Publié sur le site ») sont montrés, avec leurs prix TTC ; ni stock, ni prix de remplacement, ni prix
@@ -88,14 +109,14 @@ export class PublicCatalogService {
         this.prisma.catalogRange.findMany({
           where,
           orderBy,
-          select: { ...listSelect, description: true },
+          select: rangeSelect,
         }),
       ]);
       return {
         traiteur: { slug: traiteur.slug, name: traiteur.name },
         currency: traiteur.currency,
         eventTypes: eventTypes.flatMap((row) => listItem(row) ?? []),
-        ranges: ranges.flatMap((row) => listItem(row) ?? []),
+        ranges: ranges.flatMap((row) => rangeItem(row) ?? []),
       };
     });
   }
@@ -130,7 +151,7 @@ export class PublicCatalogService {
           orderBy: { slug: 'asc' },
           include: {
             range: {
-              select: { ...listSelect, description: true, isActive: true, archivedAt: true },
+              select: { ...rangeSelect, isActive: true, archivedAt: true },
             },
             dishes: dishesInclude,
             eventTypes: { include: { eventType: listRef } },
@@ -142,7 +163,7 @@ export class PublicCatalogService {
           include: {
             type: listRef,
             range: {
-              select: { ...listSelect, description: true, isActive: true, archivedAt: true },
+              select: { ...rangeSelect, isActive: true, archivedAt: true },
             },
             dishes: dishesInclude,
           },
@@ -153,7 +174,7 @@ export class PublicCatalogService {
           include: {
             category: listRef,
             range: {
-              select: { ...listSelect, description: true, isActive: true, archivedAt: true },
+              select: { ...rangeSelect, isActive: true, archivedAt: true },
             },
           },
         }),
@@ -183,7 +204,7 @@ export class PublicCatalogService {
           name: toLocalized(row.name),
           description: toLocalizedOrNull(row.description),
           ...image(row.imageKey),
-          range: listItem(visible(row.range)),
+          range: rangeItem(visible(row.range)),
           pricePerPersonTtc: row.pricePerPersonTtc,
           minGuests: row.minGuests,
           maxGuests: row.maxGuests,
@@ -198,7 +219,7 @@ export class PublicCatalogService {
           name: toLocalized(row.name),
           description: toLocalizedOrNull(row.description),
           ...image(row.imageKey),
-          range: listItem(visible(row.range)),
+          range: rangeItem(visible(row.range)),
           type: listItem(visible(row.type)),
           pricingUnit: row.pricingUnit === 'FLAT' ? 'FLAT' : 'PER_PERSON',
           priceTtc: row.priceTtc,
@@ -212,7 +233,7 @@ export class PublicCatalogService {
           name: toLocalized(row.name),
           description: toLocalizedOrNull(row.description),
           ...image(row.imageKey),
-          range: listItem(visible(row.range)),
+          range: rangeItem(visible(row.range)),
           category: listItem(visible(row.category)),
           priceTtc: row.priceTtc,
         })),
@@ -248,6 +269,7 @@ export class PublicCatalogService {
           requireClientApproval: true,
           sitePalette: true,
           siteWhatsappPhone: true,
+          siteUpsell: true,
           siteFeatured: true,
           siteEventTypePhotos: true,
         },
@@ -268,6 +290,7 @@ export class PublicCatalogService {
         requireClientApproval: row.requireClientApproval,
         palette: sitePaletteSchema.safeParse(row.sitePalette).data ?? DEFAULT_SITE_PALETTE,
         whatsappPhone: row.siteWhatsappPhone,
+        upsell: row.siteUpsell,
         featured: await this.featured(
           id,
           z.array(siteFeaturedItemSchema).safeParse(row.siteFeatured).data ?? [],
@@ -345,7 +368,7 @@ export class PublicCatalogService {
     chosen: { kind: 'menu' | 'buffet'; id: string }[],
   ): Promise<PublicFeatured[]> {
     const range = {
-      select: { ...listSelect, description: true, isActive: true, archivedAt: true },
+      select: { ...rangeSelect, isActive: true, archivedAt: true },
     };
     const auto = chosen.length === 0;
     const filter = (kind: 'menu' | 'buffet') =>
@@ -375,7 +398,7 @@ export class PublicCatalogService {
         id: row.id,
         name: toLocalized(row.name),
         photo: this.photo(row.imageKey),
-        range: listItem(visibleRange(row.range)),
+        range: rangeItem(visibleRange(row.range)),
         priceTtc: row.pricePerPersonTtc,
         perPerson: true,
         minGuests: row.minGuests,
@@ -386,7 +409,7 @@ export class PublicCatalogService {
         id: row.id,
         name: toLocalized(row.name),
         photo: this.photo(row.imageKey),
-        range: listItem(visibleRange(row.range)),
+        range: rangeItem(visibleRange(row.range)),
         priceTtc: row.priceTtc,
         perPerson: row.pricingUnit === 'PER_PERSON',
         minGuests: row.minGuests,

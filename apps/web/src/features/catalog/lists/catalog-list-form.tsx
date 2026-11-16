@@ -4,6 +4,8 @@ import {
   type CatalogList,
   type CatalogListItem,
   catalogListItemInputSchema,
+  EMPTY_RANGE_INCLUDED,
+  rangeFinishSchema,
 } from '@traiteur/shared';
 import { useTranslations } from 'next-intl';
 import { Controller } from 'react-hook-form';
@@ -25,17 +27,29 @@ import {
   toOptionalLocalizedText,
 } from '../forms/form-values';
 import { LocalizedTextFields } from '../forms/localized-text-fields';
+import { IncludedLinesField, RangeFinishPicker } from './range-finish-fields';
+
+/** Lignes saisies : espaces retirés, lignes vides ignorées. */
+const includedLines = z
+  .array(z.string())
+  .transform((lines) => lines.map((line) => line.trim()).filter(Boolean));
 
 const listItemFormSchema = z
   .object({
     name: localizedFormSchema,
     description: localizedFormSchema,
     isActive: z.boolean(),
+    // Gammes : finition et « Ce qui est inclus » (ignorés pour les autres listes)
+    finish: rangeFinishSchema,
+    included: z.object({ fr: includedLines, ar: includedLines }),
   })
-  .transform((values) => ({
-    name: toLocalizedText(values.name),
+  .transform((values): z.input<typeof catalogListItemInputSchema> => ({
+    // Arabe obligatoire : vide, il est refusé par le schéma (message sous le champ)
+    name: { ...toLocalizedText(values.name), ar: values.name.ar },
     description: toOptionalLocalizedText(values.description),
     isActive: values.isActive,
+    finish: values.finish,
+    included: values.included,
   }))
   .pipe(catalogListItemInputSchema);
 
@@ -59,9 +73,18 @@ export function CatalogListFormDialog({
           name: fromLocalizedText(item.name),
           description: fromLocalizedText(item.description),
           isActive: item.isActive,
+          finish: item.finish ?? 'ivory',
+          included: item.included ?? EMPTY_RANGE_INCLUDED,
         }
-      : { name: EMPTY_LOCALIZED, description: EMPTY_LOCALIZED, isActive: true },
+      : {
+          name: EMPTY_LOCALIZED,
+          description: EMPTY_LOCALIZED,
+          isActive: true,
+          finish: 'ivory' as const,
+          included: EMPTY_RANGE_INCLUDED,
+        },
   );
+  const nameFr = form.watch('name.fr');
 
   const onSubmit = form.handleSubmit(async (input) => {
     try {
@@ -101,6 +124,36 @@ export function CatalogListFormDialog({
           labelAr={t('fields.descriptionAr')}
           multiline
         />
+      )}
+      {list === 'ranges' && (
+        <>
+          <Controller
+            control={form.control}
+            name="finish"
+            render={({ field }) => (
+              <RangeFinishPicker value={field.value} onChange={field.onChange} name={nameFr} />
+            )}
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            {(['fr', 'ar'] as const).map((language) => (
+              <Controller
+                key={language}
+                control={form.control}
+                name={`included.${language}`}
+                render={({ field }) => (
+                  <IncludedLinesField
+                    label={t(
+                      language === 'fr' ? 'lists.included.labelFr' : 'lists.included.labelAr',
+                    )}
+                    language={language}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            ))}
+          </div>
+        </>
       )}
       <Controller
         control={form.control}

@@ -40,6 +40,8 @@ import {
 import { StatusBadge } from '../components/catalog-ui';
 import { ItemActionsMenu } from '../components/item-actions';
 import { useLocalized } from '../use-localized';
+import { RangeBadge } from '@/features/site/range-finish';
+
 import { CatalogListFormDialog } from './catalog-list-form';
 
 interface RowProps {
@@ -103,6 +105,9 @@ function ListRow({ list, item, canWrite, onEdit }: RowProps) {
           </span>
         </p>
       </div>
+      {item.finish && (
+        <RangeBadge finish={item.finish} name={name} className="hidden sm:inline-flex" />
+      )}
       {!item.archived && !item.name.ar && (
         <StatusBadge tone="warning">
           <span data-testid="missing-arabic">{t('lists.missingArabic')}</span>

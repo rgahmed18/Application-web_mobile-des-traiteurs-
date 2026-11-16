@@ -37,6 +37,8 @@ interface Item {
   sortOrder: number;
   isActive: boolean;
   archived: boolean;
+  finish: string | null;
+  included: { fr: string[]; ar: string[] } | null;
   usageCount: number;
 }
 
@@ -172,6 +174,10 @@ describe('API des listes du catalogue (application complète)', () => {
     });
     const ranges = await items(admin, 'ranges');
     expect(ranges.map((item) => item.code)).toEqual(['STANDARD', 'PREMIUM', 'LUXE']);
+    // Standard affiché « Essentiel » ; finitions ivoire, bronze, or
+    expect(ranges[0]?.name).toEqual({ fr: 'Essentiel', ar: 'أساسية' });
+    expect(ranges.map((item) => item.finish)).toEqual(['ivory', 'bronze', 'gold']);
+    expect(types[0]).toMatchObject({ finish: null, included: null });
   });
 
   it('nouveau type : code stable, commande reliée, nom traduit dans les réponses', async () => {
@@ -290,13 +296,43 @@ describe('API des listes du catalogue (application complète)', () => {
           name: { fr: 'Prestige', ar: 'بريستيج' },
           description: { fr: 'Service à l’assiette, vaisselle fine' },
           isActive: true,
+          finish: 'gold',
+          included: { fr: ['Maître d’hôtel dédié'], ar: ['مشرف خاص'] },
         })
         .expect(201)
     ).body as Item;
     expect(created).toMatchObject({
       code: 'PRESTIGE',
       description: { fr: 'Service à l’assiette, vaisselle fine' },
+      finish: 'gold',
+      included: { fr: ['Maître d’hôtel dédié'], ar: ['مشرف خاص'] },
     });
+    // Modification : nouvelle finition et liste ; finition inconnue ou ligne vide refusées
+    const updated = (
+      await api(admin)
+        .patch(`/catalog/lists/ranges/${created.id}`, {
+          name: { fr: 'Prestige', ar: 'بريستيج' },
+          description: null,
+          isActive: true,
+          finish: 'bronze',
+          included: { fr: ['Vaisselle dorée', 'Thé'], ar: ['أوانٍ مذهبة'] },
+        })
+        .expect(200)
+    ).body as Item;
+    expect(updated).toMatchObject({
+      finish: 'bronze',
+      included: { fr: ['Vaisselle dorée', 'Thé'], ar: ['أوانٍ مذهبة'] },
+    });
+    for (const invalid of [{ finish: 'platine' }, { included: { fr: [' '], ar: [] } }]) {
+      await api(admin)
+        .patch(`/catalog/lists/ranges/${created.id}`, {
+          name: { fr: 'Prestige', ar: 'بريستيج' },
+          description: null,
+          isActive: true,
+          ...invalid,
+        })
+        .expect(400);
+    }
     await api(admin).delete(`/catalog/lists/ranges/${created.id}`).expect(204);
   });
 

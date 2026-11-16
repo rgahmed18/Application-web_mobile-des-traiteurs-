@@ -134,6 +134,8 @@ export const siteSettingsSchema = z.object({
         ctx.addIssue({ code: 'custom', message: 'Élément en double' });
       }
     }),
+  /** Suggérer la gamme supérieure dans « Ma demande » (même type d'événement). */
+  upsell: z.boolean(),
   eventTypePhotos: z
     .array(siteEventTypePhotoSchema)
     .max(50)

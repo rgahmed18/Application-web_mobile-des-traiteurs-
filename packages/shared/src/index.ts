@@ -12,6 +12,7 @@ export * from './catalog/catalog.schemas';
 export * from './catalog/equipment.schemas';
 export * from './catalog/media.schemas';
 export * from './catalog/public-catalog.schemas';
+export * from './catalog/range-finish';
 export * from './catalog/slug';
 export * from './platform/platform.schemas';
 export * from './spaces/space-host';

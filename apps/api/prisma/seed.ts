@@ -589,6 +589,44 @@ const PACKAGES = [
       ['jus-frais', 1],
     ],
   },
+  // Mariage dans les trois gammes : comparateur et suggestion de montée en gamme du site
+  {
+    slug: 'formule-mariage-essentiel',
+    name: { fr: 'Formule Mariage Essentiel', ar: 'عرض العرس الأساسي' },
+    description: {
+      fr: 'Les incontournables du mariage marocain, généreux et faits maison.',
+      ar: 'أساسيات العرس المغربي، بسخاء ومن تحضيرنا.',
+    },
+    ttcPerPerson: 280,
+    minGuests: 80,
+    maxGuests: 600,
+    dishes: [
+      ['salades-marocaines', 1],
+      ['pastilla-poulet', 1],
+      ['tajine-poulet-citron', 1],
+      ['cornes-de-gazelle', 2],
+      ['the-menthe', 1],
+    ],
+  },
+  {
+    slug: 'formule-mariage-premium',
+    name: { fr: 'Formule Mariage Premium', ar: 'عرض العرس الممتاز' },
+    description: {
+      fr: 'Briouates, pastilla et tajine d’agneau aux pruneaux, avec un service plus attentionné.',
+      ar: 'بريوات وبسطيلة وطاجين اللحم بالبرقوق، مع خدمة أكثر عناية.',
+    },
+    ttcPerPerson: 360,
+    minGuests: 100,
+    maxGuests: 800,
+    dishes: [
+      ['salades-marocaines', 1],
+      ['briouates-viande', 1],
+      ['pastilla-poulet', 1],
+      ['tajine-agneau-pruneaux', 1],
+      ['chebakia', 2],
+      ['the-menthe', 1],
+    ],
+  },
   {
     slug: 'formule-aqiqa',
     name: { fr: 'Formule Aqiqa', ar: 'عرض العقيقة' },

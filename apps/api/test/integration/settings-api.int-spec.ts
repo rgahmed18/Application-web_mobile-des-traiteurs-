@@ -165,6 +165,7 @@ describe('API des paramètres et du compte (application complète)', () => {
       palette: 'terracotta',
       whatsappPhone: null,
       featured: [],
+      upsell: true,
       eventTypePhotos: [],
     });
     await api(employee).get('/settings/site').expect(403);
@@ -184,6 +185,7 @@ describe('API des paramètres et du compte (application complète)', () => {
       palette: 'plum',
       whatsappPhone: '06 61 23 45 67',
       featured: [],
+      upsell: false,
       eventTypePhotos: [{ code: 'WEDDING', imageKey: wedding }],
     };
     const saved = await api(admin)

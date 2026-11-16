@@ -172,8 +172,84 @@ const BUFFETS: BuffetSeed[] = [
 /** Gamme et types d'événement des menus de démonstration. */
 const PACKAGE_AUDIENCE: Record<string, { range: string; eventTypes: string[] }> = {
   'formule-fiancailles': { range: 'PREMIUM', eventTypes: ['ENGAGEMENT'] },
+  'formule-mariage-essentiel': { range: 'STANDARD', eventTypes: ['WEDDING'] },
+  'formule-mariage-premium': { range: 'PREMIUM', eventTypes: ['WEDDING'] },
   'formule-mariage-prestige': { range: 'LUXE', eventTypes: ['WEDDING'] },
   'formule-aqiqa': { range: 'STANDARD', eventTypes: ['AQIQA', 'BIRTHDAY'] },
+};
+
+/**
+ * Description et « Ce qui est inclus » des gammes de démonstration (la finition vient des
+ * listes par défaut : ivoire, bronze, or). Écrits seulement si le traiteur n'a rien saisi.
+ */
+export const DEMO_RANGE_DETAILS: Record<
+  string,
+  { description: { fr: string; ar: string }; included: { fr: string[]; ar: string[] } }
+> = {
+  STANDARD: {
+    description: {
+      fr: 'La vraie cuisine de fête, généreuse et faite maison, servie avec soin.',
+      ar: 'مطبخ المناسبات الأصيل، سخيّ ومحضّر في بيتنا، يُقدَّم بعناية.',
+    },
+    included: {
+      fr: [
+        'Service par notre équipe (1 serveur pour 25 invités)',
+        'Vaisselle et couverts blancs',
+        'Thé à la menthe et pâtisseries maison',
+        'Livraison et installation à Casablanca',
+      ],
+      ar: [
+        'طاقم الخدمة (نادل لكل 25 ضيفاً)',
+        'أوانٍ وأدوات مائدة بيضاء',
+        'أتاي بالنعناع وحلويات منزلية',
+        'التوصيل والتركيب بالدار البيضاء',
+      ],
+    },
+  },
+  PREMIUM: {
+    description: {
+      fr: 'Un service plus attentionné et une table plus décorée, pour recevoir avec éclat.',
+      ar: 'خدمة أكثر عناية ومائدة أكثر زينة، لاستقبال يليق بضيوفكم.',
+    },
+    included: {
+      fr: [
+        'Tout l’Essentiel, et :',
+        '1 serveur pour 15 invités, en tenue traditionnelle',
+        'Vaisselle dorée et nappes brodées',
+        'Centres de table fleuris',
+        'Cérémonie du thé, théière en argent',
+      ],
+      ar: [
+        'كل ما في الأساسية، مع:',
+        'نادل لكل 15 ضيفاً بلباس تقليدي',
+        'أوانٍ مذهبة ومفارش مطرزة',
+        'زينة الطاولات بالورود',
+        'حفل الشاي بالبرّاد الفضي',
+      ],
+    },
+  },
+  LUXE: {
+    description: {
+      fr: 'L’expérience des grandes réceptions : chaque détail est pris en charge.',
+      ar: 'تجربة الحفلات الكبرى: نتكفّل بكل التفاصيل.',
+    },
+    included: {
+      fr: [
+        'Tout le Premium, et :',
+        'Maître d’hôtel dédié le jour J',
+        'Entrée des plats en cortège',
+        'Vaisselle en argent ciselé et chandeliers',
+        'Dégustation du menu avant l’événement',
+      ],
+      ar: [
+        'كل ما في الممتازة، مع:',
+        'مشرف خاص يوم الحفل',
+        'تقديم الأطباق في موكب احتفالي',
+        'أوانٍ فضية منقوشة وشمعدانات',
+        'تذوق القائمة قبل المناسبة',
+      ],
+    },
+  },
 };
 
 type Line =
@@ -275,6 +351,13 @@ export async function seedDemoEquipmentAndBuffets(
     if (!row) throw new Error(`Élément de liste inconnu : ${table} ${code}`);
     return row.id;
   };
+
+  for (const [code, details] of Object.entries(DEMO_RANGE_DETAILS)) {
+    await prisma.catalogRange.updateMany({
+      where: { traiteurId, code, included: { equals: { fr: [], ar: [] } } },
+      data: details,
+    });
+  }
 
   for (const [slug, audience] of Object.entries(PACKAGE_AUDIENCE)) {
     const packageId = packageIds.get(slug);

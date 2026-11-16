@@ -396,7 +396,28 @@
         }
       },
       "missingArabic": "Arabe manquant",
-      "missingArabicHint": "{count, plural, one {# nom n’a pas de traduction arabe : il est masqué sur le site en arabe. Ajoutez-la en modifiant l’élément.} other {# noms n’ont pas de traduction arabe : ils sont masqués sur le site en arabe. Ajoutez-la en modifiant chaque élément.}}"
+      "missingArabicHint": "{count, plural, one {# nom n’a pas de traduction arabe : il est masqué sur le site en arabe. Ajoutez-la en modifiant l’élément.} other {# noms n’ont pas de traduction arabe : ils sont masqués sur le site en arabe. Ajoutez-la en modifiant chaque élément.}}",
+      "finish": {
+        "label": "Finition sur le site",
+        "hint": "Le symbole et le nom de la gamme accompagnent toujours la couleur.",
+        "names": {
+          "ivory": "Ivoire",
+          "bronze": "Bronze",
+          "gold": "Or"
+        },
+        "styles": {
+          "ivory": "Bordure fine, sobre",
+          "bronze": "Bordure bronze, léger reflet",
+          "gold": "Bordure dorée, titre calligraphié"
+        }
+      },
+      "included": {
+        "labelFr": "Ce qui est inclus (français)",
+        "labelAr": "Ce qui est inclus (arabe)",
+        "line": "{label}, ligne {index}",
+        "remove": "Retirer la ligne {index}",
+        "add": "Ajouter une ligne"
+      }
     },
     "equipment": {
       "new": "Nouveau matériel",
@@ -1379,6 +1400,13 @@
         "title": "Photos des types d’événement",
         "hint": "Cartes « Pour vos événements » de l’accueil, qui mènent au catalogue filtré.",
         "auto": "Sans photo : celle d’un menu publié pour ce type."
+      },
+      "upsell": {
+        "title": "Montée en gamme",
+        "hint": "Dans « Ma demande », le client voit le menu équivalent de la gamme au-dessus, pour le même type d’événement.",
+        "label": "Suggérer la gamme supérieure dans « Ma demande »",
+        "on": "Activée : une suggestion discrète, que le client peut refuser.",
+        "off": "Désactivée : aucune suggestion."
       }
     }
   },
@@ -2608,7 +2636,9 @@
       "login": "Se connecter",
       "account": "Mon espace",
       "request": "Ma demande",
-      "requestCount": "Ma demande ({count})"
+      "openMenu": "Ouvrir le menu",
+      "closeMenu": "Fermer le menu",
+      "quoteShort": "Devis"
     },
     "footer": {
       "privacy": "Politique de confidentialité",
@@ -2725,12 +2755,12 @@
     },
     "catalog": {
       "title": "Catalogue",
-      "subtitle": "Prix TTC. Choisissez ce qui vous plaît : le devis définitif vous sera envoyé par le traiteur.",
+      "subtitle": "Menus, buffets, matériel et services : ajoutez ce qui vous plaît à votre demande, le traiteur vous envoie un devis détaillé. Prix TTC.",
       "filters": {
         "eventType": "Événement",
         "range": "Gamme",
-        "allEvents": "tous",
-        "allRanges": "toutes"
+        "allEvents": "Tous",
+        "allRanges": "Toutes"
       },
       "tabs": {
         "menu": "Menus",
@@ -2758,7 +2788,16 @@
       "composition": "Composition",
       "quantity": "Quantité",
       "guestsLater": "Le nombre d’invités se précise dans votre demande.",
-      "availabilityLater": "La disponibilité pour votre date s’affiche dans votre demande."
+      "availabilityLater": "La disponibilité pour votre date s’affiche dans votre demande.",
+      "kicker": "Catalogue",
+      "heading": "Composez votre fête",
+      "dishCount": "{count, plural, one {# plat} other {# plats}}",
+      "guestsRangeShort": "de {min} à {max} invités",
+      "see": "Voir",
+      "seeItem": "Voir la fiche : {name}",
+      "compare": "Comparer les gammes : {event}",
+      "compareHint": "Prix, plats et ce qui est inclus, côte à côte",
+      "compareRanges": "Comparer les gammes"
     },
     "cart": {
       "title": "Ma demande",
@@ -2947,6 +2986,35 @@
       "label": "Écrire au traiteur sur WhatsApp",
       "short": "WhatsApp",
       "message": "Bonjour, je souhaite un devis pour…"
+    },
+    "ranges": {
+      "includedIn": "Inclus dans la gamme {name}"
+    },
+    "compare": {
+      "kicker": "Comparer les gammes",
+      "title": "{event} : nos gammes côte à côte",
+      "lead": "Chaque gamme a sa cuisine de fête ; ce qui change, c’est le service et la mise en scène.",
+      "caption": "Comparaison des gammes",
+      "menu": "Menu",
+      "from": "À partir de",
+      "perPerson": "/ pers.",
+      "dishCount": "Plats",
+      "dishes": "{count, plural, one {# plat} other {# plats}}",
+      "dishRange": "{min} à {max} plats",
+      "included": "Inclus",
+      "seeMenu": "Voir le menu",
+      "position": "Gamme {index} sur {total}",
+      "swipe": "Glissez pour comparer · {index} / {total}",
+      "empty": "Pas encore de comparaison",
+      "emptyHint": "Il faut des menus d’au moins deux gammes pour un même type d’événement."
+    },
+    "upgrade": {
+      "label": "Suggestion",
+      "dismiss": "Non merci",
+      "text": "Pour <strong>{extra} de plus par personne</strong>, passez en {range} : <strong>{menu}</strong>",
+      "moreDishes": "{count, plural, one {# plat de plus} other {# plats de plus}}",
+      "accept": "Passer en {range}",
+      "see": "Voir le menu"
     }
   },
   "notifications": {

@@ -6,6 +6,10 @@ import {
   type CatalogListItemInput,
   type CatalogListReorderInput,
   type LocalizedText,
+  parseRangeIncluded,
+  rangeFinish,
+  type RangeFinish,
+  type RangeIncluded,
 } from '@traiteur/shared';
 
 import { AuditService } from '../../audit/audit.service';
@@ -33,6 +37,9 @@ interface ListRow {
   sortOrder: number;
   isActive: boolean;
   archivedAt: Date | null;
+  /** Gammes uniquement. */
+  finish?: string;
+  included?: Prisma.JsonValue;
 }
 
 interface ListChanges {
@@ -41,6 +48,8 @@ interface ListChanges {
   isActive?: boolean;
   sortOrder?: number;
   archivedAt?: Date | null;
+  finish?: RangeFinish;
+  included?: RangeIncluded;
 }
 
 /** Accès à la table d'une liste ; le reste de la logique est commun. */
@@ -57,7 +66,8 @@ interface ListRepository {
     db: Db,
     data: { traiteurId: string; code: string; sortOrder: number } & Required<
       Pick<ListChanges, 'name' | 'description' | 'isActive'>
-    >,
+    > &
+      Pick<ListChanges, 'finish' | 'included'>,
   ): Promise<ListRow>;
   update(db: Db, traiteurId: string, id: string, changes: ListChanges): Promise<ListRow>;
   delete(db: Db, traiteurId: string, id: string): Promise<void>;
@@ -73,6 +83,9 @@ const listSelect = {
   isActive: true,
   archivedAt: true,
 } as const;
+
+/** Gammes : description, finition et « Ce qui est inclus » en plus. */
+const rangeSelect = { ...listSelect, description: true, finish: true, included: true } as const;
 
 const jsonOrNull = (value: LocalizedText | null | undefined) =>
   value === undefined ? undefined : value === null ? Prisma.DbNull : value;
@@ -152,13 +165,13 @@ const RANGES: ListRepository = {
   findMany: (db, traiteurId) =>
     db.catalogRange.findMany({
       where: { traiteurId },
-      select: { ...listSelect, description: true },
+      select: rangeSelect,
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     }),
   findOne: (db, traiteurId, id) =>
     db.catalogRange.findFirst({
       where: { id, traiteurId },
-      select: { ...listSelect, description: true },
+      select: rangeSelect,
     }),
   codeTaken: async (db, traiteurId, code) =>
     (await db.catalogRange.count({ where: { traiteurId, code } })) > 0,
@@ -174,8 +187,10 @@ const RANGES: ListRepository = {
         description: jsonOrNull(data.description),
         isActive: data.isActive,
         sortOrder: data.sortOrder,
+        finish: data.finish,
+        included: data.included,
       },
-      select: { ...listSelect, description: true },
+      select: rangeSelect,
     }),
   update: (db, traiteurId, id, changes) =>
     db.catalogRange.update({
@@ -186,8 +201,10 @@ const RANGES: ListRepository = {
         isActive: changes.isActive,
         sortOrder: changes.sortOrder,
         archivedAt: changes.archivedAt,
+        finish: changes.finish,
+        included: changes.included,
       },
-      select: { ...listSelect, description: true },
+      select: rangeSelect,
     }),
   delete: async (db, traiteurId, id) => {
     await db.catalogRange.delete({ where: { id_traiteurId: { id, traiteurId } } });
@@ -365,6 +382,8 @@ function toItem(row: ListRow, usageCount: number): CatalogListItem {
     sortOrder: row.sortOrder,
     isActive: row.isActive,
     archived: row.archivedAt !== null,
+    finish: row.finish === undefined ? null : rangeFinish(row.finish),
+    included: row.included === undefined ? null : parseRangeIncluded(row.included),
     usageCount,
   };
 }
@@ -409,6 +428,7 @@ export class CatalogListsService {
           name: input.name,
           description: list === 'ranges' ? input.description : null,
           isActive: input.isActive,
+          ...(list === 'ranges' ? { finish: input.finish, included: input.included } : {}),
           sortOrder: ((await repository.maxSortOrder(tx, traiteurId)) ?? -1) + 1,
         });
         const item = toItem(row, 0);
@@ -437,6 +457,7 @@ export class CatalogListsService {
         name: input.name,
         description: list === 'ranges' ? input.description : undefined,
         isActive: input.isActive,
+        ...(list === 'ranges' ? { finish: input.finish, included: input.included } : {}),
       });
       const usage = await repository.usage(tx, traiteurId, [row]);
       const item = toItem(row, usage.get(row.id) ?? 0);

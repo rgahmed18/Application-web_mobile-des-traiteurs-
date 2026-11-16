@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { localizedTextSchema } from '../i18n/localized-text';
+import { rangeFinishSchema, rangeIncludedSchema } from './range-finish';
 
 /**
  * Listes gérables du catalogue, propres à chaque traiteur et traduites : types d'événement et
@@ -30,6 +31,9 @@ export const catalogListItemInputSchema = z.object({
   name: catalogListNameSchema,
   description: localizedTextSchema.nullable(),
   isActive: z.boolean(),
+  /** Gammes uniquement : finition sur le site et « Ce qui est inclus » (ignorés sinon). */
+  finish: rangeFinishSchema.optional(),
+  included: rangeIncludedSchema.optional(),
 });
 export type CatalogListItemInput = z.infer<typeof catalogListItemInputSchema>;
 
@@ -47,6 +51,9 @@ export const catalogListItemSchema = z.object({
   sortOrder: z.number().int(),
   isActive: z.boolean(),
   archived: z.boolean(),
+  /** Gammes uniquement (null pour les autres listes). */
+  finish: rangeFinishSchema.nullable(),
+  included: rangeIncludedSchema.nullable(),
   /** Nombre d'utilisations (commandes, éléments du catalogue) : supprimable seulement à 0. */
   usageCount: z.number().int(),
 });

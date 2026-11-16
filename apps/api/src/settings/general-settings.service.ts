@@ -58,6 +58,7 @@ const siteSelect = {
   cndpDeclaration: true,
   sitePalette: true,
   siteWhatsappPhone: true,
+  siteUpsell: true,
   siteFeatured: true,
   siteEventTypePhotos: true,
 } satisfies Prisma.TraiteurSelect;
@@ -77,6 +78,7 @@ function toSiteSettings(
     cndpDeclaration: row.cndpDeclaration,
     palette: sitePaletteSchema.safeParse(row.sitePalette).data ?? DEFAULT_SITE_PALETTE,
     whatsappPhone: row.siteWhatsappPhone,
+    upsell: row.siteUpsell,
     featured: featuredList.safeParse(row.siteFeatured).data ?? [],
     eventTypePhotos: eventTypePhotoList.safeParse(row.siteEventTypePhotos).data ?? [],
   };
@@ -224,6 +226,7 @@ export class GeneralSettingsService {
             cndpDeclaration: input.cndpDeclaration,
             sitePalette: input.palette,
             siteWhatsappPhone: input.whatsappPhone,
+            siteUpsell: input.upsell,
             siteFeatured: input.featured,
             siteEventTypePhotos: eventTypePhotos,
           },
