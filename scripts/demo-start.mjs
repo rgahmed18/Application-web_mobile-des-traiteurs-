@@ -420,8 +420,18 @@ if (
 
 step('Migrations en attente et permissions (jamais de remise à zéro)');
 if (!run('pnpm', ['--filter', '@traiteur/api', 'db:deploy'])) fail('migrate deploy a échoué.');
-// Nouvelles permissions du catalogue (comme au déploiement) ; les réglages des traiteurs restent
-if (!run('pnpm', ['--filter', '@traiteur/api', 'exec', 'node', 'dist/cli/sync-permissions.js'])) {
+// Nouvelles permissions du catalogue (comme au déploiement) ; les réglages des traiteurs restent.
+// La commande lit DATABASE_URL dans l'environnement (conteneur en production) : ici, apps/api/.env
+if (
+  !run('pnpm', [
+    '--filter',
+    '@traiteur/api',
+    'exec',
+    'node',
+    '--env-file=.env',
+    'dist/cli/sync-permissions.js',
+  ])
+) {
   fail('la synchronisation des permissions a échoué.');
 }
 
