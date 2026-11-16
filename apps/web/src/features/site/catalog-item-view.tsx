@@ -16,11 +16,13 @@ import { type CartKind, perGuest } from './cart-store';
 import { AddToCartButton, EntryPrice } from './catalog-card';
 import { findEntry } from './catalog-view';
 import { usePublicCatalog } from './site-api';
+import { useListShown } from './site-lists';
 
 /** Fiche d'un élément du catalogue : grande photo, composition, prix TTC, ajout à la demande. */
 export function CatalogItemView({ kind, id }: { kind: CartKind; id: string }) {
   const t = useTranslations('site.catalog');
   const localized = useLocalized();
+  const shown = useListShown();
   const catalog = usePublicCatalog();
   const [quantity, setQuantity] = useState('1');
   if (catalog.isPending) return <Skeleton className="h-96 w-full" />;
@@ -64,8 +66,12 @@ export function CatalogItemView({ kind, id }: { kind: CartKind; id: string }) {
         )}
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-1">
-            {entry.range && <Badge variant="secondary">{localized(entry.range.name)}</Badge>}
-            {entry.group && <Badge variant="outline">{localized(entry.group.name)}</Badge>}
+            {entry.range && shown(entry.range) && (
+              <Badge variant="secondary">{localized(entry.range.name)}</Badge>
+            )}
+            {entry.group && shown(entry.group) && (
+              <Badge variant="outline">{localized(entry.group.name)}</Badge>
+            )}
           </div>
           <h1 className="text-2xl font-semibold" dir="auto">
             {name}

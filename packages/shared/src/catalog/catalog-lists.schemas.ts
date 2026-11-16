@@ -18,8 +18,16 @@ export const CATALOG_LISTS = [
 export const catalogListSchema = z.enum(CATALOG_LISTS);
 export type CatalogList = z.infer<typeof catalogListSchema>;
 
+/**
+ * Nom d'un élément de liste : français ET arabe obligatoires (il s'affiche sur le site client,
+ * en arabe comme en français ; un nom sans arabe s'y montrerait en français).
+ */
+export const catalogListNameSchema = localizedTextSchema.extend({
+  ar: z.string().trim().min(1),
+});
+
 export const catalogListItemInputSchema = z.object({
-  name: localizedTextSchema,
+  name: catalogListNameSchema,
   description: localizedTextSchema.nullable(),
   isActive: z.boolean(),
 });

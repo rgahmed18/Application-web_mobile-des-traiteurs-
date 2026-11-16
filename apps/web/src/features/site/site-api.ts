@@ -16,6 +16,8 @@ import {
 import { useSpace } from '@/features/space/space-provider';
 import { apiRequest } from '@/lib/api/client';
 
+import { useListShown } from './site-lists';
+
 /** Identifiant du traiteur de l'adresse (le site client n'existe que sur l'adresse d'un traiteur). */
 export function useSiteSlug(): string {
   const space = useSpace();
@@ -44,6 +46,7 @@ export function usePublicPrivacy(): UseQueryResult<PublicPrivacy> {
 /** Types d'événement et gammes proposés par le traiteur (filtres du catalogue). */
 export function usePublicCatalogOptions(): UseQueryResult<PublicCatalogOptions> {
   const slug = useSiteSlug();
+  const shown = useListShown();
   return useQuery({
     queryKey: ['public-catalog-options', slug],
     queryFn: ({ signal }) =>
@@ -51,6 +54,12 @@ export function usePublicCatalogOptions(): UseQueryResult<PublicCatalogOptions> 
         schema: publicCatalogOptionsSchema,
         signal,
       }),
+    // En arabe, types d'événement et gammes sans nom arabe masqués
+    select: (options) => ({
+      ...options,
+      eventTypes: options.eventTypes.filter(shown),
+      ranges: options.ranges.filter(shown),
+    }),
   });
 }
 

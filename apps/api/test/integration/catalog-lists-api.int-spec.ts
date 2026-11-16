@@ -185,10 +185,19 @@ describe('API des listes du catalogue (application complète)', () => {
         .expect(201)
     ).body as Item;
     expect(created).toMatchObject({ code: 'HENNE', usageCount: 0, archived: false });
+    // Nom arabe obligatoire : montré sur le site client en arabe
+    const noArabic = await api(admin)
+      .post('/catalog/lists/event-types', {
+        name: { fr: 'Henné' },
+        description: null,
+        isActive: true,
+      })
+      .expect(400);
+    expect(JSON.stringify(noArabic.body)).toContain('name.ar');
     const twin = (
       await api(admin)
         .post('/catalog/lists/event-types', {
-          name: { fr: 'Henné' },
+          name: { fr: 'Henné', ar: 'حناء' },
           description: null,
           isActive: true,
         })
@@ -295,7 +304,7 @@ describe('API des listes du catalogue (application complète)', () => {
     await api(employee).get('/catalog/lists/event-types').expect(200);
     await api(employee)
       .post('/catalog/lists/event-types', {
-        name: { fr: 'Baptême' },
+        name: { fr: 'Baptême', ar: 'عمادة' },
         description: null,
         isActive: true,
       })
@@ -418,7 +427,7 @@ describe('API des listes du catalogue (application complète)', () => {
     const target = mine[0];
     await api(otherAdmin)
       .patch(`/catalog/lists/event-types/${target?.id ?? ''}`, {
-        name: { fr: 'Piraté' },
+        name: { fr: 'Piraté', ar: 'مقرصن' },
         description: null,
         isActive: true,
       })

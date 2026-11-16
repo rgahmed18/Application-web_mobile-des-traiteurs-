@@ -391,7 +391,9 @@
           "title": "Types de buffet",
           "hint": "Marocain, oriental, sucré, thé… pour classer et proposer les buffets."
         }
-      }
+      },
+      "missingArabic": "Arabe manquant",
+      "missingArabicHint": "{count, plural, one {# nom n’a pas de traduction arabe : il est masqué sur le site en arabe. Ajoutez-la en modifiant l’élément.} other {# noms n’ont pas de traduction arabe : ils sont masqués sur le site en arabe. Ajoutez-la en modifiant chaque élément.}}"
     },
     "equipment": {
       "new": "Nouveau matériel",

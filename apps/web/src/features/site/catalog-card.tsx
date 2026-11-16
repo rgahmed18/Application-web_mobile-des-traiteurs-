@@ -11,6 +11,7 @@ import { formatMoney } from '@/lib/format/money';
 
 import { cartStore, perGuest, useCart } from './cart-store';
 import type { CatalogEntry } from './catalog-view';
+import { useListShown } from './site-lists';
 
 /** Prix TTC et son unité : « 350,00 MAD / personne ». */
 export function EntryPrice({ entry }: { entry: CatalogEntry }) {
@@ -57,6 +58,7 @@ export function AddToCartButton({
 export function CatalogCard({ entry }: { entry: CatalogEntry }) {
   const t = useTranslations('site.catalog');
   const localized = useLocalized();
+  const shown = useListShown();
   const href = `/catalogue/${entry.kind}/${entry.id}`;
   const name = localized(entry.name);
   return (
@@ -83,8 +85,12 @@ export function CatalogCard({ entry }: { entry: CatalogEntry }) {
       )}
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex flex-wrap gap-1">
-          {entry.range && <Badge variant="secondary">{localized(entry.range.name)}</Badge>}
-          {entry.group && <Badge variant="outline">{localized(entry.group.name)}</Badge>}
+          {entry.range && shown(entry.range) && (
+            <Badge variant="secondary">{localized(entry.range.name)}</Badge>
+          )}
+          {entry.group && shown(entry.group) && (
+            <Badge variant="outline">{localized(entry.group.name)}</Badge>
+          )}
         </div>
         <h3 className="text-lg leading-snug font-semibold" dir="auto">
           <Link href={href} className="hover:underline">

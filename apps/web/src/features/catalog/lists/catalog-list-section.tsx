@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { CatalogList, CatalogListItem } from '@traiteur/shared';
-import { GripVerticalIcon, PlusIcon } from 'lucide-react';
+import { GripVerticalIcon, LanguagesIcon, PlusIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -103,6 +103,11 @@ function ListRow({ list, item, canWrite, onEdit }: RowProps) {
           </span>
         </p>
       </div>
+      {!item.archived && !item.name.ar && (
+        <StatusBadge tone="warning">
+          <span data-testid="missing-arabic">{t('lists.missingArabic')}</span>
+        </StatusBadge>
+      )}
       {item.archived ? (
         <StatusBadge tone="muted">{t('lists.archived')}</StatusBadge>
       ) : item.isActive ? (
@@ -145,6 +150,7 @@ export function CatalogListSection({ list }: { list: CatalogList }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const items = query.data ?? [];
+  const missingArabic = items.filter((item) => !item.archived && !item.name.ar).length;
   const nameOf = (id: string | number) => {
     const item = items.find((entry) => entry.id === id);
     return item ? localized(item.name) : '';
@@ -188,6 +194,15 @@ export function CatalogListSection({ list }: { list: CatalogList }) {
         )}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {missingArabic > 0 && (
+          <p
+            role="status"
+            className="flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+          >
+            <LanguagesIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+            {t('lists.missingArabicHint', { count: missingArabic })}
+          </p>
+        )}
         {query.isPending ? (
           <Skeleton className="h-32 w-full" />
         ) : items.length === 0 ? (

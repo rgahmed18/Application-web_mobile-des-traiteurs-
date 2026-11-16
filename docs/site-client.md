@@ -40,6 +40,13 @@ reste sous `/admin`. Sur l'adresse de la console, la racine renvoie vers `/admin
   contenu ; les consentements gardent la version acceptée. **À faire relire par un juriste
   avant l'ouverture au public** (rappel affiché dans les paramètres).
 
+## Listes en arabe
+
+Les noms des listes du catalogue (types d'événement, gammes, types de buffet, catégories de
+matériel) s'affichent sur le site : le nom arabe est obligatoire à la création et à chaque
+modification. Un nom ancien sans arabe est signalé « Arabe manquant » dans Catalogue → Listes, et
+masqué sur le site en arabe (jamais affiché en français à sa place).
+
 ## Sessions
 
 Deux sessions indépendantes sur la même adresse, chacune avec ses cookies httpOnly, Secure et
