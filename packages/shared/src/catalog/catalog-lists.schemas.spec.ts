@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_EVENT_TYPES, eventTypeSchema } from '../enums';
-import { catalogListCode, catalogListItemInputSchema } from './catalog-lists.schemas';
+import {
+  catalogListCode,
+  catalogListItemInputSchema,
+  hasArabicName,
+  otherLast,
+} from './catalog-lists.schemas';
 
 describe('catalogListCode', () => {
   it('donne un code stable, sans accents, en majuscules', () => {
@@ -37,5 +42,24 @@ describe('nom d’un élément de liste', () => {
     expect(catalogListItemInputSchema.safeParse(input({ fr: 'Baptême', ar: '  ' })).success).toBe(
       false,
     );
+  });
+});
+
+describe('types d’événement sur le site', () => {
+  it('« Autre » toujours en dernier, les autres dans l’ordre du traiteur', () => {
+    const codes = (items: { code: string }[]) => items.map((item) => item.code);
+    expect(
+      codes(
+        otherLast([{ code: 'OTHER' }, { code: 'WEDDING' }, { code: 'HENNE' }, { code: 'AQIQA' }]),
+      ),
+    ).toEqual(['WEDDING', 'HENNE', 'AQIQA', 'OTHER']);
+    expect(codes(otherLast([{ code: 'WEDDING' }]))).toEqual(['WEDDING']);
+  });
+
+  it('nom arabe obligatoire pour paraître sur le site, dans les deux langues', () => {
+    expect(hasArabicName({ ar: 'عقيقة' })).toBe(true);
+    expect(hasArabicName({ ar: '  ' })).toBe(false);
+    expect(hasArabicName({})).toBe(false);
+    expect(hasArabicName(null)).toBe(false);
   });
 });

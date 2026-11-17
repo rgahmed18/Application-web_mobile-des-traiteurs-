@@ -6,6 +6,7 @@ import {
   type CatalogListItemInput,
   type CatalogListReorderInput,
   type LocalizedText,
+  otherLast,
   parseRangeIncluded,
   rangeFinish,
   type RangeFinish,
@@ -568,7 +569,9 @@ export class CatalogListsService {
     repository: ListRepository,
     traiteurId: string,
   ): Promise<CatalogListItem[]> {
-    const rows = await repository.findMany(db, traiteurId);
+    const found = await repository.findMany(db, traiteurId);
+    // Types d'événement : « Autre » toujours en dernier, quel que soit l'ordre enregistré
+    const rows = repository === EVENT_TYPES ? otherLast(found) : found;
     const usage = await repository.usage(db, traiteurId, rows);
     return rows.map((row) => toItem(row, usage.get(row.id) ?? 0));
   }

@@ -180,6 +180,18 @@ describe('API des listes du catalogue (application complète)', () => {
     expect(types[0]).toMatchObject({ finish: null, included: null });
   });
 
+  it('« Autre » toujours en dernier, même placé en tête par le traiteur', async () => {
+    const types = await items(admin, 'event-types');
+    const other = types.find((item) => item.code === 'OTHER');
+    if (!other) throw new Error('Type « Autre » absent');
+    const ids = [other.id, ...types.filter((item) => item.id !== other.id).map((item) => item.id)];
+    const reordered = (
+      await api(admin).put('/catalog/lists/event-types/order', { ids }).expect(200)
+    ).body as Item[];
+    expect(reordered.at(-1)?.code).toBe('OTHER');
+    expect((await items(admin, 'event-types')).at(-1)?.code).toBe('OTHER');
+  });
+
   it('nouveau type : code stable, commande reliée, nom traduit dans les réponses', async () => {
     const created = (
       await api(admin)
@@ -286,7 +298,12 @@ describe('API des listes du catalogue (application complète)', () => {
     const reordered = (
       await api(admin).put('/catalog/lists/event-types/order', { ids: reversed }).expect(200)
     ).body as Item[];
-    expect(reordered.map((item) => item.id)).toEqual(reversed);
+    // Ordre demandé, « Autre » toujours en dernier
+    const otherId = types.find((item) => item.code === 'OTHER')?.id;
+    expect(reordered.map((item) => item.id)).toEqual([
+      ...reversed.filter((id) => id !== otherId),
+      ...reversed.filter((id) => id === otherId),
+    ]);
   });
 
   it('gammes : description traduite, création et suppression', async () => {

@@ -73,3 +73,22 @@ export function catalogListCode(name: string): string {
     .slice(0, 34);
   return /^[A-Z]/.test(base) ? base : `T_${base}`.replace(/_+$/, '');
 }
+
+/** Type d'événement « Autre » (liste par défaut) : toujours proposé en dernier. */
+export const OTHER_EVENT_TYPE = 'OTHER';
+
+/** « Autre » en dernier, les autres éléments dans l'ordre donné (ordre du traiteur). */
+export function otherLast<T extends { code: string }>(items: readonly T[]): T[] {
+  return [
+    ...items.filter((item) => item.code !== OTHER_EVENT_TYPE),
+    ...items.filter((item) => item.code === OTHER_EVENT_TYPE),
+  ];
+}
+
+/**
+ * Élément de liste publiable sur le site : nom arabe renseigné. Sans lui, l'élément n'apparaît
+ * sur le site dans aucune langue (comportement identique en français et en arabe).
+ */
+export function hasArabicName(name: { ar?: string | null } | null | undefined): boolean {
+  return Boolean(name?.ar?.trim());
+}
