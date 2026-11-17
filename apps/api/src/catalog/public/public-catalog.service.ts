@@ -23,6 +23,8 @@ import {
   publicCatalogSchema,
   type PublicListItem,
   type PublicRange,
+  hasArabicName,
+  otherLast,
   parseRangeIncluded,
   rangeFinish,
 } from '@traiteur/shared';
@@ -58,7 +60,10 @@ const dishesInclude = {
 function listItem(
   row: { code: string; name: Prisma.JsonValue; description?: Prisma.JsonValue | null } | null,
 ): PublicListItem | null {
+  // Sans nom arabe : absent du site dans les deux langues (jamais seulement en français)
   if (!row) return null;
+  const name = toLocalized(row.name);
+  if (!hasArabicName(name)) return null;
   return {
     code: row.code,
     name: toLocalized(row.name),
@@ -115,7 +120,7 @@ export class PublicCatalogService {
       return {
         traiteur: { slug: traiteur.slug, name: traiteur.name },
         currency: traiteur.currency,
-        eventTypes: eventTypes.flatMap((row) => listItem(row) ?? []),
+        eventTypes: otherLast(eventTypes.flatMap((row) => listItem(row) ?? [])),
         ranges: ranges.flatMap((row) => rangeItem(row) ?? []),
       };
     });
@@ -209,7 +214,7 @@ export class PublicCatalogService {
           minGuests: row.minGuests,
           maxGuests: row.maxGuests,
           eventTypes: row.eventTypes.flatMap((link) =>
-            visible(link.eventType) ? [link.eventType.code] : [],
+            visible(link.eventType) && listItem(link.eventType) ? [link.eventType.code] : [],
           ),
           dishes: dishes(row.dishes),
         })),
@@ -270,6 +275,7 @@ export class PublicCatalogService {
           sitePalette: true,
           siteWhatsappPhone: true,
           siteUpsell: true,
+          siteHighlightRange: true,
           siteFeatured: true,
           siteEventTypePhotos: true,
         },
@@ -291,6 +297,7 @@ export class PublicCatalogService {
         palette: sitePaletteSchema.safeParse(row.sitePalette).data ?? DEFAULT_SITE_PALETTE,
         whatsappPhone: row.siteWhatsappPhone,
         upsell: row.siteUpsell,
+        highlightRange: await this.highlightRange(id, row.siteHighlightRange),
         featured: await this.featured(
           id,
           z.array(siteFeaturedItemSchema).safeParse(row.siteFeatured).data ?? [],
@@ -435,7 +442,7 @@ export class PublicCatalogService {
       this.prisma.eventType.findMany({
         where: { traiteurId, ...published },
         orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
-        select: { code: true },
+        select: { code: true, name: true },
       }),
       this.prisma.package.findMany({
         where: { traiteurId, ...onSite, imageKey: { not: null } },
@@ -447,11 +454,22 @@ export class PublicCatalogService {
       }),
     ]);
     const forAll = menus.find((menu) => menu.eventTypes.length === 0)?.imageKey ?? null;
-    return types.map(({ code }) => {
+    const shown = otherLast(types.filter((type) => hasArabicName(toLocalized(type.name))));
+    return shown.map(({ code }) => {
       const chosen = own.find((photo) => photo.code === code)?.imageKey;
       const menu = menus.find((row) => row.eventTypes.some((link) => link.eventType.code === code));
       return { code, photo: this.photo(chosen ?? menu?.imageKey ?? forAll) };
     });
+  }
+
+  /** Gamme « Le plus choisi » : seulement si elle est publiée (et nommée en arabe). */
+  private async highlightRange(traiteurId: string, code: string | null): Promise<string | null> {
+    if (!code) return null;
+    const range = await this.prisma.catalogRange.findFirst({
+      where: { traiteurId, code, ...published },
+      select: { name: true },
+    });
+    return range && hasArabicName(toLocalized(range.name)) ? code : null;
   }
 
   /** Photos des éléments publiés, pour un accueil sans photo choisie. */

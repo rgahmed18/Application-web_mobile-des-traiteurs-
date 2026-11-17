@@ -39,7 +39,7 @@ import { formatMoney } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
 import { cartStore, perGuest } from './cart-store';
-import { type CartLine, CartReview, useCartLines } from './cart-review';
+import { type CartLine, CartReview, useCartLines, useCartRanges } from './cart-review';
 import { clientKeys } from './client-api';
 import { usePublicCatalogOptions } from './site-api';
 
@@ -110,6 +110,7 @@ export function RequestWizard() {
   const queryClient = useQueryClient();
   const options = usePublicCatalogOptions();
   const { lines } = useCartLines();
+  const ranges = useCartRanges();
   const [step, setStep] = useState<Step>('event');
   const form = useZodForm(formSchema, {
     eventType: '',
@@ -117,7 +118,8 @@ export function RequestWizard() {
     startTime: '19:00',
     endTime: '',
     endsNextDay: false,
-    guestCount: '',
+    // Nombre d'invités choisi dans le comparateur des gammes, s'il y en a un
+    guestCount: String(cartStore.guests() ?? ''),
     venueName: '',
     venueAddress: '',
     city: '',
@@ -168,7 +170,8 @@ export function RequestWizard() {
 
   const goNext = async () => {
     if (!(await form.trigger(STEP_FIELDS[step]))) return;
-    if (step === 'choices' && lines.length === 0) return void toast.error(t('emptyChoices'));
+    if (step === 'choices' && lines.length === 0 && ranges.length === 0)
+      return void toast.error(t('emptyChoices'));
     setStep(STEPS[STEPS.indexOf(step) + 1] ?? 'summary');
   };
 
@@ -192,6 +195,7 @@ export function RequestWizard() {
         id: line.entry.id,
         quantity: line.quantity,
       })),
+      ranges: ranges.map((range) => range.code),
     });
     if (!parsed.success) return void toast.error(t('invalid'));
     try {

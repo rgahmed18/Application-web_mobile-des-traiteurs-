@@ -14,6 +14,7 @@ import { formatMoney } from '@/lib/format/money';
 import { cn } from '@/lib/utils';
 
 import { AddToCartButton } from './catalog-card';
+import { HomeRangeChooser } from './range-comparator';
 import { usePublicCatalogOptions, usePublicSite } from './site-api';
 import { useListShown } from './site-lists';
 import { useReveal } from './use-reveal';
@@ -127,7 +128,7 @@ function Hero({
           </p>
         )}
         <h1
-          className="font-display mt-3 mb-4 max-w-[12ch] text-[2.875rem] leading-[1.02] font-bold [text-shadow:0_2px_24px_rgb(0_0_0/0.35)] sm:text-7xl lg:text-8xl rtl:leading-[1.3]"
+          className="site-page-title font-display mt-3 mb-4 max-w-[12ch] text-[2.875rem] leading-[1.02] font-bold [text-shadow:0_2px_24px_rgb(0_0_0/0.35)] sm:text-7xl lg:text-8xl rtl:leading-[1.3]"
           dir="auto"
         >
           {name}
@@ -301,6 +302,8 @@ export function SiteHome() {
           </div>
         </section>
       )}
+
+      <HomeRangeChooser />
 
       <section className="bg-[var(--site-sand)] py-16 sm:py-20" data-testid="site-how">
         <div className="mx-auto max-w-6xl px-4">

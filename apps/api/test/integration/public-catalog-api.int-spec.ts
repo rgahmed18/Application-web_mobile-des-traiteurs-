@@ -220,6 +220,14 @@ describe('Catalogue public (application complète)', () => {
   });
 
   it('options : types d’événement (dont la soutenance) et gammes, sans connexion', async () => {
+    // « Autre » placé en tête par le traiteur, type sans nom arabe (ancienne donnée)
+    await prisma.eventType.updateMany({
+      where: { traiteurId: admin.traiteurId, code: 'OTHER' },
+      data: { sortOrder: -1 },
+    });
+    await prisma.eventType.create({
+      data: { traiteurId: admin.traiteurId, code: 'BAPTEME', name: { fr: 'Baptême' } },
+    });
     const response = await publicGet(`${slug}/catalog/options`).expect(200);
     expect(response.headers['cache-control']).toBe('public, max-age=60');
     const body = response.body as {
@@ -227,6 +235,9 @@ describe('Catalogue public (application complète)', () => {
       ranges: { code: string; description: unknown; finish: string; included: unknown }[];
     };
     expect(body.eventTypes.map((item) => item.code)).toContain('THESIS');
+    // « Autre » toujours en dernier ; sans nom arabe : absent du site dans les deux langues
+    expect(body.eventTypes.at(-1)?.code).toBe('OTHER');
+    expect(body.eventTypes.map((item) => item.code)).not.toContain('BAPTEME');
     expect(body.ranges.map((item) => item.code)).toEqual(['STANDARD', 'PREMIUM', 'LUXE']);
     // Finition et « Ce qui est inclus » de chaque gamme, pour le site
     expect(body.ranges.map((item) => item.finish)).toEqual(['ivory', 'bronze', 'gold']);
@@ -314,6 +325,7 @@ describe('Catalogue public (application complète)', () => {
       featured: [],
       eventTypeCards: expect.any(Array) as unknown,
       upsell: true,
+      highlightRange: 'PREMIUM',
     });
 
     // Photo d'un menu publié : reprise en repli ; celle d'un menu archivé, jamais

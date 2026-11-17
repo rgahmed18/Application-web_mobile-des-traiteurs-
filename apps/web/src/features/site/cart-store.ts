@@ -12,13 +12,26 @@ import { CART_KINDS, type CartKind, perGuest } from './cart-kinds';
  */
 export { CART_KINDS, type CartKind, perGuest } from './cart-kinds';
 
-const cartItemSchema = z.object({
+const catalogItemSchema = z.object({
   kind: z.enum(CART_KINDS),
   id: z.uuid(),
   /** Matériel et services : quantité ; menus et buffets : nombre d'invités de la demande. */
   quantity: z.number().int().min(1).max(10_000),
 });
+/**
+ * Gamme demandée « sur demande » (aucun menu publié pour l'événement) : code de la gamme ; le
+ * traiteur la chiffre dans son devis.
+ */
+const rangeItemSchema = z.object({
+  kind: z.literal('range'),
+  id: z.string().regex(/^[A-Z][A-Z0-9_]{0,39}$/),
+  quantity: z.literal(1),
+});
+const cartItemSchema = z.union([catalogItemSchema, rangeItemSchema]);
+export type CatalogCartItem = z.infer<typeof catalogItemSchema>;
 export type CartItem = z.infer<typeof cartItemSchema>;
+/** Élément du catalogue (menu, buffet, matériel, service), pas une gamme sur demande. */
+export const isCatalogItem = (item: CartItem): item is CatalogCartItem => item.kind !== 'range';
 const cartSchema = z.array(cartItemSchema).max(50);
 
 const EMPTY: CartItem[] = [];
@@ -27,6 +40,8 @@ let slug: string | null = null;
 let items: CartItem[] = EMPTY;
 
 const storageKey = (traiteur: string) => `gt-demande:${traiteur}`;
+/** Nombre d'invités choisi dans le comparateur : repris dans la demande. */
+const guestsKey = (traiteur: string) => `gt-invites:${traiteur}`;
 
 function read(traiteur: string): CartItem[] {
   try {
@@ -72,6 +87,29 @@ export const cartStore = {
   snapshot: (): CartItem[] => items,
   serverSnapshot: (): CartItem[] => EMPTY,
 
+  /** Gamme « sur demande » (une seule fois par gamme). */
+  addRange(code: string): void {
+    if (items.some((item) => item.kind === 'range' && item.id === code)) return;
+    write([...items, { kind: 'range', id: code, quantity: 1 }]);
+  },
+  /** Nombre d'invités choisi dans le comparateur (null : aucun). */
+  guests(): number | null {
+    if (!slug) return null;
+    try {
+      const value = Number(window.localStorage.getItem(guestsKey(slug)));
+      return Number.isInteger(value) && value >= 1 && value <= 10_000 ? value : null;
+    } catch {
+      return null;
+    }
+  },
+  setGuests(count: number): void {
+    if (!slug) return;
+    try {
+      window.localStorage.setItem(guestsKey(slug), String(Math.round(count)));
+    } catch {
+      // Stockage indisponible : le nombre d'invités se saisit dans la demande
+    }
+  },
   add(kind: CartKind, id: string, quantity = 1): void {
     const existing = items.find((item) => item.kind === kind && item.id === id);
     if (existing) {
@@ -100,11 +138,18 @@ export const cartStore = {
       items.map((item) => (item.kind === kind && item.id === from ? { ...item, id: to } : item)),
     );
   },
-  remove(kind: CartKind, id: string): void {
+  remove(kind: CartKind | 'range', id: string): void {
     write(items.filter((item) => !(item.kind === kind && item.id === id)));
   },
   clear(): void {
     write(EMPTY);
+    if (slug) {
+      try {
+        window.localStorage.removeItem(guestsKey(slug));
+      } catch {
+        // Stockage indisponible
+      }
+    }
   },
 };
 

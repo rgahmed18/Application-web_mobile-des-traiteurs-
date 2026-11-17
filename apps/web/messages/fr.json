@@ -317,7 +317,8 @@
       "ITEM_UNAVAILABLE": "Un élément de votre demande n’est plus proposé : retirez-le puis renvoyez la demande.",
       "ORDER_NOT_CANCELLABLE": "Cette demande est déjà traitée : contactez le traiteur pour l’annuler.",
       "FEATURED_ITEM_UNKNOWN": "Un menu ou buffet mis en avant n’existe plus : retirez-le de la sélection.",
-      "EVENT_TYPE_UNKNOWN": "Un type d’événement n’existe plus : retirez sa photo."
+      "EVENT_TYPE_UNKNOWN": "Un type d’événement n’existe plus : retirez sa photo.",
+      "RANGE_UNKNOWN": "Cette gamme n’existe plus : choisissez-en une autre."
     },
     "noBackofficeAccessTraiteur": "Ce compte n’a pas accès à l’espace de gestion de {name}. Vérifiez l’adresse de connexion de votre traiteur.",
     "noBackofficeAccessPlatform": "Ce compte n’a pas accès à la console de la plateforme. Connectez-vous depuis l’adresse de votre traiteur."
@@ -396,7 +397,7 @@
         }
       },
       "missingArabic": "Arabe manquant",
-      "missingArabicHint": "{count, plural, one {# nom n’a pas de traduction arabe : il est masqué sur le site en arabe. Ajoutez-la en modifiant l’élément.} other {# noms n’ont pas de traduction arabe : ils sont masqués sur le site en arabe. Ajoutez-la en modifiant chaque élément.}}",
+      "missingArabicHint": "{count, plural, one {# nom n’a pas de traduction arabe : il n’apparaît pas sur le site (ni en français, ni en arabe). Ajoutez-la en modifiant l’élément.} other {# noms n’ont pas de traduction arabe : ils n’apparaissent pas sur le site (ni en français, ni en arabe). Ajoutez-la en modifiant chaque élément.}}",
       "finish": {
         "label": "Finition sur le site",
         "hint": "Le symbole et le nom de la gamme accompagnent toujours la couleur.",
@@ -621,7 +622,15 @@
       "sectionPrice": "Prix et invités",
       "created": "Menu créé",
       "saved": "Menu enregistré",
-      "minGuestsHint": "Laisser vide : pas de minimum."
+      "minGuestsHint": "Laisser vide : pas de minimum.",
+      "coverage": {
+        "title": "Couverture des gammes",
+        "complete": "Chaque événement a un menu publié dans chaque gamme : le comparateur du site est complet.",
+        "missingCount": "{count, plural, one {# case manquante : cette gamme s’affiche « sur demande » dans le comparateur du site.} other {# cases manquantes : ces gammes s’affichent « sur demande » dans le comparateur du site.}}",
+        "event": "Événement",
+        "covered": "{count, plural, one {# menu} other {# menus}}",
+        "missing": "manquant"
+      }
     },
     "categories": {
       "new": "Nouvelle catégorie",
@@ -1407,6 +1416,12 @@
         "label": "Suggérer la gamme supérieure dans « Ma demande »",
         "on": "Activée : une suggestion discrète, que le client peut refuser.",
         "off": "Désactivée : aucune suggestion."
+      },
+      "highlight": {
+        "title": "Gamme mise en avant",
+        "hint": "Badge « Le plus choisi » dans le comparateur des gammes, et première carte sur téléphone.",
+        "label": "Gamme mise en avant",
+        "none": "Aucune"
       }
     }
   },
@@ -2809,14 +2824,17 @@
         "menu": "Menu",
         "buffet": "Buffet",
         "equipment": "Matériel",
-        "service": "Service"
+        "service": "Service",
+        "range": "Gamme"
       },
       "perGuestHint": "Pour tous vos invités",
       "quantity": "Quantité",
       "quantityOf": "Quantité : {name}",
       "remove": "Retirer {name}",
       "loginToSend": "Connectez-vous (ou créez votre compte en un instant) pour envoyer votre demande au traiteur.",
-      "login": "Se connecter pour envoyer"
+      "login": "Se connecter pour envoyer",
+      "rangeOnRequest": "Gamme {name} — sur demande",
+      "rangeOnRequestHint": "Le traiteur vous propose un menu et son prix dans le devis."
     },
     "approval": {
       "pendingTitle": "Votre compte attend la validation de {traiteur}",
@@ -2992,8 +3010,8 @@
     },
     "compare": {
       "kicker": "Comparer les gammes",
-      "title": "{event} : nos gammes côte à côte",
-      "lead": "Chaque gamme a sa cuisine de fête ; ce qui change, c’est le service et la mise en scène.",
+      "title": "{event} : choisissez votre gamme",
+      "lead": "Trois gammes, la même cuisine de fête : ce qui change, c’est le service et la mise en scène.",
       "caption": "Comparaison des gammes",
       "menu": "Menu",
       "from": "À partir de",
@@ -3006,7 +3024,27 @@
       "position": "Gamme {index} sur {total}",
       "swipe": "Glissez pour comparer · {index} / {total}",
       "empty": "Pas encore de comparaison",
-      "emptyHint": "Il faut des menus d’au moins deux gammes pour un même type d’événement."
+      "emptyHint": "Il faut des menus d’au moins deux gammes pour un même type d’événement.",
+      "eventTabs": "Type d’événement",
+      "guests": "Nombre d’invités",
+      "guestsValue": "{count} invités",
+      "mostChosen": "Le plus choisi",
+      "onRequestTitle": "Menu composé pour vous",
+      "onRequest": "Sur demande",
+      "onRequestHint": "Le traiteur compose ce menu et vous envoie son prix dans le devis.",
+      "estimate": "env. {total} pour {count} invités",
+      "guestsLimits": "Ce menu est prévu de {min} à {max} invités.",
+      "guestsMin": "Ce menu est prévu à partir de {min} invités.",
+      "choose": "Choisir cette gamme",
+      "requestRange": "Demander cette gamme",
+      "inCart": "Dans ma demande",
+      "inCartRange": "{range} : dans ma demande",
+      "chooseBar": "Choisir {range} — {price} / pers.",
+      "requestBar": "Demander {range} — sur demande",
+      "estimateNote": "Estimation : le devis final est envoyé par le traiteur.",
+      "homeKicker": "Nos gammes",
+      "homeTitle": "Choisissez votre gamme",
+      "seeFull": "Comparer en détail"
     },
     "upgrade": {
       "label": "Suggestion",

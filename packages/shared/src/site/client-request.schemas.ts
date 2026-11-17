@@ -64,9 +64,17 @@ export const clientRequestSchema = scheduleSchema
     onSiteContactName: optionalText(120),
     onSiteContactPhone: phoneSchema.nullable().default(null),
     notes: optionalText(2000),
-    items: z.array(clientRequestItemSchema).min(1).max(50),
+    items: z.array(clientRequestItemSchema).max(50),
+    /**
+     * Gammes demandées « sur demande » (aucun menu publié pour l'événement) : codes de gamme,
+     * ajoutés à la commande en lignes sans prix, que le traiteur chiffre dans son devis.
+     */
+    ranges: z.array(eventTypeSchema).max(5).default([]),
   })
   .superRefine((value, ctx) => {
+    if (value.items.length === 0 && value.ranges.length === 0) {
+      ctx.addIssue({ code: 'custom', path: ['items'], message: 'Choisissez au moins un élément' });
+    }
     if (value.endTime !== null && !value.endsNextDay && value.endTime <= value.startTime) {
       ctx.addIssue({
         code: 'custom',

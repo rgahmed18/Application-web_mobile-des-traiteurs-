@@ -32,7 +32,7 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
   const catalog = page.getByTestId('site-catalog');
   await catalog
     .getByTestId('catalog-card')
-    .filter({ hasText: 'Formule Mariage Prestige' })
+    .filter({ hasText: 'Formule Mariage Luxe' })
     .getByTestId('add-to-cart')
     .click();
   await catalog.getByRole('tab', { name: /Services/ }).click();
@@ -63,7 +63,7 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
 
   // 4. Récapitulatif : estimation TTC (450 MAD × 150 invités + décoration), puis envoi
   const summary = wizard.getByTestId('request-step-summary');
-  await expect(summary).toContainText('Formule Mariage Prestige');
+  await expect(summary).toContainText('Formule Mariage Luxe');
   await expect(wizard.getByTestId('request-estimate')).toContainText('MAD');
   await wizard.getByRole('button', { name: 'Envoyer ma demande' }).click();
   await expect(page.getByText(/Demande CMD-\d{4}-\d+ envoyée au traiteur/)).toBeVisible();

@@ -1,5 +1,6 @@
 'use client';
 
+import type { PublicRange } from '@traiteur/shared';
 import { ShoppingBasketIcon, Trash2Icon } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -10,10 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLocalized } from '@/features/catalog/use-localized';
 
-import { cartStore, perGuest, useCart } from './cart-store';
+import { cartStore, isCatalogItem, perGuest, useCart } from './cart-store';
 import { EntryPrice } from './catalog-card';
 import { type CatalogEntry, findEntry } from './catalog-view';
-import { usePublicCatalog } from './site-api';
+import { RangeMark } from './range-finish';
+import { usePublicCatalog, usePublicCatalogOptions } from './site-api';
 import { UpgradeSuggestion } from './upgrade-suggestion';
 
 /** Ligne de « ma demande » : élément encore publié, avec sa quantité choisie. */
@@ -28,11 +30,21 @@ export function useCartLines(): { lines: CartLine[]; pending: boolean } {
   const catalog = usePublicCatalog();
   if (!catalog.data) return { lines: [], pending: catalog.isPending };
   const data = catalog.data;
-  const lines = cart.flatMap((item) => {
+  const lines = cart.filter(isCatalogItem).flatMap((item) => {
     const entry = findEntry(data, item.kind, item.id);
     return entry ? [{ entry, quantity: item.quantity }] : [];
   });
   return { lines, pending: false };
+}
+
+/** Gammes demandées « sur demande » encore publiées (codes de « Ma demande »). */
+export function useCartRanges(): PublicRange[] {
+  const cart = useCart();
+  const options = usePublicCatalogOptions();
+  const ranges = options.data?.ranges ?? [];
+  return cart.flatMap((item) =>
+    item.kind === 'range' ? ranges.filter((range) => range.code === item.id) : [],
+  );
 }
 
 /** Récapitulatif de « ma demande » : quantités du matériel et des services, retrait. */
@@ -40,8 +52,9 @@ export function CartReview({ footer }: { footer?: React.ReactNode }) {
   const t = useTranslations('site.cart');
   const localized = useLocalized();
   const { lines, pending } = useCartLines();
+  const ranges = useCartRanges();
   if (pending) return <Skeleton className="h-48 w-full" />;
-  if (lines.length === 0) {
+  if (lines.length === 0 && ranges.length === 0) {
     return (
       <EmptyState
         icon={ShoppingBasketIcon}
@@ -100,6 +113,30 @@ export function CartReview({ footer }: { footer?: React.ReactNode }) {
               <Trash2Icon aria-hidden />
             </Button>
             {entry.kind === 'menu' && <UpgradeSuggestion entry={entry} />}
+          </li>
+        ))}
+        {ranges.map((range) => (
+          <li
+            key={`range-${range.code}`}
+            className="flex flex-wrap items-center gap-3 p-4"
+            data-testid="cart-range-line"
+          >
+            <RangeMark finish={range.finish} />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-xs text-muted-foreground uppercase">{t('kinds.range')}</span>
+              <span className="font-medium" dir="auto">
+                {t('rangeOnRequest', { name: localized(range.name) })}
+              </span>
+              <span className="text-sm text-muted-foreground">{t('rangeOnRequestHint')}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => cartStore.remove('range', range.code)}
+              aria-label={t('remove', { name: localized(range.name) })}
+            >
+              <Trash2Icon aria-hidden />
+            </Button>
           </li>
         ))}
       </ul>

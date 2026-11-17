@@ -166,6 +166,7 @@ describe('API des paramètres et du compte (application complète)', () => {
       whatsappPhone: null,
       featured: [],
       upsell: true,
+      highlightRange: 'PREMIUM',
       eventTypePhotos: [],
     });
     await api(employee).get('/settings/site').expect(403);
@@ -186,6 +187,7 @@ describe('API des paramètres et du compte (application complète)', () => {
       whatsappPhone: '06 61 23 45 67',
       featured: [],
       upsell: false,
+      highlightRange: 'LUXE',
       eventTypePhotos: [{ code: 'WEDDING', imageKey: wedding }],
     };
     const saved = await api(admin)
@@ -227,6 +229,8 @@ describe('API des paramètres et du compte (application complète)', () => {
     expect(await refused({ eventTypePhotos: [{ code: 'INCONNU', imageKey: wedding }] })).toBe(
       'EVENT_TYPE_UNKNOWN',
     );
+    // Gamme mise en avant : une gamme du traiteur, ou aucune
+    expect(await refused({ highlightRange: 'INCONNUE' })).toBe('RANGE_UNKNOWN');
 
     // Photo d'un type retirée : détachée
     await api(admin)

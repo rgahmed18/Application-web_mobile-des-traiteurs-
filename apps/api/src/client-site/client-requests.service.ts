@@ -157,7 +157,10 @@ export class ClientRequestsService {
         select: { code: true },
       });
       if (!eventType) throw appErrors.badRequest('VALIDATION_ERROR', 'Type d’événement inconnu');
-      const drafts = await this.lineDrafts(tx, traiteurId, settings, input);
+      const drafts = [
+        ...(await this.lineDrafts(tx, traiteurId, settings, input)),
+        ...(await this.rangeDrafts(tx, traiteurId, settings, input)),
+      ].map((draft, index) => ({ ...draft, sortOrder: index }));
       const { eventDate, eventEndDate } = instants(input, settings.timezone);
       if (eventEndDate && eventEndDate <= eventDate) {
         throw appErrors.badRequest('VALIDATION_ERROR', 'La fin doit être après le début');
@@ -343,6 +346,42 @@ export class ClientRequestsService {
         { retryAfterSeconds: 3600 },
       );
     }
+  }
+
+  /**
+   * Gammes demandées « sur demande » (aucun menu publié pour l'événement) : une ligne sans prix
+   * par gamme, « Gamme Premium — sur demande », comptée par invité ; le traiteur la chiffre dans
+   * son devis. Seules les gammes publiées du traiteur sont acceptées.
+   */
+  private async rangeDrafts(
+    tx: Db,
+    traiteurId: string,
+    settings: RequestSettings,
+    input: ClientRequestInput,
+  ): Promise<LineDraft[]> {
+    const codes = [...new Set(input.ranges)];
+    if (codes.length === 0) return [];
+    const ranges = await tx.catalogRange.findMany({
+      where: { traiteurId, code: { in: codes }, ...published },
+      select: { code: true, name: true },
+    });
+    if (ranges.length !== codes.length) {
+      throw appErrors.badRequest('VALIDATION_ERROR', 'Gamme inconnue');
+    }
+    return codes.map((code) => {
+      const name = toLocalized(ranges.find((range) => range.code === code)?.name ?? null);
+      return {
+        itemType: 'CUSTOM',
+        label: {
+          fr: `Gamme ${name.fr} — sur demande`,
+          ...(name.ar ? { ar: `فئة ${name.ar} — حسب الطلب` } : {}),
+        },
+        quantity: input.guestCount,
+        perPerson: true,
+        unitPrice: 0,
+        taxRateBps: resolveTaxRate(settings, null),
+      };
+    });
   }
 
   /**

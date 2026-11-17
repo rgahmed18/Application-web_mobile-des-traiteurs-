@@ -33,6 +33,7 @@ import { useSaveSiteSettings, useSiteSettings } from './settings-api';
 import { Loaded, SaveBar, SwitchRow } from './settings-forms';
 import { SiteEventPhotosField } from './site-event-photos-field';
 import { SiteFeaturedField } from './site-featured-field';
+import { SiteHighlightField } from './site-highlight-field';
 import { SitePaletteField } from './site-palette-field';
 import { SitePhotosField } from './site-photos-field';
 
@@ -47,6 +48,7 @@ const siteFormSchema = z
     whatsappPhone: z.string(),
     featured: z.array(z.object({ kind: z.enum(['menu', 'buffet']), id: z.string() })),
     upsell: z.boolean(),
+    highlightRange: z.string().nullable(),
     eventTypePhotos: z.array(z.object({ code: z.string(), imageKey: z.string() })),
   })
   .transform((values): z.input<typeof siteSettingsSchema> => ({
@@ -59,6 +61,7 @@ const siteFormSchema = z
     whatsappPhone: values.whatsappPhone.trim() === '' ? null : values.whatsappPhone,
     featured: values.featured,
     upsell: values.upsell,
+    highlightRange: values.highlightRange,
     eventTypePhotos: values.eventTypePhotos,
   }))
   .pipe(siteSettingsSchema);
@@ -73,6 +76,7 @@ const siteValues = (settings: SiteSettings) => ({
   whatsappPhone: settings.whatsappPhone ?? '',
   featured: settings.featured,
   upsell: settings.upsell,
+  highlightRange: settings.highlightRange,
   eventTypePhotos: settings.eventTypePhotos,
 });
 
@@ -109,6 +113,7 @@ function SiteForm({ settings }: { settings: SiteSettings }) {
   const palette = form.watch('palette');
   const featured = form.watch('featured');
   const upsell = form.watch('upsell');
+  const highlightRange = form.watch('highlightRange');
   const eventTypePhotos = form.watch('eventTypePhotos');
   const onSubmit = form.handleSubmit(async (input) => {
     try {
@@ -193,6 +198,12 @@ function SiteForm({ settings }: { settings: SiteSettings }) {
               {t('featured.countError')}
             </p>
           )}
+        </FormSection>
+        <FormSection title={t('highlight.title')} description={t('highlight.hint')}>
+          <SiteHighlightField
+            value={highlightRange}
+            onChange={(code) => form.setValue('highlightRange', code, { shouldDirty: true })}
+          />
         </FormSection>
         <FormSection title={t('upsell.title')} description={t('upsell.hint')}>
           <SwitchRow

@@ -18,6 +18,7 @@ import { formatMoney } from '@/lib/format/money';
 import { EmptyState, PaginationBar } from '@/components/layout/list-states';
 
 import { useCatalogList, useCatalogSettings, usePackages } from '../catalog-api';
+import { RangeCoverageTable } from './range-coverage-table';
 import { CatalogHeader } from '../components/catalog-header';
 import { FilterTrigger, ItemThumb, OffSiteBadge, StatusBadge } from '../components/catalog-ui';
 import { ItemActions } from '../components/item-actions';
@@ -94,6 +95,8 @@ export function PackageList() {
           )
         }
       />
+
+      <RangeCoverageTable />
 
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto] lg:items-end">
         <InputGroup>

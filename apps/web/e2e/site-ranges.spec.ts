@@ -133,18 +133,23 @@ test('téléphone en arabe : menu plein écran, finitions, comparateur, fiche et
   // Comparateur : trois cartes à faire glisser, Essentiel puis Premium puis Luxe
   await catalog.getByTestId('compare-link').click();
   await expect(page).toHaveURL(/\/catalogue\/comparer\?type=WEDDING/);
-  const cards = page.getByTestId('compare-cards').getByRole('article');
+  // Carrousel : gamme mise en avant (Premium) en premier, puis Essentiel et Luxe
+  const cards = page.getByTestId('compare-cards').getByTestId('compare-card');
   await expect(cards).toHaveCount(3);
-  await expect(cards.nth(0)).toContainText('أساسية');
-  await expect(cards.nth(0)).toContainText('280');
+  await expect(cards.nth(0)).toHaveAttribute('data-range', 'PREMIUM');
+  await expect(cards.nth(0).getByTestId('most-chosen')).toHaveText('الأكثر اختياراً');
+  await expect(cards.nth(1)).toContainText('أساسية');
+  await expect(cards.nth(1)).toContainText('280');
   await expect(cards.nth(2)).toContainText('فاخرة');
-  await expect(page.getByTestId('compare-table')).toBeHidden();
+  await expect(page.getByTestId('compare-grid')).toBeHidden();
+  await expect(page.getByTestId('choose-bar')).toContainText('اختيار ممتازة');
   await cards.nth(2).scrollIntoViewIfNeeded();
-  await expect(page.getByText('اسحبوا للمقارنة · 3 / 3')).toBeVisible();
+  await expect(page.getByTestId('compare-position')).toContainText('3 / 3');
+  await expect(page.getByTestId('choose-bar')).toContainText('اختيار فاخرة');
   await expectNoOverflow(page);
 
   // Fiche Luxe : encart « مشمول في فئة فاخرة », lien vers le comparateur
-  await cards.nth(2).getByRole('link', { name: 'عرض القائمة' }).click();
+  await cards.nth(2).getByRole('link', { name: 'عرض القائمة', exact: true }).click();
   const item = page.getByTestId('catalog-item');
   await expect(item.getByTestId('included-panel')).toContainText('مشمول في فئة فاخرة');
   await expect(item.getByTestId('compare-link')).toBeVisible();
@@ -215,10 +220,14 @@ test('ancien navigateur, animations réduites : contenu affiché, en-tête opaqu
   expect(await card.evaluate((element) => getComputedStyle(element).transform)).toBe('none');
 
   await page.goto(`${SITE}/catalogue/comparer?type=WEDDING`);
-  const table = page.getByTestId('compare-table');
-  await expect(table).toBeVisible();
-  await expect(table.getByRole('columnheader')).toHaveCount(3);
-  await expect(table).toContainText('Essentiel');
-  await expect(table).toContainText('Tout le Premium, et :');
+  const grid = page.getByTestId('compare-grid');
+  await expect(grid).toBeVisible();
+  // Apparition au défilement neutralisée : les trois cartes sont visibles d'emblée
+  await expect(grid.getByTestId('compare-card')).toHaveCount(3);
+  for (const card of await grid.getByTestId('compare-card').all()) {
+    expect(await card.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+  }
+  await expect(grid).toContainText('Essentiel');
+  await expect(grid).toContainText('Tout le Premium, et :');
   await context.close();
 });

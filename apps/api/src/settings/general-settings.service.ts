@@ -59,6 +59,7 @@ const siteSelect = {
   sitePalette: true,
   siteWhatsappPhone: true,
   siteUpsell: true,
+  siteHighlightRange: true,
   siteFeatured: true,
   siteEventTypePhotos: true,
 } satisfies Prisma.TraiteurSelect;
@@ -79,6 +80,7 @@ function toSiteSettings(
     palette: sitePaletteSchema.safeParse(row.sitePalette).data ?? DEFAULT_SITE_PALETTE,
     whatsappPhone: row.siteWhatsappPhone,
     upsell: row.siteUpsell,
+    highlightRange: row.siteHighlightRange,
     featured: featuredList.safeParse(row.siteFeatured).data ?? [],
     eventTypePhotos: eventTypePhotoList.safeParse(row.siteEventTypePhotos).data ?? [],
   };
@@ -227,6 +229,7 @@ export class GeneralSettingsService {
             sitePalette: input.palette,
             siteWhatsappPhone: input.whatsappPhone,
             siteUpsell: input.upsell,
+            siteHighlightRange: input.highlightRange,
             siteFeatured: input.featured,
             siteEventTypePhotos: eventTypePhotos,
           },
@@ -269,10 +272,13 @@ export class GeneralSettingsService {
       archivedAt: null,
     });
     const codes = input.eventTypePhotos.map((photo) => photo.code);
-    const [menus, buffets, eventTypes] = await Promise.all([
+    const [menus, buffets, eventTypes, ranges] = await Promise.all([
       tx.package.count({ where: where('menu') }),
       tx.buffet.count({ where: where('buffet') }),
       tx.eventType.count({ where: { traiteurId, code: { in: codes } } }),
+      input.highlightRange
+        ? tx.catalogRange.count({ where: { traiteurId, code: input.highlightRange } })
+        : 1,
     ]);
     if (menus !== ids('menu').length || buffets !== ids('buffet').length) {
       throw appErrors.badRequest(
@@ -283,6 +289,7 @@ export class GeneralSettingsService {
     if (eventTypes !== codes.length) {
       throw appErrors.badRequest('EVENT_TYPE_UNKNOWN', 'Type d’événement introuvable');
     }
+    if (ranges === 0) throw appErrors.badRequest('RANGE_UNKNOWN', 'Gamme introuvable');
   }
 
   private async read<TSelect extends Prisma.TraiteurSelect>(

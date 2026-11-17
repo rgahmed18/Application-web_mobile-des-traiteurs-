@@ -318,6 +318,32 @@ describe('Demandes en ligne des clients (application complète)', () => {
     ]);
   });
 
+  it('gamme « sur demande » : ligne sans prix à chiffrer par le traiteur ; gamme inconnue refusée', async () => {
+    const customer = await actorFor(admin.traiteurId, 'CLIENT');
+    const created = await api(customer)
+      .post('/client/requests', requestBody({ items: [], ranges: ['PREMIUM'] }))
+      .expect(201);
+    const order = await prisma.order.findUniqueOrThrow({
+      where: { id: (created.body as { id: string }).id },
+      include: { items: true },
+    });
+    expect(
+      order.items.map((line) => [line.itemType, line.quantity, line.perPerson, line.unitPriceTtc]),
+    ).toEqual([['CUSTOM', 120, true, 0]]);
+    expect(order.items[0]?.label).toEqual({
+      fr: 'Gamme Premium — sur demande',
+      ar: 'فئة ممتازة — حسب الطلب',
+    });
+    const other = await actorFor(admin.traiteurId, 'CLIENT');
+    await api(other)
+      .post('/client/requests', requestBody({ items: [], ranges: ['INCONNUE'] }))
+      .expect(400);
+    // Ni élément ni gamme : refusée
+    await api(other)
+      .post('/client/requests', requestBody({ items: [], ranges: [] }))
+      .expect(400);
+  });
+
   it('refus : compte non validé, élément d’un autre traiteur, non publié ou archivé, invités, date trop proche', async () => {
     const pending = await actorFor(admin.traiteurId, 'CLIENT', 'PENDING');
     const notApproved = await api(pending).post('/client/requests', requestBody());

@@ -18,6 +18,7 @@ import type { LineDraft } from '../../src/documents/document-lines';
 import { addDocumentLines } from '../../src/documents/document-lines';
 import type { PrismaClient } from '../../src/generated/prisma/client';
 import { nextDocumentNumber } from '../../src/sequences/document-sequence';
+import { DEMO_EVENT_MENUS } from './demo-menus';
 
 const TAX_RATE = 2000;
 const MARKER = 'Démo matériel #';
@@ -175,7 +176,10 @@ const PACKAGE_AUDIENCE: Record<string, { range: string; eventTypes: string[] }> 
   'formule-mariage-essentiel': { range: 'STANDARD', eventTypes: ['WEDDING'] },
   'formule-mariage-premium': { range: 'PREMIUM', eventTypes: ['WEDDING'] },
   'formule-mariage-prestige': { range: 'LUXE', eventTypes: ['WEDDING'] },
-  'formule-aqiqa': { range: 'STANDARD', eventTypes: ['AQIQA', 'BIRTHDAY'] },
+  'formule-aqiqa': { range: 'STANDARD', eventTypes: ['AQIQA'] },
+  ...Object.fromEntries(
+    DEMO_EVENT_MENUS.map((menu) => [menu.slug, { range: menu.range, eventTypes: menu.eventTypes }]),
+  ),
 };
 
 /**
@@ -497,7 +501,7 @@ export async function seedDemoEquipmentOrders(
       if (!packageId) throw new Error(`Menu inconnu : ${line.package}`);
       return {
         itemType: 'PACKAGE',
-        label: { fr: 'Formule Mariage Prestige', ar: 'عرض العرس الفاخر' },
+        label: { fr: 'Formule Mariage Luxe', ar: 'عرض العرس الفاخر' },
         quantity: spec.guests,
         unitPrice: unitPrice(450),
         taxRateBps: TAX_RATE,

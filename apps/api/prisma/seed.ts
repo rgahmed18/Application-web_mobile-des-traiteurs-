@@ -34,6 +34,7 @@ import {
   seedDemoPayments,
 } from './lib/demo-orders';
 import { seedDemoEquipmentAndBuffets, seedDemoEquipmentOrders } from './lib/demo-equipment';
+import { DEMO_EVENT_MENUS } from './lib/demo-menus';
 import { generateIllustration, PALETTES } from './lib/illustrations';
 import { connectScriptStorage, storeAndAttachImage } from './lib/media-script';
 import { issueInvoice } from '../src/invoices/invoice-issuer';
@@ -552,7 +553,7 @@ const DISHES: DishSeed[] = [
 const PACKAGES = [
   {
     slug: 'formule-fiancailles',
-    name: { fr: 'Formule Fiançailles', ar: 'عرض الخطوبة' },
+    name: { fr: 'Formule Fiançailles Premium', ar: 'عرض الخطوبة الممتاز' },
     description: {
       fr: 'Salades, pastilla au poulet, poulet m’hammer, cornes de gazelle et thé.',
       ar: 'سلطات، بسطيلة بالدجاج، دجاج محمر، كعب الغزال وأتاي.',
@@ -570,7 +571,7 @@ const PACKAGES = [
   },
   {
     slug: 'formule-mariage-prestige',
-    name: { fr: 'Formule Mariage Prestige', ar: 'عرض العرس الفاخر' },
+    name: { fr: 'Formule Mariage Luxe', ar: 'عرض العرس الفاخر' },
     description: {
       fr: 'Le grand menu traditionnel des mariages marocains, du méchoui aux pâtisseries.',
       ar: 'القائمة التقليدية الكبرى للأعراس المغربية، من المشوي إلى الحلويات.',
@@ -629,7 +630,7 @@ const PACKAGES = [
   },
   {
     slug: 'formule-aqiqa',
-    name: { fr: 'Formule Aqiqa', ar: 'عرض العقيقة' },
+    name: { fr: 'Formule Aqiqa Essentiel', ar: 'عرض العقيقة الأساسي' },
     description: {
       fr: 'Harira, rfissa au poulet, ghriba et thé pour célébrer une naissance.',
       ar: 'حريرة، رفيسة بالدجاج، غريبة وأتاي للاحتفال بالمولود.',
@@ -645,6 +646,9 @@ const PACKAGES = [
     ],
   },
 ] as const;
+
+/** Toutes les formules de démonstration : historiques, puis une par gamme et par événement. */
+const ALL_PACKAGES = [...PACKAGES, ...DEMO_EVENT_MENUS];
 
 interface ServiceSeed {
   id: string;
@@ -720,7 +724,7 @@ async function seedCatalog(traiteurId: string) {
   }
 
   const packageIds = new Map<string, string>();
-  for (const pkg of PACKAGES) {
+  for (const pkg of ALL_PACKAGES) {
     const data = {
       name: pkg.name,
       description: pkg.description,
@@ -763,7 +767,7 @@ async function seedCatalog(traiteurId: string) {
   }
 
   console.log(
-    `✓ Catalogue : ${CATEGORIES.length} catégories, ${DISHES.length} plats, ${PACKAGES.length} formules, ${EXTRA_SERVICES.length} services`,
+    `✓ Catalogue : ${CATEGORIES.length} catégories, ${DISHES.length} plats, ${ALL_PACKAGES.length} formules, ${EXTRA_SERVICES.length} services`,
   );
   return { dishIds, packageIds };
 }
@@ -802,7 +806,7 @@ async function seedIllustrations(
       await prisma.dish.update({ where: { id }, data: { imageKey } });
       created += 1;
     }
-    for (const pkg of PACKAGES) {
+    for (const pkg of ALL_PACKAGES) {
       const id = packageIds.get(pkg.slug);
       const palette = PALETTES.formules;
       if (!id || !palette) continue;

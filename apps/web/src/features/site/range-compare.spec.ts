@@ -1,7 +1,15 @@
 import type { PublicMenu, PublicRange } from '@traiteur/shared';
 import { describe, expect, it } from 'vitest';
 
-import { addedLines, comparableEventTypes, compareRanges, upgradeFor } from './range-compare';
+import {
+  addedLines,
+  comparableEventTypes,
+  compareRanges,
+  estimateTotal,
+  highlightFirst,
+  orderedRanges,
+  upgradeFor,
+} from './range-compare';
 
 const range = (code: string, finish: PublicRange['finish']): PublicRange => ({
   code,
@@ -47,8 +55,13 @@ describe('comparateur de gammes', () => {
   const aqiqa = menu(ESSENTIEL, 18000, ['AQIQA'], 4);
   const catalog = { menus: [luxe, premiumBig, essentiel, premium, aqiqa] };
 
-  it('par gamme : prix « à partir de », plats, menu le moins cher ; menu sans type compris', () => {
-    const columns = compareRanges(catalog, RANGES, 'WEDDING');
+  it('toujours Essentiel → Premium → Luxe, quel que soit l’ordre du traiteur', () => {
+    expect(orderedRanges([LUXE, ESSENTIEL, PREMIUM]).map((range) => range.code)).toEqual([
+      'STANDARD',
+      'PREMIUM',
+      'LUXE',
+    ]);
+    const columns = compareRanges(catalog, [LUXE, PREMIUM, ESSENTIEL], 'WEDDING');
     expect(columns.map((column) => column.range.code)).toEqual(['STANDARD', 'PREMIUM', 'LUXE']);
     expect(columns[1]).toMatchObject({
       menu: premium,
@@ -58,30 +71,48 @@ describe('comparateur de gammes', () => {
     });
   });
 
-  it('gamme sans menu pour ce type : absente ; comparable dès deux gammes', () => {
-    expect(compareRanges(catalog, RANGES, 'AQIQA').map((column) => column.range.code)).toEqual([
-      'STANDARD',
-      'LUXE',
+  it('gamme sans menu pour l’événement : colonne « sur demande », jamais retirée', () => {
+    const columns = compareRanges(catalog, RANGES, 'AQIQA');
+    expect(columns.map((column) => [column.range.code, column.fromPrice])).toEqual([
+      ['STANDARD', 18000],
+      ['PREMIUM', null],
+      ['LUXE', 45000],
     ]);
-    expect(compareRanges({ menus: [aqiqa] }, RANGES, 'AQIQA')).toHaveLength(1);
-    // Soutenance : seul le menu Luxe (tous événements) convient
+    expect(columns[1]).toMatchObject({ menu: null, dishes: null, menuCount: 0 });
+  });
+
+  it('comparateur pour chaque événement ayant au moins un menu publié, jamais vide', () => {
     expect(comparableEventTypes(catalog, RANGES, ['WEDDING', 'AQIQA', 'THESIS'])).toEqual([
       'WEDDING',
       'AQIQA',
+      'THESIS',
     ]);
-    expect(comparableEventTypes({ menus: [essentiel, premium] }, RANGES, ['AQIQA'])).toEqual([]);
+    // Sans menu pour tous les événements : seulement ceux qui en ont un
+    expect(
+      comparableEventTypes({ menus: [essentiel, aqiqa] }, RANGES, ['WEDDING', 'THESIS']),
+    ).toEqual(['WEDDING']);
+    expect(comparableEventTypes({ menus: [] }, RANGES, ['WEDDING'])).toEqual([]);
+  });
+
+  it('estimation selon le nombre d’invités ; gamme mise en avant en premier', () => {
+    const columns = compareRanges(catalog, RANGES, 'AQIQA');
+    expect(estimateTotal(columns[0]!, 100)).toBe(1_800_000);
+    expect(estimateTotal(columns[1]!, 100)).toBeNull();
+    expect(highlightFirst(columns, 'PREMIUM').map((column) => column.range.code)).toEqual([
+      'PREMIUM',
+      'STANDARD',
+      'LUXE',
+    ]);
+    expect(highlightFirst(columns, null)).toBe(columns);
   });
 
   it('montée en gamme : gamme juste au-dessus, même événement, supplément positif', () => {
     const upgrade = upgradeFor(catalog, RANGES, essentiel, () => false);
     expect(upgrade).toMatchObject({ to: premium, range: PREMIUM, extraPerPerson: 8000 });
-    // Déjà dans la demande : l'autre menu de la gamme
     expect(upgradeFor(catalog, RANGES, essentiel, (id) => id === premium.id)?.to).toBe(premiumBig);
-    // Gamme la plus haute, sans gamme ou sans menu équivalent : aucune suggestion
     expect(upgradeFor(catalog, RANGES, luxe, () => false)).toBeNull();
     expect(upgradeFor(catalog, RANGES, menu(null, 1000, ['WEDDING']), () => false)).toBeNull();
     expect(upgradeFor(catalog, RANGES, aqiqa, () => false)).toBeNull();
-    // Jamais moins cher
     const cheaper = menu(PREMIUM, 20000, ['WEDDING']);
     expect(upgradeFor({ menus: [essentiel, cheaper] }, RANGES, essentiel, () => false)).toBeNull();
   });

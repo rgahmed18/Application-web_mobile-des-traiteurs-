@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { type CartKind, perGuest } from './cart-store';
 import { AddToCartButton, EntryPrice } from './catalog-card';
 import { findEntry } from './catalog-view';
-import { compareRanges, COMPARE_MIN_RANGES } from './range-compare';
+import { comparableEventTypes } from './range-compare';
 import { IncludedPanel, PublicRangeBadge } from './range-finish';
 import { usePublicCatalog, usePublicCatalogOptions } from './site-api';
 import { useListShown } from './site-lists';
@@ -46,15 +46,14 @@ export function CatalogItemView({ kind, id }: { kind: CartKind; id: string }) {
   const range = entry.range && shown(entry.range) ? entry.range : null;
   const gold = range?.finish === 'gold';
   // Comparateur : premier type d'événement du menu (ou de la liste) où deux gammes se comparent
+  // Comparateur : premier type d'événement du menu (tous s'il est prévu pour tous) qui en a un
   const compareType =
     kind === 'menu' && range && catalog.data && options.data
-      ? (options.data.eventTypes
-          .map((item) => item.code)
-          .filter((code) => entry.eventTypes.length === 0 || entry.eventTypes.includes(code))
-          .find(
-            (code) =>
-              compareRanges(catalog.data, options.data.ranges, code).length >= COMPARE_MIN_RANGES,
-          ) ?? null)
+      ? (comparableEventTypes(
+          catalog.data,
+          options.data.ranges,
+          options.data.eventTypes.map((item) => item.code),
+        ).find((code) => entry.eventTypes.length === 0 || entry.eventTypes.includes(code)) ?? null)
       : null;
   const parsedQuantity = Number.parseInt(quantity, 10);
 

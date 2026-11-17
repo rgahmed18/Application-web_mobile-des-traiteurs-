@@ -48,7 +48,7 @@ export function SiteTitleBand({
         <p className="flex items-center gap-2.5 text-xs font-extrabold tracking-[0.2em] text-[var(--site-accent-text)] uppercase before:h-px before:w-7 before:bg-current rtl:text-sm rtl:tracking-normal">
           {kicker}
         </p>
-        <h1 className="mt-2 font-display text-[40px] leading-[1.05] font-bold md:text-[64px] rtl:leading-snug">
+        <h1 className="site-page-title mt-2 font-display text-[40px] leading-[1.05] font-bold md:text-[64px] rtl:leading-snug">
           {title}
         </h1>
         <p className="mt-2 max-w-2xl text-base text-muted-foreground md:text-lg">{lead}</p>

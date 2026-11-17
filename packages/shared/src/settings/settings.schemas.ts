@@ -136,6 +136,11 @@ export const siteSettingsSchema = z.object({
     }),
   /** Suggérer la gamme supérieure dans « Ma demande » (même type d'événement). */
   upsell: z.boolean(),
+  /** Gamme mise en avant (« Le plus choisi ») dans le comparateur ; null : aucune. */
+  highlightRange: z
+    .string()
+    .regex(/^[A-Z][A-Z0-9_]{0,39}$/)
+    .nullable(),
   eventTypePhotos: z
     .array(siteEventTypePhotoSchema)
     .max(50)

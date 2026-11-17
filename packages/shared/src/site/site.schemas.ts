@@ -63,6 +63,8 @@ export const publicSiteSchema = z.object({
   eventTypeCards: z.array(publicEventTypeCardSchema),
   /** Suggestion de la gamme supérieure dans « Ma demande ». */
   upsell: z.boolean(),
+  /** Gamme « Le plus choisi » du comparateur (publiée), ou null. */
+  highlightRange: z.string().nullable(),
 });
 export type PublicSite = z.infer<typeof publicSiteSchema>;
 

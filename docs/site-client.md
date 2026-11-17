@@ -50,10 +50,21 @@ reste sous `/admin`. Sur l'adresse de la console, la racine renvoie vers `/admin
   coupés avec « réduire les animations ».
 - **Cartes et fiches** : deux lignes de « Ce qui est inclus » sur chaque carte (l'Essentiel met en
   avant ce qu'il offre) ; encart « Inclus dans la gamme » sur la fiche.
-- **Comparateur** (`/catalogue/comparer?type=WEDDING`) : pour un type d'événement, les gammes qui
-  y ont au moins un menu publié (deux au minimum) : prix « à partir de », nombre de plats, « Ce
-  qui est inclus ». Tableau sur grand écran, cartes à faire glisser sur téléphone. Accessible
-  depuis le catalogue et les fiches.
+- **Comparateur** (`/catalogue/comparer?type=WEDDING`, et section « Choisissez votre gamme » de
+  l'accueil) : un onglet par type d'événement ayant au moins un menu publié (jamais d'onglet
+  vide). Toutes les gammes publiées, toujours Essentiel → Premium → Luxe : photo du menu, prix par
+  personne, estimation du total selon le nombre d'invités (curseur de 50 à 600, « estimation, le
+  devis final est envoyé par le traiteur »), plats, « Ce qui est inclus » ; « Choisir cette
+  gamme » ajoute le menu à « Ma demande » et retient le nombre d'invités. Gamme sans menu pour
+  l'événement : « Sur demande », « Demander cette gamme » ajoute « Gamme X — sur demande » (ligne
+  sans prix de la commande, chiffrée par le traiteur dans son devis). Badge « Le plus choisi » sur
+  la gamme réglée dans Paramètres → Site client (Premium par défaut, ou aucune). Téléphone :
+  carrousel (gamme mise en avant en premier, points de position) et barre fixe « Choisir … ».
+  Accessible depuis chaque filtre « Événement » du catalogue, les fiches et l'accueil.
+- **Couverture des gammes** (Catalogue → Menus) : tableau événements × gammes, « ✓ » ou
+  « manquant », pour voir ce qui s'affichera « sur demande ».
+- **Titres arabes** : Aref Ruqaa pour les grands titres de page ; Amiri pour les titres des cartes
+  et des menus (doré pour la gamme Luxe).
 - **Montée en gamme** (« Ma demande ») : menu publié le moins cher de la gamme juste au-dessus,
   pour un même type d'événement, plus cher et pas déjà choisi : « Pour X de plus par personne,
   passez en … ». « Passer en … » remplace le menu ; « Non merci » la masque pour la visite.
@@ -88,8 +99,9 @@ reste sous `/admin`. Sur l'adresse de la console, la racine renvoie vers `/admin
 
 Les noms des listes du catalogue (types d'événement, gammes, types de buffet, catégories de
 matériel) s'affichent sur le site : le nom arabe est obligatoire à la création et à chaque
-modification. Un nom ancien sans arabe est signalé « Arabe manquant » dans Catalogue → Listes, et
-masqué sur le site en arabe (jamais affiché en français à sa place).
+modification. Un nom ancien sans arabe est signalé « Arabe manquant » dans Catalogue → Listes et
+n'apparaît pas sur le site, ni en français ni en arabe (même comportement dans les deux langues).
+Le type « Autre » est toujours proposé en dernier, au back-office comme sur le site.
 
 ## Sessions
 

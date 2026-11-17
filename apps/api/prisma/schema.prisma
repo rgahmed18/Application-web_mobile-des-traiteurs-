@@ -315,6 +315,7 @@ model Traiteur {
   sitePalette           String   @default("terracotta") // palette du site (SITE_PALETTES)
   siteWhatsappPhone     String? // bouton WhatsApp flottant (E.164), null : pas de bouton
   siteUpsell            Boolean  @default(true) // suggestion de la gamme supérieure dans « Ma demande »
+  siteHighlightRange  String?   @default("PREMIUM") // gamme « Le plus choisi » du comparateur (code), null : aucune
   siteFeatured          Json     @default("[]") // menus et buffets mis en avant [{ kind, id }]
   siteEventTypePhotos   Json     @default("[]") // photos propres aux types d'événement [{ code, imageKey }]
 

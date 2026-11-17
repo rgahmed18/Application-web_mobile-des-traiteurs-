@@ -13,7 +13,7 @@ test('visiteur : accueil, catalogue filtré, prix TTC, « ma demande », sur té
 
   const catalog = page.getByTestId('site-catalog');
   await expect(catalog.getByTestId('catalog-card').first()).toBeVisible();
-  await expect(catalog).toContainText('Formule Mariage Prestige');
+  await expect(catalog).toContainText('Formule Mariage Luxe');
   await expect(catalog).toContainText(/MAD \/ personne/);
   // Jamais de stock ni de prix HT sur le site
   await expect(catalog).not.toContainText(/\bstock\b|\bHT\b/i);
@@ -32,12 +32,10 @@ test('visiteur : accueil, catalogue filtré, prix TTC, « ma demande », sur té
     catalog.getByRole('group', { name: 'Événement' }).getByRole('button', { name: 'Mariage' }),
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(page).toHaveURL(/type=WEDDING/);
-  await expect(catalog).toContainText('Formule Mariage Prestige');
+  await expect(catalog).toContainText('Formule Mariage Luxe');
 
   // Menu ajouté à la demande, puis un service en quantité
-  const wedding = catalog
-    .getByTestId('catalog-card')
-    .filter({ hasText: 'Formule Mariage Prestige' });
+  const wedding = catalog.getByTestId('catalog-card').filter({ hasText: 'Formule Mariage Luxe' });
   await wedding.getByTestId('add-to-cart').click();
   await expect(wedding.getByTestId('in-cart')).toBeVisible();
   await catalog.getByRole('tab', { name: /Services/ }).click();
@@ -117,5 +115,5 @@ test('accueil : bandeau, cartes d’événement vers le catalogue filtré, menus
 
   await home.getByTestId('event-type-card').filter({ hasText: 'Mariage' }).click();
   await expect(page).toHaveURL(/\/catalogue\?type=WEDDING/);
-  await expect(page.getByTestId('site-catalog')).toContainText('Formule Mariage Prestige');
+  await expect(page.getByTestId('site-catalog')).toContainText('Formule Mariage Luxe');
 });

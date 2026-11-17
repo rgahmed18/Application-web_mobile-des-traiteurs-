@@ -31,7 +31,7 @@ export function WhatsAppButton({ phone }: { phone: string }) {
       rel="noopener noreferrer"
       aria-label={t('label')}
       className={cn(
-        'site-bob fixed end-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 inline-flex h-14 min-w-14 items-center justify-center gap-2 rounded-2xl bg-[#25d366] px-0 font-bold text-[#06301a] shadow-[0_12px_30px_-8px_rgb(0_0_0/0.45)] transition-transform hover:scale-105 focus-visible:ring-4 focus-visible:ring-[#25d366]/40 focus-visible:outline-none md:bottom-6 md:px-5',
+        'site-bob site-whatsapp fixed end-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 inline-flex h-14 min-w-14 items-center justify-center gap-2 rounded-2xl bg-[#25d366] px-0 font-bold text-[#06301a] shadow-[0_12px_30px_-8px_rgb(0_0_0/0.45)] transition-transform hover:scale-105 focus-visible:ring-4 focus-visible:ring-[#25d366]/40 focus-visible:outline-none md:bottom-6 md:px-5',
       )}
       data-testid="whatsapp-button"
     >
