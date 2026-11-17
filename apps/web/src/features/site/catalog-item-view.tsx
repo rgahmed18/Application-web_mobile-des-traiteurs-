@@ -70,7 +70,7 @@ export function CatalogItemView({ kind, id }: { kind: CartKind; id: string }) {
         {entry.imageUrl ? (
           <div
             className={cn(
-              'overflow-hidden rounded-3xl',
+              'self-start overflow-hidden rounded-3xl',
               gold &&
                 'bg-[linear-gradient(135deg,#a87a1e,#f6e2a0_30%,#c9992f_55%,#f1d98c_75%,#9c6f17)] p-[3px]',
             )}
