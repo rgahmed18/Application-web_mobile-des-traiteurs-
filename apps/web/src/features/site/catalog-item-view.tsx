@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { type CartKind, perGuest } from './cart-store';
 import { AddToCartButton, EntryPrice } from './catalog-card';
 import { findEntry } from './catalog-view';
+import { ItemGuests } from './item-guests';
 import { comparableEventTypes } from './range-compare';
 import { IncludedPanel, PublicRangeBadge } from './range-finish';
 import { usePublicCatalog, usePublicCatalogOptions } from './site-api';
@@ -110,6 +111,7 @@ export function CatalogItemView({ kind, id }: { kind: CartKind; id: string }) {
           <span className="text-xl">
             <EntryPrice entry={entry} />
           </span>
+          <ItemGuests entry={entry} />
           {entry.description && (
             <p className="leading-relaxed whitespace-pre-line" dir="auto">
               {localized(entry.description)}

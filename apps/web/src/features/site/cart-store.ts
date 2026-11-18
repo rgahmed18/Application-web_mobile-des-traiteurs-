@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 import { z } from 'zod';
 
 import { CART_KINDS, type CartKind, perGuest } from './cart-kinds';
+import { clampGuests, storedGuests } from './guests';
 
 /**
  * « Ma demande » : sélection du visiteur dans le catalogue, gardée dans le navigateur (par
@@ -38,6 +39,8 @@ const EMPTY: CartItem[] = [];
 const listeners = new Set<() => void>();
 let slug: string | null = null;
 let items: CartItem[] = EMPTY;
+/** Nombre d'invités de la demande (null : pas encore saisi). */
+let guestCount: number | null = null;
 
 const storageKey = (traiteur: string) => `gt-demande:${traiteur}`;
 /** Nombre d'invités choisi dans le comparateur : repris dans la demande. */
@@ -50,6 +53,14 @@ function read(traiteur: string): CartItem[] {
     return parsed.success ? parsed.data : EMPTY;
   } catch {
     return EMPTY;
+  }
+}
+
+function readGuests(traiteur: string): number | null {
+  try {
+    return storedGuests(window.localStorage.getItem(guestsKey(traiteur)));
+  } catch {
+    return null;
   }
 }
 
@@ -72,9 +83,14 @@ export const cartStore = {
     if (slug === traiteur) return;
     slug = traiteur;
     items = read(traiteur);
+    guestCount = readGuests(traiteur);
     window.addEventListener('storage', (event) => {
       if (slug && event.key === storageKey(slug)) {
         items = read(slug);
+        for (const listener of listeners) listener();
+      }
+      if (slug && event.key === guestsKey(slug)) {
+        guestCount = readGuests(slug);
         for (const listener of listeners) listener();
       }
     });
@@ -92,23 +108,24 @@ export const cartStore = {
     if (items.some((item) => item.kind === 'range' && item.id === code)) return;
     write([...items, { kind: 'range', id: code, quantity: 1 }]);
   },
-  /** Nombre d'invités choisi dans le comparateur (null : aucun). */
+  /** Nombre d'invités de la demande (null : pas encore saisi). */
   guests(): number | null {
-    if (!slug) return null;
-    try {
-      const value = Number(window.localStorage.getItem(guestsKey(slug)));
-      return Number.isInteger(value) && value >= 1 && value <= 10_000 ? value : null;
-    } catch {
-      return null;
-    }
+    return guestCount;
   },
-  setGuests(count: number): void {
-    if (!slug) return;
-    try {
-      window.localStorage.setItem(guestsKey(slug), String(Math.round(count)));
-    } catch {
-      // Stockage indisponible : le nombre d'invités se saisit dans la demande
+  /** Nombre d'invités saisi (comparateur, fiche, « Ma demande ») ; null : effacé. */
+  setGuests(count: number | null): void {
+    const next = count === null ? null : clampGuests(count);
+    if (next === guestCount) return;
+    guestCount = next;
+    if (slug) {
+      try {
+        if (next === null) window.localStorage.removeItem(guestsKey(slug));
+        else window.localStorage.setItem(guestsKey(slug), String(next));
+      } catch {
+        // Stockage indisponible : le nombre reste en mémoire
+      }
     }
+    for (const listener of listeners) listener();
   },
   add(kind: CartKind, id: string, quantity = 1): void {
     const existing = items.find((item) => item.kind === kind && item.id === id);
@@ -142,6 +159,7 @@ export const cartStore = {
     write(items.filter((item) => !(item.kind === kind && item.id === id)));
   },
   clear(): void {
+    guestCount = null;
     write(EMPTY);
     if (slug) {
       try {
@@ -155,4 +173,13 @@ export const cartStore = {
 
 export function useCart(): CartItem[] {
   return useSyncExternalStore(cartStore.subscribe, cartStore.snapshot, cartStore.serverSnapshot);
+}
+
+/** Nombre d'invités de la demande, suivi par tous les écrans du site. */
+export function useGuests(): number | null {
+  return useSyncExternalStore(
+    cartStore.subscribe,
+    () => cartStore.guests(),
+    () => null,
+  );
 }

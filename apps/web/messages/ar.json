@@ -2834,7 +2834,15 @@
       "loginToSend": "سجّل الدخول (أو أنشئ حسابك في لحظة) لإرسال طلبك إلى الممون.",
       "login": "سجّل الدخول للإرسال",
       "rangeOnRequest": "فئة {name} — حسب الطلب",
-      "rangeOnRequestHint": "يقترح عليكم الممون قائمة وسعرها في عرض السعر."
+      "rangeOnRequestHint": "يقترح عليكم الممون قائمة وسعرها في عرض السعر.",
+      "guestsMissing": "أدخلوا عدد الضيوف للتقدير",
+      "perPersonLine": "{price} / للشخص × {count} ضيف = حوالي {total}",
+      "about": "حوالي {total}",
+      "hesitating": "مترددون بين عدة فئات؟ سينصحكم الممون.",
+      "totalLabel": "المجموع التقديري",
+      "totalPending": "أدخلوا عدد الضيوف",
+      "totalNote": "تقدير: يرسل الممون عرض السعر النهائي.",
+      "totalNoteRanges": "تقدير دون الفئات « حسب الطلب »: يرسل الممون عرض السعر النهائي."
     },
     "approval": {
       "pendingTitle": "حسابك في انتظار موافقة {traiteur}",
@@ -3033,7 +3041,7 @@
       "onRequest": "حسب الطلب",
       "onRequestHint": "يعدّ الممون هذه القائمة ويرسل لكم سعرها في عرض السعر.",
       "estimate": "حوالي {total} لـ {count} ضيف",
-      "guestsLimits": "هذه القائمة مخصصة من {min} إلى {max} ضيف.",
+      "guestsLimits": "هذه القائمة مخصصة لـ {min} إلى {max} ضيف.",
       "guestsMin": "هذه القائمة مخصصة ابتداءً من {min} ضيف.",
       "choose": "اختيار هذه الفئة",
       "requestRange": "طلب هذه الفئة",
@@ -3044,7 +3052,11 @@
       "estimateNote": "تقدير: يرسل الممون عرض السعر النهائي.",
       "homeKicker": "فئاتنا",
       "homeTitle": "اختاروا فئتكم",
-      "seeFull": "مقارنة مفصلة"
+      "seeFull": "مقارنة مفصلة",
+      "replaceTitle": "عرض واحد لهذه المناسبة",
+      "replaceText": "لديكم بالفعل {current}. هل تريدون استبداله بـ{next}؟",
+      "keepBoth": "الاحتفاظ بالاثنين",
+      "replace": "استبدال"
     },
     "upgrade": {
       "label": "اقتراح",
@@ -3053,6 +3065,14 @@
       "moreDishes": "{count, plural, one {طبق إضافي} two {طبقان إضافيان} few {# أطباق إضافية} other {# طبقاً إضافياً}}",
       "accept": "الانتقال إلى {range}",
       "see": "عرض القائمة"
+    },
+    "guests": {
+      "label": "عدد الضيوف",
+      "placeholder": "مثال: 150",
+      "less": "{step} ضيوف أقل",
+      "more": "{step} ضيوف أكثر",
+      "notInteger": "أدخلوا عدداً صحيحاً للضيوف (بدون فاصلة أو حروف).",
+      "outOfRange": "يجب أن يكون عدد الضيوف بين {min} و{max}."
     }
   },
   "notifications": {

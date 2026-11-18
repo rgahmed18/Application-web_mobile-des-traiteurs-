@@ -53,14 +53,21 @@ reste sous `/admin`. Sur l'adresse de la console, la racine renvoie vers `/admin
 - **Comparateur** (`/catalogue/comparer?type=WEDDING`, et section « Choisissez votre gamme » de
   l'accueil) : un onglet par type d'événement ayant au moins un menu publié (jamais d'onglet
   vide). Toutes les gammes publiées, toujours Essentiel → Premium → Luxe : photo du menu, prix par
-  personne, estimation du total selon le nombre d'invités (curseur de 50 à 600, « estimation, le
-  devis final est envoyé par le traiteur »), plats, « Ce qui est inclus » ; « Choisir cette
-  gamme » ajoute le menu à « Ma demande » et retient le nombre d'invités. Gamme sans menu pour
+  personne, estimation du total dès que le nombre d'invités est saisi, plats, « Ce qui est
+  inclus » ; « Choisir cette gamme » ajoute le menu à « Ma demande » (si une formule du même
+  événement y est déjà : « Remplacer » ou « Garder les deux »). Gamme sans menu pour
   l'événement : « Sur demande », « Demander cette gamme » ajoute « Gamme X — sur demande » (ligne
   sans prix de la commande, chiffrée par le traiteur dans son devis). Badge « Le plus choisi » sur
   la gamme réglée dans Paramètres → Site client (Premium par défaut, ou aucune). Téléphone :
   carrousel (gamme mise en avant en premier, points de position) et barre fixe « Choisir … ».
   Accessible depuis chaque filtre « Événement » du catalogue, les fiches et l'accueil.
+- **Nombre d'invités** : un seul pour toute la demande, saisi au clavier (entier de 1 à 5 000,
+  boutons − / +, vide au départ) dans le comparateur, les fiches des menus et « Ma demande » ;
+  gardé dans le navigateur avec « Ma demande » (aucune donnée personnelle), repris par la demande
+  envoyée au traiteur. Hors des limites d'un menu : avertissement, le choix reste possible.
+- **« Ma demande »** : chaque ligne avec son estimation (« 280,00 MAD / pers. × 150 invités =
+  env. 42 000 MAD »), total estimé (« estimation, le devis final est envoyé par le traiteur ») ;
+  plusieurs formules pour un même événement : note « Vous hésitez entre plusieurs gammes ? ».
 - **Couverture des gammes** (Catalogue → Menus) : tableau événements × gammes, « ✓ » ou
   « manquant », pour voir ce qui s'affichera « sur demande ».
 - **Titres arabes** : Aref Ruqaa pour les grands titres de page ; Amiri pour les titres des cartes

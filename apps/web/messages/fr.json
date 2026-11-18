@@ -2834,7 +2834,15 @@
       "loginToSend": "Connectez-vous (ou créez votre compte en un instant) pour envoyer votre demande au traiteur.",
       "login": "Se connecter pour envoyer",
       "rangeOnRequest": "Gamme {name} — sur demande",
-      "rangeOnRequestHint": "Le traiteur vous propose un menu et son prix dans le devis."
+      "rangeOnRequestHint": "Le traiteur vous propose un menu et son prix dans le devis.",
+      "guestsMissing": "indiquez le nombre d’invités pour l’estimation",
+      "perPersonLine": "{price} / pers. × {count} invités = env. {total}",
+      "about": "env. {total}",
+      "hesitating": "Vous hésitez entre plusieurs gammes ? Le traiteur vous conseillera.",
+      "totalLabel": "Total estimé",
+      "totalPending": "indiquez le nombre d’invités",
+      "totalNote": "Estimation : le devis final est envoyé par le traiteur.",
+      "totalNoteRanges": "Estimation hors gammes « sur demande » : le devis final est envoyé par le traiteur."
     },
     "approval": {
       "pendingTitle": "Votre compte attend la validation de {traiteur}",
@@ -3033,7 +3041,7 @@
       "onRequest": "Sur demande",
       "onRequestHint": "Le traiteur compose ce menu et vous envoie son prix dans le devis.",
       "estimate": "env. {total} pour {count} invités",
-      "guestsLimits": "Ce menu est prévu de {min} à {max} invités.",
+      "guestsLimits": "Ce menu est prévu pour {min} à {max} invités.",
       "guestsMin": "Ce menu est prévu à partir de {min} invités.",
       "choose": "Choisir cette gamme",
       "requestRange": "Demander cette gamme",
@@ -3044,7 +3052,11 @@
       "estimateNote": "Estimation : le devis final est envoyé par le traiteur.",
       "homeKicker": "Nos gammes",
       "homeTitle": "Choisissez votre gamme",
-      "seeFull": "Comparer en détail"
+      "seeFull": "Comparer en détail",
+      "replaceTitle": "Une formule pour cet événement",
+      "replaceText": "Vous avez déjà la {current}. La remplacer par la {next} ?",
+      "keepBoth": "Garder les deux",
+      "replace": "Remplacer"
     },
     "upgrade": {
       "label": "Suggestion",
@@ -3053,6 +3065,14 @@
       "moreDishes": "{count, plural, one {# plat de plus} other {# plats de plus}}",
       "accept": "Passer en {range}",
       "see": "Voir le menu"
+    },
+    "guests": {
+      "label": "Nombre d’invités",
+      "placeholder": "Ex. : 150",
+      "less": "{step} invités de moins",
+      "more": "{step} invités de plus",
+      "notInteger": "Saisissez un nombre entier d’invités (sans virgule ni lettre).",
+      "outOfRange": "Le nombre d’invités doit être compris entre {min} et {max}."
     }
   },
   "notifications": {

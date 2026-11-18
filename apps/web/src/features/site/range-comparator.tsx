@@ -1,21 +1,33 @@
 'use client';
 
-import type { PublicListItem } from '@traiteur/shared';
+import type { PublicCatalog, PublicListItem, PublicMenu } from '@traiteur/shared';
 import { ArrowLeftIcon, CheckIcon, ImageIcon, ScaleIcon, SparklesIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/layout/list-states';
 import { LoadError } from '@/components/layout/load-error';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLocalized } from '@/features/catalog/use-localized';
 import { formatMoney } from '@/lib/format/money';
 import { cn } from '@/lib/utils';
 
-import { cartStore, useCart } from './cart-store';
+import { formatEstimate, menuForEvent } from './cart-estimate';
+import { cartStore, useCart, useGuests } from './cart-store';
+import { GuestsInput } from './guests-input';
 import {
   comparableEventTypes,
   compareRanges,
@@ -30,16 +42,11 @@ import { useReveal } from './use-reveal';
 /** Code d'un type d'événement accepté dans l'adresse. */
 const CODE = /^[A-Z][A-Z0-9_]{0,39}$/;
 
-/** Nombre d'invités du comparateur : de 50 à 600, 100 par défaut. */
-export const GUESTS_MIN = 50;
-export const GUESTS_MAX = 600;
-const GUESTS_DEFAULT = 100;
-
 /** Montant arrondi à la centaine de dirhams, sans décimales : « 28 000 MAD », « 28 000 د.م. ». */
 function useRoundMoney(): (cents: number) => string {
+  // Même arrondi que « Ma demande » et les fiches
   const locale = useLocale() === 'ar' ? 'ar' : 'fr';
-  return (cents) =>
-    formatMoney(Math.round(cents / 10_000) * 10_000, locale).replace(/[,.]00(?=\D*$)/, '');
+  return (cents) => formatEstimate(cents, locale, formatMoney);
 }
 
 function useMoney(): (cents: number) => string {
@@ -82,11 +89,74 @@ function useChosen(column: RangeColumn): boolean {
     : cart.some((item) => item.kind === 'range' && item.id === range.code);
 }
 
-/** Choix d'une gamme : son menu (ou la gamme sur demande) et le nombre d'invités. */
-function choose(column: RangeColumn, guests: number): void {
-  cartStore.setGuests(guests);
+/** Ajout d'une gamme à « Ma demande » : son menu, ou la gamme sur demande. */
+function addToCart(column: RangeColumn): void {
   if (column.menu) cartStore.add('menu', column.menu.id);
   else cartStore.addRange(column.range.code);
+}
+
+/** Choix d'une gamme par les cartes et la barre fixe (fenêtre de remplacement au besoin). */
+const ChooseContext = createContext<(column: RangeColumn) => void>(addToCart);
+
+/**
+ * Choix d'une gamme pour un événement : si « Ma demande » a déjà une formule pour cet événement,
+ * fenêtre « Vous avez déjà la … La remplacer par la … ? » : Remplacer, ou Garder les deux.
+ */
+function useChooser(eventType: string | null, catalog: PublicCatalog | null) {
+  const t = useTranslations('site.compare');
+  const localized = useLocalized();
+  const cart = useCart();
+  const [pending, setPending] = useState<{ column: RangeColumn; existing: PublicMenu } | null>(
+    null,
+  );
+  const choose = (column: RangeColumn) => {
+    if (column.menu && eventType && catalog) {
+      const cartMenus = catalog.menus.filter((menu) =>
+        cart.some((item) => item.kind === 'menu' && item.id === menu.id),
+      );
+      const existing = menuForEvent(cartMenus, eventType, column.menu.id);
+      if (existing) {
+        setPending({ column, existing });
+        return;
+      }
+    }
+    addToCart(column);
+  };
+  const next = pending?.column.menu;
+  const dialog = (
+    <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
+      <AlertDialogContent data-testid="replace-dialog">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('replaceTitle')}</AlertDialogTitle>
+          <AlertDialogDescription dir="auto">
+            {pending && next
+              ? t('replaceText', {
+                  current: localized(pending.existing.name),
+                  next: localized(next.name),
+                })
+              : null}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            onClick={() => pending && addToCart(pending.column)}
+            data-testid="keep-both"
+          >
+            {t('keepBoth')}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() =>
+              pending && next && cartStore.replace('menu', pending.existing.id, next.id)
+            }
+            data-testid="replace-menu"
+          >
+            {t('replace')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+  return { choose, dialog };
 }
 
 /** Onglets des types d'événement (seulement ceux qui ont un comparateur). */
@@ -134,33 +204,11 @@ function EventTabs({
   );
 }
 
-/** Nombre d'invités (curseur de 50 à 600), pour l'estimation du total de chaque gamme. */
-function GuestsPicker({ value, onChange }: { value: number; onChange: (guests: number) => void }) {
-  const t = useTranslations('site.compare');
+/** Nombre d'invités de la demande, pour l'estimation du total de chaque gamme. */
+function GuestsBox() {
   return (
-    <div className="flex flex-col gap-1.5 rounded-2xl border bg-card px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
-      <label htmlFor="compare-guests" className="text-sm font-bold">
-        {t('guests')}
-      </label>
-      <input
-        id="compare-guests"
-        type="range"
-        min={GUESTS_MIN}
-        max={GUESTS_MAX}
-        step={10}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="w-full flex-1 accent-[var(--primary)]"
-        data-testid="compare-guests"
-        aria-valuetext={t('guestsValue', { count: value })}
-      />
-      <output
-        htmlFor="compare-guests"
-        className="text-lg font-extrabold"
-        data-testid="guests-value"
-      >
-        {t('guestsValue', { count: value })}
-      </output>
+    <div className="rounded-2xl border bg-card px-4 py-3">
+      <GuestsInput />
     </div>
   );
 }
@@ -206,10 +254,11 @@ function RangeCard({
   index,
 }: {
   column: RangeColumn;
-  guests: number;
+  guests: number | null;
   highlighted: boolean;
   index: number;
 }) {
+  const choose = useContext(ChooseContext);
   const t = useTranslations('site.compare');
   const localized = useLocalized();
   const money = useMoney();
@@ -217,9 +266,10 @@ function RangeCard({
   const reveal = useReveal<HTMLElement>();
   const chosen = useChosen(column);
   const { range, menu } = column;
-  const estimate = estimateTotal(column, guests);
+  const estimate = guests === null ? null : estimateTotal(column, guests);
   const outOfRange =
     menu !== null &&
+    guests !== null &&
     (guests < menu.minGuests || (menu.maxGuests !== null && guests > menu.maxGuests));
 
   return (
@@ -281,17 +331,22 @@ function RangeCard({
           </p>
         )}
         <div className="border-y py-3">
-          {column.fromPrice !== null && estimate !== null ? (
+          {column.fromPrice !== null ? (
             <>
               <p className="text-2xl font-extrabold" dir="auto">
                 {money(column.fromPrice)}{' '}
                 <span className="text-sm font-medium text-muted-foreground">{t('perPerson')}</span>
               </p>
-              <p className="text-sm font-semibold" data-testid="compare-estimate" dir="auto">
-                {t('estimate', { total: roundMoney(estimate), count: guests })}
-              </p>
+              {estimate !== null && guests !== null && (
+                <p className="text-sm font-semibold" data-testid="compare-estimate" dir="auto">
+                  {t('estimate', { total: roundMoney(estimate), count: guests })}
+                </p>
+              )}
               {outOfRange && (
-                <p className="text-xs text-muted-foreground">
+                <p
+                  className="mt-1 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900"
+                  data-testid="guests-warning"
+                >
                   {menu.maxGuests
                     ? t('guestsLimits', { min: menu.minGuests, max: menu.maxGuests })
                     : t('guestsMin', { min: menu.minGuests })}
@@ -326,7 +381,7 @@ function RangeCard({
           ) : (
             <Button
               className="h-12 rounded-full text-base"
-              onClick={() => choose(column, guests)}
+              onClick={() => choose(column)}
               data-testid={menu ? 'choose-range' : 'request-range'}
             >
               {menu ? t('choose') : t('requestRange')}
@@ -355,7 +410,7 @@ function RangeCards({
   onCurrent,
 }: {
   columns: RangeColumn[];
-  guests: number;
+  guests: number | null;
   highlight: string | null;
   onCurrent?: (code: string) => void;
 }) {
@@ -446,7 +501,8 @@ function RangeCards({
  * Barre fixe du téléphone : « Choisir Premium — 360,00 MAD / pers. » pour la gamme affichée.
  * Le bouton WhatsApp remonte au-dessus tant qu'elle est là.
  */
-function ChooseBar({ column, guests }: { column: RangeColumn; guests: number }) {
+function ChooseBar({ column }: { column: RangeColumn }) {
+  const choose = useContext(ChooseContext);
   const t = useTranslations('site.compare');
   const localized = useLocalized();
   const money = useMoney();
@@ -477,7 +533,7 @@ function ChooseBar({ column, guests }: { column: RangeColumn; guests: number }) 
         <Button
           size="lg"
           className="h-12 w-full rounded-full text-base"
-          onClick={() => choose(column, guests)}
+          onClick={() => choose(column)}
         >
           <span dir="auto">
             {column.fromPrice !== null
@@ -498,9 +554,10 @@ export function HomeRangeChooser() {
   const t = useTranslations('site.compare');
   const data = useComparatorData();
   const [selected, setSelected] = useState<string | null>(null);
-  const [guests, setGuests] = useState(GUESTS_DEFAULT);
+  const guests = useGuests();
   const eventType =
     selected && data.comparable.includes(selected) ? selected : (data.comparable[0] ?? null);
+  const chooser = useChooser(eventType, data.catalog);
   if (!data.catalog || !eventType) return null;
   const columns = compareRanges(data.catalog, data.ranges, eventType);
   return (
@@ -521,9 +578,14 @@ export function HomeRangeChooser() {
           value={eventType}
           onChange={setSelected}
         />
-        <GuestsPicker value={guests} onChange={setGuests} />
-        <RangeCards columns={columns} guests={guests} highlight={data.highlight} />
-        <p className="text-center text-sm text-muted-foreground">{t('estimateNote')}</p>
+        <GuestsBox />
+        <ChooseContext.Provider value={chooser.choose}>
+          <RangeCards columns={columns} guests={guests} highlight={data.highlight} />
+        </ChooseContext.Provider>
+        {chooser.dialog}
+        {guests !== null && (
+          <p className="text-center text-sm text-muted-foreground">{t('estimateNote')}</p>
+        )}
         <Button asChild variant="outline" className="h-12 self-center rounded-full px-6">
           <Link href={`/catalogue/comparer?type=${eventType}`} data-testid="home-compare-link">
             {t('seeFull')}
@@ -547,16 +609,18 @@ export function RangeComparator() {
   const pathname = usePathname();
   const params = useSearchParams();
   const data = useComparatorData();
-  const [guests, setGuests] = useState(GUESTS_DEFAULT);
+  const guests = useGuests();
   const [current, setCurrent] = useState<string | null>(null);
+  const requestedType = params.get('type') ?? '';
+  const pageType =
+    CODE.test(requestedType) && data.comparable.includes(requestedType)
+      ? requestedType
+      : (data.comparable[0] ?? null);
+  const chooser = useChooser(pageType, data.catalog);
 
   if (data.pending) return <Skeleton className="h-[32rem] w-full" />;
   if (!data.catalog) return <LoadError error={data.error} backHref="/catalogue" />;
-  const requested = params.get('type') ?? '';
-  const eventType =
-    CODE.test(requested) && data.comparable.includes(requested)
-      ? requested
-      : (data.comparable[0] ?? null);
+  const eventType = pageType;
   const columns = eventType ? compareRanges(data.catalog, data.ranges, eventType) : [];
   const eventName = data.types.find((item) => item.code === eventType);
   const bar = columns.find((column) => column.range.code === current);
@@ -586,17 +650,22 @@ export function RangeComparator() {
             value={eventType}
             onChange={(code) => router.replace(`${pathname}?type=${code}`, { scroll: false })}
           />
-          <GuestsPicker value={guests} onChange={setGuests} />
-          <RangeCards
-            columns={columns}
-            guests={guests}
-            highlight={data.highlight}
-            onCurrent={setCurrent}
-          />
-          <p className="text-center text-sm text-muted-foreground" data-testid="estimate-note">
-            {t('estimateNote')}
-          </p>
-          {bar && <ChooseBar column={bar} guests={guests} />}
+          <GuestsBox />
+          <ChooseContext.Provider value={chooser.choose}>
+            <RangeCards
+              columns={columns}
+              guests={guests}
+              highlight={data.highlight}
+              onCurrent={setCurrent}
+            />
+            {bar && <ChooseBar column={bar} />}
+          </ChooseContext.Provider>
+          {chooser.dialog}
+          {guests !== null && (
+            <p className="text-center text-sm text-muted-foreground" data-testid="estimate-note">
+              {t('estimateNote')}
+            </p>
+          )}
         </>
       )}
     </div>

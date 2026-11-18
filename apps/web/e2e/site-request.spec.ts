@@ -41,6 +41,12 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
     .filter({ hasText: 'Décoration florale de la salle' })
     .getByTestId('add-to-cart')
     .click();
+  // Nombre d'invités saisi dans le comparateur : repris par la demande
+  await page.goto('/catalogue/comparer?type=WEDDING');
+  await page.getByTestId('range-comparator').getByTestId('guests-field').fill('150');
+  await expect(
+    page.getByTestId('compare-grid').getByTestId('compare-estimate').first(),
+  ).toBeVisible();
   await page.getByTestId('site-nav-request').click();
 
   // 1. Événement : la date indique « Disponible », sans aucun chiffre de capacité
@@ -49,7 +55,7 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
   await page.getByRole('option', { name: 'Mariage' }).click();
   await wizard.getByLabel('Date').fill(freeDayIn(45));
   await wizard.getByLabel('Heure de début').fill('19:00');
-  await wizard.getByLabel('Nombre d’invités').fill('150');
+  await expect(wizard.getByLabel('Nombre d’invités')).toHaveValue('150');
   await expect(wizard.getByTestId('request-step-event')).toContainText('Disponible');
   await wizard.getByRole('button', { name: 'Suivant' }).click();
 
@@ -88,6 +94,8 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
   await expect(row.getByTestId('online-request-badge')).toBeVisible();
   await row.click();
   await expect(staff.getByTestId('order-status')).toHaveText('En attente');
+  // Nombre d'invités du site, transmis au traiteur
+  await expect(staff.getByText('150 invités').first()).toBeVisible();
   await expect(staff.getByText('Entrée par le jardin')).toBeVisible();
   await staff.close();
 });

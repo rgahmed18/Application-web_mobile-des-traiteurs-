@@ -41,6 +41,7 @@ import { useZodForm } from '@/lib/forms/use-zod-form';
 import { cartStore, perGuest } from './cart-store';
 import { type CartLine, CartReview, useCartLines, useCartRanges } from './cart-review';
 import { clientKeys } from './client-api';
+import { parseGuests } from './guests';
 import { usePublicCatalogOptions } from './site-api';
 
 const STEPS = ['event', 'choices', 'venue', 'summary'] as const;
@@ -53,7 +54,8 @@ const formSchema = z.object({
   startTime: localTimeSchema,
   endTime: z.union([z.literal(''), localTimeSchema]),
   endsNextDay: z.boolean(),
-  guestCount: z.string().refine((value) => /^\d{1,5}$/.test(value) && Number(value) >= 1, {
+  // Nombre d'invités : entier de 1 à 5 000, le même que dans le comparateur et « Ma demande »
+  guestCount: z.string().refine((value) => parseGuests(value).value !== null, {
     params: { i18n: 'invalidNumber' },
   }),
   venueName: optional.max(150),
@@ -103,6 +105,7 @@ function AvailabilityLabel({ hint }: { hint: AvailabilityHint }) {
  */
 export function RequestWizard() {
   const t = useTranslations('site.request');
+  const tGuests = useTranslations('site.guests');
   const locale = useLocale() === 'ar' ? 'ar' : 'fr';
   const localized = useLocalized();
   const describeError = useErrorMessage();
@@ -315,7 +318,14 @@ export function RequestWizard() {
             render={(field, { invalid }) => (
               <Input
                 {...field}
+                onChange={(event) => {
+                  field.onChange(event);
+                  // Partagé avec le comparateur et « Ma demande » (saisie valide ou vide)
+                  const parsed = parseGuests(event.target.value);
+                  if (!parsed.error) cartStore.setGuests(parsed.value);
+                }}
                 inputMode="numeric"
+                placeholder={tGuests('placeholder')}
                 dir="ltr"
                 className="max-w-40"
                 aria-invalid={invalid}
@@ -327,7 +337,7 @@ export function RequestWizard() {
 
       {step === 'choices' && (
         <section className="flex flex-col gap-3" data-testid="request-step-choices">
-          <CartReview />
+          <CartReview guestsField={false} />
           {lines.some((line) => line.entry.kind === 'equipment') && (
             <ul className="flex flex-col gap-1" data-testid="equipment-availability">
               {lines

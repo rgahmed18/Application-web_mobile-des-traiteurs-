@@ -3,17 +3,20 @@
 import type { PublicRange } from '@traiteur/shared';
 import { ShoppingBasketIcon, Trash2Icon } from 'lucide-react';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { EmptyState } from '@/components/layout/list-states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLocalized } from '@/features/catalog/use-localized';
+import { formatMoney } from '@/lib/format/money';
 
-import { cartStore, isCatalogItem, perGuest, useCart } from './cart-store';
+import { cartEstimate, formatEstimate, hesitating, lineEstimate } from './cart-estimate';
+import { cartStore, isCatalogItem, perGuest, useCart, useGuests } from './cart-store';
 import { EntryPrice } from './catalog-card';
 import { type CatalogEntry, findEntry } from './catalog-view';
+import { GuestsInput } from './guests-input';
 import { RangeMark } from './range-finish';
 import { usePublicCatalog, usePublicCatalogOptions } from './site-api';
 import { UpgradeSuggestion } from './upgrade-suggestion';
@@ -47,10 +50,71 @@ export function useCartRanges(): PublicRange[] {
   );
 }
 
-/** Récapitulatif de « ma demande » : quantités du matériel et des services, retrait. */
-export function CartReview({ footer }: { footer?: React.ReactNode }) {
+/** Montants de « Ma demande » : prix exact, estimation arrondie. */
+function useAmounts() {
+  const locale = useLocale() === 'ar' ? 'ar' : 'fr';
+  return {
+    price: (cents: number) => formatMoney(cents, locale),
+    estimate: (cents: number) => formatEstimate(cents, locale, formatMoney),
+  };
+}
+
+/** Prix et estimation d'une ligne : « 280,00 MAD / pers. × 150 invités = env. 42 000 MAD ». */
+function LineAmount({
+  entry,
+  quantity,
+  guests,
+}: {
+  entry: CatalogEntry;
+  quantity: number;
+  guests: number | null;
+}) {
+  const t = useTranslations('site.cart');
+  const amounts = useAmounts();
+  const total = lineEstimate(entry, quantity, guests);
+  if (entry.unit === 'perPerson') {
+    return guests === null || total === null ? (
+      <span className="text-sm text-muted-foreground" data-testid="line-amount">
+        <EntryPrice entry={entry} /> · {t('guestsMissing')}
+      </span>
+    ) : (
+      <span className="text-sm" data-testid="line-amount" dir="auto">
+        {t('perPersonLine', {
+          price: amounts.price(entry.priceTtc),
+          count: guests,
+          total: amounts.estimate(total),
+        })}
+      </span>
+    );
+  }
+  if (entry.unit === 'flat' || total === null) return <EntryPrice entry={entry} />;
+  return (
+    <span className="text-sm" data-testid="line-amount" dir="auto">
+      <EntryPrice entry={entry} />
+      {quantity > 1 && ` × ${quantity} = ${t('about', { total: amounts.estimate(total) })}`}
+    </span>
+  );
+}
+
+/**
+ * Récapitulatif de « Ma demande » : nombre d'invités de la demande (le même partout sur le
+ * site), lignes avec leur estimation (par personne × invités, quantités du matériel et des
+ * services), gammes « sur demande », total estimé ; note si plusieurs formules visent le même
+ * événement. `guestsField` : champ du nombre d'invités en tête (absent dans l'assistant, qui a
+ * le sien).
+ */
+export function CartReview({
+  footer,
+  guestsField = true,
+}: {
+  footer?: React.ReactNode;
+  guestsField?: boolean;
+}) {
   const t = useTranslations('site.cart');
   const localized = useLocalized();
+  const amounts = useAmounts();
+  const guests = useGuests();
+  const catalog = usePublicCatalog();
   const { lines, pending } = useCartLines();
   const ranges = useCartRanges();
   if (pending) return <Skeleton className="h-48 w-full" />;
@@ -68,8 +132,25 @@ export function CartReview({ footer }: { footer?: React.ReactNode }) {
       />
     );
   }
+  const total = cartEstimate(lines, guests);
+  const menus = (catalog.data?.menus ?? []).filter((menu) =>
+    lines.some((line) => line.entry.kind === 'menu' && line.entry.id === menu.id),
+  );
   return (
     <div className="flex flex-col gap-4" data-testid="cart-review">
+      {guestsField && (
+        <div className="rounded-xl border bg-card p-4">
+          <GuestsInput />
+        </div>
+      )}
+      {hesitating(menus) && (
+        <p
+          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          data-testid="hesitation-note"
+        >
+          {t('hesitating')}
+        </p>
+      )}
       <ul className="flex flex-col divide-y rounded-xl border">
         {lines.map(({ entry, quantity }) => (
           <li
@@ -84,11 +165,9 @@ export function CartReview({ footer }: { footer?: React.ReactNode }) {
               <span className="font-medium" dir="auto">
                 {localized(entry.name)}
               </span>
-              <EntryPrice entry={entry} />
+              <LineAmount entry={entry} quantity={quantity} guests={guests} />
             </div>
-            {perGuest(entry.kind) ? (
-              <span className="text-sm text-muted-foreground">{t('perGuestHint')}</span>
-            ) : (
+            {!perGuest(entry.kind) && (
               <label className="flex items-center gap-2 text-sm">
                 {t('quantity')}
                 <Input
@@ -140,6 +219,19 @@ export function CartReview({ footer }: { footer?: React.ReactNode }) {
           </li>
         ))}
       </ul>
+      {lines.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-xl border bg-card p-4" data-testid="cart-total">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="font-bold">{t('totalLabel')}</span>
+            <span className="text-xl font-extrabold" dir="auto">
+              {total === null ? t('totalPending') : t('about', { total: amounts.estimate(total) })}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {ranges.length > 0 ? t('totalNoteRanges') : t('totalNote')}
+          </p>
+        </div>
+      )}
       {footer}
     </div>
   );
