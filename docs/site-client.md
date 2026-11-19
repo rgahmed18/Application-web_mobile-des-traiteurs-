@@ -67,7 +67,14 @@ reste sous `/admin`. Sur l'adresse de la console, la racine renvoie vers `/admin
   envoyée au traiteur. Hors des limites d'un menu : avertissement, le choix reste possible.
 - **« Ma demande »** : chaque ligne avec son estimation (« 280,00 MAD / pers. × 150 invités =
   env. 42 000 MAD »), total estimé (« estimation, le devis final est envoyé par le traiteur ») ;
-  plusieurs formules pour un même événement : note « Vous hésitez entre plusieurs gammes ? ».
+  plusieurs formules pour un même événement : alternatives marquées « Option », note « Vous
+  hésitez entre plusieurs gammes ? » et total en fourchette (« entre 42 000 et 67 500 MAD, selon
+  la gamme choisie » : la formule la moins chère → la plus chère, plus le reste), jamais leur
+  somme. Au back-office, une demande en ligne à plusieurs formules indique « Le client hésite
+  entre N gammes » et présente son total TTC en fourchette.
+- **Montants** : format unique de packages/shared (« 163 500,00 MAD ») : espace insécable fine
+  (U+202F) entre les milliers ; en arabe, montant isolé de gauche à droite (LRI … PDI) et
+  « د.م. » isolé après lui, sur le site, au back-office et dans les PDF.
 - **Couverture des gammes** (Catalogue → Menus) : tableau événements × gammes, « ✓ » ou
   « manquant », pour voir ce qui s'affichera « sur demande ».
 - **Titres arabes** : Aref Ruqaa pour les grands titres de page ; Amiri pour les titres des cartes
