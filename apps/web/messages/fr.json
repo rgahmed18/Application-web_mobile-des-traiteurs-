@@ -1004,7 +1004,10 @@
       "staff": "Personnel",
       "staffHint": "Équipe et livreurs affectés à l’événement.",
       "unitPrice": "PU",
-      "discount": "Remise {amount}"
+      "discount": "Remise {amount}",
+      "hesitation": "Le client hésite entre {count} gammes : une seule formule sera retenue.",
+      "totalBetween": "entre {min} et {max}",
+      "totalBetweenNote": "Selon la formule retenue (les {count} formules ne s’additionnent pas ; somme de toutes les lignes : {total})."
     },
     "transitions": {
       "CONFIRMED": "Confirmer",
@@ -2842,7 +2845,9 @@
       "totalLabel": "Total estimé",
       "totalPending": "indiquez le nombre d’invités",
       "totalNote": "Estimation : le devis final est envoyé par le traiteur.",
-      "totalNoteRanges": "Estimation hors gammes « sur demande » : le devis final est envoyé par le traiteur."
+      "totalNoteRanges": "Estimation hors gammes « sur demande » : le devis final est envoyé par le traiteur.",
+      "option": "Option",
+      "between": "entre {min} et {max}, selon la gamme choisie"
     },
     "approval": {
       "pendingTitle": "Votre compte attend la validation de {traiteur}",

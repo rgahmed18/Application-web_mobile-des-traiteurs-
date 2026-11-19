@@ -60,6 +60,7 @@ import {
   type VersionConflict,
   VersionConflictDialog,
 } from './order-dialogs';
+import { orderAlternatives } from './order-alternatives';
 import { OnlineRequestBadge, OrderStatusBadge, STATUS_STYLES } from './order-ui';
 import { orderKeys, useOrder, useOrderHistory, useTransitionOrder } from './orders-api';
 
@@ -370,6 +371,8 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   if (!order.data) return <LoadError error={order.error} backHref="/admin/orders" />;
 
   const data = order.data;
+  // Demande en ligne avec plusieurs formules : le client hésite, une seule sera retenue
+  const alternatives = orderAlternatives(data);
   const unit = (line: Order['lines'][number]) => formatMoney(line.unitPrice, locale);
   return (
     <div className="flex flex-col gap-6">
@@ -468,6 +471,14 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               <CardTitle className="text-lg">{t('detail.lines')}</CardTitle>
             </CardHeader>
             <CardContent>
+              {alternatives && (
+                <p
+                  className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                  data-testid="detail-hesitation"
+                >
+                  {t('detail.hesitation', { count: alternatives.count })}
+                </p>
+              )}
               <ul className="flex flex-col divide-y" data-testid="detail-lines">
                 {data.lines.map((line) => (
                   <li key={line.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3">
@@ -569,9 +580,22 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 <div className="flex justify-between gap-4 border-t pt-2 text-lg font-semibold">
                   <dt>{t('form.totals.ttc')}</dt>
                   <dd className="tabular-nums" dir="ltr" data-testid="detail-total-ttc">
-                    {formatMoney(data.totalTtc, locale)}
+                    {alternatives
+                      ? t('detail.totalBetween', {
+                          min: formatMoney(alternatives.range.min, locale),
+                          max: formatMoney(alternatives.range.max, locale),
+                        })
+                      : formatMoney(data.totalTtc, locale)}
                   </dd>
                 </div>
+                {alternatives && (
+                  <p className="text-sm text-muted-foreground" data-testid="detail-total-note">
+                    {t('detail.totalBetweenNote', {
+                      count: alternatives.count,
+                      total: formatMoney(data.totalTtc, locale),
+                    })}
+                  </p>
+                )}
               </dl>
             </CardContent>
           </Card>

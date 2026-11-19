@@ -12,7 +12,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useLocalized } from '@/features/catalog/use-localized';
 import { formatMoney } from '@/lib/format/money';
 
-import { cartEstimate, formatEstimate, hesitating, lineEstimate } from './cart-estimate';
+import {
+  alternativeGroups,
+  cartEstimate,
+  formatEstimate,
+  formatEstimateAmount,
+  lineEstimate,
+} from './cart-estimate';
 import { cartStore, isCatalogItem, perGuest, useCart, useGuests } from './cart-store';
 import { EntryPrice } from './catalog-card';
 import { type CatalogEntry, findEntry } from './catalog-view';
@@ -56,6 +62,8 @@ function useAmounts() {
   return {
     price: (cents: number) => formatMoney(cents, locale),
     estimate: (cents: number) => formatEstimate(cents, locale, formatMoney),
+    /** Début d'une fourchette, sans devise. */
+    bare: (cents: number) => formatEstimateAmount(cents, locale, formatMoney),
   };
 }
 
@@ -132,10 +140,13 @@ export function CartReview({
       />
     );
   }
-  const total = cartEstimate(lines, guests);
   const menus = (catalog.data?.menus ?? []).filter((menu) =>
     lines.some((line) => line.entry.kind === 'menu' && line.entry.id === menu.id),
   );
+  // Formules d'un même événement : alternatives (le client n'en prendra qu'une)
+  const groups = alternativeGroups(menus);
+  const options = new Set(groups.flat());
+  const total = cartEstimate(lines, guests, groups);
   return (
     <div className="flex flex-col gap-4" data-testid="cart-review">
       {guestsField && (
@@ -143,7 +154,7 @@ export function CartReview({
           <GuestsInput />
         </div>
       )}
-      {hesitating(menus) && (
+      {groups.length > 0 && (
         <p
           className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
           data-testid="hesitation-note"
@@ -159,8 +170,16 @@ export function CartReview({
             data-testid="cart-line"
           >
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-xs text-muted-foreground uppercase">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground uppercase">
                 {t(`kinds.${entry.kind}`)}
+                {entry.kind === 'menu' && options.has(entry.id) && (
+                  <span
+                    className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 font-bold text-amber-900 normal-case"
+                    data-testid="option-badge"
+                  >
+                    {t('option')}
+                  </span>
+                )}
               </span>
               <span className="font-medium" dir="auto">
                 {localized(entry.name)}
@@ -224,7 +243,14 @@ export function CartReview({
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="font-bold">{t('totalLabel')}</span>
             <span className="text-xl font-extrabold" dir="auto">
-              {total === null ? t('totalPending') : t('about', { total: amounts.estimate(total) })}
+              {total === null
+                ? t('totalPending')
+                : total.min === total.max
+                  ? t('about', { total: amounts.estimate(total.min) })
+                  : t('between', {
+                      min: amounts.bare(total.min),
+                      max: amounts.estimate(total.max),
+                    })}
             </span>
           </div>
           <p className="text-sm text-muted-foreground">

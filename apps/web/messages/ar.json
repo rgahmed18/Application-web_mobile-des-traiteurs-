@@ -1004,7 +1004,10 @@
       "staff": "الفريق",
       "staffHint": "الفريق والموصلون المكلفون بالمناسبة.",
       "unitPrice": "سعر الوحدة",
-      "discount": "تخفيض {amount}"
+      "discount": "تخفيض {amount}",
+      "hesitation": "الزبون متردد بين {count} فئات: سيُعتمد عرض واحد فقط.",
+      "totalBetween": "بين {min} و{max}",
+      "totalBetweenNote": "حسب العرض المعتمد (العروض الـ{count} لا تُجمع؛ مجموع كل الأسطر: {total})."
     },
     "transitions": {
       "CONFIRMED": "تأكيد",
@@ -2842,7 +2845,9 @@
       "totalLabel": "المجموع التقديري",
       "totalPending": "أدخلوا عدد الضيوف",
       "totalNote": "تقدير: يرسل الممون عرض السعر النهائي.",
-      "totalNoteRanges": "تقدير دون الفئات « حسب الطلب »: يرسل الممون عرض السعر النهائي."
+      "totalNoteRanges": "تقدير دون الفئات « حسب الطلب »: يرسل الممون عرض السعر النهائي.",
+      "option": "خيار",
+      "between": "بين {min} و{max}، حسب الفئة المختارة"
     },
     "approval": {
       "pendingTitle": "حسابك في انتظار موافقة {traiteur}",
