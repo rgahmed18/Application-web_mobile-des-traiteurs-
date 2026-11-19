@@ -365,7 +365,7 @@ test('prix inhabituel : confirmation avant d’enregistrer, « Corriger » n’e
   await typeInto(page, '#field-replacementPrice', '60000');
   await page.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(dialog).toContainText('Prix de remplacement');
-  await expect(dialog).not.toContainText('101 010,00');
+  await expect(dialog).not.toContainText('101 010,00');
   await dialog.getByRole('button', { name: 'Enregistrer ce prix' }).click();
   await expect(page).toHaveURL(/\/admin\/catalog\/equipment$/);
   const saved = await findByName<{

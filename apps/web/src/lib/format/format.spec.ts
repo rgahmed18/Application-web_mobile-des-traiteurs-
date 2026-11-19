@@ -4,14 +4,14 @@ import { formatDate, formatDateTime } from './date';
 import { centsToInput, formatAmount, formatMoney, parseAmountToCents } from './money';
 
 describe('formatMoney', () => {
-  it('espace insécable entre les milliers en français', () => {
-    expect(formatMoney(3_859_951, 'fr')).toBe('38\u00A0599,51\u00A0MAD');
+  it('espace insécable fine entre les milliers en français', () => {
+    expect(formatMoney(3_859_951, 'fr')).toBe('38\u202F599,51\u00A0MAD');
     expect(formatMoney(25_000, 'fr')).toBe('250,00\u00A0MAD');
     expect(formatMoney(5, 'fr')).toBe('0,05\u00A0MAD');
   });
 
   it('garde les chiffres occidentaux en arabe, montant et « د.م. » isolés', () => {
-    expect(formatMoney(3_859_951, 'ar')).toBe('\u206638\u00A0599,51\u2069\u00A0\u2067د.م.\u2069');
+    expect(formatMoney(3_859_951, 'ar')).toBe('\u206638\u202F599,51\u2069\u00A0\u2067د.م.\u2069');
   });
 
   it('isolats seulement, jamais de marque de direction (identique serveur et navigateur)', () => {
@@ -19,8 +19,8 @@ describe('formatMoney', () => {
   });
 
   it('gère les montants négatifs (avoirs) et les grands montants', () => {
-    expect(formatAmount(-3_000_000)).toBe('-30\u00A0000,00');
-    expect(formatAmount(123_456_789_00)).toBe('123\u00A0456\u00A0789,00');
+    expect(formatAmount(-3_000_000)).toBe('-30\u202F000,00');
+    expect(formatAmount(123_456_789_00)).toBe('123\u202F456\u202F789,00');
   });
 });
 

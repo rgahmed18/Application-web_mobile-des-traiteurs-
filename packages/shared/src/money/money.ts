@@ -278,14 +278,21 @@ export function negateLineAmounts(line: LineAmounts): LineAmounts {
 }
 
 /**
- * Format unique des montants (interface, PDF, messages) : espace insécable entre les milliers,
+ * Format unique des montants (interface, PDF, messages) : espace insécable fine entre les milliers,
  * virgule décimale, deux décimales, chiffres occidentaux dans les deux langues (usage courant au
  * Maroc), devise après le montant :
  *   fr : « 1 500,00 MAD »      ar : « 1 500,00 د.م. »
  * Sans Intl : le rendu est identique sur le serveur, le navigateur et dans les PDF (Intl insère
  * selon les versions des marques de direction invisibles et varie d'un moteur à l'autre).
  */
+/** Espace insécable entre le montant et la devise. */
 export const MONEY_GROUP_SEPARATOR = ' ';
+/**
+ * Séparateur des milliers : espace insécable fine (U+202F, typographie française). Classe
+ * bidirectionnelle « séparateur commun » : « 163 500 » reste un seul nombre, même dans une phrase
+ * arabe où il ne serait pas isolé.
+ */
+export const MONEY_THOUSANDS_SEPARATOR = '\u202f';
 export const MONEY_CURRENCY_LABEL = { fr: 'MAD', ar: 'د.م.' } as const;
 export type MoneyLocale = keyof typeof MONEY_CURRENCY_LABEL;
 
@@ -296,7 +303,7 @@ export function formatAmount(amountCents: number): string {
   const absolute = Math.abs(amountCents);
   const units = Math.floor(absolute / 100)
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, MONEY_GROUP_SEPARATOR);
+    .replace(/\B(?=(\d{3})+(?!\d))/g, MONEY_THOUSANDS_SEPARATOR);
   return `${sign}${units},${(absolute % 100).toString().padStart(2, '0')}`;
 }
 

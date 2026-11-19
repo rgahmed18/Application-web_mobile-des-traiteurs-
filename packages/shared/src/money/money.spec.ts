@@ -351,11 +351,13 @@ describe('formatTaxRate', () => {
 });
 
 describe('formatMoney (format unique : interface, PDF)', () => {
-  it('espace insécable entre les milliers, virgule décimale, devise après le montant', () => {
-    expect(formatMoney(150_000)).toBe('1\u00A0500,00\u00A0MAD');
-    expect(formatMoney(150_000, 'ar')).toBe('\u20661\u00A0500,00\u2069\u00A0\u2067د.م.\u2069');
-    expect(formatAmount(-3_000_000)).toBe('-30\u00A0000,00');
-    expect(formatAmount(12_345_678_900)).toBe('123\u00A0456\u00A0789,00');
+  it('espace insécable fine entre les milliers, virgule décimale, devise après le montant', () => {
+    expect(formatMoney(150_000)).toBe('1\u202F500,00\u00A0MAD');
+    expect(formatMoney(150_000, 'ar')).toBe('\u20661\u202F500,00\u2069\u00A0\u2067د.م.\u2069');
+    expect(formatAmount(-3_000_000)).toBe('-30\u202F000,00');
+    expect(formatAmount(12_345_678_900)).toBe('123\u202F456\u202F789,00');
+    // « 163 500 » : un seul nombre (séparateur commun), jamais deux nombres séparés par une espace
+    expect(formatAmount(16_350_000)).not.toMatch(/\d[ \u00A0]\d/);
     expect(formatAmount(5)).toBe('0,05');
   });
 
