@@ -169,6 +169,40 @@ catalogue publié : prix dans le mode du traiteur, TVA de l'élément, quantité
 menus, buffets et services comptés par personne. Le client peut annuler tant que la demande est
 en attente.
 
+**Règles du traiteur** (Paramètres → Site client → Demandes en ligne), vérifiées à l'identique
+par le site et par l'API (`packages/shared/src/site/request-rules.ts`) :
+
+- nombre d'invités de `requestMinGuests` à `requestMaxGuests` (défaut 10 à 5 000) ; sous le
+  minimum : « Nous acceptons les demandes à partir de 10 invités » (`GUESTS_BELOW_MINIMUM`). Le
+  champ est vide au départ, « Ex. : 150 » n'est qu'un exemple ;
+- délai minimum `requestLeadDays` (défaut 3 jours) : première date = aujourd'hui (jour civil du
+  traiteur) + délai, sinon `DATE_TOO_SOON`. Le calendrier de l'assistant grise les dates trop
+  proches, les jours fermés (fermeture hebdomadaire, date bloquée) et complets (capacité
+  atteinte), via `GET /client/calendar` (aucun chiffre), avec un lien WhatsApp (ou téléphone)
+  « Pour une date plus proche, contactez-nous » ;
+- les limites propres à un menu (ex. 80 à 600) et le minimum d'un buffet ne sont qu'un
+  avertissement : la demande part, le traiteur ajuste son devis ;
+- type d'événement prérempli quand toutes les formules visent le même ; formule prévue pour un
+  autre type (Aqiqa avec « Formule Mariage Essentiel ») : avertissement « Continuer / Changer de
+  formule », jamais de blocage.
+
+**Date civile de bout en bout.** La date et les heures de l'événement sont stockées telles que
+saisies, sans fuseau (`Order.eventDay` DATE, `startTime`, `endTime`, `endsNextDay`) et relues
+telles quelles par le back-office, l'espace client, les listes, le calendrier et les PDF
+(`apps/api/src/orders/event-schedule.ts`). Les instants UTC `eventDate` / `eventEndDate` restent,
+dérivés dans le fuseau du traiteur, pour les chevauchements (matériel, planning). Le calendrier du
+site travaille en chaînes « AAAA-MM-JJ », jamais en objets `Date` du navigateur : le jour ne
+dépend ni du fuseau de l'appareil ni d'une mise à jour de la base des fuseaux (Maroc à UTC+0
+depuis 2026).
+
+## Paramètres : modifications non enregistrées
+
+Sur les pages Paramètres, une barre fixe en bas apparaît dès qu'un réglage change :
+« Modifications non enregistrées — Annuler / Enregistrer » (`UnsavedChangesBar`) ; les
+formulaires longs (catalogue, commande) signalent de même leur barre d'actions. Quitter la page
+sans enregistrer demande confirmation. Le brouillon automatique s'affiche « Brouillon enregistré
+à … (non appliqué) » : seul « Enregistrer » applique les réglages.
+
 ## Notifications
 
 Cloche du back-office : nouveau client (ou client à valider), nouvelle demande, demande annulée,
@@ -183,11 +217,16 @@ canaux SMS et WhatsApp s'ajouteront derrière l'interface `NotificationChannel`.
 - **Intégration** (`apps/api/test/integration`) : `public-catalog-api` (accueil, politique,
   services, rien d'interne), `client-auth-api` (SMS, e-mail, autre traiteur, consentement,
   personnel), `client-approval-api`, `client-requests-api` (prix du serveur, limites,
-  annulation), `client-space-api` (isolation entre clients et entre traiteurs, données internes
+  règles du traiteur, date civile près de minuit, calendrier, annulation), `client-space-api` (isolation entre clients et entre traiteurs, données internes
   absentes, devis, factures, reçus, profil), `notifications-api`.
 - **Unitaires** : codes par e-mail et fournisseur (`otp.service.spec`, `email.provider.spec`),
   sessions séparées et liées à l'adresse (`bff.spec`), « ma demande » (`cart-store.spec`),
-  retour après connexion (`site-redirect.spec`).
+  retour après connexion (`site-redirect.spec`), règles des demandes (`request-rules.spec`),
+  calendrier civil (`event-date.spec`), cohérence type / formules (`request-checks.spec`),
+  horaire civil (`event-schedule.spec`).
+- **E2e** : `site-request-rules` (invités, délai, jours grisés, WhatsApp, type d'événement,
+  navigateur à Casablanca, Paris et New York avec des événements autour de minuit), barre des
+  modifications non enregistrées (`settings`).
 - **E2E** (`apps/web/e2e/site-*.spec.ts`) : visiteur et catalogue sur téléphone, inscription
   (SMS, e-mail en arabe), validation par le traiteur, demande en ligne et cloche, devis accepté
   dans l'espace et historique des deux côtés, annulation, profil, pages en arabe sur téléphone.
