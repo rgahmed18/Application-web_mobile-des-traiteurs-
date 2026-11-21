@@ -19,6 +19,7 @@ import { FormSection } from '@/features/catalog/components/form-layout';
 import {
   fromLocalizedText,
   localizedFormSchema,
+  toInteger,
   toOptionalLocalizedText,
 } from '@/features/catalog/forms/form-values';
 import { LocalizedTextFields } from '@/features/catalog/forms/localized-text-fields';
@@ -40,6 +41,9 @@ import { SitePhotosField } from './site-photos-field';
 const siteFormSchema = z
   .object({
     requireClientApproval: z.boolean(),
+    requestMinGuests: z.string(),
+    requestMaxGuests: z.string(),
+    requestLeadDays: z.string(),
     intro: localizedFormSchema,
     photoKeys: z.array(z.string()),
     privacyExtra: localizedFormSchema,
@@ -53,6 +57,9 @@ const siteFormSchema = z
   })
   .transform((values): z.input<typeof siteSettingsSchema> => ({
     requireClientApproval: values.requireClientApproval,
+    requestMinGuests: toInteger(values.requestMinGuests),
+    requestMaxGuests: toInteger(values.requestMaxGuests),
+    requestLeadDays: toInteger(values.requestLeadDays),
     intro: toOptionalLocalizedText(values.intro),
     photoKeys: values.photoKeys,
     privacyExtra: toOptionalLocalizedText(values.privacyExtra),
@@ -64,10 +71,18 @@ const siteFormSchema = z
     highlightRange: values.highlightRange,
     eventTypePhotos: values.eventTypePhotos,
   }))
-  .pipe(siteSettingsSchema);
+  .pipe(
+    siteSettingsSchema.refine((value) => value.requestMinGuests <= value.requestMaxGuests, {
+      path: ['requestMaxGuests'],
+      params: { i18n: 'maxGuestsBelowMin' },
+    }),
+  );
 
 const siteValues = (settings: SiteSettings) => ({
   requireClientApproval: settings.requireClientApproval,
+  requestMinGuests: String(settings.requestMinGuests),
+  requestMaxGuests: String(settings.requestMaxGuests),
+  requestLeadDays: String(settings.requestLeadDays),
   intro: fromLocalizedText(settings.intro),
   photoKeys: settings.photoKeys,
   privacyExtra: fromLocalizedText(settings.privacyExtra),
@@ -144,6 +159,54 @@ function SiteForm({ settings }: { settings: SiteSettings }) {
             }
             label={t('requireClientApproval')}
             hint={approval ? t('approvalOn') : t('approvalOff')}
+          />
+        </FormSection>
+        <FormSection title={t('requestsTitle')} description={t('requestsHint')}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="requestMinGuests"
+              label={t('requestMinGuests')}
+              description={t('requestGuestsHint', { min: form.watch('requestMinGuests') || '…' })}
+              render={(field, { invalid }) => (
+                <Input
+                  {...field}
+                  inputMode="numeric"
+                  dir="ltr"
+                  className="max-w-32"
+                  aria-invalid={invalid}
+                />
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="requestMaxGuests"
+              label={t('requestMaxGuests')}
+              render={(field, { invalid }) => (
+                <Input
+                  {...field}
+                  inputMode="numeric"
+                  dir="ltr"
+                  className="max-w-32"
+                  aria-invalid={invalid}
+                />
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="requestLeadDays"
+            label={t('requestLeadDays')}
+            description={t('requestLeadDaysHint')}
+            render={(field, { invalid }) => (
+              <Input
+                {...field}
+                inputMode="numeric"
+                dir="ltr"
+                className="max-w-32"
+                aria-invalid={invalid}
+              />
+            )}
           />
         </FormSection>
         <FormSection title={t('homeTitle')} description={t('homeHint')}>

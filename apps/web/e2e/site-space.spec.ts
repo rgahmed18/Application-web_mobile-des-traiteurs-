@@ -1,7 +1,7 @@
 import { expect, type Page, request as apiRequest, test } from '@playwright/test';
 
 import { apiLogin, login } from './helpers';
-import { gotoSignedIn, signUpOnSite } from './site-helpers';
+import { gotoSignedIn, pickEventDate, signUpOnSite } from './site-helpers';
 
 const API = process.env.E2E_API_URL ?? 'http://localhost:3100/api/v1';
 
@@ -23,7 +23,7 @@ async function sendRequest(page: Page, days: number): Promise<string> {
   const wizard = page.getByTestId('request-wizard');
   await wizard.getByLabel('Type d’événement').click();
   await page.getByRole('option', { name: 'Mariage' }).click();
-  await wizard.getByLabel('Date').fill(inDays(days));
+  await pickEventDate(page, inDays(days));
   await wizard.getByLabel('Heure de début').fill('20:00');
   await wizard.getByLabel('Nombre d’invités').fill('60');
   await wizard.getByRole('button', { name: 'Suivant' }).click();

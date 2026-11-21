@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import { login } from './helpers';
-import { gotoSignedIn, signUpOnSite } from './site-helpers';
+import { gotoSignedIn, pickEventDate, signUpOnSite } from './site-helpers';
 
 const SITE = 'http://dar-diafa.localhost:3101';
 
@@ -103,7 +103,7 @@ test('client qui hésite entre trois gammes : fourchette (FR, AR), « Option »,
   const wizard = page.getByTestId('request-wizard');
   await wizard.getByLabel('Type d’événement').click();
   await page.getByRole('option', { name: 'Mariage' }).click();
-  await wizard.getByLabel('Date').fill(freeDayIn(50));
+  await pickEventDate(page, freeDayIn(50));
   await wizard.getByLabel('Heure de début').fill('19:00');
   await expect(wizard.getByLabel('Nombre d’invités')).toHaveValue('150');
   await wizard.getByRole('button', { name: 'Suivant' }).click();

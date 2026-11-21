@@ -48,7 +48,11 @@
     "next": "Suivant",
     "reload": "Recharger",
     "viewAll": "Tout voir",
-    "unknown": "—"
+    "unknown": "—",
+    "unsaved": {
+      "label": "Modifications non enregistrées",
+      "hint": "Elles ne seront appliquées qu’après « Enregistrer »."
+    }
   },
   "language": {
     "label": "Langue"
@@ -312,13 +316,15 @@
       "EMAIL_UNAVAILABLE": "L’envoi du code par e-mail est momentanément indisponible. Réessayez plus tard ou contactez le traiteur.",
       "CLIENT_NOT_APPROVED": "Votre compte attend la validation du traiteur : vous pourrez envoyer votre demande dès qu’il sera validé.",
       "REQUEST_LIMIT": "Vous avez déjà envoyé plusieurs demandes : attendez la réponse du traiteur ou réessayez demain.",
-      "DATE_TOO_SOON": "Choisissez une date à partir de demain, ou appelez le traiteur.",
+      "DATE_TOO_SOON": "Cette date est trop proche : choisissez une date plus éloignée, ou contactez le traiteur sur WhatsApp.",
       "GUESTS_OUT_OF_RANGE": "Le nombre d’invités ne convient pas à un menu ou buffet choisi.",
       "ITEM_UNAVAILABLE": "Un élément de votre demande n’est plus proposé : retirez-le puis renvoyez la demande.",
       "ORDER_NOT_CANCELLABLE": "Cette demande est déjà traitée : contactez le traiteur pour l’annuler.",
       "FEATURED_ITEM_UNKNOWN": "Un menu ou buffet mis en avant n’existe plus : retirez-le de la sélection.",
       "EVENT_TYPE_UNKNOWN": "Un type d’événement n’existe plus : retirez sa photo.",
-      "RANGE_UNKNOWN": "Cette gamme n’existe plus : choisissez-en une autre."
+      "RANGE_UNKNOWN": "Cette gamme n’existe plus : choisissez-en une autre.",
+      "GUESTS_BELOW_MINIMUM": "Le nombre d’invités est sous le minimum accepté par le traiteur.",
+      "GUESTS_ABOVE_MAXIMUM": "Le nombre d’invités dépasse le maximum accepté par le traiteur."
     },
     "noBackofficeAccessTraiteur": "Ce compte n’a pas accès à l’espace de gestion de {name}. Vérifiez l’adresse de connexion de votre traiteur.",
     "noBackofficeAccessPlatform": "Ce compte n’a pas accès à la console de la plateforme. Connectez-vous depuis l’adresse de votre traiteur."
@@ -1425,7 +1431,14 @@
         "hint": "Badge « Le plus choisi » dans le comparateur des gammes, et première carte sur téléphone.",
         "label": "Gamme mise en avant",
         "none": "Aucune"
-      }
+      },
+      "requestsTitle": "Demandes en ligne",
+      "requestsHint": "Règles appliquées aux demandes envoyées depuis votre site.",
+      "requestMinGuests": "Nombre minimum d’invités par demande",
+      "requestMaxGuests": "Nombre maximum d’invités par demande",
+      "requestGuestsHint": "En dessous du minimum, le client voit « Nous acceptons les demandes à partir de {min} invités ».",
+      "requestLeadDays": "Délai minimum avant l’événement (en jours)",
+      "requestLeadDaysHint": "Les dates plus proches sont grisées sur le site ; le client est invité à vous contacter sur WhatsApp."
     }
   },
   "quotes": {
@@ -2624,7 +2637,7 @@
     "resume": "Reprendre",
     "discard": "Supprimer",
     "saving": "Enregistrement du brouillon…",
-    "saved": "Brouillon enregistré à {time}",
+    "saved": "Brouillon enregistré à {time} (non appliqué)",
     "failed": "Brouillon non enregistré — nouvel essai automatique",
     "title": "Brouillons non terminés",
     "empty": "Aucun brouillon.",
@@ -2891,7 +2904,43 @@
       "sent": "Demande {reference} envoyée au traiteur.",
       "previous": "Précédent",
       "next": "Suivant",
-      "send": "Envoyer ma demande"
+      "send": "Envoyer ma demande",
+      "guestsRules": "De {min} à {max} invités.",
+      "guestsBelowMinimum": "Nous acceptons les demandes à partir de {min} invités.",
+      "guestsAboveMaximum": "Nous acceptons les demandes jusqu’à {max} invités.",
+      "menuLimitsWarning": "« {menu} » est prévu pour {min} à {max} invités : le traiteur adaptera son devis.",
+      "menuMinWarning": "« {menu} » est prévu à partir de {min} invités : le traiteur adaptera son devis.",
+      "typeMismatch": "Votre demande contient une formule prévue pour {event} (« {menu} »). Continuer ou changer de formule ?",
+      "typeMismatchContinue": "Continuer",
+      "typeMismatchChange": "Changer de formule",
+      "eventFor": {
+        "WEDDING": "un mariage",
+        "ENGAGEMENT": "des fiançailles",
+        "AQIQA": "une aqiqa",
+        "BIRTHDAY": "un anniversaire",
+        "CORPORATE": "un événement d’entreprise",
+        "THESIS": "une soutenance",
+        "OTHER": "un autre événement"
+      },
+      "eventForOther": "l’événement « {name} »",
+      "eventForJoin": " ou ",
+      "estimateBetween": "entre {min} et {max}",
+      "datePicker": {
+        "none": "Aucune date choisie",
+        "previousMonth": "Mois d’avant",
+        "nextMonth": "Mois d’après",
+        "legendUnavailable": "Indisponible",
+        "legendFull": "Complet",
+        "earliest": "Première date possible : {date}.",
+        "contactWhatsapp": "Pour une date plus proche, contactez-nous sur WhatsApp",
+        "contactPhone": "Pour une date plus proche, appelez-nous",
+        "whatsappMessage": "Bonjour, je souhaite organiser un événement à une date proche. Est-ce possible ?",
+        "status": {
+          "tooSoon": "trop proche",
+          "closed": "fermé",
+          "full": "complet"
+        }
+      }
     },
     "space": {
       "title": "Mon espace",

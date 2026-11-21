@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { login } from './helpers';
-import { gotoSignedIn, signUpOnSite } from './site-helpers';
+import { gotoSignedIn, pickEventDate, signUpOnSite } from './site-helpers';
 
 /** Jour civil à Casablanca, dans `days` jours (AAAA-MM-JJ). */
 function inDays(days: number): string {
@@ -53,7 +53,7 @@ test('demande en ligne : 4 étapes, disponibilité, estimation, reçue « En att
   const wizard = page.getByTestId('request-wizard');
   await wizard.getByLabel('Type d’événement').click();
   await page.getByRole('option', { name: 'Mariage' }).click();
-  await wizard.getByLabel('Date').fill(freeDayIn(45));
+  await pickEventDate(page, freeDayIn(45));
   await wizard.getByLabel('Heure de début').fill('19:00');
   await expect(wizard.getByLabel('Nombre d’invités')).toHaveValue('150');
   await expect(wizard.getByTestId('request-step-event')).toContainText('Disponible');

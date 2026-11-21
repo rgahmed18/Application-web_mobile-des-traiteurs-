@@ -93,3 +93,22 @@ export async function gotoSignedIn(page: Page, url: string): Promise<void> {
   await page.goto(url);
   await expect(page.getByTestId('site-header')).toHaveAttribute('data-session', 'authenticated');
 }
+
+/**
+ * Choix de la date dans le calendrier de la demande : mois suivants jusqu'au jour voulu, puis
+ * clic sur ce jour (qui doit être sélectionnable).
+ */
+export async function pickEventDate(page: Page, day: string): Promise<void> {
+  const picker = page.getByTestId('event-date-picker');
+  const target = picker.locator(`[data-day="${day}"]`);
+  // Calendrier chargé (jours activés ou grisés selon le traiteur)
+  await expect(picker.locator('[data-day]:not([disabled])').first()).toBeVisible();
+  for (let step = 0; step < 24 && !(await target.isVisible()); step += 1) {
+    const month = await picker.getByTestId('date-month').textContent();
+    await picker.getByTestId('date-next-month').click();
+    await expect(picker.getByTestId('date-month')).not.toHaveText(month ?? '');
+  }
+  await expect(target).toBeEnabled();
+  await target.click();
+  await expect(target).toHaveAttribute('aria-pressed', 'true');
+}

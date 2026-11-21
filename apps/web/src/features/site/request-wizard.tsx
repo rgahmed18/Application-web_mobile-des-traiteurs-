@@ -7,14 +7,17 @@ import {
   type ClientRequestInput,
   clientRequestCreatedSchema,
   clientRequestSchema,
+  DEFAULT_REQUEST_RULES,
+  guestsRuleError,
   localDateSchema,
   localTimeSchema,
   phoneSchema,
 } from '@traiteur/shared';
-import { CheckCircle2Icon, CircleHelpIcon } from 'lucide-react';
+import { CheckCircle2Icon, CircleHelpIcon, TriangleAlertIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, type FieldPath } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -35,14 +38,23 @@ import { useLocalized } from '@/features/catalog/use-localized';
 import { useDebouncedValue } from '@/features/catalog/use-debounced-value';
 import { apiRequest } from '@/lib/api/client';
 import { useErrorMessage } from '@/lib/api/use-error-message';
+import { formatLongDate } from '@/lib/format/date';
 import { formatMoney } from '@/lib/format/money';
 import { useZodForm } from '@/lib/forms/use-zod-form';
 
+import {
+  alternativeGroups,
+  cartEstimate,
+  formatEstimate,
+  formatEstimateAmount,
+} from './cart-estimate';
 import { cartStore, perGuest } from './cart-store';
 import { type CartLine, CartReview, useCartLines, useCartRanges } from './cart-review';
 import { clientKeys } from './client-api';
+import { EventDatePicker } from './event-date-picker';
 import { parseGuests } from './guests';
-import { usePublicCatalogOptions } from './site-api';
+import { commonEventType, outsideMenuLimits, typeMismatch } from './request-checks';
+import { usePublicCatalog, usePublicCatalogOptions, usePublicSite } from './site-api';
 
 const STEPS = ['event', 'choices', 'venue', 'summary'] as const;
 type Step = (typeof STEPS)[number];
@@ -54,7 +66,8 @@ const formSchema = z.object({
   startTime: localTimeSchema,
   endTime: z.union([z.literal(''), localTimeSchema]),
   endsNextDay: z.boolean(),
-  // Nombre d'invités : entier de 1 à 5 000, le même que dans le comparateur et « Ma demande »
+  // Nombre d'invités : entier, le même que dans le comparateur et « Ma demande » ; les règles
+  // du traiteur (minimum, maximum) sont vérifiées au passage à l'étape suivante
   guestCount: z.string().refine((value) => parseGuests(value).value !== null, {
     params: { i18n: 'invalidNumber' },
   }),
@@ -112,6 +125,9 @@ export function RequestWizard() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const options = usePublicCatalogOptions();
+  const site = usePublicSite();
+  const catalog = usePublicCatalog();
+  const rules = site.data?.requestRules ?? DEFAULT_REQUEST_RULES;
   const { lines } = useCartLines();
   const ranges = useCartRanges();
   const [step, setStep] = useState<Step>('event');
@@ -133,6 +149,39 @@ export function RequestWizard() {
   });
   const values = form.watch();
   const guests = Number(values.guestCount) || 0;
+  const menuLines = lines.filter((line) => line.entry.kind === 'menu');
+  // Type d'événement prérempli si toutes les formules sont prévues pour le même
+  const preset = commonEventType(menuLines.map((line) => line.entry));
+  useEffect(() => {
+    if (preset && form.getValues('eventType') === '') {
+      form.setValue('eventType', preset, { shouldValidate: false });
+    }
+  }, [form, preset]);
+  // Formule prévue pour un autre type d'événement : avertissement, jamais de blocage
+  const mismatch = values.eventType
+    ? typeMismatch(
+        menuLines.map((line) => line.entry),
+        values.eventType,
+      )
+    : null;
+  const [mismatchAccepted, setMismatchAccepted] = useState<string | null>(null);
+  /** « un mariage », « une aqiqa »… ; type propre au traiteur : « l'événement « Gala » ». */
+  const eventPhrase = (codes: string[]) =>
+    codes
+      .map((code) => {
+        const key = `eventFor.${code}` as 'eventFor.WEDDING';
+        if (t.has(key)) return t(key);
+        const item = options.data?.eventTypes.find((type) => type.code === code);
+        return t('eventForOther', { name: item ? localized(item.name) : code });
+      })
+      .join(t('eventForJoin'));
+  const limits =
+    guests > 0
+      ? outsideMenuLimits(
+          menuLines.map((line) => line.entry),
+          guests,
+        )
+      : [];
 
   // Disponibilité indicative de la date et du matériel choisi (sans chiffres)
   const schedule = useDebouncedValue(
@@ -171,14 +220,32 @@ export function RequestWizard() {
       }),
   });
 
+  /** Règles du traiteur : nombre d'invités (minimum, maximum). */
+  const checkGuests = (): boolean => {
+    const count = parseGuests(form.getValues('guestCount')).value;
+    if (count === null) return true;
+    const error = guestsRuleError(count, rules);
+    if (!error) return true;
+    form.setError('guestCount', {
+      type: 'rules',
+      message:
+        error === 'belowMinimum'
+          ? t('guestsBelowMinimum', { min: rules.minGuests })
+          : t('guestsAboveMaximum', { max: rules.maxGuests }),
+    });
+    return false;
+  };
+
   const goNext = async () => {
     if (!(await form.trigger(STEP_FIELDS[step]))) return;
+    if (step === 'event' && !checkGuests()) return;
     if (step === 'choices' && lines.length === 0 && ranges.length === 0)
       return void toast.error(t('emptyChoices'));
     setStep(STEPS[STEPS.indexOf(step) + 1] ?? 'summary');
   };
 
   const onSubmit = form.handleSubmit(async (data) => {
+    if (!checkGuests()) return void setStep('event');
     const parsed = clientRequestSchema.safeParse({
       eventType: data.eventType,
       eventDate: data.eventDate,
@@ -212,7 +279,25 @@ export function RequestWizard() {
     }
   });
 
-  const total = lines.reduce((sum, line) => sum + estimate(line, guests), 0);
+  // Estimation : formules d'un même événement en alternative (fourchette), comme « Ma demande »
+  const total = cartEstimate(
+    lines,
+    guests || null,
+    alternativeGroups(
+      (catalog.data?.menus ?? []).filter((menu) =>
+        menuLines.some((line) => line.entry.id === menu.id),
+      ),
+    ),
+  );
+  const estimateText =
+    total === null
+      ? '—'
+      : total.min === total.max
+        ? formatMoney(total.min, locale)
+        : t('estimateBetween', {
+            min: formatEstimateAmount(total.min, locale, formatMoney),
+            max: formatEstimate(total.max, locale, formatMoney),
+          });
   const eventTypeName = options.data?.eventTypes.find((item) => item.code === values.eventType);
 
   return (
@@ -267,18 +352,62 @@ export function RequestWizard() {
               </Select>
             )}
           />
-          <div className="grid gap-4 sm:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="eventDate"
-              label={t('fields.date')}
-              description={
-                availability.data ? <AvailabilityLabel hint={availability.data.date} /> : undefined
-              }
-              render={(field, { invalid }) => (
-                <Input {...field} type="date" dir="ltr" aria-invalid={invalid} />
-              )}
-            />
+          {mismatch && mismatchAccepted !== `${values.eventType}:${mismatch.menu.id}` && (
+            <div
+              role="alert"
+              className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+              data-testid="event-type-mismatch"
+            >
+              <p className="flex items-start gap-2">
+                <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>
+                  {t('typeMismatch', {
+                    menu: localized(mismatch.menu.name),
+                    event: eventPhrase(mismatch.expected),
+                  })}
+                </span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setMismatchAccepted(`${values.eventType}:${mismatch.menu.id}`)}
+                  data-testid="mismatch-continue"
+                >
+                  {t('typeMismatchContinue')}
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link
+                    href={`/catalogue/comparer?type=${encodeURIComponent(values.eventType)}`}
+                    data-testid="mismatch-change"
+                  >
+                    {t('typeMismatchChange')}
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+          <FormField
+            control={form.control}
+            name="eventDate"
+            label={t('fields.date')}
+            description={
+              availability.data ? <AvailabilityLabel hint={availability.data.date} /> : undefined
+            }
+            render={(field, { invalid }) => (
+              <EventDatePicker
+                id={field.id}
+                value={field.value}
+                onChange={(day) => {
+                  field.onChange(day);
+                  form.clearErrors('eventDate');
+                }}
+                invalid={invalid}
+              />
+            )}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
               name="startTime"
@@ -315,11 +444,13 @@ export function RequestWizard() {
             control={form.control}
             name="guestCount"
             label={t('fields.guests')}
+            description={t('guestsRules', { min: rules.minGuests, max: rules.maxGuests })}
             render={(field, { invalid }) => (
               <Input
                 {...field}
                 onChange={(event) => {
                   field.onChange(event);
+                  form.clearErrors('guestCount');
                   // Partagé avec le comparateur et « Ma demande » (saisie valide ou vide)
                   const parsed = parseGuests(event.target.value);
                   if (!parsed.error) cartStore.setGuests(parsed.value);
@@ -332,6 +463,27 @@ export function RequestWizard() {
               />
             )}
           />
+          {limits.length > 0 && (
+            <ul
+              className="flex flex-col gap-1 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+              data-testid="menu-limits-warning"
+            >
+              {limits.map((entry) => (
+                <li key={entry.id}>
+                  {entry.maxGuests === null
+                    ? t('menuMinWarning', {
+                        menu: localized(entry.name),
+                        min: entry.minGuests ?? 1,
+                      })
+                    : t('menuLimitsWarning', {
+                        menu: localized(entry.name),
+                        min: entry.minGuests ?? 1,
+                        max: entry.maxGuests,
+                      })}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
@@ -431,9 +583,12 @@ export function RequestWizard() {
             </div>
             <div>
               <dt className="text-sm text-muted-foreground">{t('fields.date')}</dt>
-              <dd dir="ltr" className="text-start">
-                {values.eventDate} · {values.startTime}
-                {values.endTime ? ` – ${values.endTime}` : ''}
+              <dd data-testid="summary-date">
+                {values.eventDate ? formatLongDate(values.eventDate, locale) : ''} ·{' '}
+                <span dir="ltr">
+                  {values.startTime}
+                  {values.endTime ? ` – ${values.endTime}` : ''}
+                </span>
               </dd>
             </div>
             <div>
@@ -467,7 +622,7 @@ export function RequestWizard() {
               data-testid="request-estimate"
             >
               <span>{t('estimate')}</span>
-              <span dir="ltr">{formatMoney(total, locale)}</span>
+              <span dir="auto">{estimateText}</span>
             </li>
           </ul>
           <p className="text-sm text-muted-foreground">{t('estimateHint')}</p>
