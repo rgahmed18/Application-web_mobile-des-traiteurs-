@@ -4,7 +4,9 @@ name: Déploiement
 # Production : uniquement par une étiquette de version (git tag v1.2.3 && git push --tags),
 #   action manuelle ; approbation en plus si l'offre GitHub la permet (PRODUCTION_APPROVAL).
 #   L'image n'est PAS reconstruite : c'est exactement celle testée en staging (sha du commit).
-# Secrets : STAGING_SSH_* et PRODUCTION_SSH_* au niveau du dépôt (dépôt public ou privé).
+# Secrets : STAGING_SSH_* et PRODUCTION_SSH_* au niveau du dépôt (dépôt privé).
+# Images privées sur GHCR : chaque serveur s'y connecte avec son propre jeton read:packages
+#   (deploy/scripts/ghcr-login.sh), jamais stocké dans le dépôt ni dans GitHub Actions.
 # Retour en arrière : « Run workflow » (manuel), environnement + version précédente.
 on:
   workflow_run:
@@ -38,12 +40,18 @@ jobs:
     if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # Un push plus récent sur main remplace la construction en cours (minutes économisées)
+    concurrency:
+      group: images-main
+      cancel-in-progress: true
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          # Historique récent : comparer avec le dernier commit dont les images existent
+          fetch-depth: 50
 
       - id: meta
         name: Étiquette (sha-<commit>) et registre
@@ -63,7 +71,40 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Rien de ce qui entre dans les images n'a changé depuis le dernier commit qui en a
+      # (documentation, application mobile, tests e2e…) : les mêmes images reçoivent aussi
+      # l'étiquette de ce commit, sans reconstruction (quelques secondes au lieu de ~10 min).
+      # Chaque commit de main garde ainsi son image sha-<commit> (staging, production).
+      - id: reuse
+        name: Images inchangées ? (ré-étiquetage sans reconstruction)
+        shell: bash
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          PATHS=(apps/api apps/web packages/shared packages/config package.json pnpm-lock.yaml
+            pnpm-workspace.yaml turbo.json .nvmrc .dockerignore docker deploy
+            .github/workflows/deploy.yml)
+          for commit in $(git rev-list --max-count=30 HEAD~1 2>/dev/null || true); do
+            previous="sha-${commit::7}"
+            docker buildx imagetools inspect "$IMAGE/traiteur-api:$previous" >/dev/null 2>&1 || continue
+            docker buildx imagetools inspect "$IMAGE/traiteur-web:$previous" >/dev/null 2>&1 || continue
+            if git diff --quiet "$commit" HEAD -- "${PATHS[@]}"; then
+              for image in traiteur-api traiteur-web; do
+                docker buildx imagetools create -t "$IMAGE/$image:$TAG" "$IMAGE/$image:$previous"
+              done
+              echo "Images de $previous reprises pour $TAG (aucun changement les concernant)."
+              echo "reuse=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Changements depuis $previous : reconstruction."
+            break
+          done
+          echo "reuse=false" >> "$GITHUB_OUTPUT"
+
       - name: Image API (API, worker, migrations)
+        if: steps.reuse.outputs.reuse != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -75,6 +116,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=api
 
       - name: Image web (back-office)
+        if: steps.reuse.outputs.reuse != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -87,6 +129,7 @@ jobs:
 
       # Démarrage réel des images, dans une base vide, avant tout déploiement
       - name: Vérification des images
+        if: steps.reuse.outputs.reuse != 'true'
         env:
           API: ${{ steps.meta.outputs.image }}/traiteur-api:${{ steps.meta.outputs.tag }}
           WEB: ${{ steps.meta.outputs.image }}/traiteur-web:${{ steps.meta.outputs.tag }}
@@ -128,8 +171,15 @@ jobs:
           [ "$(docker run --rm "$API" id -u)" != 0 ] && [ "$(docker run --rm "$WEB" id -u)" != 0 ]
           echo "▶ Migrations et permissions"
           run "$API" sh -c 'node node_modules/prisma/build/index.js migrate deploy && node dist/cli/sync-permissions.js'
-          echo "▶ Seed de démonstration refusé en production"
+          echo "▶ Seed de démonstration refusé en production (même avec les opt-in du staging)"
           if run "$API" node dist-seed/prisma/seed.js; then echo "Seed accepté en production"; exit 1; fi
+          if run -e APP_ENV=production -e ALLOW_STAGING_DEMO_SEED=true \
+            -e DEMO_SEED_PASSWORD=verification-0000 "$API" node dist-seed/prisma/seed.js; then
+            echo "Seed accepté avec APP_ENV=production"; exit 1
+          fi
+          if run -e APP_ENV=staging "$API" node dist-seed/prisma/seed.js; then
+            echo "Seed accepté en staging sans opt-in"; exit 1
+          fi
           echo "▶ Création d'un traiteur"
           run "$API" node dist/cli/create-traiteur.js --slug verification --name "Traiteur Vérif" \
             --email contact@exemple.ma --phone 0522000000 --city Casablanca \

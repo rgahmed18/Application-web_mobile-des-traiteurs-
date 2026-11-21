@@ -16,8 +16,51 @@ env:
   REDIS_URL: redis://localhost:6379
 
 jobs:
+  # Fichiers modifiés par le push ou la pull request : chaque job ne tourne que s'il est
+  # concerné (dépôt privé : minutes GitHub Actions comptées). En cas de doute (premier push,
+  # historique indisponible), tout tourne.
+  changes:
+    name: Fichiers modifiés
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+      app: ${{ steps.diff.outputs.app }}
+      deploy: ${{ steps.diff.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - id: diff
+        name: Code, application, scripts serveur
+        shell: bash
+        run: |
+          set -euo pipefail
+          all() { echo "code=true"; echo "app=true"; echo "deploy=true"; }
+          if [ "$EVENT" = pull_request ]; then BASE="$PR_BASE"; else BASE="$BEFORE"; fi
+          if [ -z "$BASE" ] || [ "$BASE" = 0000000000000000000000000000000000000000 ] \
+            || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            all >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          FILES="$(git diff --name-only "$BASE" "$GITHUB_SHA")"
+          printf '%s\n' "$FILES"
+          has() { grep -qE "$1" <<<"$FILES" && echo true || echo false; }
+          # Tout sauf la documentation (Markdown) : lint, typecheck, tests unitaires, build
+          OTHER="$(grep -vE '^(docs/.*|.*\.md)$' <<<"$FILES" || true)"
+          echo "code=$([ -n "$OTHER" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          # API, back-office, site, paquets partagés, dépendances : intégration et e2e
+          echo "app=$(has '^(apps/api/|apps/web/|packages/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.nvmrc$|\.github/workflows/ci\.yml$)')" >> "$GITHUB_OUTPUT"
+          # Scripts serveur : ShellCheck, sauvegarde et restauration réelles
+          echo "deploy=$(has '^(deploy/|\.github/workflows/ci\.yml$)')" >> "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+
   quality:
     name: Lint, typecheck, tests unitaires, build
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -35,11 +78,24 @@ jobs:
       - name: Formatage (Prettier)
         run: pnpm format:check
 
+      # Cache Turborepo : les paquets inchangés (shared, mobile…) ne sont pas relancés
+      - name: Cache Turborepo
+        if: needs.changes.outputs.code == 'true'
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-quality-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-quality-${{ runner.os }}-
+
       - name: Lint, typecheck, tests unitaires et build
-        run: pnpm turbo run lint typecheck test build
+        if: needs.changes.outputs.code == 'true'
+        run: pnpm turbo run lint typecheck test build --cache-dir=.turbo/cache
 
   database:
     name: Migrations, seed, tests d'intégration et parcours e2e
+    needs: changes
+    # Parcours complets : seulement si l'API, le back-office, le site ou les paquets changent
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -124,8 +180,33 @@ jobs:
       - name: Tests d'intégration (concurrence, contraintes, factures, catalogue)
         run: pnpm --filter @traiteur/api test:int
 
+      # Navigateur Playwright en cache (clé : version installée) ; dépendances système à part
+      - id: playwright
+        name: Version de Playwright
+        run: echo "version=$(pnpm --filter @traiteur/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - id: browsers
+        name: Cache du navigateur Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
       - name: Navigateur Playwright
+        if: steps.browsers.outputs.cache-hit != 'true'
         run: pnpm --filter @traiteur/web exec playwright install --with-deps chromium
+
+      - name: Dépendances système du navigateur
+        if: steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm --filter @traiteur/web exec playwright install-deps chromium
+
+      # Cache de compilation Next.js du build des parcours (dossier .next-e2e)
+      - name: Cache du build Next.js (e2e)
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next-e2e/cache
+          key: next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Parcours e2e du back-office (connexion, plat avec photo, formule)
         run: pnpm --filter @traiteur/web test:e2e
@@ -140,6 +221,8 @@ jobs:
 
   deploy-scripts:
     name: Scripts serveur (ShellCheck, sauvegarde et restauration réelles)
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
