@@ -60,8 +60,11 @@ x-api-environment: &api-environment
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_ENVIRONMENT: ${ENVIRONMENT}
   PDF_WORKERS: ${PDF_WORKERS:-2}
-  # Seed de démonstration : autorisé en staging seulement (jamais en production)
-  ALLOW_DEMO_SEED: ${ALLOW_DEMO_SEED:-false}
+  # Environnement du serveur : le seed de démonstration est toujours refusé en production
+  APP_ENV: ${ENVIRONMENT}
+  # Staging seulement : opt-in des données fictives, mot de passe propre au serveur
+  ALLOW_STAGING_DEMO_SEED: ${ALLOW_STAGING_DEMO_SEED:-false}
+  DEMO_SEED_PASSWORD: ${DEMO_SEED_PASSWORD:-}
 
 services:
   caddy:

@@ -38,22 +38,20 @@ import { DEMO_EVENT_MENUS } from './lib/demo-menus';
 import { generateIllustration, PALETTES } from './lib/illustrations';
 import { connectScriptStorage, storeAndAttachImage } from './lib/media-script';
 import { issueInvoice } from '../src/invoices/invoice-issuer';
+import { demoSeedPlan } from '../src/cli/demo-seed-guard';
 import { nextDocumentNumber } from '../src/sequences/document-sequence';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error('DATABASE_URL est requis');
 
-// Données de démonstration (comptes au mot de passe connu) : jamais en production. Le staging,
-// qui tourne en NODE_ENV=production, les autorise explicitement (ALLOW_DEMO_SEED=true).
-if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SEED !== 'true') {
-  throw new Error(
-    'Seed de démonstration refusé en production (ALLOW_DEMO_SEED=true uniquement en staging).',
-  );
-}
+// Données de démonstration (comptes au mot de passe connu) : jamais en production, en staging
+// seulement avec l'opt-in dédié (src/cli/demo-seed-guard.ts). Vérifié avant toute écriture.
+const PLAN = demoSeedPlan(process.env);
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: DATABASE_URL }) });
 
-export const DEMO_PASSWORD = 'Password123!';
+/** Mot de passe des comptes de démonstration (« Password123! » en développement). */
+export const DEMO_PASSWORD = PLAN.password;
 const TAX_RATE = 2000; // 20 %
 const DEMO_ORDER_MARKER = 'Commande de démonstration (seed)';
 
@@ -217,7 +215,9 @@ async function seedUsers(traiteurId: string) {
   const memberships = new Map<DemoUserKey, string>();
   const users = new Map<DemoUserKey, string>();
 
-  for (const demo of DEMO_USERS) {
+  // Super admin de démonstration : développement seulement (serveurs : super-admin create)
+  const demoUsers = DEMO_USERS.filter((demo) => demo.role !== null || PLAN.withSuperAdmin);
+  for (const demo of demoUsers) {
     const user = await prisma.user.upsert({
       where: { phone: demo.phone },
       update: { email: demo.email, firstName: demo.firstName, lastName: demo.lastName },
@@ -268,7 +268,11 @@ async function seedUsers(traiteurId: string) {
     }
   }
 
-  console.log(`✓ ${DEMO_USERS.length} utilisateurs (mot de passe : ${DEMO_PASSWORD})`);
+  console.log(
+    PLAN.withSuperAdmin
+      ? `✓ ${demoUsers.length} utilisateurs (mot de passe : ${DEMO_PASSWORD})`
+      : `✓ ${demoUsers.length} utilisateurs (mot de passe DEMO_SEED_PASSWORD, aucun super admin)`,
+  );
   return { users, memberships };
 }
 
