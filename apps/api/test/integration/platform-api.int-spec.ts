@@ -156,7 +156,13 @@ describe('Console de la plateforme (application complète)', () => {
         reference: `CMD-TEST-${randomUUID().slice(0, 6)}`,
         clientId: client.id,
         eventType: 'WEDDING',
-        eventDate: new Date(Date.now() + 30 * 86_400_000),
+        eventDay: new Date(
+          `${new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)}T00:00:00Z`,
+        ),
+        startTime: '12:00',
+        eventDate: new Date(
+          `${new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)}T12:00:00Z`,
+        ),
         guestCount: 100,
         venueAddress: 'Adresse',
         city: 'Casablanca',

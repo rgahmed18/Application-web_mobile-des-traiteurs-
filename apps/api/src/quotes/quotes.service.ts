@@ -52,6 +52,7 @@ import {
   snapshotSettingsSelect,
   validityEnd,
 } from './quote-snapshot';
+import { dayOf } from '../orders/event-schedule';
 
 type Db = Prisma.TransactionClient;
 
@@ -895,7 +896,7 @@ export class QuotesService {
     let availabilityPending = false;
     let confirmed = false;
     if (CONFIRMABLE.includes(order.status)) {
-      const day = utcToZoned(order.eventDate, settings.timezone).date;
+      const day = dayOf(order.eventDay);
       await lockDay(tx, traiteurId, day);
       const availability = await dayAvailability(tx, traiteurId, day, settings, order.id);
       // Date bloquée ou complète, ou matériel en manque : l'accord est enregistré, le traiteur
@@ -1276,6 +1277,10 @@ export class QuotesService {
         depositAmount: true,
         eventDate: true,
         eventEndDate: true,
+        eventDay: true,
+        startTime: true,
+        endTime: true,
+        endsNextDay: true,
         equipmentSetupHours: true,
         equipmentReturnHours: true,
         client: { select: { locale: true } },

@@ -328,6 +328,8 @@ describe('API du catalogue (application complète)', () => {
             reference: `CMD-${randomUUID().slice(0, 8)}`,
             priceMode: 'TTC',
             eventType: 'WEDDING',
+            eventDay: new Date('2026-12-01T00:00:00Z'),
+            startTime: '18:00',
             eventDate: new Date('2026-12-01T18:00:00Z'),
             guestCount: 10,
             venueAddress: 'Salle',

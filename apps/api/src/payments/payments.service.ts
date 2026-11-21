@@ -45,6 +45,7 @@ const orderSelect = {
   cancellationFeeAmount: true,
   confirmedAt: true,
   eventDate: true,
+  eventDay: true,
   client: {
     select: { firstName: true, lastName: true, locale: true, user: { select: { phone: true } } },
   },

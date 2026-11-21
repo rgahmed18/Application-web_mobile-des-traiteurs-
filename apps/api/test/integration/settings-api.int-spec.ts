@@ -158,6 +158,9 @@ describe('API des paramètres et du compte (application complète)', () => {
     const empty = await api(admin).get('/settings/site').expect(200);
     expect(empty.body).toEqual({
       requireClientApproval: false,
+      requestMinGuests: 10,
+      requestMaxGuests: 5000,
+      requestLeadDays: 3,
       intro: null,
       photoKeys: [],
       privacyExtra: null,
@@ -179,6 +182,9 @@ describe('API des paramètres et du compte (application complète)', () => {
     const wedding = await uploadSitePhoto(admin);
     const input = {
       requireClientApproval: true,
+      requestMinGuests: 20,
+      requestMaxGuests: 800,
+      requestLeadDays: 5,
       intro: { fr: 'Traiteur à Rabat depuis 1998', ar: 'ممون حفلات بالرباط منذ 1998' },
       photoKeys: [first, second],
       privacyExtra: { fr: 'Les photos de vos événements ne sont jamais publiées.' },
@@ -190,6 +196,21 @@ describe('API des paramètres et du compte (application complète)', () => {
       highlightRange: 'LUXE',
       eventTypePhotos: [{ code: 'WEDDING', imageKey: wedding }],
     };
+    // Site public lu (et gardé en cache) avant l'enregistrement
+    const { slug } = await prisma.traiteur.findUniqueOrThrow({
+      where: { id: admin.traiteurId },
+      select: { slug: true },
+    });
+    const publicSite = async () =>
+      (await request(server()).get(`/api/v1/public/traiteurs/${slug}/site`).expect(200)).body as {
+        requestRules: object;
+        whatsappPhone: string | null;
+      };
+    expect((await publicSite()).requestRules).toEqual({
+      minGuests: 10,
+      maxGuests: 5000,
+      leadDays: 3,
+    });
     const saved = await api(admin)
       .put('/settings/site', input)
       .set('If-Match', siteSettingsVersion(empty.body as SiteSettings))
@@ -197,6 +218,11 @@ describe('API des paramètres et du compte (application complète)', () => {
     expect(saved.body).toEqual({
       ...input,
       cndpDeclaration: 'D-123/2026',
+      whatsappPhone: '+212661234567',
+    });
+    // Cache du site public effacé : nouvelles règles et WhatsApp visibles aussitôt
+    expect(await publicSite()).toMatchObject({
+      requestRules: { minGuests: 20, maxGuests: 800, leadDays: 5 },
       whatsappPhone: '+212661234567',
     });
     const attached = await prisma.mediaUpload.findMany({
@@ -220,6 +246,9 @@ describe('API des paramètres et du compte (application complète)', () => {
         }
       ).code;
     await refused({ palette: 'fluo' });
+    // Demandes en ligne : minimum au-dessus du maximum, délai hors bornes
+    await refused({ requestMinGuests: 900, requestMaxGuests: 800 });
+    await refused({ requestLeadDays: 0 });
     await refused({ featured: [{ kind: 'menu', id: randomUUID() }] });
     expect(
       await refused({

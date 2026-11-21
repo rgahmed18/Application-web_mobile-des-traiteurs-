@@ -5,6 +5,7 @@ import { auto, ltr } from '../pdf/document-model';
 import { capitalize, type DocLocale, localDate, money } from '../pdf/format';
 import { docLabels } from '../pdf/labels';
 import { type Seller, sellerFooter, sellerHeader } from '../pdf/seller';
+import { dayOf } from '../orders/event-schedule';
 
 export interface ReceiptData {
   locale: DocLocale;
@@ -19,7 +20,7 @@ export interface ReceiptData {
     paidAt: Date;
     voidedReason: string | null;
   };
-  order: { reference: string; eventDate: Date; totalTtc: number };
+  order: { reference: string; eventDay: Date; totalTtc: number };
   client: { name: string; phone: string };
   /** Payé net après ce paiement, et reste à payer à ce moment-là. */
   paidSoFar: number;
@@ -44,7 +45,7 @@ export function receiptDocument(data: ReceiptData): DocumentModel {
     seller: sellerHeader(seller),
     parties: [
       { title: t.client, lines: [auto(data.client.name), ltr(data.client.phone)] },
-      { title: t.event, lines: [localDate(utcToZoned(data.order.eventDate, tz).date)] },
+      { title: t.event, lines: [localDate(dayOf(data.order.eventDay))] },
     ],
     table: {
       columns: [

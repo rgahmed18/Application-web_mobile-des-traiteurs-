@@ -6,6 +6,7 @@ import { PRICE_MODES } from '../money/money';
 import { fieldsVersion } from '../editing/edit-version';
 import { eventTypeSchema } from '../enums';
 import { localizedTextSchema } from '../i18n/localized-text';
+import { requestRulesSchema } from '../site/request-rules';
 import { sitePaletteSchema } from '../site/site-palettes';
 
 /**
@@ -105,6 +106,10 @@ const boundedText = (max: number) =>
 export const siteSettingsSchema = z.object({
   /** Activé : un client inscrit en ligne attend l'accord du traiteur avant d'envoyer une demande. */
   requireClientApproval: z.boolean(),
+  /** Demandes en ligne : invités au minimum et au maximum, délai minimum (jours) avant l'événement. */
+  requestMinGuests: requestRulesSchema.shape.minGuests,
+  requestMaxGuests: requestRulesSchema.shape.maxGuests,
+  requestLeadDays: requestRulesSchema.shape.leadDays,
   intro: boundedText(1000),
   /** Clés des photos envoyées (sans photo : repli sur les photos du catalogue). */
   photoKeys: z

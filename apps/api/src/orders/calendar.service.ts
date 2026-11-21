@@ -34,13 +34,14 @@ import {
   paymentTotals,
   type ScheduleSettings,
 } from '../payments/payment-state';
+import { dayColumn, dayOf } from './event-schedule';
 import { orderSummaryInclude, toCalendarOrder } from './order-mapper';
 
 const MAX_CALENDAR_DAYS = 93;
 
 /** Jour civil stocké en colonne DATE (minuit UTC, sans fuseau). */
-const dateColumn = (date: string) => new Date(`${date}T00:00:00Z`);
-const fromDateColumn = (date: Date) => date.toISOString().slice(0, 10);
+const dateColumn = dayColumn;
+const fromDateColumn = dayOf;
 
 @Injectable()
 export class CalendarService {
@@ -59,14 +60,12 @@ export class CalendarService {
       select: { timezone: true, maxEventsPerDay: true, closedWeekdays: true },
     });
     const timeZone = traiteur.timezone;
-    const start = zonedDayRange(query.from, timeZone).start;
-    const end = zonedDayRange(query.to, timeZone).end;
 
     const [orders, blocked] = await Promise.all([
       this.prisma.order.findMany({
         where: {
           traiteurId,
-          eventDate: { gte: start, lt: end },
+          eventDay: { gte: dateColumn(query.from), lte: dateColumn(query.to) },
           status: query.includeCancelled ? { not: 'DRAFT' } : { notIn: ['DRAFT', 'CANCELLED'] },
         },
         include: orderSummaryInclude,
@@ -77,7 +76,7 @@ export class CalendarService {
       }),
     ]);
 
-    const calendarOrders = orders.map((row) => toCalendarOrder(row, timeZone));
+    const calendarOrders = orders.map((row) => toCalendarOrder(row));
     const blockedByDate = new Map(blocked.map((row) => [fromDateColumn(row.date), row.reason]));
     const days: CalendarDay[] = [];
     for (let date = query.from; date <= query.to; date = addDays(date, 1)) {
@@ -219,7 +218,7 @@ export class CalendarService {
         totalTtc: true,
         depositAmount: true,
         confirmedAt: true,
-        eventDate: true,
+        eventDay: true,
       },
     });
     const totals = await paymentTotals(
@@ -253,8 +252,6 @@ export class CalendarService {
     });
     const timeZone = settings.timezone;
     const today = todayInTimeZone(timeZone, now);
-    const todayRange = zonedDayRange(today, timeZone);
-    const weekEnd = zonedDayRange(addDays(today, 7), timeZone).end;
     const monthStart = zonedDayRange(startOfMonth(today), timeZone).start;
     const monthEnd = zonedDayRange(startOfNextMonth(today), timeZone).start;
     const active: Prisma.EnumOrderStatusFilter = { notIn: ['DRAFT', 'CANCELLED'] };
@@ -264,13 +261,17 @@ export class CalendarService {
         where: {
           traiteurId,
           status: active,
-          eventDate: { gte: todayRange.start, lt: todayRange.end },
+          eventDay: dateColumn(today),
         },
         include: orderSummaryInclude,
         orderBy: { eventDate: 'asc' },
       }),
       this.prisma.order.count({
-        where: { traiteurId, status: active, eventDate: { gte: todayRange.end, lt: weekEnd } },
+        where: {
+          traiteurId,
+          status: active,
+          eventDay: { gt: dateColumn(today), lte: dateColumn(addDays(today, 7)) },
+        },
       }),
       this.prisma.order.count({
         where: { traiteurId, status: { in: [...AWAITING_ORDER_STATUSES] } },
@@ -279,14 +280,17 @@ export class CalendarService {
         where: {
           traiteurId,
           status: { in: [...OPEN_FIRM_ORDER_STATUSES] },
-          eventDate: { lt: todayRange.start },
+          eventDay: { lt: dateColumn(today) },
         },
       }),
       this.prisma.order.aggregate({
         where: {
           traiteurId,
           status: { in: [...FIRM_ORDER_STATUSES] },
-          eventDate: { gte: monthStart, lt: monthEnd },
+          eventDay: {
+            gte: dateColumn(startOfMonth(today)),
+            lt: dateColumn(startOfNextMonth(today)),
+          },
         },
         _sum: { totalTtc: true },
         _count: { _all: true },
@@ -306,7 +310,7 @@ export class CalendarService {
 
     return {
       today,
-      todayOrders: todayRows.map((row) => toCalendarOrder(row, timeZone)),
+      todayOrders: todayRows.map((row) => toCalendarOrder(row)),
       monthCollected: collected,
       unpaid,
       quotesToConfirm,

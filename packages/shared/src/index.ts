@@ -43,5 +43,6 @@ export * from './site/site.schemas';
 export * from './site/site-palettes';
 export * from './site/client-request.schemas';
 export * from './site/client-space.schemas';
+export * from './site/request-rules';
 export * from './notifications/notification.schemas';
 export * from './observability/scrub';

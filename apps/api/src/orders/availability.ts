@@ -2,11 +2,13 @@ import {
   AWAITING_ORDER_STATUSES,
   type Availability,
   FIRM_ORDER_STATUSES,
+  addDays,
+  daysBetween,
   isoWeekday,
-  zonedDayRange,
 } from '@traiteur/shared';
 
 import type { Prisma } from '../generated/prisma/client';
+import { dayColumn, dayOf } from './event-schedule';
 
 type Db = Prisma.TransactionClient;
 
@@ -28,15 +30,15 @@ export async function dayAvailability(
   settings: AvailabilitySettings,
   excludeOrderId?: string,
 ): Promise<Availability> {
-  const { start, end } = zonedDayRange(date, settings.timezone);
   const base: Prisma.OrderWhereInput = {
     traiteurId,
-    eventDate: { gte: start, lt: end },
+    // Jour civil de l'événement, tel que saisi (jamais recalculé depuis un instant)
+    eventDay: dayColumn(date),
     ...(excludeOrderId ? { id: { not: excludeOrderId } } : {}),
   };
   const [blocked, firmCount, pendingCount] = await Promise.all([
     db.blockedDate.findUnique({
-      where: { traiteurId_date: { traiteurId, date: new Date(`${date}T00:00:00Z`) } },
+      where: { traiteurId_date: { traiteurId, date: dayColumn(date) } },
       select: { reason: true },
     }),
     db.order.count({ where: { ...base, status: { in: [...FIRM_ORDER_STATUSES] } } }),
@@ -66,4 +68,39 @@ export async function lockDay(tx: Db, traiteurId: string, date: string): Promise
 /** Le jour pose-t-il problème (bloqué, fermé, ou plus de place pour une commande ferme) ? */
 export function hasConflict(availability: Availability): boolean {
   return availability.blocked || availability.closed || availability.full;
+}
+
+/**
+ * Jours sans place d'une période [from, to] : fermeture hebdomadaire, date bloquée ou capacité
+ * atteinte par les commandes fermes. Pour griser le calendrier du site (sans aucun chiffre).
+ */
+export async function unavailableDays(
+  db: Db,
+  traiteurId: string,
+  from: string,
+  to: string,
+  settings: AvailabilitySettings,
+): Promise<{ closed: string[]; full: string[] }> {
+  const range = { gte: dayColumn(from), lte: dayColumn(to) };
+  const [blocked, firm] = await Promise.all([
+    db.blockedDate.findMany({ where: { traiteurId, date: range }, select: { date: true } }),
+    settings.maxEventsPerDay === null
+      ? Promise.resolve([])
+      : db.order.groupBy({
+          by: ['eventDay'],
+          where: { traiteurId, eventDay: range, status: { in: [...FIRM_ORDER_STATUSES] } },
+          _count: { _all: true },
+        }),
+  ]);
+  const closed = new Set(blocked.map((row) => dayOf(row.date)));
+  for (let offset = 0; offset <= daysBetween(from, to); offset += 1) {
+    const day = addDays(from, offset);
+    if (settings.closedWeekdays.includes(isoWeekday(day))) closed.add(day);
+  }
+  const capacity = settings.maxEventsPerDay ?? Number.POSITIVE_INFINITY;
+  const full = firm
+    .filter((row) => row._count._all >= capacity)
+    .map((row) => dayOf(row.eventDay))
+    .filter((day) => !closed.has(day));
+  return { closed: [...closed].sort(), full: full.sort() };
 }

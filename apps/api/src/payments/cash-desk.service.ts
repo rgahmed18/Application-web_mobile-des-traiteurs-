@@ -7,7 +7,6 @@ import {
   type CollectionMethod,
   type Download,
   type MissionCollectInput,
-  utcToZoned,
 } from '@traiteur/shared';
 import sharp from 'sharp';
 
@@ -23,6 +22,7 @@ import { detectImageType } from '../storage/image-processing';
 import { PRIVATE_PREFIX, StorageService } from '../storage/storage.service';
 import { paymentTotals } from './payment-state';
 import { PAYABLE, PaymentsService } from './payments.service';
+import { dayOf } from '../orders/event-schedule';
 
 type Db = Prisma.TransactionClient;
 
@@ -40,6 +40,7 @@ const deskInclude = {
     select: {
       reference: true,
       eventDate: true,
+      eventDay: true,
       client: { select: { firstName: true, lastName: true } },
     },
   },
@@ -139,7 +140,6 @@ export class CashDeskService {
   /** Montants déclarés non encore remis, par livreur. */
   async desk(user: AuthenticatedUser): Promise<CashDesk> {
     const traiteurId = requireTraiteurId(user);
-    const { timezone } = await this.payments.settings(this.prisma, traiteurId);
     const rows = await this.prisma.payment.findMany({
       where: { traiteurId, ...PENDING_DECLARATION },
       include: deskInclude,
@@ -165,7 +165,7 @@ export class CashDeskService {
         paymentId: row.id,
         orderId: row.orderId,
         orderReference: row.order.reference,
-        eventDate: utcToZoned(row.order.eventDate, timezone).date,
+        eventDate: dayOf(row.order.eventDay),
         clientName: `${row.order.client.firstName} ${row.order.client.lastName}`.trim(),
         amount: row.amount,
         method: row.method as CollectionMethod,

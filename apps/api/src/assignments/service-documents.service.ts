@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { type Download, FIRM_ORDER_STATUSES, utcToZoned, zonedDayRange } from '@traiteur/shared';
+import { type Download, FIRM_ORDER_STATUSES, utcToZoned } from '@traiteur/shared';
 
 import { readLineLabel } from '../documents/line-label';
 import { appErrors } from '../common/errors';
@@ -18,6 +18,7 @@ import {
   preparationItems,
   preparationItemsInclude,
 } from './preparation-sheet';
+import { dayColumn, dayOf } from '../orders/event-schedule';
 
 const orderSelect = {
   id: true,
@@ -26,6 +27,10 @@ const orderSelect = {
   eventTypeRef: { select: { name: true } },
   eventDate: true,
   eventEndDate: true,
+  eventDay: true,
+  startTime: true,
+  endTime: true,
+  endsNextDay: true,
   guestCount: true,
   venueName: true,
   venueAddress: true,
@@ -62,7 +67,7 @@ export class ServiceDocumentsService {
   ): Promise<Download> {
     const order = await this.order(traiteurId, orderId);
     const seller = await this.seller(traiteurId);
-    const day = utcToZoned(order.eventDate, seller.timezone).date;
+    const day = dayOf(order.eventDay);
     return this.publish(
       traiteurId,
       `${order.reference}-preparation-${locale}`,
@@ -75,7 +80,7 @@ export class ServiceDocumentsService {
           hasLogo,
           scope: 'event',
           day,
-          orders: [this.prepOrder(order, seller.timezone)],
+          orders: [this.prepOrder(order)],
         }),
     );
   }
@@ -83,11 +88,10 @@ export class ServiceDocumentsService {
   /** Bon de préparation du jour : toutes les commandes fermes de la journée. */
   async dayPreparation(traiteurId: string, day: string, locale: DocLocale): Promise<Download> {
     const seller = await this.seller(traiteurId);
-    const { start, end } = zonedDayRange(day, seller.timezone);
     const orders = await this.prisma.order.findMany({
       where: {
         traiteurId,
-        eventDate: { gte: start, lt: end },
+        eventDay: dayColumn(day),
         status: { in: [...FIRM_ORDER_STATUSES] },
       },
       select: orderSelect,
@@ -105,7 +109,7 @@ export class ServiceDocumentsService {
           hasLogo,
           scope: 'day',
           day,
-          orders: orders.map((order) => this.prepOrder(order, seller.timezone)),
+          orders: orders.map((order) => this.prepOrder(order)),
         }),
     );
   }
@@ -118,7 +122,7 @@ export class ServiceDocumentsService {
   ): Promise<Download> {
     const order = await this.order(traiteurId, orderId);
     const seller = await this.seller(traiteurId);
-    const schedule = toSchedule(order, seller.timezone);
+    const schedule = toSchedule(order);
     const locale: DocLocale = order.client.locale === 'ar' ? 'ar' : 'fr';
     const clientName = `${order.client.firstName} ${order.client.lastName}`.trim();
     return this.publish(
@@ -158,11 +162,8 @@ export class ServiceDocumentsService {
 
   // ─────────────────────────── Interne ───────────────────────────
 
-  private prepOrder(
-    order: Awaited<ReturnType<ServiceDocumentsService['order']>>,
-    timeZone: string,
-  ): PrepOrder {
-    const schedule = toSchedule(order, timeZone);
+  private prepOrder(order: Awaited<ReturnType<ServiceDocumentsService['order']>>): PrepOrder {
+    const schedule = toSchedule(order);
     return {
       reference: order.reference,
       eventTypeName: toLocalized(order.eventTypeRef.name),

@@ -74,6 +74,10 @@ export const snapshotOrderSelect = {
   eventTypeRef: { select: { name: true } },
   eventDate: true,
   eventEndDate: true,
+  eventDay: true,
+  startTime: true,
+  endTime: true,
+  endsNextDay: true,
   guestCount: true,
   venueName: true,
   venueAddress: true,
@@ -109,7 +113,7 @@ export function buildSnapshot(input: {
   today: string;
 }): QuoteSnapshot {
   const { order, settings, totalTtc, today } = input;
-  const schedule = toSchedule(order, settings.timezone);
+  const schedule = toSchedule(order);
   const deposit =
     order.depositAmount > 0
       ? Math.min(order.depositAmount, totalTtc)

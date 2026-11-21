@@ -4,7 +4,6 @@ import {
   type InvoiceKind,
   lineLabelText,
   todayInTimeZone,
-  utcToZoned,
   zonedToUtc,
 } from '@traiteur/shared';
 
@@ -31,6 +30,7 @@ import {
   invoiceSellerSelect,
   sellerSnapshot,
 } from './invoice-snapshots';
+import { dayOf } from '../orders/event-schedule';
 
 /**
  * Émission des factures et avoirs, dans la transaction de l'appelant (commande verrouillée).
@@ -63,6 +63,7 @@ const orderSelect = {
   depositAmount: true,
   cancellationFeeAmount: true,
   eventDate: true,
+  eventDay: true,
   clientId: true,
   items: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
 } satisfies Prisma.OrderSelect;
@@ -280,7 +281,7 @@ export async function issueInvoice(
   }
   const { order } = state;
   const { seller, locale, today } = await invoiceContext(tx, traiteurId, order.clientId);
-  const eventDay = utcToZoned(order.eventDate, seller.timezone).date;
+  const eventDay = dayOf(order.eventDay);
   const balanceDue = addDays(eventDay, -seller.balanceDueDays);
 
   let lines: InvoiceLineDraft[];

@@ -951,6 +951,8 @@ async function seedDemoOrder(
         reference: orderNumber.reference,
         clientId,
         eventType: 'ENGAGEMENT',
+        eventDay: new Date('2026-11-21T00:00:00Z'),
+        startTime: '19:00',
         eventDate,
         guestCount: guests,
         venueName: 'Salle Les Jasmins',

@@ -30,6 +30,7 @@ import type { DocLocale } from '../pdf/format';
 import { PrismaService } from '../prisma/prisma.service';
 import { CASH_ROLES, latestDeclaration, toDeclaration } from './cash-declaration';
 import { ServiceDocumentsService } from './service-documents.service';
+import { dayOf } from '../orders/event-schedule';
 
 /**
  * Missions d'un membre de l'équipe ou d'un livreur : uniquement les siennes, avec ce qui sert à
@@ -49,6 +50,10 @@ const missionInclude = {
       eventTypeRef: { select: { name: true } },
       eventDate: true,
       eventEndDate: true,
+      eventDay: true,
+      startTime: true,
+      endTime: true,
+      endsNextDay: true,
       guestCount: true,
       venueName: true,
       venueAddress: true,
@@ -325,7 +330,7 @@ export class MissionsService {
       status: row.status,
       start: { date: start.date, time: start.time },
       end: { date: end.date, time: end.time },
-      eventDate: utcToZoned(row.order.eventDate, tz).date,
+      eventDate: dayOf(row.order.eventDay),
       guestCount: row.order.guestCount,
       place: redacted ? row.order.city : (row.order.venueName ?? row.order.city),
       city: row.order.city,
@@ -401,7 +406,7 @@ export class MissionsService {
     const summary = this.summary(row, settings);
     const { order } = row;
     const redacted = summary.redacted;
-    const schedule = toSchedule(order, settings.timezone);
+    const schedule = toSchedule(order);
     const clientName = `${order.client.firstName} ${order.client.lastName}`.trim();
     const address = [order.venueName, order.venueAddress, order.city].filter(Boolean).join(', ');
     const query =

@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import {
-  addDays,
   type Availability,
   checkOrderEdit,
   checkTransition,
@@ -25,7 +24,6 @@ import {
   plannedDeposit,
   todayInTimeZone,
   utcToZoned,
-  zonedDayRange,
   zonedToUtc,
 } from '@traiteur/shared';
 
@@ -40,6 +38,7 @@ import { DocumentLinesService } from '../documents/document-lines.service';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextDocumentNumber } from '../sequences/document-sequence';
+import { civilSchedule, dayColumn, dayOf, sameSchedule, scheduleData } from './event-schedule';
 import { type AvailabilitySettings, dayAvailability, hasConflict, lockDay } from './availability';
 import type { EquipmentDelays } from '../catalog/equipment/equipment-usage';
 import { equipmentShortages, type StockOrder } from './equipment-stock';
@@ -67,26 +66,6 @@ interface OrderSettings extends AvailabilitySettings, ScheduleSettings, Equipmen
 
 /** Statuts où le matériel est déduit du stock. */
 const STOCK_STATUSES = new Set<string>(EQUIPMENT_FIRM_STATUSES);
-
-/** Instants UTC du début et de la fin d'un événement saisi dans le fuseau du traiteur. */
-function toInstants(
-  input: Pick<OrderCreateInput, 'eventDate' | 'startTime' | 'endTime' | 'endsNextDay'>,
-  timeZone: string,
-): { eventDate: Date; eventEndDate: Date | null } {
-  const eventDate = zonedToUtc(input.eventDate, input.startTime, timeZone);
-  const eventEndDate =
-    input.endTime === null
-      ? null
-      : zonedToUtc(
-          input.endsNextDay ? addDays(input.eventDate, 1) : input.eventDate,
-          input.endTime,
-          timeZone,
-        );
-  if (eventEndDate && eventEndDate <= eventDate) {
-    throw appErrors.badRequest('VALIDATION_ERROR', 'La fin doit être après le début');
-  }
-  return { eventDate, eventEndDate };
-}
 
 function toDraft(line: OrderLineInput, index: number): LineDraft {
   return {
@@ -279,7 +258,8 @@ export class OrdersService {
       if (!clientRow) throw appErrors.notFound('NOT_FOUND', 'Client introuvable');
       await this.assertLines(tx, traiteurId, settings, input.lines, new Set());
       await this.assertEventType(tx, traiteurId, input.eventType);
-      const { eventDate, eventEndDate } = toInstants(input, settings.timezone);
+      const schedule = scheduleData(input, settings.timezone);
+      const { eventDate, eventEndDate } = schedule;
 
       const forced = await this.checkAvailability(
         tx,
@@ -310,8 +290,7 @@ export class OrdersService {
           reference: number.reference,
           clientId: input.clientId,
           eventType: input.eventType,
-          eventDate,
-          eventEndDate,
+          ...schedule,
           guestCount: input.guestCount,
           venueName: input.venueName,
           venueAddress: input.venueAddress,
@@ -385,7 +364,8 @@ export class OrdersService {
     return this.prisma.$transaction(async (tx) => {
       const settings = await this.settings(tx, traiteurId);
       const current = await this.lockForWrite(tx, traiteurId, id, input.version, settings);
-      const { eventDate, eventEndDate } = toInstants(input, settings.timezone);
+      const schedule = scheduleData(input, settings.timezone);
+      const { eventDate, eventEndDate } = schedule;
 
       // Groupes de champs réellement modifiés, confrontés aux règles du statut
       const changed = new Set<OrderFieldGroup>();
@@ -397,12 +377,7 @@ export class OrdersService {
       };
       const currentLines = current.items.map(toOrderLine);
       mark('client', 'client', input.clientId !== current.clientId);
-      mark(
-        'date',
-        'schedule',
-        eventDate.getTime() !== current.eventDate.getTime() ||
-          (eventEndDate?.getTime() ?? null) !== (current.eventEndDate?.getTime() ?? null),
-      );
+      mark('date', 'schedule', !sameSchedule(input, civilSchedule(current)));
       mark('framed', 'eventType', input.eventType !== current.eventType);
       // Un type archivé reste sur les commandes qui l'ont déjà ; on ne le choisit plus
       if (input.eventType !== current.eventType) {
@@ -479,11 +454,10 @@ export class OrdersService {
 
       let forced: Availability | null = null;
       if (changed.has('date')) {
-        const newDay = utcToZoned(eventDate, settings.timezone).date;
         forced = await this.checkAvailability(
           tx,
           traiteurId,
-          newDay,
+          input.eventDate,
           settings,
           input.forceAvailability,
           id,
@@ -508,8 +482,7 @@ export class OrdersService {
           ...this.delaysOf(input),
           clientId: input.clientId,
           eventType: input.eventType,
-          eventDate,
-          eventEndDate,
+          ...schedule,
           guestCount: input.guestCount,
           venueName: input.venueName,
           venueAddress: input.venueAddress,
@@ -614,11 +587,10 @@ export class OrdersService {
 
       let forced: Availability | null = null;
       if (check.rule.checksAvailability) {
-        const day = utcToZoned(current.eventDate, settings.timezone).date;
         forced = await this.checkAvailability(
           tx,
           traiteurId,
-          day,
+          dayOf(current.eventDay),
           settings,
           input.forceAvailability,
           id,
@@ -843,6 +815,7 @@ export class OrdersService {
         depositAmount: true,
         confirmedAt: true,
         eventDate: true,
+        eventDay: true,
       },
     });
     const totals = await paymentTotals(
@@ -879,19 +852,20 @@ export class OrdersService {
     if (query.toClose) {
       and.push({
         status: { in: [...OPEN_FIRM_ORDER_STATUSES] },
-        eventDate: { lt: zonedDayRange(todayInTimeZone(timeZone), timeZone).start },
+        eventDay: { lt: dayColumn(todayInTimeZone(timeZone)) },
       });
     }
-    const eventDate: Prisma.DateTimeFilter = {};
-    if (query.from) eventDate.gte = zonedDayRange(query.from, timeZone).start;
-    if (query.to) eventDate.lt = zonedDayRange(query.to, timeZone).end;
+    // Période sur le jour civil de l'événement (bornes incluses)
+    const eventDay: Prisma.DateTimeFilter = {};
+    if (query.from) eventDay.gte = dayColumn(query.from);
+    if (query.to) eventDay.lte = dayColumn(query.to);
     return {
       traiteurId,
       ...(query.status ? { status: { in: query.status } } : {}),
       ...(query.eventType ? { eventType: query.eventType } : {}),
       ...(query.source ? { source: query.source } : {}),
       ...(query.clientId ? { clientId: query.clientId } : {}),
-      ...(query.from || query.to ? { eventDate } : {}),
+      ...(query.from || query.to ? { eventDay } : {}),
       AND: and,
     };
   }

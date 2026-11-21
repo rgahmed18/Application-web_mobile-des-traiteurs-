@@ -26,6 +26,7 @@ import { NO_PAYMENT, orderSchedule, paymentTotals } from '../payments/payment-st
 import { PaymentsService } from '../payments/payments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClientAccountService, type ClientContext, requireClient } from './client-account.service';
+import { civilSchedule, dayOf } from '../orders/event-schedule';
 
 type Db = Prisma.TransactionClient;
 
@@ -47,6 +48,10 @@ const summarySelect = {
   status: true,
   eventDate: true,
   eventEndDate: true,
+  eventDay: true,
+  startTime: true,
+  endTime: true,
+  endsNextDay: true,
   guestCount: true,
   city: true,
   totalTtc: true,
@@ -124,6 +129,7 @@ export class ClientSpaceService {
           depositAmount: true,
           confirmedAt: true,
           eventDate: true,
+          eventDay: true,
         },
       });
       const schedule = orderSchedule(full, settings, (totals.get(order.id) ?? NO_PAYMENT).net);
@@ -141,7 +147,7 @@ export class ClientSpaceService {
       }
     }
     return {
-      activeOrders: active.map((row) => this.toSummary(row, timeZone)),
+      activeOrders: active.map((row) => this.toSummary(row)),
       quotesToAnswer: quotes.map((row) => this.toQuote(row, timeZone)),
       nextPayment,
     };
@@ -149,13 +155,12 @@ export class ClientSpaceService {
 
   async orders(user: AuthenticatedUser): Promise<ClientOrderSummary[]> {
     const context = requireClient(user);
-    const timeZone = await this.timeZone(context.traiteurId);
     const rows = await this.prisma.order.findMany({
       where: this.ownOrders(context),
       orderBy: { createdAt: 'desc' },
       select: summarySelect,
     });
-    return rows.map((row) => this.toSummary(row, timeZone));
+    return rows.map((row) => this.toSummary(row));
   }
 
   async order(user: AuthenticatedUser, id: string): Promise<ClientOrder> {
@@ -195,12 +200,11 @@ export class ClientSpaceService {
     ]);
     const paidNet = (totals.get(id) ?? NO_PAYMENT).net;
     const schedule = orderSchedule(row, settings, paidNet);
-    const end = row.eventEndDate ? utcToZoned(row.eventEndDate, timeZone) : null;
-    const start = utcToZoned(row.eventDate, timeZone);
+    const civil = civilSchedule(row);
     return {
-      ...this.toSummary(row, timeZone),
-      endTime: end?.time ?? null,
-      endsNextDay: end !== null && end.date !== start.date,
+      ...this.toSummary(row),
+      endTime: civil.endTime,
+      endsNextDay: civil.endsNextDay,
       venueName: row.venueName,
       venueAddress: row.venueAddress,
       notes: row.notes,
@@ -451,15 +455,15 @@ export class ClientSpaceService {
     }));
   }
 
-  private toSummary(row: SummaryRow, timeZone: string): ClientOrderSummary {
-    const start = utcToZoned(row.eventDate, timeZone);
+  private toSummary(row: SummaryRow): ClientOrderSummary {
+    // Horaire civil tel que saisi : jamais recalculé depuis un instant
     return {
       id: row.id,
       reference: row.reference,
       status: row.status,
       eventTypeName: toLocalized(row.eventTypeRef.name),
-      eventDate: start.date,
-      startTime: start.time,
+      eventDate: dayOf(row.eventDay),
+      startTime: row.startTime,
       guestCount: row.guestCount,
       city: row.city,
       totalTtc: row.totalTtc,

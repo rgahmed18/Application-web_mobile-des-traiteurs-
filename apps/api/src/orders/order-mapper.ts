@@ -5,12 +5,12 @@ import {
   type OrderLine,
   type OrderSummary,
   type StaffAlert,
-  utcToZoned,
 } from '@traiteur/shared';
 
 import { toLocalized } from '../catalog/catalog-common';
 import { readLineLabel } from '../documents/line-label';
 import type { Prisma } from '../generated/prisma/client';
+import { type CivilColumns, civilSchedule, type EventSchedule } from './event-schedule';
 
 export const orderSummaryInclude = {
   client: {
@@ -28,19 +28,12 @@ export type OrderRow = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
 
 type ItemRow = OrderRow['items'][number];
 
-/** Jour, heure de début, heure de fin et fin le lendemain, dans le fuseau du traiteur. */
-export function toSchedule(
-  row: { eventDate: Date; eventEndDate: Date | null },
-  timeZone: string,
-): { eventDate: string; startTime: string; endTime: string | null; endsNextDay: boolean } {
-  const start = utcToZoned(row.eventDate, timeZone);
-  const end = row.eventEndDate ? utcToZoned(row.eventEndDate, timeZone) : null;
-  return {
-    eventDate: start.date,
-    startTime: start.time,
-    endTime: end?.time ?? null,
-    endsNextDay: end !== null && end.date !== start.date,
-  };
+/**
+ * Jour, heure de début, heure de fin et fin le lendemain : l'horaire civil stocké tel que saisi
+ * (aucune conversion de fuseau, le jour ne peut pas glisser).
+ */
+export function toSchedule(row: CivilColumns): EventSchedule {
+  return civilSchedule(row);
 }
 
 export function toOrderLine(item: ItemRow): OrderLine {
@@ -89,7 +82,7 @@ export function toOrderSummary(
     status: row.status,
     eventType: row.eventType,
     eventTypeName: toLocalized(row.eventTypeRef.name),
-    ...toSchedule(row, timeZone),
+    ...toSchedule(row),
     eventStart: row.eventDate.toISOString(),
     client: {
       id: row.client.id,
@@ -130,8 +123,8 @@ export function toOrder(row: OrderRow, timeZone: string, payment: PaymentFigures
   };
 }
 
-export function toCalendarOrder(row: OrderSummaryRow, timeZone: string): CalendarOrder {
-  const schedule = toSchedule(row, timeZone);
+export function toCalendarOrder(row: OrderSummaryRow): CalendarOrder {
+  const schedule = toSchedule(row);
   return {
     id: row.id,
     reference: row.reference,

@@ -28,6 +28,7 @@ import { invoiceDocument } from './invoice-document';
 import { invoicesCsv, invoicesXlsx } from './invoice-export';
 import { invoiceInclude, invoicingState, issueCreditNote, issueInvoice } from './invoice-issuer';
 import { parseBuyer, parseSeller, type SellerSnapshot } from './invoice-snapshots';
+import { dayOf } from '../orders/event-schedule';
 
 type Db = Prisma.TransactionClient;
 
@@ -329,6 +330,7 @@ export class InvoicesService {
             reference: true,
             eventTypeRef: { select: { name: true } },
             eventDate: true,
+            eventDay: true,
           },
         },
       },
@@ -360,7 +362,7 @@ export class InvoicesService {
         orderReference: invoice.order.reference,
         event: {
           typeName: toLocalized(invoice.order.eventTypeRef.name),
-          date: utcToZoned(invoice.order.eventDate, timeZone).date,
+          date: dayOf(invoice.order.eventDay),
         },
         original: invoice.originalInvoice
           ? {

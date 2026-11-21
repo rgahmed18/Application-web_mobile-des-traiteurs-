@@ -533,7 +533,15 @@ describe('API des affectations et missions (application complète)', () => {
     const past = new Date(Date.now() - 10 * 86_400_000);
     await prisma.order.update({
       where: { id: order.id },
-      data: { eventDate: past, eventEndDate: null },
+      // Horaire civil et instants ensemble (fin non précisée)
+      data: {
+        eventDate: past,
+        eventEndDate: null,
+        eventDay: new Date(`${past.toISOString().slice(0, 10)}T00:00:00Z`),
+        startTime: past.toISOString().slice(11, 16),
+        endTime: null,
+        endsNextDay: false,
+      },
     });
     await prisma.staffAssignment.update({
       where: { id: missionId },

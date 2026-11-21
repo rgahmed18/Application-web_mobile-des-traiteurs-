@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -24,6 +25,10 @@ import {
   type ClientAvailabilityQuery,
   clientAvailabilityQuerySchema,
   clientAvailabilitySchema,
+  type ClientCalendar,
+  type ClientCalendarQuery,
+  clientCalendarQuerySchema,
+  clientCalendarSchema,
   type ClientRequestCreated,
   clientRequestCreatedSchema,
   type ClientRequestInput,
@@ -74,6 +79,20 @@ export class ClientSiteController {
     @Body(new ZodValidationPipe(clientAvailabilityQuerySchema)) body: ClientAvailabilityQuery,
   ): Promise<ClientAvailability> {
     return this.requests.availability(user, body);
+  }
+
+  @Get('calendar')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      'Jours impossibles d’une période (délai minimum, fermés, complets) pour le sélecteur de date, sans aucun chiffre',
+  })
+  @ApiOkResponse({ schema: zodToOpenApi(clientCalendarSchema, 'output') })
+  calendar(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(clientCalendarQuerySchema)) query: ClientCalendarQuery,
+  ): Promise<ClientCalendar> {
+    return this.requests.calendar(user, query);
   }
 
   @Post('requests')

@@ -6,6 +6,7 @@ import {
 } from '@traiteur/shared';
 
 import type { Prisma } from '../generated/prisma/client';
+import { dayOf } from '../orders/event-schedule';
 
 type Db = Prisma.TransactionClient;
 
@@ -57,7 +58,8 @@ export interface ScheduledOrder {
   totalTtc: number;
   depositAmount: number;
   confirmedAt: Date | null;
-  eventDate: Date;
+  /** Jour civil de l'événement (colonne DATE) */
+  eventDay: Date;
 }
 
 /** Échéancier d'une commande, dans le fuseau du traiteur. */
@@ -74,7 +76,7 @@ export function orderSchedule(
     balanceDueDays: settings.balanceDueDays,
     // Une commande en attente (non confirmée) n'a pas encore d'échéance due
     confirmedOn: order.confirmedAt ? utcToZoned(order.confirmedAt, settings.timezone).date : null,
-    eventDate: utcToZoned(order.eventDate, settings.timezone).date,
+    eventDate: dayOf(order.eventDay),
     paid: paidNet,
     today: todayInTimeZone(settings.timezone, now),
     cancelled: order.status === 'CANCELLED',

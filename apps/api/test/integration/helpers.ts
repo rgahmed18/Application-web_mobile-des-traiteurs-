@@ -66,6 +66,8 @@ export async function createOrder(
       reference: options.reference ?? `CMD-${randomUUID().slice(0, 8)}`,
       priceMode: options.priceMode ?? 'TTC',
       eventType: 'WEDDING',
+      eventDay: new Date('2026-12-12T00:00:00Z'),
+      startTime: '18:00',
       eventDate: new Date('2026-12-12T18:00:00Z'),
       guestCount: 100,
       venueAddress: 'Salle des fêtes',

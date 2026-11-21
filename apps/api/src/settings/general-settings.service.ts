@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import type { Redis } from 'ioredis';
 import {
   availabilitySettingsVersion,
   companySettingsVersion,
@@ -28,6 +29,7 @@ import { requireTraiteurId } from '../common/tenant';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertEditVersion, lockRow } from '../common/http/edit-version';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 const companySelect = {
   name: true,
@@ -52,6 +54,9 @@ const pricingSelect = {
 
 const siteSelect = {
   requireClientApproval: true,
+  requestMinGuests: true,
+  requestMaxGuests: true,
+  requestLeadDays: true,
   siteIntro: true,
   sitePhotoKeys: true,
   privacyExtra: true,
@@ -73,6 +78,9 @@ function toSiteSettings(
 ): SiteSettings {
   return {
     requireClientApproval: row.requireClientApproval,
+    requestMinGuests: row.requestMinGuests,
+    requestMaxGuests: row.requestMaxGuests,
+    requestLeadDays: row.requestLeadDays,
     intro: row.siteIntro === null ? null : parseLocalizedText(row.siteIntro),
     photoKeys: row.sitePhotoKeys,
     privacyExtra: row.privacyExtra === null ? null : parseLocalizedText(row.privacyExtra),
@@ -105,6 +113,7 @@ export class GeneralSettingsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly media: MediaService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
   company(user: AuthenticatedUser): Promise<CompanySettings> {
@@ -191,13 +200,19 @@ export class GeneralSettingsService {
           : this.media.prepare(traiteurId, key, traiteurId),
       ),
     );
-    return this.prisma.$transaction(async (tx) => {
+    const saved = await this.prisma.$transaction(async (tx) => {
       await lockRow(tx, 'Traiteur', traiteurId);
       const before = toSiteSettings(
         await tx.traiteur.findUniqueOrThrow({ where: { id: traiteurId }, select: siteSelect }),
       );
       assertEditVersion(siteSettingsVersion(before), expectedVersion);
       await this.assertSiteReferences(tx, traiteurId, input);
+      if (input.requestMinGuests > input.requestMaxGuests) {
+        throw appErrors.badRequest(
+          'VALIDATION_ERROR',
+          'Le minimum d’invités doit être inférieur ou égal au maximum',
+        );
+      }
 
       const beforeKeys = siteImageKeys(before);
       const keys: string[] = [];
@@ -222,6 +237,9 @@ export class GeneralSettingsService {
           where: { id: traiteurId },
           data: {
             requireClientApproval: input.requireClientApproval,
+            requestMinGuests: input.requestMinGuests,
+            requestMaxGuests: input.requestMaxGuests,
+            requestLeadDays: input.requestLeadDays,
             siteIntro: jsonOrDbNull(input.intro),
             sitePhotoKeys: photoKeys,
             privacyExtra: jsonOrDbNull(input.privacyExtra),
@@ -251,6 +269,24 @@ export class GeneralSettingsService {
       );
       return after;
     });
+    await this.forgetPublicSite(traiteurId);
+    return saved;
+  }
+
+  /**
+   * Site public gardé une minute en cache : effacé à l'enregistrement, pour que le site montre
+   * aussitôt les nouveaux réglages (règles des demandes, WhatsApp, palette…).
+   */
+  private async forgetPublicSite(traiteurId: string): Promise<void> {
+    try {
+      const { slug } = await this.prisma.traiteur.findUniqueOrThrow({
+        where: { id: traiteurId },
+        select: { slug: true },
+      });
+      await this.redis.del(`public-site:${slug}`, `public-privacy:${slug}`);
+    } catch {
+      // Cache indisponible : il expire de lui-même (une minute)
+    }
   }
 
   // ─────────────────────────── Interne ───────────────────────────

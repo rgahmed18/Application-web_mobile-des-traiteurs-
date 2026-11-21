@@ -587,6 +587,11 @@ export async function seedDemoClientsAndOrders(
           reference: number.reference,
           clientId: client.id,
           eventType: spec.type,
+          // Horaire civil tel que saisi (source de vérité), instants dérivés
+          eventDay: new Date(`${spec.date}T00:00:00Z`),
+          startTime: spec.start,
+          endTime: spec.end ?? null,
+          endsNextDay: spec.end ? (spec.nextDay ?? false) : false,
           eventDate,
           eventEndDate,
           guestCount: spec.guests,

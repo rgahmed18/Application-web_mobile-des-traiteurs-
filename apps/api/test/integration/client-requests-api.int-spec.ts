@@ -356,8 +356,10 @@ describe('Demandes en ligne des clients (application complète)', () => {
     expect(
       await codeOf(requestBody({ items: [{ kind: 'menu', id: foreignMenuId, quantity: 1 }] })),
     ).toBe('ITEM_UNAVAILABLE');
-    expect(await codeOf(requestBody({ guestCount: 5 }))).toBe('GUESTS_OUT_OF_RANGE');
+    // Règles du traiteur (défauts : 10 invités au minimum, 3 jours de délai)
+    expect(await codeOf(requestBody({ guestCount: 5 }))).toBe('GUESTS_BELOW_MINIMUM');
     expect(await codeOf(requestBody({ eventDate: inDays(0) }))).toBe('DATE_TOO_SOON');
+    expect(await codeOf(requestBody({ eventDate: inDays(2) }))).toBe('DATE_TOO_SOON');
     // Service retiré du site par le traiteur (toujours disponible au back-office)
     await prisma.extraService.update({ where: { id: serviceId }, data: { isPublished: false } });
     expect(await codeOf(requestBody())).toBe('ITEM_UNAVAILABLE');
@@ -369,6 +371,113 @@ describe('Demandes en ligne des clients (application complète)', () => {
     expect(await prisma.order.count({ where: { clientId: customer.membershipId } })).toBe(0);
     // Le personnel passe par le back-office
     await api(admin).post('/client/requests', requestBody()).expect(403);
+  });
+
+  it('règles du traiteur : invités min/max et délai réglables, limites d’un menu non bloquantes', async () => {
+    const customer = await actorFor(admin.traiteurId, 'CLIENT');
+    const post = (body: object) => api(customer).post('/client/requests', body);
+    await prisma.traiteur.update({
+      where: { id: admin.traiteurId },
+      data: { requestMinGuests: 30, requestMaxGuests: 400, requestLeadDays: 7 },
+    });
+    try {
+      const below = await post(requestBody({ guestCount: 29 })).expect(400);
+      expect(below.body).toMatchObject({
+        code: 'GUESTS_BELOW_MINIMUM',
+        message: 'Nous acceptons les demandes à partir de 30 invités',
+      });
+      const above = await post(requestBody({ guestCount: 401 })).expect(400);
+      expect((above.body as { code: string }).code).toBe('GUESTS_ABOVE_MAXIMUM');
+      const soon = await post(requestBody({ eventDate: inDays(6) })).expect(400);
+      expect(soon.body).toMatchObject({ code: 'DATE_TOO_SOON' });
+      expect(JSON.stringify(soon.body)).toContain(inDays(7));
+      // Menu prévu pour 10 à 200 invités : 300 invités restent acceptés (avertissement du site)
+      const created = await post(requestBody({ guestCount: 300, eventDate: inDays(7) })).expect(
+        201,
+      );
+      const order = await prisma.order.findUniqueOrThrow({
+        where: { id: (created.body as { id: string }).id },
+        include: { items: { where: { itemType: 'PACKAGE' } } },
+      });
+      expect(order.guestCount).toBe(300);
+      expect(order.items[0]?.quantity).toBe(300);
+    } finally {
+      await prisma.traiteur.update({
+        where: { id: admin.traiteurId },
+        data: { requestMinGuests: 10, requestMaxGuests: 5000, requestLeadDays: 3 },
+      });
+    }
+  });
+
+  it('date civile de bout en bout : le jour saisi est celui enregistré, même près de minuit', async () => {
+    const customer = await actorFor(admin.traiteurId, 'CLIENT');
+    for (const [day, start, end, nextDay] of [
+      [inDays(80), '00:30', '03:00', false],
+      [inDays(81), '23:30', '02:00', true],
+      [inDays(82), '19:00', null, false],
+    ] as const) {
+      const created = await api(customer)
+        .post(
+          '/client/requests',
+          requestBody({ eventDate: day, startTime: start, endTime: end, endsNextDay: nextDay }),
+        )
+        .expect(201);
+      const id = (created.body as { id: string }).id;
+      const row = await prisma.order.findUniqueOrThrow({ where: { id } });
+      // Base : jour et heures tels que saisis, sans fuseau
+      expect(row.eventDay.toISOString().slice(0, 10)).toBe(day);
+      expect([row.startTime, row.endTime, row.endsNextDay]).toEqual([start, end, nextDay]);
+      // Espace client et back-office : le même jour, la même heure
+      const mine = await api(customer).get(`/client/orders/${id}`).expect(200);
+      expect(mine.body).toMatchObject({ eventDate: day, startTime: start, endTime: end });
+      const staff = await api(admin).get(`/orders/${id}`).expect(200);
+      expect(staff.body).toMatchObject({
+        eventDate: day,
+        startTime: start,
+        endTime: end,
+        endsNextDay: nextDay,
+      });
+      await prisma.order.update({ where: { id }, data: { status: 'CANCELLED' } });
+    }
+  });
+
+  it('calendrier du sélecteur : première date, jours fermés et complets, sans chiffres', async () => {
+    const customer = await actorFor(admin.traiteurId, 'CLIENT');
+    const from = inDays(100);
+    const to = inDays(120);
+    await prisma.traiteur.update({
+      where: { id: admin.traiteurId },
+      data: { maxEventsPerDay: 1 },
+    });
+    await prisma.blockedDate.create({
+      data: { traiteurId: admin.traiteurId, date: new Date(`${inDays(105)}T00:00:00Z`) },
+    });
+    try {
+      const created = await api(customer)
+        .post('/client/requests', requestBody({ eventDate: inDays(110) }))
+        .expect(201);
+      await prisma.order.update({
+        where: { id: (created.body as { id: string }).id },
+        data: { status: 'CONFIRMED' },
+      });
+      const calendar = await api(customer)
+        .get(`/client/calendar?from=${from}&to=${to}`)
+        .expect(200);
+      expect(calendar.body).toEqual({
+        earliest: inDays(3),
+        closed: [inDays(105)],
+        full: [inDays(110)],
+      });
+      await api(customer)
+        .get(`/client/calendar?from=${from}&to=${inDays(300)}`)
+        .expect(400);
+      await api(admin).get(`/client/calendar?from=${from}&to=${to}`).expect(403);
+    } finally {
+      await prisma.traiteur.update({
+        where: { id: admin.traiteurId },
+        data: { maxEventsPerDay: null },
+      });
+    }
   });
 
   it('limites : 3 demandes par client sur 24 h', async () => {

@@ -1,17 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-  addDays,
   type ClientAvailability,
   type ClientAvailabilityQuery,
+  type ClientCalendar,
+  type ClientCalendarQuery,
   type ClientRequestCreated,
   type ClientRequestInput,
   type ClientRequestItem,
+  daysBetween,
+  earliestEventDate,
+  guestsRuleError,
   type LineItemType,
   type LocalizedText,
   resolveTaxRate,
   todayInTimeZone,
-  zonedToUtc,
 } from '@traiteur/shared';
 
 import { AuditService } from '../audit/audit.service';
@@ -23,7 +26,8 @@ import type { Env } from '../config/env.schema';
 import type { LineDraft } from '../documents/document-lines';
 import { DocumentLinesService } from '../documents/document-lines.service';
 import type { Prisma } from '../generated/prisma/client';
-import { dayAvailability, hasConflict, lockDay } from '../orders/availability';
+import { dayAvailability, hasConflict, lockDay, unavailableDays } from '../orders/availability';
+import { scheduleData, scheduleInstants } from '../orders/event-schedule';
 import { equipmentShortages } from '../orders/equipment-stock';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -46,24 +50,18 @@ const settingsSelect = {
   defaultTaxRateBps: true,
   equipmentSetupHours: true,
   equipmentReturnHours: true,
+  requestMinGuests: true,
+  requestMaxGuests: true,
+  requestLeadDays: true,
 } satisfies Prisma.TraiteurSelect;
 type RequestSettings = Prisma.TraiteurGetPayload<{ select: typeof settingsSelect }>;
 
-/** Début et fin de l'événement (instants), depuis le jour et les heures du fuseau du traiteur. */
-function instants(
-  input: Pick<ClientRequestInput, 'eventDate' | 'startTime' | 'endTime' | 'endsNextDay'>,
-  timeZone: string,
-): { eventDate: Date; eventEndDate: Date | null } {
-  const eventDate = zonedToUtc(input.eventDate, input.startTime, timeZone);
-  const eventEndDate =
-    input.endTime === null
-      ? null
-      : zonedToUtc(
-          input.endsNextDay ? addDays(input.eventDate, 1) : input.eventDate,
-          input.endTime,
-          timeZone,
-        );
-  return { eventDate, eventEndDate };
+/** Calendrier du site : 93 jours au plus par lecture. */
+const MAX_CALENDAR_DAYS = 93;
+
+/** Première date acceptée pour une demande en ligne (aujourd'hui + délai du traiteur). */
+function earliestFor(settings: RequestSettings, now = new Date()): string {
+  return earliestEventDate(todayInTimeZone(settings.timezone, now), settings.requestLeadDays);
 }
 
 /**
@@ -99,8 +97,11 @@ export class ClientRequestsService {
     return this.prisma.$transaction(async (tx) => {
       const settings = await this.settings(tx, traiteurId);
       const day = await dayAvailability(tx, traiteurId, query.eventDate, settings);
-      const tooSoon = query.eventDate <= todayInTimeZone(settings.timezone);
-      const { eventDate, eventEndDate } = instants(query, settings.timezone);
+      const tooSoon = query.eventDate < earliestFor(settings);
+      const { eventDate, eventEndDate } = scheduleInstants(
+        { ...query, endsNextDay: query.endTime !== null && query.endsNextDay },
+        settings.timezone,
+      );
       const shortages = await equipmentShortages(
         tx,
         traiteurId,
@@ -122,6 +123,22 @@ export class ClientRequestsService {
           status: short.has(item.id) ? 'ON_REQUEST' : 'AVAILABLE',
         })),
       };
+    });
+  }
+
+  /**
+   * Jours impossibles d'une période, pour griser le sélecteur de date du site : avant la
+   * première date possible (délai minimum), fermés (semaine, date bloquée) ou complets.
+   */
+  async calendar(user: AuthenticatedUser, query: ClientCalendarQuery): Promise<ClientCalendar> {
+    const { traiteurId } = requireClient(user);
+    if (query.to < query.from || daysBetween(query.from, query.to) + 1 > MAX_CALENDAR_DAYS) {
+      throw appErrors.badRequest('INVALID_PERIOD', `Période limitée à ${MAX_CALENDAR_DAYS} jours`);
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const settings = await this.settings(tx, traiteurId);
+      const days = await unavailableDays(tx, traiteurId, query.from, query.to, settings);
+      return { earliest: earliestFor(settings), ...days };
     });
   }
 
@@ -149,8 +166,32 @@ export class ClientRequestsService {
       await this.assertLimits(tx, context);
 
       const settings = await this.settings(tx, traiteurId);
-      if (input.eventDate <= todayInTimeZone(settings.timezone)) {
-        throw appErrors.badRequest('DATE_TOO_SOON', 'Choisissez une date à partir de demain');
+      // Règles du traiteur, vérifiées ici comme dans l'interface (délai, nombre d'invités)
+      const earliest = earliestFor(settings);
+      if (input.eventDate < earliest) {
+        throw appErrors.badRequest(
+          'DATE_TOO_SOON',
+          `Choisissez une date à partir du ${earliest}, ou contactez le traiteur`,
+          { earliest, leadDays: settings.requestLeadDays },
+        );
+      }
+      const guestsError = guestsRuleError(input.guestCount, {
+        minGuests: settings.requestMinGuests,
+        maxGuests: settings.requestMaxGuests,
+      });
+      if (guestsError === 'belowMinimum') {
+        throw appErrors.badRequest(
+          'GUESTS_BELOW_MINIMUM',
+          `Nous acceptons les demandes à partir de ${settings.requestMinGuests} invités`,
+          { minGuests: settings.requestMinGuests },
+        );
+      }
+      if (guestsError === 'aboveMaximum') {
+        throw appErrors.badRequest(
+          'GUESTS_ABOVE_MAXIMUM',
+          `Nous acceptons les demandes jusqu’à ${settings.requestMaxGuests} invités`,
+          { maxGuests: settings.requestMaxGuests },
+        );
       }
       const eventType = await tx.eventType.findFirst({
         where: { traiteurId, code: input.eventType, ...published },
@@ -161,10 +202,8 @@ export class ClientRequestsService {
         ...(await this.lineDrafts(tx, traiteurId, settings, input)),
         ...(await this.rangeDrafts(tx, traiteurId, settings, input)),
       ].map((draft, index) => ({ ...draft, sortOrder: index }));
-      const { eventDate, eventEndDate } = instants(input, settings.timezone);
-      if (eventEndDate && eventEndDate <= eventDate) {
-        throw appErrors.badRequest('VALIDATION_ERROR', 'La fin doit être après le début');
-      }
+      // Horaire civil tel que saisi (vérité), instants dérivés pour le matériel
+      const schedule = scheduleData(input, settings.timezone);
       // Même verrou que les commandes du back-office : la capacité du jour reste juste
       await lockDay(tx, traiteurId, input.eventDate);
 
@@ -179,8 +218,7 @@ export class ClientRequestsService {
           reference: number.reference,
           clientId: membershipId,
           eventType: eventType.code,
-          eventDate,
-          eventEndDate,
+          ...schedule,
           guestCount: input.guestCount,
           venueName: input.venueName,
           venueAddress: input.venueAddress,
@@ -225,7 +263,8 @@ export class ClientRequestsService {
           entityId: order.id,
           after: {
             reference: order.reference,
-            eventDate: eventDate.toISOString(),
+            eventDay: input.eventDate,
+            startTime: input.startTime,
             guestCount: order.guestCount,
             lines: drafts.length,
           },
@@ -430,17 +469,9 @@ export class ClientRequestsService {
       };
       if (item.kind === 'menu') {
         const row = menus.find((menu) => menu.id === item.id);
+        // Limites propres au menu (ex. 80 à 600) : simple avertissement sur le site, le
+        // traiteur ajuste dans son devis ; seules ses règles générales bloquent la demande
         if (!row) throw this.unavailable();
-        if (guests < row.minGuests || (row.maxGuests !== null && guests > row.maxGuests)) {
-          throw appErrors.badRequest(
-            'GUESTS_OUT_OF_RANGE',
-            'Nombre d’invités hors des limites du menu',
-            {
-              minGuests: row.minGuests,
-              maxGuests: row.maxGuests,
-            },
-          );
-        }
         return line('PACKAGE', row.name, {
           packageId: row.id,
           quantity: guests,
@@ -452,17 +483,8 @@ export class ClientRequestsService {
       if (item.kind === 'buffet') {
         const row = buffets.find((buffet) => buffet.id === item.id);
         if (!row) throw this.unavailable();
+        // Minimum propre au buffet : simple avertissement, comme pour les menus
         const perPerson = row.pricingUnit === 'PER_PERSON';
-        if (perPerson && guests < row.minGuests) {
-          throw appErrors.badRequest(
-            'GUESTS_OUT_OF_RANGE',
-            'Nombre d’invités sous le minimum du buffet',
-            {
-              minGuests: row.minGuests,
-              maxGuests: null,
-            },
-          );
-        }
         return line('BUFFET', row.name, {
           buffetId: row.id,
           quantity: perPerson ? guests : 1,

@@ -320,6 +320,8 @@ describe('Catalogue public (application complète)', () => {
       intro: { fr: 'Traiteur à Fès', ar: 'ممون حفلات بفاس' },
       photos: [],
       requireClientApproval: true,
+      // Règles des demandes en ligne (défauts)
+      requestRules: { minGuests: 10, maxGuests: 5000, leadDays: 3 },
       palette: 'terracotta',
       whatsappPhone: null,
       featured: [],

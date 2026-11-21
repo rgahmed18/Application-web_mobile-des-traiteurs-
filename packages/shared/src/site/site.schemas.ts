@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { clientApprovalSchema } from '../clients/client.schemas';
+import { requestRulesSchema } from './request-rules';
 import { contentVersion } from '../editing/edit-version';
 import { publicRangeSchema } from '../catalog/public-catalog.schemas';
 import { eventTypeSchema } from '../enums';
@@ -54,6 +55,8 @@ export const publicSiteSchema = z.object({
   photos: z.array(publicPhotoSchema),
   /** Nouveaux clients en attente de l'accord du traiteur avant leur première demande. */
   requireClientApproval: z.boolean(),
+  /** Règles des demandes en ligne : invités (minimum, maximum), délai minimum en jours. */
+  requestRules: requestRulesSchema,
   palette: sitePaletteSchema,
   /** Bouton WhatsApp flottant (null : pas de bouton). */
   whatsappPhone: z.string().nullable(),
