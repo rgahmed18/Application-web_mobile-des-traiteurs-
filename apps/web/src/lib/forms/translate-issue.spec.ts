@@ -63,6 +63,20 @@ describe('translateIssue', () => {
     expect(firstIssue(schema, 'a')).toEqual({ key: 'passwordsMismatch' });
   });
 
+  it('règles du traiteur : message avec sa valeur (« à partir de 10 invités »)', () => {
+    const schema = z.string().superRefine((_value, ctx) => {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'x',
+        params: { i18n: 'guestsBelowMinimum', values: { min: 10, max: 5000, note: 'ignoré' } },
+      });
+    });
+    expect(firstIssue(schema, '5')).toEqual({
+      key: 'guestsBelowMinimum',
+      values: { min: 10, max: 5000 },
+    });
+  });
+
   it('traduit le doublon d’un membre et d’un rôle dans une affectation par lot', () => {
     const schema = z.string().superRefine((_value, ctx) => {
       ctx.addIssue({ code: 'custom', message: 'x', params: { i18n: 'duplicateAssignment' } });

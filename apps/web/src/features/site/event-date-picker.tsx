@@ -85,7 +85,8 @@ export function EventDatePicker({
         aria-invalid={invalid}
         aria-label={value ? formatLongDate(value, locale) : t('none')}
         className={cn(
-          'w-full max-w-sm rounded-xl border bg-card p-3',
+          // Couleurs explicites : l'état « invalide » du champ ne colore que la bordure
+          'w-full max-w-sm rounded-xl border bg-card p-3 text-card-foreground',
           invalid && 'border-destructive ring-2 ring-destructive/20',
         )}
       >
@@ -163,7 +164,7 @@ export function EventDatePicker({
         </p>
       </div>
       {value && (
-        <p className="text-sm font-medium" data-testid="date-chosen">
+        <p className="text-sm font-medium text-foreground" data-testid="date-chosen">
           {formatLongDate(value, locale)}
         </p>
       )}
@@ -217,7 +218,7 @@ function DayButton({
       data-status={status}
       className={cn(
         'flex h-9 w-full items-center justify-center rounded-md tabular-nums transition-colors',
-        status === 'available' && 'hover:bg-primary/10',
+        status === 'available' && 'text-card-foreground hover:bg-primary/10',
         (status === 'tooSoon' || status === 'closed') &&
           'cursor-not-allowed bg-muted text-muted-foreground/60 line-through',
         status === 'full' &&

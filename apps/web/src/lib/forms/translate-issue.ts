@@ -31,6 +31,8 @@ export type ValidationMessageKey =
   | 'consentRequired'
   | 'invalidTime'
   | 'invalidDate'
+  | 'guestsBelowMinimum'
+  | 'guestsAboveMaximum'
   | 'invalid';
 
 export interface TranslatedIssue {
@@ -59,6 +61,9 @@ const CUSTOM_KEYS = new Set<ValidationMessageKey>([
   'categoryRequired',
   'buffetTypeRequired',
   'consentRequired',
+  'invalidDate',
+  'guestsBelowMinimum',
+  'guestsAboveMaximum',
 ]);
 
 /** Champs saisis comme des montants (« 250,50 ») : message d'erreur avec un exemple. */
@@ -115,7 +120,16 @@ export function translateIssue(issue: z.core.$ZodIssue): TranslatedIssue {
     case 'custom': {
       const key: unknown = issue.params?.i18n;
       if (typeof key === 'string' && CUSTOM_KEYS.has(key as ValidationMessageKey)) {
-        return { key: key as ValidationMessageKey };
+        // Valeurs du message (« à partir de {min} invités »), nombres seulement
+        const values: unknown = issue.params?.values;
+        return values && typeof values === 'object'
+          ? {
+              key: key as ValidationMessageKey,
+              values: Object.fromEntries(
+                Object.entries(values).filter(([, value]) => typeof value === 'number'),
+              ),
+            }
+          : { key: key as ValidationMessageKey };
       }
       if (isDateField(field)) return { key: 'invalidDate' };
       return field.includes('phone') ? { key: 'invalidPhone' } : { key: 'invalid' };

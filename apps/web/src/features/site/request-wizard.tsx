@@ -9,6 +9,7 @@ import {
   clientRequestSchema,
   DEFAULT_REQUEST_RULES,
   guestsRuleError,
+  type RequestRules,
   localDateSchema,
   localTimeSchema,
   phoneSchema,
@@ -17,7 +18,7 @@ import { CheckCircle2Icon, CircleHelpIcon, TriangleAlertIcon } from 'lucide-reac
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, type FieldPath } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -60,26 +61,56 @@ const STEPS = ['event', 'choices', 'venue', 'summary'] as const;
 type Step = (typeof STEPS)[number];
 
 const optional = z.string().trim();
-const formSchema = z.object({
-  eventType: z.string().min(1),
-  eventDate: localDateSchema,
-  startTime: localTimeSchema,
-  endTime: z.union([z.literal(''), localTimeSchema]),
-  endsNextDay: z.boolean(),
-  // Nombre d'invités : entier, le même que dans le comparateur et « Ma demande » ; les règles
-  // du traiteur (minimum, maximum) sont vérifiées au passage à l'étape suivante
-  guestCount: z.string().refine((value) => parseGuests(value).value !== null, {
-    params: { i18n: 'invalidNumber' },
-  }),
-  venueName: optional.max(150),
-  venueAddress: z.string().trim().min(1).max(300),
-  city: z.string().trim().min(1).max(100),
-  saveAddressAs: optional.max(60),
-  onSiteContactName: optional.max(120),
-  onSiteContactPhone: z.union([z.literal(''), phoneSchema]),
-  notes: optional.max(2000),
-});
-type FormValues = z.input<typeof formSchema>;
+
+/**
+ * Formulaire de la demande. Les règles du traiteur (invités minimum et maximum) font partie
+ * du schéma : la validation du champ (à la sortie du champ, à l'étape suivante) les applique
+ * toujours, sans erreur ajoutée à la main qu'une validation ultérieure effacerait.
+ */
+function makeFormSchema(rules: RequestRules) {
+  return z.object({
+    eventType: z.string().min(1),
+    // Date choisie dans le calendrier : obligatoire, jour civil valide
+    eventDate: z.string().superRefine((value, ctx) => {
+      if (value === '') {
+        ctx.addIssue({ code: 'custom', message: 'required', params: { i18n: 'required' } });
+      } else if (!localDateSchema.safeParse(value).success) {
+        ctx.addIssue({ code: 'custom', message: 'invalid', params: { i18n: 'invalidDate' } });
+      }
+    }),
+    startTime: localTimeSchema,
+    endTime: z.union([z.literal(''), localTimeSchema]),
+    endsNextDay: z.boolean(),
+    // Nombre d'invités : entier, le même que dans le comparateur et « Ma demande », dans les
+    // limites réglées par le traiteur (« Nous acceptons les demandes à partir de 10 invités »)
+    guestCount: z.string().superRefine((value, ctx) => {
+      const count = parseGuests(value).value;
+      if (count === null) {
+        ctx.addIssue({ code: 'custom', message: 'number', params: { i18n: 'invalidNumber' } });
+        return;
+      }
+      const error = guestsRuleError(count, rules);
+      if (error) {
+        ctx.addIssue({
+          code: 'custom',
+          message: error,
+          params: {
+            i18n: error === 'belowMinimum' ? 'guestsBelowMinimum' : 'guestsAboveMaximum',
+            values: { min: rules.minGuests, max: rules.maxGuests },
+          },
+        });
+      }
+    }),
+    venueName: optional.max(150),
+    venueAddress: z.string().trim().min(1).max(300),
+    city: z.string().trim().min(1).max(100),
+    saveAddressAs: optional.max(60),
+    onSiteContactName: optional.max(120),
+    onSiteContactPhone: z.union([z.literal(''), phoneSchema]),
+    notes: optional.max(2000),
+  });
+}
+type FormValues = z.input<ReturnType<typeof makeFormSchema>>;
 
 /** Champs vérifiés avant de passer à l'étape suivante. */
 const STEP_FIELDS: Record<Step, FieldPath<FormValues>[]> = {
@@ -131,6 +162,8 @@ export function RequestWizard() {
   const { lines } = useCartLines();
   const ranges = useCartRanges();
   const [step, setStep] = useState<Step>('event');
+  // Schéma refait quand les règles du traiteur arrivent (react-hook-form prend le nouveau)
+  const formSchema = useMemo(() => makeFormSchema(rules), [rules]);
   const form = useZodForm(formSchema, {
     eventType: '',
     eventDate: '',
@@ -220,32 +253,14 @@ export function RequestWizard() {
       }),
   });
 
-  /** Règles du traiteur : nombre d'invités (minimum, maximum). */
-  const checkGuests = (): boolean => {
-    const count = parseGuests(form.getValues('guestCount')).value;
-    if (count === null) return true;
-    const error = guestsRuleError(count, rules);
-    if (!error) return true;
-    form.setError('guestCount', {
-      type: 'rules',
-      message:
-        error === 'belowMinimum'
-          ? t('guestsBelowMinimum', { min: rules.minGuests })
-          : t('guestsAboveMaximum', { max: rules.maxGuests }),
-    });
-    return false;
-  };
-
   const goNext = async () => {
     if (!(await form.trigger(STEP_FIELDS[step]))) return;
-    if (step === 'event' && !checkGuests()) return;
     if (step === 'choices' && lines.length === 0 && ranges.length === 0)
       return void toast.error(t('emptyChoices'));
     setStep(STEPS[STEPS.indexOf(step) + 1] ?? 'summary');
   };
 
   const onSubmit = form.handleSubmit(async (data) => {
-    if (!checkGuests()) return void setStep('event');
     const parsed = clientRequestSchema.safeParse({
       eventType: data.eventType,
       eventDate: data.eventDate,

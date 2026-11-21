@@ -110,6 +110,27 @@ test('demande : règles du traiteur (invités, délai), type d’événement, li
       await expect(blocked).toHaveAttribute('data-status', 'closed');
     }
 
+    // Sans date et sous le minimum : les deux erreurs ensemble, « obligatoire » (et non
+    // « Date invalide »), calendrier lisible (jours possibles pas en rouge d'erreur)
+    await guests.fill('5');
+    await wizard.getByRole('button', { name: 'Suivant' }).click();
+    const dateField = wizard.locator('[data-slot="field"]').filter({ has: picker });
+    await expect(dateField).toContainText('Ce champ est obligatoire.');
+    await expect(dateField).not.toContainText('Date invalide');
+    await expect(
+      wizard.getByText('Nous acceptons les demandes à partir de 10 invités.'),
+    ).toBeVisible();
+    const colors = await picker.evaluate((root) => {
+      const day = root.querySelector('[data-status="available"]');
+      const error = root.closest('[data-slot="field"]')?.querySelector('[data-slot="field-error"]');
+      return {
+        day: day ? getComputedStyle(day).color : '',
+        error: error ? getComputedStyle(error).color : '',
+      };
+    });
+    expect(colors.error).not.toBe('');
+    expect(colors.day).not.toBe(colors.error);
+
     // Sous le minimum du traiteur (10) : message clair, l'étape ne change pas
     const day = freeDayIn(40);
     await pickEventDate(page, day);

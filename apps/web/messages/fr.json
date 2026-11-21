@@ -355,7 +355,9 @@
     "categoryRequired": "Choisissez une catégorie : elle classe le matériel dans le catalogue et les commandes.",
     "buffetTypeRequired": "Choisissez un type de buffet : il classe le buffet dans le catalogue et les commandes.",
     "consentRequired": "Cochez la case pour accepter la politique de confidentialité.",
-    "featuredCount": "De 3 à 6 menus et buffets, ou aucun."
+    "featuredCount": "De 3 à 6 menus et buffets, ou aucun.",
+    "guestsBelowMinimum": "Nous acceptons les demandes à partir de {min} invités.",
+    "guestsAboveMaximum": "Nous acceptons les demandes jusqu’à {max} invités."
   },
   "catalog": {
     "title": "Catalogue",
@@ -2906,8 +2908,6 @@
       "next": "Suivant",
       "send": "Envoyer ma demande",
       "guestsRules": "De {min} à {max} invités.",
-      "guestsBelowMinimum": "Nous acceptons les demandes à partir de {min} invités.",
-      "guestsAboveMaximum": "Nous acceptons les demandes jusqu’à {max} invités.",
       "menuLimitsWarning": "« {menu} » est prévu pour {min} à {max} invités : le traiteur adaptera son devis.",
       "menuMinWarning": "« {menu} » est prévu à partir de {min} invités : le traiteur adaptera son devis.",
       "typeMismatch": "Votre demande contient une formule prévue pour {event} (« {menu} »). Continuer ou changer de formule ?",
