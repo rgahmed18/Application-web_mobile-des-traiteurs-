@@ -172,6 +172,10 @@ describe('Demandes en ligne des clients (application complète)', () => {
     tokens = app.get(TokenService);
 
     const traiteur = await createTraiteur();
+    // Devis activés : la date de l'événement est vérifiée jusque dans le devis (PDF)
+    await prisma.featureFlag.create({
+      data: { traiteurId: traiteur.id, key: 'quotes', enabled: true },
+    });
     admin = await actorFor(traiteur.id, 'ADMIN_TRAITEUR');
     otherAdmin = await actorFor((await createTraiteur()).id, 'ADMIN_TRAITEUR');
 
@@ -437,6 +441,23 @@ describe('Demandes en ligne des clients (application complète)', () => {
         endTime: end,
         endsNextDay: nextDay,
       });
+      // Devis (PDF) : l'événement figé dans le devis envoyé est le même jour, la même heure
+      const draft = (await api(admin).post(`/orders/${id}/quotes`, {}).expect(201)).body as {
+        id: string;
+      };
+      await api(admin).post(`/quotes/${draft.id}/send`).expect(200);
+      const quote = await prisma.quote.findUniqueOrThrow({ where: { id: draft.id } });
+      expect((quote.snapshot as { event: object }).event).toMatchObject({
+        date: day,
+        startTime: start,
+        endTime: end,
+        endsNextDay: nextDay,
+      });
+      const pdf = (await api(admin).get(`/quotes/${draft.id}/pdf`).expect(200)).body as {
+        url: string;
+      };
+      const bytes = Buffer.from(await (await fetch(pdf.url)).arrayBuffer());
+      expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
       await prisma.order.update({ where: { id }, data: { status: 'CANCELLED' } });
     }
   });
