@@ -20,6 +20,7 @@ import { z } from 'zod';
 
 import { FormField } from '@/components/forms/form-field';
 import { PhoneInput } from '@/components/forms/phone-input';
+import { UnsavedChangesBar } from '@/components/forms/unsaved-changes-bar';
 import { UnsavedChangesGuard } from '@/components/forms/unsaved-changes-guard';
 import { LoadError } from '@/components/layout/load-error';
 import {
@@ -68,7 +69,10 @@ export function Loaded<T>({
   return <>{children(query.data)}</>;
 }
 
-/** Barre d'enregistrement commune aux onglets. */
+/**
+ * Barre d'enregistrement commune aux onglets : fixe en bas de l'écran dès qu'un réglage est
+ * modifié (« Modifications non enregistrées — Annuler / Enregistrer »).
+ */
 export function SaveBar({
   dirty,
   submitting,
@@ -78,17 +82,7 @@ export function SaveBar({
   submitting: boolean;
   onReset: () => void;
 }) {
-  const tc = useTranslations('common');
-  return (
-    <div className="flex justify-end gap-3">
-      <Button type="button" variant="outline" disabled={!dirty} onClick={onReset}>
-        {tc('cancel')}
-      </Button>
-      <Button type="submit" disabled={submitting}>
-        {submitting ? tc('saving') : tc('save')}
-      </Button>
-    </div>
-  );
+  return <UnsavedChangesBar dirty={dirty} submitting={submitting} onReset={onReset} />;
 }
 
 // ─────────────────────────── Entreprise : coordonnées ───────────────────────────

@@ -228,6 +228,7 @@ export function EquipmentForm({ settings, item }: EquipmentFormProps) {
           cancelHref={LIST_PATH}
           submitting={form.formState.isSubmitting}
           disabled={uploading}
+          dirty={form.formState.isDirty && !saved}
         />
       </DraftFields>
     </form>

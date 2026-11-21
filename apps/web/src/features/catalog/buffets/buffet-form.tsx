@@ -274,6 +274,7 @@ export function BuffetForm({ settings, buffet }: { settings: CatalogSettings; bu
           cancelHref={LIST_PATH}
           submitting={form.formState.isSubmitting}
           disabled={uploading}
+          dirty={form.formState.isDirty && !saved}
         />
       </DraftFields>
     </form>

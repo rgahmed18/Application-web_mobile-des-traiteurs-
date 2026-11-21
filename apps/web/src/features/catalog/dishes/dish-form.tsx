@@ -280,6 +280,7 @@ export function DishForm({ settings, dish, mode }: DishFormProps) {
           cancelHref={LIST_PATH}
           submitting={form.formState.isSubmitting}
           disabled={uploading}
+          dirty={form.formState.isDirty && !saved}
         />
       </DraftFields>
     </form>

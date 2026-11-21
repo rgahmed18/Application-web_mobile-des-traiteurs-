@@ -176,3 +176,72 @@ test('site client : validation des nouveaux clients, photo de l’accueil, rappe
     await api.dispose();
   }
 });
+
+test('paramètres : barre « Modifications non enregistrées », brouillon non appliqué, règles des demandes', async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const api = await apiRequest.newContext();
+  const headers = await apiLogin(api);
+  const initial = (await (await api.get(`${API}/settings/site`, { headers })).json()) as object;
+
+  try {
+    await login(page);
+    await page.goto('/admin/settings?tab=site');
+    const site = page.getByTestId('site-settings');
+    const bar = page.getByTestId('unsaved-bar');
+    // Rien de modifié : pas de barre
+    await expect(site.getByLabel('Nombre minimum d’invités par demande')).toHaveValue('10');
+    await expect(site.getByLabel('Nombre maximum d’invités par demande')).toHaveValue('5000');
+    await expect(site.getByLabel('Délai minimum avant l’événement (en jours)')).toHaveValue('3');
+    await expect(bar).toHaveCount(0);
+
+    // Une modification : barre fixe visible à l'écran, brouillon « non appliqué »
+    await site.getByRole('switch', { name: /Validation des nouveaux clients/ }).click();
+    await expect(bar).toBeInViewport();
+    await expect(bar).toContainText('Modifications non enregistrées');
+    await expect(page.getByText(/Brouillon enregistré à .* \(non appliqué\)/)).toBeVisible({
+      timeout: 20_000,
+    });
+    const unapplied = (await (await api.get(`${API}/settings/site`, { headers })).json()) as {
+      requireClientApproval: boolean;
+    };
+    expect(unapplied.requireClientApproval).toBe(false);
+
+    // Quitter la page sans enregistrer : avertissement
+    await page.getByRole('link', { name: 'Commandes' }).first().click();
+    await expect(page.getByRole('alertdialog')).toContainText('Quitter sans enregistrer ?');
+    await page.getByRole('button', { name: 'Continuer la saisie' }).click();
+    await expect(page).toHaveURL(/tab=site/);
+
+    // « Annuler » de la barre : retour aux réglages enregistrés
+    await bar.getByRole('button', { name: 'Annuler' }).click();
+    await expect(bar).toHaveCount(0);
+    await expect(
+      site.getByRole('switch', { name: /Validation des nouveaux clients/ }),
+    ).not.toBeChecked();
+
+    // Règles des demandes : minimum > maximum refusé, puis enregistrées depuis la barre
+    await site.getByLabel('Nombre minimum d’invités par demande').fill('900');
+    await site.getByLabel('Nombre maximum d’invités par demande').fill('800');
+    await bar.getByRole('button', { name: 'Enregistrer' }).click();
+    await expect(
+      site.getByText('Le maximum doit être supérieur ou égal au minimum.'),
+    ).toBeVisible();
+    await site.getByLabel('Nombre minimum d’invités par demande').fill('20');
+    await site.getByLabel('Nombre maximum d’invités par demande').fill('800');
+    await site.getByLabel('Délai minimum avant l’événement (en jours)').fill('5');
+    await bar.getByRole('button', { name: 'Enregistrer' }).click();
+    await expect(page.getByText('Réglages du site client enregistrés')).toBeVisible();
+    await expect(bar).toHaveCount(0);
+    const saved = (await (await api.get(`${API}/settings/site`, { headers })).json()) as object;
+    expect(saved).toMatchObject({
+      requestMinGuests: 20,
+      requestMaxGuests: 800,
+      requestLeadDays: 5,
+    });
+  } finally {
+    await api.put(`${API}/settings/site`, { headers, data: initial });
+    await api.dispose();
+  }
+});

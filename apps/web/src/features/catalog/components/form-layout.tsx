@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
+import { UnsavedLabel } from '@/components/forms/unsaved-changes-bar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 /** Section de formulaire : titre et champs dans une carte. */
 export function FormSection({
@@ -50,20 +52,33 @@ export function FormActions({
   cancelHref,
   submitting,
   disabled,
+  dirty = false,
 }: {
   cancelHref: string;
   submitting: boolean;
   disabled?: boolean;
+  /** Modifications non enregistrées : la barre le signale. */
+  dirty?: boolean;
 }) {
   const t = useTranslations('common');
   return (
-    <div className="sticky bottom-0 z-10 -mx-4 flex justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-      <Button asChild variant="outline" size="lg">
-        <Link href={cancelHref}>{t('cancel')}</Link>
-      </Button>
-      <Button type="submit" size="lg" disabled={submitting || disabled}>
-        {submitting ? t('saving') : t('save')}
-      </Button>
+    <div
+      className={cn(
+        'sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6',
+        dirty &&
+          'justify-between border-amber-300 bg-amber-50/95 dark:border-amber-800 dark:bg-amber-950/95',
+      )}
+      data-testid={dirty ? 'unsaved-bar' : undefined}
+    >
+      {dirty && <UnsavedLabel />}
+      <div className="flex flex-wrap gap-3">
+        <Button asChild variant="outline" size="lg">
+          <Link href={cancelHref}>{t('cancel')}</Link>
+        </Button>
+        <Button type="submit" size="lg" disabled={submitting || disabled}>
+          {submitting ? t('saving') : t('save')}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 
 import { FormField } from '@/components/forms/form-field';
+import { UnsavedChangesBar } from '@/components/forms/unsaved-changes-bar';
 import { UnsavedChangesGuard } from '@/components/forms/unsaved-changes-guard';
 import { LoadError } from '@/components/layout/load-error';
 import { Button } from '@/components/ui/button';
@@ -218,7 +219,6 @@ function BillingForm({
   section: BillingSection;
 }) {
   const t = useTranslations('settings.billing');
-  const tc = useTranslations('common');
   const describeError = useErrorMessage();
   const save = useSaveBillingSettings();
   const form = useZodForm(formSchema, toFormValues(settings));
@@ -418,26 +418,11 @@ function BillingForm({
           </FormSection>
         )}
 
-        <div
-          className={
-            section === 'documents'
-              ? 'sticky bottom-0 z-10 -mx-4 flex justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6'
-              : 'flex justify-end gap-3'
-          }
-        >
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            disabled={!form.formState.isDirty}
-            onClick={() => form.reset(toFormValues(settings))}
-          >
-            {tc('cancel')}
-          </Button>
-          <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? tc('saving') : tc('save')}
-          </Button>
-        </div>
+        <UnsavedChangesBar
+          dirty={form.formState.isDirty}
+          submitting={form.formState.isSubmitting}
+          onReset={() => form.reset(toFormValues(settings))}
+        />
       </DraftFields>
     </form>
   );

@@ -19,6 +19,7 @@ import { Controller, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { FormField } from '@/components/forms/form-field';
+import { UnsavedLabel } from '@/components/forms/unsaved-changes-bar';
 import { UnsavedChangesGuard } from '@/components/forms/unsaved-changes-guard';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -40,6 +41,7 @@ import { DraftFields } from '@/features/drafts/draft-fields';
 import { FormDraftNotice } from '@/features/drafts/form-draft-notice';
 import { useFormDraft } from '@/features/drafts/use-form-draft';
 import { useZodForm } from '@/lib/forms/use-zod-form';
+import { cn } from '@/lib/utils';
 import { useCatalogList, useEquipmentAvailability } from '@/features/catalog/catalog-api';
 import { useLocalized } from '@/features/catalog/use-localized';
 
@@ -603,7 +605,16 @@ export function OrderForm({
           </div>
         </div>
 
-        <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <div
+          className={cn(
+            'sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6',
+            form.formState.isDirty &&
+              !saved &&
+              'border-amber-300 bg-amber-50/95 dark:border-amber-800 dark:bg-amber-950/95',
+          )}
+          data-testid={form.formState.isDirty && !saved ? 'unsaved-bar' : undefined}
+        >
+          {form.formState.isDirty && !saved && <UnsavedLabel className="me-auto" />}
           <Button asChild variant="outline" size="lg">
             <Link href={backHref}>{tc('cancel')}</Link>
           </Button>

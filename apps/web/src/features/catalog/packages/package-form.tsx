@@ -218,6 +218,7 @@ export function PackageForm({ settings, pkg, mode }: PackageFormProps) {
           cancelHref={LIST_PATH}
           submitting={form.formState.isSubmitting}
           disabled={uploading}
+          dirty={form.formState.isDirty && !saved}
         />
       </DraftFields>
     </form>
