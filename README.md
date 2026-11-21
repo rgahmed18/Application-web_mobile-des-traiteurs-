@@ -171,7 +171,12 @@ gammes et types d'événement des formules, et 3 commandes qui les utilisent : u
 le 12/11, un mariage le 21/11 qui mobilise 250 des 300 chaises, et des fiançailles en attente le
 même soir avec 120 chaises (la confirmation signale le manque et demande un motif).
 
-Mot de passe commun : **`Password123!`**
+Mot de passe commun (développement uniquement) : **`Password123!`**
+
+> Le seed refuse toujours de tourner en production (`APP_ENV`/`ENVIRONMENT=production`). En
+> staging, il exige `ALLOW_STAGING_DEMO_SEED=true` et un `DEMO_SEED_PASSWORD` propre au
+> serveur (jamais `Password123!`), et ne crée pas le compte SUPER_ADMIN : sur un serveur, le
+> super admin se crée uniquement avec `super-admin create` (docs/deploiement.md, étape 13).
 
 | Rôle           | Téléphone     | Email                           |
 | -------------- | ------------- | ------------------------------- |
@@ -1054,11 +1059,15 @@ puis solde, avoirs, numérotation partagée, annulation, frais, immuabilité, ex
 Par sécurité, ils refusent de s'exécuter sur une base dont le nom ne se termine pas par `_test`.
 
 **CI GitHub Actions** (`.github/workflows/ci.yml`), à chaque push sur `main` et chaque pull
-request :
+request (dépôt privé : chaque job ne tourne que s'il est concerné, un push plus récent annule
+le run en cours) :
 
-1. Formatage, lint, typecheck, tests unitaires et build.
-2. Avec PostgreSQL, Redis et RustFS : migrations, détection d'écart schéma/migrations, seed
-   exécuté deux fois (idempotence), tests d'intégration, parcours e2e Playwright.
+1. Formatage ; lint, typecheck, tests unitaires et build (sauf documentation seule ; cache
+   Turborepo).
+2. Si l'API, le back-office, le site ou les paquets changent, avec PostgreSQL, Redis et
+   RustFS : migrations, détection d'écart schéma/migrations, seed exécuté deux fois
+   (idempotence), tests d'intégration, parcours e2e Playwright (navigateur en cache).
+3. Si `deploy/` change : ShellCheck, sauvegarde et restauration réelles.
 
 ## Référence des commandes
 
@@ -1084,16 +1093,16 @@ Guide pas à pas : **[docs/deploiement.md](docs/deploiement.md)** (domaine, Clou
 serveurs Hetzner, GitHub Actions, alertes, sauvegardes, création du traiteur pilote, checklist
 avant la mise en production, retour en arrière, restauration).
 
-| Élément                                                                                                 | Emplacement                                                                                                                                                                                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Images Docker (construites uniquement par GitHub Actions)                                               | `docker/api.Dockerfile` (API, worker, migrations, commandes), `docker/web.Dockerfile`                                                                                                                                                                                                            |
-| Services d'un serveur                                                                                   | `deploy/docker-compose.prod.yml`, `deploy/Caddyfile`                                                                                                                                                                                                                                             |
-| Configuration d'un serveur (modèle, avec la commande de chaque secret)                                  | `deploy/env.example`                                                                                                                                                                                                                                                                             |
-| Scripts serveur                                                                                         | `deploy/scripts/` : `bootstrap-server.sh`, `deploy.sh`, `backup.sh`, `restore.sh`, `verify-backup.sh`, `check-backup-lock.sh`, `ci-deploy.sh`, `compose.sh`                                                                                                                                      |
-| Déploiement                                                                                             | `.github/workflows/deploy.yml` : staging après chaque CI réussie sur `main`, production sur étiquette `v*` (approbation en plus si l'offre GitHub la permet) ; secrets `STAGING_SSH_*` / `PRODUCTION_SSH_*` du dépôt, public ou privé ; démarrage réel des images vérifié avant tout déploiement |
-| Test réel des sauvegardes                                                                               | `deploy/tests/backup-restore.sh` (aussi en CI)                                                                                                                                                                                                                                                   |
-| Création d'un traiteur                                                                                  | `node dist/cli/create-traiteur.js` (dans l'image API)                                                                                                                                                                                                                                            |
-| Compte super admin : création (lien de 24 h), réinitialisation de secours de la double authentification | `node dist/cli/super-admin.js create` / `reset-2fa` (dans l'image API, voir docs/deploiement.md étape 13)                                                                                                                                                                                        |
+| Élément                                                                                                 | Emplacement                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Images Docker (construites uniquement par GitHub Actions)                                               | `docker/api.Dockerfile` (API, worker, migrations, commandes), `docker/web.Dockerfile`                                                                                                                                                                                                                                                                                                                                                            |
+| Services d'un serveur                                                                                   | `deploy/docker-compose.prod.yml`, `deploy/Caddyfile`                                                                                                                                                                                                                                                                                                                                                                                             |
+| Configuration d'un serveur (modèle, avec la commande de chaque secret)                                  | `deploy/env.example`                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Scripts serveur                                                                                         | `deploy/scripts/` : `bootstrap-server.sh`, `ghcr-login.sh` (images privées), `deploy.sh`, `backup.sh`, `restore.sh`, `verify-backup.sh`, `check-backup-lock.sh`, `ci-deploy.sh`, `compose.sh`                                                                                                                                                                                                                                                    |
+| Déploiement                                                                                             | `.github/workflows/deploy.yml` : staging après chaque CI réussie sur `main`, production sur étiquette `v*` (approbation en plus si l'offre GitHub la permet) ; secrets `STAGING_SSH_*` / `PRODUCTION_SSH_*` du dépôt (privé) ; images privées sur GHCR, téléchargées par chaque serveur avec son propre jeton `read:packages` ; images reconstruites seulement si leur contenu change ; démarrage réel des images vérifié avant tout déploiement |
+| Test réel des sauvegardes                                                                               | `deploy/tests/backup-restore.sh` (aussi en CI)                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Création d'un traiteur                                                                                  | `node dist/cli/create-traiteur.js` (dans l'image API)                                                                                                                                                                                                                                                                                                                                                                                            |
+| Compte super admin : création (lien de 24 h), réinitialisation de secours de la double authentification | `node dist/cli/super-admin.js create` / `reset-2fa` (dans l'image API, voir docs/deploiement.md étape 13)                                                                                                                                                                                                                                                                                                                                        |
 
 Ne construisez pas les images sur le poste de développement : elles occupent plusieurs Go
 (le disque virtuel de Docker Desktop ne rend pas l'espace tout seul).

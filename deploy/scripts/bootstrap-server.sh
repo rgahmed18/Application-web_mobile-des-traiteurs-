@@ -159,6 +159,7 @@ cat <<'DONE'
   1. Définir le mot de passe sudo de deploy :   passwd deploy
   2. Ouvrir une NOUVELLE session pour vérifier :  ssh deploy@<adresse du serveur>
      (ne fermez pas cette session root avant d'avoir vérifié !)
-  3. Remplir /opt/traiteur/.env, créer la clé machine des sauvegardes, se connecter à GHCR,
+  3. Remplir /opt/traiteur/.env, créer la clé machine des sauvegardes, se connecter à GHCR
+     (/opt/traiteur/scripts/ghcr-login.sh VOTRE_COMPTE, jeton read:packages),
      puis démarrer les minuteurs : sudo systemctl start traiteur-backup.timer traiteur-verify-backup.timer
 DONE

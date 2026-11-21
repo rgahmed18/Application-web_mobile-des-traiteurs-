@@ -43,7 +43,12 @@ wait_healthy() {
 }
 
 log "Téléchargement des images…"
-compose_tag "$TAG" pull api worker web migrate
+if ! compose_tag "$TAG" pull api worker web migrate; then
+  log "Téléchargement des images $TAG impossible."
+  log "Images privées : connexion à ghcr.io absente ou jeton expiré."
+  log "Sur le serveur : /opt/traiteur/scripts/ghcr-login.sh VOTRE_COMPTE (docs/deploiement.md, 7.3)"
+  exit 1
+fi
 
 log "Démarrage de la base et de Redis…"
 compose_tag "${PREVIOUS:-$TAG}" up -d postgres redis

@@ -335,7 +335,8 @@ valeur **sur le serveur** avec la commande indiquée et collez-la :
 Valeurs du staging : `ENVIRONMENT=staging`, `APP_HOST=staging.DOMAINE`,
 `TENANT_BASE_DOMAIN=staging.DOMAINE`, `MEDIA_HOST=media-staging.DOMAINE`,
 `ROBOTS=noindex, nofollow`,
-`ALLOW_DEMO_SEED=true`, `IMAGE_REGISTRY=ghcr.io/VOTRE_COMPTE`, les buckets et jetons
+`ALLOW_STAGING_DEMO_SEED=true`, `DEMO_SEED_PASSWORD` (`openssl rand -base64 18`),
+`IMAGE_REGISTRY=ghcr.io/VOTRE_COMPTE`, les buckets et jetons
 `staging` de l'étape 4. Gardez les valeurs de mémoire réduites indiquées en bas du fichier
 (serveur de 4 Go).
 
@@ -363,21 +364,46 @@ Dans `.env`, `BACKUP_AGE_RECIPIENTS` = **clé publique de secours** (étape 5), 
 BACKUP_AGE_RECIPIENTS=age1…secours… age1…machine…
 ```
 
-### 7.3 Accès aux images (GitHub Container Registry)
+### 7.3 Accès aux images (GitHub Container Registry, privé)
 
-Les images peuvent être privées (c'est le cas si le dépôt l'est, voir 8.3) : le serveur doit
-alors s'identifier pour les télécharger. GitHub › **Settings** (de votre compte) ›
-**Developer settings** › **Personal access tokens** › **Tokens (classic)** › **Generate new
-token** : nom `ghcr-staging`, expiration 1 an, **une seule** case : `read:packages`. (Un jeton
-« classique » est nécessaire : le registre d'images n'accepte pas les jetons à granularité
-fine.) Puis sur le serveur :
+Le dépôt et les images `traiteur-api` et `traiteur-web` sont **privés** : chaque serveur doit
+s'identifier pour les télécharger. Le jeton est **en lecture seule**, propre à chaque serveur
+(`ghcr-staging`, `ghcr-prod`), et n'est stocké **que sur ce serveur** : jamais dans le dépôt,
+le `.env`, GitHub Actions ni un message.
 
-```bash
-docker login ghcr.io -u VOTRE_COMPTE
-# Password : collez le jeton (lecture seule des images, rien d'autre)
-```
+**Pourquoi un jeton « classique » ?** GitHub n'accepte toujours pas les jetons à granularité
+fine (« fine-grained », `github_pat_…`) pour télécharger des images GHCR : seul un jeton
+classique fonctionne. On le restreint au strict minimum : **une seule** case,
+`read:packages` (lecture des images, aucun accès au code, aucune écriture).
 
-Notez dans votre agenda la date d'expiration du jeton (le renouveler avant).
+1. GitHub › **Settings** (de votre compte) › **Developer settings** › **Personal access
+   tokens** › **Tokens (classic)** › **Generate new token (classic)** : nom `ghcr-staging`
+   (puis `ghcr-prod` pour la production), expiration **1 an**, cochez **uniquement**
+   `read:packages`.
+2. Sur le serveur, en tant que `deploy` :
+
+   ```bash
+   /opt/traiteur/scripts/ghcr-login.sh VOTRE_COMPTE
+   # Jeton GHCR : collez-le (rien ne s'affiche) puis Entrée
+   ```
+
+   Le script refuse un jeton fine-grained, se connecte (`docker login --password-stdin` :
+   le jeton n'apparaît ni à l'écran ni dans l'historique), protège
+   `~/.docker/config.json` (`chmod 600`, lisible par `deploy` seul) et vérifie l'accès.
+
+3. Notez la date d'expiration dans votre agenda et relancez la même commande avec un nouveau
+   jeton **avant** cette date. Un jeton expiré ou absent arrête le déploiement avec ce
+   message : « connexion à ghcr.io absente ou jeton expiré » (rien n'est modifié sur le
+   serveur).
+
+**Option plus stricte** : un jeton classique donne accès en lecture à **tous** les paquets que
+votre compte peut lire. Pour le limiter à ces seules images, créez un compte GitHub dédié
+(`traiteur-deploy`), invitez-le en **lecture** sur le dépôt (ou donnez-lui l'accès **Read**
+dans **Package settings** › **Manage access** de chaque image) et créez le jeton depuis ce
+compte.
+
+**En cas de fuite** : GitHub › **Settings** › **Developer settings** › révoquez le jeton,
+créez-en un autre, relancez `ghcr-login.sh` sur le serveur concerné.
 
 ## 8. GitHub : déploiement automatique
 
@@ -427,13 +453,13 @@ GitHub, et vous pouvez toujours en créer une nouvelle).
 Le dépôt peut passer en privé (**Settings** › **General** › **Danger Zone** › **Change
 visibility**). Tout continue de fonctionner, avec ces réglages :
 
-| Élément                             | À faire / à savoir                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **CI (GitHub Actions)**             | Rien à configurer. L'offre gratuite inclut **2 000 minutes par mois** pour les dépôts privés. Mesuré : environ **16 minutes par push sur `main`** (9 de CI, 7 de construction des images), soit une centaine de pushes par mois. Regroupez vos commits avant de pousser ; **Settings** (de votre compte) › **Billing and plans** : laissez la limite de dépenses à 0 € (au-delà du quota, les workflows s'arrêtent au lieu d'être facturés).                                                                   |
-| **Images (GHCR)**                   | Stockage et transfert des images **gratuits**, même privées (GitHub prévient un mois avant tout changement). Après le passage en privé, vérifiez la visibilité de chaque image : votre profil GitHub › **Packages** › `traiteur-api` puis `traiteur-web` › **Package settings** › **Change visibility** › **Private**. Dans **Manage Actions access**, le dépôt doit avoir le rôle **Write** (il l'a, s'il a publié l'image).                                                                                  |
-| **Téléchargement par les serveurs** | Obligatoire : le jeton `read:packages` et `docker login ghcr.io` de l'étape 7.3, sur chaque serveur.                                                                                                                                                                                                                                                                                                                                                                                                           |
-| **Secrets du déploiement**          | Rien à changer : les secrets `STAGING_SSH_*` et `PRODUCTION_SSH_*` sont des secrets **du dépôt** (les « environnements » GitHub et leurs secrets ne sont pas disponibles pour un dépôt privé sur l'offre gratuite).                                                                                                                                                                                                                                                                                            |
-| **Approbation de la production**    | L'approbation obligatoire (« Required reviewers ») n'existe pour un dépôt privé qu'avec GitHub Enterprise. Sans elle, la garde manuelle est **l'étiquette de version** : la production ne reçoit une version que lorsque **vous** poussez `vX.Y.Z` (personne d'autre ne doit avoir les droits d'écriture sur le dépôt). Avec un dépôt public (ou Enterprise), vous pouvez ajouter l'approbation : environnement `production` avec **Required reviewers** = vous, puis variable `PRODUCTION_APPROVAL` = `true`. |
+| Élément                             | À faire / à savoir                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CI (GitHub Actions)**             | Rien à configurer. L'offre gratuite inclut **2 000 minutes par mois** pour les dépôts privés. Chaque job ne tourne que s'il est concerné : parcours e2e seulement si l'API, le back-office, le site ou les paquets changent ; scripts serveur seulement si `deploy/` change ; images reconstruites seulement si leur contenu change (sinon ré-étiquetées en quelques secondes) ; un push plus récent annule le run en cours. Ordre de grandeur (estimation) : ~30 minutes pour un push qui touche l'application, ~4 minutes pour un push de documentation. La durée facturable réelle de chaque run s'affiche dans **Actions** › le run › **Usage**. Regroupez vos commits avant de pousser ; **Settings** (de votre compte) › **Billing and plans** : laissez la limite de dépenses à 0 € (au-delà du quota, les workflows s'arrêtent au lieu d'être facturés). |
+| **Images (GHCR)**                   | Stockage et transfert des images **gratuits**, même privées (GitHub prévient un mois avant tout changement). Après le passage en privé, vérifiez la visibilité de chaque image : votre profil GitHub › **Packages** › `traiteur-api` puis `traiteur-web` › **Package settings** › **Change visibility** › **Private**. Dans **Manage Actions access**, le dépôt doit avoir le rôle **Write** (il l'a, s'il a publié l'image).                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **Téléchargement par les serveurs** | Obligatoire : un jeton `read:packages` par serveur et `ghcr-login.sh` (étape 7.3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Secrets du déploiement**          | Rien à changer : les secrets `STAGING_SSH_*` et `PRODUCTION_SSH_*` sont des secrets **du dépôt** (les « environnements » GitHub et leurs secrets ne sont pas disponibles pour un dépôt privé sur l'offre gratuite).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Approbation de la production**    | L'approbation obligatoire (« Required reviewers ») n'existe pour un dépôt privé qu'avec GitHub Enterprise. Sans elle, la garde manuelle est **l'étiquette de version** : la production ne reçoit une version que lorsque **vous** poussez `vX.Y.Z` (personne d'autre ne doit avoir les droits d'écriture sur le dépôt). Avec un dépôt public (ou Enterprise), vous pouvez ajouter l'approbation : environnement `production` avec **Required reviewers** = vous, puis variable `PRODUCTION_APPROVAL` = `true`.                                                                                                                                                                                                                                                                                                                                                   |
 
 ## 9. Premier déploiement du staging
 
@@ -452,7 +478,12 @@ certificat HTTPS est obtenu automatiquement au premier accès (quelques secondes
 /opt/traiteur/scripts/compose.sh run --rm api node dist-seed/prisma/seed.js
 ```
 
-Connectez-vous avec un compte de démonstration (README, « Comptes de démonstration »).
+Le seed est **toujours refusé** si `ENVIRONMENT=production` (aucune variable ne peut
+l'autoriser) ; en staging, il exige `ALLOW_STAGING_DEMO_SEED=true` et un
+`DEMO_SEED_PASSWORD` propre au serveur (12 caractères au moins, jamais `Password123!`).
+Connectez-vous avec un compte de démonstration du README, avec **ce** mot de passe. Le seed
+ne crée **aucun** super admin sur un serveur : il se crée uniquement avec `super-admin create`
+(section 13, mot de passe choisi par vous via le lien d'activation).
 
 ## 10. Surveillance et alertes
 
@@ -529,16 +560,16 @@ temporairement la clé depuis votre gestionnaire de mots de passe, puis supprime
 
 Mêmes étapes que le staging, avec ces différences :
 
-| Étape | Production                                                                                                                                                                                                                                                                                                                                         |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6.2   | Type **CX33**, nom `traiteur-prod` ; option **Backups** Hetzner conseillée (+20 %, copie complète du serveur)                                                                                                                                                                                                                                      |
-| 6.3   | Enregistrements **A** `app` et `*` → `IP_PROD`, nuage gris                                                                                                                                                                                                                                                                                         |
-| 7.1   | `ENVIRONMENT=production`, `APP_HOST=app.DOMAINE`, `TENANT_BASE_DOMAIN=DOMAINE`, `MEDIA_HOST=media.DOMAINE`, `ROBOTS=all`, **`ALLOW_DEMO_SEED=false`**, buckets et jetons `prod`, **nouveaux** secrets (jamais ceux du staging), supprimez les lignes de mémoire réduite (valeurs par défaut) ; `SMS_PROVIDER=http`, `SMS_FALLBACK_PROVIDER=twilio` |
-| 7.2   | Clé de secours **de production**                                                                                                                                                                                                                                                                                                                   |
-| 7.3   | Jeton `ghcr-prod` distinct                                                                                                                                                                                                                                                                                                                         |
-| 8.1   | Clé `github-deploy-prod`, ajoutée sur le serveur de production                                                                                                                                                                                                                                                                                     |
-| 8.2   | Secrets du dépôt `PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_PRIVATE_KEY`, `PRODUCTION_SSH_KNOWN_HOSTS` (valeurs de production) ; variable `DEPLOY_PRODUCTION` = `true` ; approbation obligatoire en plus si votre offre le permet (8.3)                                                                                                                |
-| 9     | **Pas de seed de démonstration** (il est d'ailleurs refusé)                                                                                                                                                                                                                                                                                        |
+| Étape | Production                                                                                                                                                                                                                                                                                                                                                                        |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6.2   | Type **CX33**, nom `traiteur-prod` ; option **Backups** Hetzner conseillée (+20 %, copie complète du serveur)                                                                                                                                                                                                                                                                     |
+| 6.3   | Enregistrements **A** `app` et `*` → `IP_PROD`, nuage gris                                                                                                                                                                                                                                                                                                                        |
+| 7.1   | `ENVIRONMENT=production`, `APP_HOST=app.DOMAINE`, `TENANT_BASE_DOMAIN=DOMAINE`, `MEDIA_HOST=media.DOMAINE`, `ROBOTS=all`, **sans `ALLOW_STAGING_DEMO_SEED` ni `DEMO_SEED_PASSWORD`**, buckets et jetons `prod`, **nouveaux** secrets (jamais ceux du staging), supprimez les lignes de mémoire réduite (valeurs par défaut) ; `SMS_PROVIDER=http`, `SMS_FALLBACK_PROVIDER=twilio` |
+| 7.2   | Clé de secours **de production**                                                                                                                                                                                                                                                                                                                                                  |
+| 7.3   | Jeton `ghcr-prod` distinct                                                                                                                                                                                                                                                                                                                                                        |
+| 8.1   | Clé `github-deploy-prod`, ajoutée sur le serveur de production                                                                                                                                                                                                                                                                                                                    |
+| 8.2   | Secrets du dépôt `PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_PRIVATE_KEY`, `PRODUCTION_SSH_KNOWN_HOSTS` (valeurs de production) ; variable `DEPLOY_PRODUCTION` = `true` ; approbation obligatoire en plus si votre offre le permet (8.3)                                                                                                                                               |
+| 9     | **Pas de seed de démonstration** (il est d'ailleurs refusé)                                                                                                                                                                                                                                                                                                                       |
 
 **Fournisseur SMS** (production) : après vos essais, renseignez `SMS_HTTP_*` selon la
 documentation de l'agrégateur retenu (exemples dans `apps/api/.env.example`), le nom
@@ -682,7 +713,8 @@ le service au traiteur pilote.
 - [ ] Tous les secrets générés avec les commandes de l'étape 7.1, **différents** du staging
       (commande de vérification de l'étape 7.1 : « ✓ secrets renseignés »)
 - [ ] `.env` en `-rw------- deploy deploy` (`ls -l /opt/traiteur/.env`)
-- [ ] `ALLOW_DEMO_SEED=false`, `ROBOTS=all`, `ENVIRONMENT=production`
+- [ ] `ENVIRONMENT=production` (seed de démonstration alors refusé d'office), `ROBOTS=all`,
+      ni `ALLOW_STAGING_DEMO_SEED` ni `DEMO_SEED_PASSWORD`
 - [ ] SMS réel configuré : demandez un code de connexion sur votre propre téléphone, il arrive
 - [ ] 2FA activée sur Cloudflare, Hetzner, GitHub et Sentry
 - [ ] Compte super admin créé (étape 13), double authentification activée, codes de secours

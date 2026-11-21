@@ -15,7 +15,12 @@ TAG="${BASH_REMATCH[1]}"
 REGISTRY="$(sed -n 's/^IMAGE_REGISTRY=//p' "$ROOT/.env" | tail -n 1)"
 IMAGE="$REGISTRY/traiteur-api:$TAG"
 
-docker pull --quiet "$IMAGE" >/dev/null
+# Images privées : le serveur doit être connecté à ghcr.io (ghcr-login.sh, jeton read:packages)
+if ! docker pull --quiet "$IMAGE" >/dev/null; then
+  echo "Téléchargement de $IMAGE impossible." >&2
+  printf '%s\n' "Images privées : connexion à ghcr.io absente ou jeton expiré." "Sur le serveur : /opt/traiteur/scripts/ghcr-login.sh VOTRE_COMPTE (docs/deploiement.md, 7.3)" >&2
+  exit 1
+fi
 CID="$(docker create "$IMAGE")"
 RELEASE="$(mktemp -d)"
 trap 'docker rm -f "$CID" >/dev/null 2>&1 || true; rm -rf "$RELEASE"' EXIT
